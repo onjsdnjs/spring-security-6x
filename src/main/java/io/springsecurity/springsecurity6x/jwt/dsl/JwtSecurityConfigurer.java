@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.jwt.JwtScopeAuthorizationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthenticationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthorizationFilter;
+import io.springsecurity.springsecurity6x.jwt.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtRefreshTokenFilter;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -71,6 +72,9 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
         JwtRefreshTokenFilter refreshFilter = new JwtRefreshTokenFilter(tokenService,refreshUri);
         http.addFilterAfter(refreshFilter, JwtAuthorizationFilter.class);
+
+        JwtLogoutFilter logoutFilter = new JwtLogoutFilter(tokenService,logoutUri);
+        http.addFilterAfter(logoutFilter, JwtRefreshTokenFilter.class);
 
 
     }

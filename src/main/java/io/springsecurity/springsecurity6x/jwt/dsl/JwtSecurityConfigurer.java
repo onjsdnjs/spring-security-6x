@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityConfigurer, HttpSecurity> {
+
     private TokenService tokenService;
     private RefreshTokenStore refreshTokenStore;
     private String tokenPrefix = "Bearer ";
@@ -33,6 +34,47 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
     private AuthenticationManager authenticationManager;
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
+
+
+
+    @Override
+    public void configure(HttpSecurity http) {
+        // 로그인 필터 설정
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
+
+        if (authenticationManager != null) {
+            filter.setAuthenticationManager(authenticationManager);
+        }else{
+            AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+            filter.setAuthenticationManager(authenticationManager);
+        }
+        filter.setTokenService(tokenService);
+        filter.setRefreshTokenStore(refreshTokenStore);
+        filter.setTokenPrefix(tokenPrefix);
+        filter.setAccessTokenValidity(accessTokenValidity);
+        filter.setRefreshTokenValidity(refreshTokenValidity);
+        filter.setLoginUri(loginUri);
+        filter.setLogoutUri(logoutUri);
+        filter.setRefreshUri(refreshUri);
+        filter.setRolesClaim(rolesClaim);
+        filter.setScopesClaim(scopesClaim);
+        filter.setEnableRefreshToken(enableRefreshToken);
+        filter.setScopeToPattern(scopeToPattern);
+        filter.setAuthenticationManager(authenticationManager);
+        filter.setAuthenticationSuccessHandler(successHandler);
+        filter.setAuthenticationFailureHandler(failureHandler);
+        http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+
+        // 리프레시 토큰 필터 설정
+        JwtRefreshTokenFilter refreshFilter = new JwtRefreshTokenFilter(refreshUri);
+        refreshFilter.setTokenService(tokenService);
+        refreshFilter.setRefreshTokenStore(refreshTokenStore);
+        http.addFilterAfter(refreshFilter, JwtAuthenticationFilter.class);
+    }
+
+    public static JwtSecurityConfigurer jwt() {
+        return new JwtSecurityConfigurer();
+    }
 
     public JwtSecurityConfigurer tokenService(TokenService tokenService) {
         this.tokenService = tokenService;
@@ -109,38 +151,6 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
         consumer.accept(conf);
         this.scopeToPattern = conf.getScopeToPattern();
         return this;
-    }
-
-    @Override
-    public void configure(HttpSecurity http) {
-        // 로그인 필터 설정
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
-        filter.setTokenService(tokenService);
-        filter.setRefreshTokenStore(refreshTokenStore);
-        filter.setTokenPrefix(tokenPrefix);
-        filter.setAccessTokenValidity(accessTokenValidity);
-        filter.setRefreshTokenValidity(refreshTokenValidity);
-        filter.setLoginUri(loginUri);
-        filter.setLogoutUri(logoutUri);
-        filter.setRefreshUri(refreshUri);
-        filter.setRolesClaim(rolesClaim);
-        filter.setScopesClaim(scopesClaim);
-        filter.setEnableRefreshToken(enableRefreshToken);
-        filter.setScopeToPattern(scopeToPattern);
-        filter.setAuthenticationManager(authenticationManager);
-        filter.setAuthenticationSuccessHandler(successHandler);
-        filter.setAuthenticationFailureHandler(failureHandler);
-        http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
-
-        // 리프레시 토큰 필터 설정
-        JwtRefreshTokenFilter refreshFilter = new JwtRefreshTokenFilter(refreshUri);
-        refreshFilter.setTokenService(tokenService);
-        refreshFilter.setRefreshTokenStore(refreshTokenStore);
-        http.addFilterAfter(refreshFilter, JwtAuthenticationFilter.class);
-    }
-
-    public static JwtSecurityConfigurer jwt() {
-        return new JwtSecurityConfigurer();
     }
 }
 

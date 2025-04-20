@@ -11,7 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 
@@ -21,17 +20,15 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "jwt.provider", havingValue = "spring", matchIfMissing = true)
-    public TokenService springTokenService(JwtEncoder encoder, JwtDecoder decoder,
-                                           AuthenticationManager authManager,
-                                           RefreshTokenStore refreshTokenStore) {
-        return new SpringJwtTokenService(encoder, decoder, authManager, refreshTokenStore);
+    public TokenService springTokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore refreshTokenStore) {
+        return new SpringJwtTokenService(encoder, decoder, refreshTokenStore);
     }
 
 
     @Bean
-    @ConditionalOnProperty(name = "jwt.provider", havingValue = "jwt")
-    public TokenService jjwtTokenService(AuthenticationManager authManager) {
-        return new JwtTokenService(authManager);
+    @ConditionalOnProperty(name = "jwt.provider", havingValue = "jwt", matchIfMissing = true)
+    public TokenService jwtTokenService() {
+        return new JwtTokenService();
     }
 
     @Bean

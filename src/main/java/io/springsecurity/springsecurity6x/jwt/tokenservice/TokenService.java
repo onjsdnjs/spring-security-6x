@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
@@ -19,6 +18,5 @@ public interface TokenService {
 
     void invalidateToken(String refreshToken);
 
-    AuthenticationManager getAuthenticationManager();
 }
 

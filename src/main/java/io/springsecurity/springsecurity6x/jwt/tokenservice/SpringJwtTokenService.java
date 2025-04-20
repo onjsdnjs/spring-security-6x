@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,18 +14,14 @@ public class SpringJwtTokenService implements TokenService {
 
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
-    private final AuthenticationManager authManager;
     private final RefreshTokenStore refreshTokenStore;
 
     private final long accessTokenValidity = 3600; // seconds
     private final long refreshTokenValidity = 604800; // seconds
 
-    public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder,
-                                 AuthenticationManager authManager,
-                                 RefreshTokenStore refreshTokenStore) {
+    public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, RefreshTokenStore refreshTokenStore) {
         this.jwtEncoder = jwtEncoder;
         this.jwtDecoder = jwtDecoder;
-        this.authManager = authManager;
         this.refreshTokenStore = refreshTokenStore;
     }
 
@@ -80,11 +75,6 @@ public class SpringJwtTokenService implements TokenService {
     @Override
     public void invalidateToken(String refreshToken) {
         refreshTokenStore.remove(refreshToken);
-    }
-
-    @Override
-    public AuthenticationManager getAuthenticationManager() {
-        return authManager;
     }
 }
 

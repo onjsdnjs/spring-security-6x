@@ -18,13 +18,8 @@ public class JwtTokenService implements TokenService {
 
     private final String secret = "very-secret-key";
     private final Map<String, String> refreshStore = new ConcurrentHashMap<>();
-    private final AuthenticationManager authManager;
     private final long accessTokenValidity = 3600000;
     private final long refreshTokenValidity = 604800000;
-
-    public JwtTokenService(AuthenticationManager authManager) {
-        this.authManager = authManager;
-    }
 
     @Override
     public String createAccessToken(String username, List<String> roles) {
@@ -78,9 +73,5 @@ public class JwtTokenService implements TokenService {
         refreshStore.remove(refreshToken);
     }
 
-    @Override
-    public AuthenticationManager getAuthenticationManager() {
-        return authManager;
-    }
 }
 

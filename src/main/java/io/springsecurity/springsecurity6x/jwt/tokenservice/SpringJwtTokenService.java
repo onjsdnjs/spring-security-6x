@@ -7,17 +7,14 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.*;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Consumer;
 
 public class SpringJwtTokenService implements TokenService {
 
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
     private final RefreshTokenStore refreshTokenStore;
-
-    private final long accessTokenValidity = 3600; // seconds
-    private final long refreshTokenValidity = 604800; // seconds
 
     public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, RefreshTokenStore refreshTokenStore) {
         this.jwtEncoder = jwtEncoder;
@@ -26,27 +23,35 @@ public class SpringJwtTokenService implements TokenService {
     }
 
     @Override
-    public String createAccessToken(String username, List<String> roles) {
+    public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
+        DefaultAccessTokenBuilder builder = new DefaultAccessTokenBuilder();
+        consumer.accept(builder);
+
         Instant now = Instant.now();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .subject(username)
+        Map<String, Object> claims = new HashMap<>(builder.claims);
+        claims.putIfAbsent("roles", builder.roles);
+
+        JwtClaimsSet claimsSet = JwtClaimsSet.builder()
+                .subject(builder.username)
                 .issuedAt(now)
-                .expiresAt(now.plusSeconds(accessTokenValidity))
-                .claim("roles", roles)
+                .expiresAt(now.plusMillis(builder.validity))
+                .claims(c -> c.putAll(claims))
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(() -> "RS256").build();
-        return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+        return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claimsSet)).getTokenValue();
     }
 
     @Override
-    public String createRefreshToken(String username) {
+    public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
+        DefaultRefreshTokenBuilder builder = new DefaultRefreshTokenBuilder();
+        consumer.accept(builder);
+
         String refreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.store(refreshToken, username);
+        refreshTokenStore.store(refreshToken, builder.username);
         return refreshToken;
     }
 
-    @Override
     public boolean validateAccessToken(String token) {
         try {
             jwtDecoder.decode(token);
@@ -56,25 +61,68 @@ public class SpringJwtTokenService implements TokenService {
         }
     }
 
-    @Override
     public Authentication getAuthenticationFromAccessToken(String token) {
         Jwt jwt = jwtDecoder.decode(token);
         String username = jwt.getSubject();
         List<String> roles = jwt.getClaimAsStringList("roles");
         List<SimpleGrantedAuthority> authorities = roles.stream().map(SimpleGrantedAuthority::new).toList();
-        return new UsernamePasswordAuthenticationToken(username, "", authorities);
+        return new UsernamePasswordAuthenticationToken(username, token, authorities);
     }
 
-    @Override
     public String refreshAccessToken(String refreshToken) {
         String username = refreshTokenStore.getUsername(refreshToken);
         if (username == null) throw new RuntimeException("Invalid refresh token");
-        return createAccessToken(username, List.of("ROLE_USER"));
+
+        return createAccessToken(builder -> builder
+                .username(username)
+                .roles(List.of("ROLE_USER"))
+                .validity(3600000));
     }
 
-    @Override
     public void invalidateToken(String refreshToken) {
         refreshTokenStore.remove(refreshToken);
+    }
+
+    private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
+        private String username;
+        private List<String> roles = new ArrayList<>();
+        private Map<String, Object> claims = new HashMap<>();
+        private long validity;
+
+        public AccessTokenBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        public AccessTokenBuilder roles(List<String> roles) {
+            this.roles = roles;
+            return this;
+        }
+
+        public AccessTokenBuilder claims(Map<String, Object> claims) {
+            this.claims.putAll(claims);
+            return this;
+        }
+
+        public AccessTokenBuilder validity(long millis) {
+            this.validity = millis;
+            return this;
+        }
+    }
+
+    private static class DefaultRefreshTokenBuilder implements RefreshTokenBuilder {
+        private String username;
+        private long validity;
+
+        public RefreshTokenBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        public RefreshTokenBuilder validity(long millis) {
+            this.validity = millis;
+            return this;
+        }
     }
 }
 

@@ -1,76 +1,98 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 
+import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class JwtTokenService implements TokenService {
 
-    private final String secret = "very-secret-key";
-    private final Map<String, String> refreshStore = new ConcurrentHashMap<>();
-    private final long accessTokenValidity = 3600000;
-    private final long refreshTokenValidity = 604800000;
+    private Key secretKey;
+
+    @PostConstruct
+    public void init() {
+        secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    }
 
     @Override
-    public String createAccessToken(String username, List<String> roles) {
-        Claims claims = Jwts.claims().setSubject(username);
-        claims.put("roles", roles);
-        Date now = new Date();
-
+    public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
+        DefaultAccessTokenBuilder builder = new DefaultAccessTokenBuilder();
+        consumer.accept(builder);
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + accessTokenValidity))
-                .signWith(SignatureAlgorithm.HS256, secret.getBytes())
+                .setSubject(builder.username)
+                .addClaims(builder.claims)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + builder.validity))
+                .signWith(secretKey)
                 .compact();
     }
 
     @Override
-    public String createRefreshToken(String username) {
-        String refreshToken = UUID.randomUUID().toString();
-        refreshStore.put(refreshToken, username);
-        return refreshToken;
+    public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
+        DefaultRefreshTokenBuilder builder = new DefaultRefreshTokenBuilder();
+        consumer.accept(builder);
+        return Jwts.builder()
+                .setSubject(builder.username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + builder.validity))
+                .signWith(secretKey)
+                .compact();
     }
 
-    @Override
-    public boolean validateAccessToken(String token) {
-        try {
-            Jwts.parser().setSigningKey(secret.getBytes()).parseClaimsJws(token);
-            return true;
-        } catch (Exception e) {
-            return false;
+    private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
+        private String username;
+        private List<String> roles;
+        private Map<String, Object> claims = new HashMap<>();
+        private long validity;
+
+        @Override
+        public AccessTokenBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        @Override
+        public AccessTokenBuilder roles(List<String> roles) {
+            this.roles = roles;
+            this.claims.put("roles", roles);
+            return this;
+        }
+
+        @Override
+        public AccessTokenBuilder claims(Map<String, Object> claims) {
+            this.claims.putAll(claims);
+            return this;
+        }
+
+        @Override
+        public AccessTokenBuilder validity(long millis) {
+            this.validity = millis;
+            return this;
         }
     }
 
-    @Override
-    public Authentication getAuthenticationFromAccessToken(String token) {
-        Claims claims = Jwts.parser().setSigningKey(secret.getBytes()).parseClaimsJws(token).getBody();
-        String username = claims.getSubject();
-        List<String> roles = claims.get("roles", List.class);
-        List<SimpleGrantedAuthority> authorities = roles.stream().map(SimpleGrantedAuthority::new).toList();
-        return new UsernamePasswordAuthenticationToken(username, "", authorities);
-    }
+    private static class DefaultRefreshTokenBuilder implements RefreshTokenBuilder {
+        private String username;
+        private long validity;
 
-    @Override
-    public String refreshAccessToken(String refreshToken) {
-        String username = refreshStore.get(refreshToken);
-        if (username == null) throw new RuntimeException("Invalid refresh token");
-        return createAccessToken(username, List.of("ROLE_USER"));
-    }
+        @Override
+        public RefreshTokenBuilder username(String username) {
+            this.username = username;
+            return this;
+        }
 
-    @Override
-    public void invalidateToken(String refreshToken) {
-        refreshStore.remove(refreshToken);
+        @Override
+        public RefreshTokenBuilder validity(long millis) {
+            this.validity = millis;
+            return this;
+        }
     }
 
 }

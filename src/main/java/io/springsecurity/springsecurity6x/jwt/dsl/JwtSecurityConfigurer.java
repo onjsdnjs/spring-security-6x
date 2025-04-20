@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.jwt.dsl;
 import io.springsecurity.springsecurity6x.jwt.JwtScopeAuthorizationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthenticationFilter;
+import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtRefreshTokenFilter;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,37 +40,39 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
     @Override
     public void configure(HttpSecurity http) {
-        // 로그인 필터 설정
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
+
+        JwtAuthenticationFilter authenticationFilter = new JwtAuthenticationFilter();
 
         if (authenticationManager != null) {
-            filter.setAuthenticationManager(authenticationManager);
+            authenticationFilter.setAuthenticationManager(authenticationManager);
         }else{
             AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
-            filter.setAuthenticationManager(authenticationManager);
+            authenticationFilter.setAuthenticationManager(authenticationManager);
         }
-        filter.setTokenService(tokenService);
-        filter.setRefreshTokenStore(refreshTokenStore);
-        filter.setTokenPrefix(tokenPrefix);
-        filter.setAccessTokenValidity(accessTokenValidity);
-        filter.setRefreshTokenValidity(refreshTokenValidity);
-        filter.setLoginUri(loginUri);
-        filter.setLogoutUri(logoutUri);
-        filter.setRefreshUri(refreshUri);
-        filter.setRolesClaim(rolesClaim);
-        filter.setScopesClaim(scopesClaim);
-        filter.setEnableRefreshToken(enableRefreshToken);
-        filter.setScopeToPattern(scopeToPattern);
-        filter.setAuthenticationManager(authenticationManager);
-        filter.setAuthenticationSuccessHandler(successHandler);
-        filter.setAuthenticationFailureHandler(failureHandler);
-        http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+        authenticationFilter.setTokenService(tokenService);
+        authenticationFilter.setRefreshTokenStore(refreshTokenStore);
+        authenticationFilter.setTokenPrefix(tokenPrefix);
+        authenticationFilter.setAccessTokenValidity(accessTokenValidity);
+        authenticationFilter.setRefreshTokenValidity(refreshTokenValidity);
+        authenticationFilter.setLoginUri(loginUri);
+        authenticationFilter.setLogoutUri(logoutUri);
+        authenticationFilter.setRefreshUri(refreshUri);
+        authenticationFilter.setRolesClaim(rolesClaim);
+        authenticationFilter.setScopesClaim(scopesClaim);
+        authenticationFilter.setEnableRefreshToken(enableRefreshToken);
+        authenticationFilter.setScopeToPattern(scopeToPattern);
+        authenticationFilter.setAuthenticationManager(authenticationManager);
+        authenticationFilter.setAuthenticationSuccessHandler(successHandler);
+        authenticationFilter.setAuthenticationFailureHandler(failureHandler);
+        http.addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // 리프레시 토큰 필터 설정
-        JwtRefreshTokenFilter refreshFilter = new JwtRefreshTokenFilter(refreshUri);
-        refreshFilter.setTokenService(tokenService);
-        refreshFilter.setRefreshTokenStore(refreshTokenStore);
-        http.addFilterAfter(refreshFilter, JwtAuthenticationFilter.class);
+        JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(tokenService);
+        http.addFilterAfter(authorizationFilter, JwtAuthenticationFilter.class);
+
+        JwtRefreshTokenFilter refreshFilter = new JwtRefreshTokenFilter(tokenService,refreshUri);
+        http.addFilterAfter(refreshFilter, JwtAuthorizationFilter.class);
+
+
     }
 
     public static JwtSecurityConfigurer jwt() {

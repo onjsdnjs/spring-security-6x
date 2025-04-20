@@ -40,6 +40,7 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
             throws AuthenticationException, IOException {
+
         ObjectMapper mapper = new ObjectMapper();
         Map<String, String> body = mapper.readValue(request.getInputStream(), Map.class);
         String username = body.get("username");
@@ -51,16 +52,33 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
 
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException {
+
         String username = authResult.getName();
         List<String> roles = authResult.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority).toList();
 
-        String accessToken = tokenService.createAccessToken(username, roles);
-        String refreshToken = enableRefreshToken ? tokenService.createRefreshToken(username) : null;
+        Map<String, Object> additionalClaims = new HashMap<>();
+        additionalClaims.put(rolesClaim, roles);
+        additionalClaims.put(scopesClaim, extractScopesFromRoles(roles));
+
+        String accessToken = tokenService.createAccessToken(builder -> builder
+                .username(username)
+                .roles(roles)
+                .claims(additionalClaims)
+                .validity(accessTokenValidity));
+
+        String refreshToken = enableRefreshToken ?
+                tokenService.createRefreshToken(builder -> builder
+                        .username(username)
+                        .validity(refreshTokenValidity)) : null;
+
+        if (enableRefreshToken && refreshTokenStore != null && refreshToken != null) {
+            refreshTokenStore.store(refreshToken, username);
+        }
 
         Map<String, Object> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        if (refreshToken != null) tokens.put("refreshToken", refreshToken);
+        tokens.put("accessToken", tokenPrefix + accessToken);
+        if (refreshToken != null) tokens.put("refreshToken", tokenPrefix + refreshToken);
 
         response.setContentType("application/json");
         new ObjectMapper().writeValue(response.getOutputStream(), tokens);
@@ -71,6 +89,12 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         new ObjectMapper().writeValue(response.getOutputStream(), Map.of("error", "Authentication failed"));
+    }
+
+    private List<String> extractScopesFromRoles(List<String> roles) {
+        return roles.stream()
+                .map(role -> scopeToPattern.getOrDefault(role, role.toLowerCase().replace("ROLE_", "")))
+                .toList();
     }
 
     public void setTokenService(TokenService tokenService) { this.tokenService = tokenService; }

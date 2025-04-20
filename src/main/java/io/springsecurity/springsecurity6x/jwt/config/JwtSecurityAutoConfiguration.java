@@ -20,15 +20,15 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "jwt.provider", havingValue = "spring", matchIfMissing = true)
-    public TokenService springTokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore refreshTokenStore) {
-        return new SpringJwtTokenService(encoder, decoder, refreshTokenStore);
+    public TokenService springTokenService(JwtEncoder encoder, JwtDecoder decoder) {
+        return new SpringJwtTokenService(encoder, decoder, refreshTokenStore());
     }
 
 
     @Bean
     @ConditionalOnProperty(name = "jwt.provider", havingValue = "jwt", matchIfMissing = true)
     public TokenService jwtTokenService() {
-        return new JwtTokenService();
+        return new JwtTokenService(refreshTokenStore());
     }
 
     @Bean

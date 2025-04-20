@@ -1,12 +1,17 @@
 package io.springsecurity.springsecurity6x.jwt.dsl;
 
+import io.springsecurity.springsecurity6x.jwt.InMemoryRefreshTokenStore;
+import io.springsecurity.springsecurity6x.jwt.JwtProperties;
 import io.springsecurity.springsecurity6x.jwt.JwtScopeAuthorizationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthenticationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtRefreshTokenFilter;
+import io.springsecurity.springsecurity6x.jwt.tokenservice.JwtTokenService;
+import io.springsecurity.springsecurity6x.jwt.tokenservice.SpringJwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -21,6 +26,11 @@ import java.util.function.Consumer;
 
 public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityConfigurer, HttpSecurity> {
 
+    private static final String TOKEN_SERVICE_TYPE_JWT = "jwt ";
+    private static final String TOKEN_SERVICE_TYPE_SPRING = "spring ";
+    private static ApplicationContext applicationContext;
+
+    private final JwtProperties jwtProperties;
     private TokenService tokenService;
     private RefreshTokenStore refreshTokenStore;
     private String tokenPrefix = "Bearer ";
@@ -37,6 +47,9 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
 
+    public JwtSecurityConfigurer(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
 
 
     @Override
@@ -46,9 +59,15 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
         if (authenticationManager != null) {
             authenticationFilter.setAuthenticationManager(authenticationManager);
+
         }else{
             AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
             authenticationFilter.setAuthenticationManager(authenticationManager);
+        }
+        if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_JWT)){
+            tokenService = applicationContext.getBean(JwtTokenService.class);
+        }else if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_SPRING)){
+            tokenService = applicationContext.getBean(SpringJwtTokenService.class);
         }
         authenticationFilter.setTokenService(tokenService);
         authenticationFilter.setRefreshTokenStore(refreshTokenStore);
@@ -56,8 +75,6 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
         authenticationFilter.setAccessTokenValidity(accessTokenValidity);
         authenticationFilter.setRefreshTokenValidity(refreshTokenValidity);
         authenticationFilter.setLoginUri(loginUri);
-        authenticationFilter.setLogoutUri(logoutUri);
-        authenticationFilter.setRefreshUri(refreshUri);
         authenticationFilter.setRolesClaim(rolesClaim);
         authenticationFilter.setScopesClaim(scopesClaim);
         authenticationFilter.setEnableRefreshToken(enableRefreshToken);
@@ -79,8 +96,9 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
     }
 
-    public static JwtSecurityConfigurer jwt() {
-        return new JwtSecurityConfigurer();
+    public static JwtSecurityConfigurer jwt(JwtProperties jwtProperties, ApplicationContext applicationContext) {
+        JwtSecurityConfigurer.applicationContext = applicationContext;
+        return new JwtSecurityConfigurer(jwtProperties);
     }
 
     public JwtSecurityConfigurer tokenService(TokenService tokenService) {

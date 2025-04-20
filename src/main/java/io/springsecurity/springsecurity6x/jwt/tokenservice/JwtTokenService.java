@@ -1,20 +1,28 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import jakarta.annotation.PostConstruct;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class JwtTokenService implements TokenService {
 
     private Key secretKey;
+    private final RefreshTokenStore refreshTokenStore;
+
+    public JwtTokenService(RefreshTokenStore refreshTokenStore) {
+        this.refreshTokenStore = refreshTokenStore;
+    }
 
     @PostConstruct
     public void init() {
@@ -38,12 +46,45 @@ public class JwtTokenService implements TokenService {
     public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
         DefaultRefreshTokenBuilder builder = new DefaultRefreshTokenBuilder();
         consumer.accept(builder);
-        return Jwts.builder()
-                .setSubject(builder.username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + builder.validity))
-                .signWith(secretKey)
-                .compact();
+
+        String refreshToken = UUID.randomUUID().toString();
+        refreshTokenStore.store(refreshToken, builder.username);
+        return refreshToken;
+    }
+
+    @Override
+    public boolean validateAccessToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public Authentication getAuthenticationFromAccessToken(String token) {
+        Claims claims = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
+        String username = claims.getSubject();
+        List<String> roles = (List<String>) claims.get("roles", List.class);
+        List<SimpleGrantedAuthority> authorities = roles.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+        return new UsernamePasswordAuthenticationToken(username, token, authorities);
+    }
+
+    @Override
+    public String refreshAccessToken(String refreshToken) {
+        String username = refreshTokenStore.getUsername(refreshToken);
+        if (username == null) throw new RuntimeException("Invalid refresh token");
+
+        return createAccessToken(builder -> builder
+                .username(username)
+                .roles(List.of("ROLE_USER"))
+                .validity(3600000));
+    }
+
+    @Override
+    public void invalidateToken(String refreshToken) {
+        refreshTokenStore.remove(refreshToken);
     }
 
     private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
@@ -94,6 +135,5 @@ public class JwtTokenService implements TokenService {
             return this;
         }
     }
-
 }
 

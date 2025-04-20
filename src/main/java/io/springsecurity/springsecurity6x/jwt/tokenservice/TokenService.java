@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
-import org.springframework.boot.autoconfigure.pulsar.PulsarProperties;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;

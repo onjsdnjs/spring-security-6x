@@ -21,13 +21,10 @@ import java.util.Map;
 public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
     private TokenService tokenService;
-    private RefreshTokenStore refreshTokenStore;
     private String tokenPrefix;
     private long accessTokenValidity;
     private long refreshTokenValidity;
     private String loginUri;
-    private String logoutUri;
-    private String refreshUri;
     private String rolesClaim;
     private String scopesClaim;
     private boolean enableRefreshToken;
@@ -72,10 +69,6 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
                         .username(username)
                         .validity(refreshTokenValidity)) : null;
 
-        if (enableRefreshToken && refreshTokenStore != null && refreshToken != null) {
-            refreshTokenStore.store(refreshToken, username);
-        }
-
         Map<String, Object> tokens = new HashMap<>();
         tokens.put("accessToken", tokenPrefix + accessToken);
         if (refreshToken != null) tokens.put("refreshToken", tokenPrefix + refreshToken);
@@ -98,13 +91,10 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
     }
 
     public void setTokenService(TokenService tokenService) { this.tokenService = tokenService; }
-    public void setRefreshTokenStore(RefreshTokenStore refreshTokenStore) { this.refreshTokenStore = refreshTokenStore; }
     public void setTokenPrefix(String tokenPrefix) { this.tokenPrefix = tokenPrefix; }
     public void setAccessTokenValidity(long accessTokenValidity) { this.accessTokenValidity = accessTokenValidity; }
     public void setRefreshTokenValidity(long refreshTokenValidity) { this.refreshTokenValidity = refreshTokenValidity; }
     public void setLoginUri(String loginUri) { this.loginUri = loginUri; }
-    public void setLogoutUri(String logoutUri) { this.logoutUri = logoutUri; }
-    public void setRefreshUri(String refreshUri) { this.refreshUri = refreshUri; }
     public void setRolesClaim(String rolesClaim) { this.rolesClaim = rolesClaim; }
     public void setScopesClaim(String scopesClaim) { this.scopesClaim = scopesClaim; }
     public void setEnableRefreshToken(boolean enableRefreshToken) { this.enableRefreshToken = enableRefreshToken; }

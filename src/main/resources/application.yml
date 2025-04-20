@@ -6,7 +6,7 @@ spring:
           jwk-set-uri: http://localhost:9000/oauth2/jwks
 
   jwt:
-    provider: jwt
+    provider: spring
 
   datasource:
     url: jdbc:h2:mem:testdb

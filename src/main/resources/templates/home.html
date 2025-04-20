@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Home</title></head>
+<body>
+<h2>Authenticated as<span th:text="${#authentication.name}"></span></h2>
+<a th:href="@{/logout}">Logout</a>
+</body>
+</html>

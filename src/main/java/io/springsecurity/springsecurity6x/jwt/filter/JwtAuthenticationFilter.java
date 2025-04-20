@@ -1,23 +1,17 @@
 package io.springsecurity.springsecurity6x.jwt.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.jwt.JwtProperties;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
-import io.springsecurity.springsecurity6x.jwt.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -79,7 +73,6 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
         new ObjectMapper().writeValue(response.getOutputStream(), Map.of("error", "Authentication failed"));
     }
 
-    // --- Setters ---
     public void setTokenService(TokenService tokenService) { this.tokenService = tokenService; }
     public void setRefreshTokenStore(RefreshTokenStore refreshTokenStore) { this.refreshTokenStore = refreshTokenStore; }
     public void setTokenPrefix(String tokenPrefix) { this.tokenPrefix = tokenPrefix; }

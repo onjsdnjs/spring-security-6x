@@ -1,0 +1,87 @@
+/* === style.css === */
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #f7f9fb;
+    color: #333;
+}
+
+.container {
+    max-width: 400px;
+    margin: 60px auto;
+    padding: 30px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.auth-form h2 {
+    margin-bottom: 10px;
+    color: #1976d2;
+}
+
+.auth-form input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.auth-form button {
+    padding: 12px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.auth-form button:hover {
+    background: #125ea6;
+}
+
+.link-bar {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-around;
+}
+
+.link-bar a {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+.link-bar a:hover {
+    color: #0e4a83;
+}
+
+.user-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    text-align: left;
+}
+
+.user-list li {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.error {
+    color: #d32f2f;
+    font-size: 14px;
+    margin-top: 8px;
+}

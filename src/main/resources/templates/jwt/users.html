@@ -1,0 +1,20 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>User List</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<div class="container">
+    <h2>Registered Users</h2>
+    <ul class="user-list">
+        <li th:each="user : ${users}" th:text="${user.username} + ' (' + ${user.role} + ')'">User</li>
+    </ul>
+
+    <div class="link-bar">
+        <a th:href="@{/login}">Login</a>
+        <a th:href="@{/register}">Register</a>
+    </div>
+</div>
+</body>
+</html>

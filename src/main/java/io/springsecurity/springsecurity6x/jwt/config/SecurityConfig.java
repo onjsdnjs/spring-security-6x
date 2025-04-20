@@ -22,7 +22,7 @@ public class SecurityConfig {
 
             http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                         .anyRequest().authenticated())
                 .with(JwtSecurityConfigurer.jwt(), configurer -> configurer
                         .tokenService(tokenService)

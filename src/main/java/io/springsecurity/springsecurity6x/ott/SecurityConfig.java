@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.ott;
 
 import org.springframework.context.annotation.Bean;
@@ -37,3 +38,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
+*/

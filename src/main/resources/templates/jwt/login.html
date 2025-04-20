@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -6,12 +7,12 @@
 </head>
 <body>
 <div class="container">
-    <form th:action="@{/login}" method="post" class="auth-form">
+    <form id="loginForm" class="auth-form">
         <h2>Login</h2>
-        <input type="text" name="username" placeholder="Username" required>
-        <input type="password" name="password" placeholder="Password" required>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
         <button type="submit">Login</button>
-        <p th:if="${loginError}" class="error" th:text="${loginError}"></p>
+        <p id="errorMsg" class="error" style="display:none"></p>
     </form>
 
     <div class="link-bar">
@@ -19,5 +20,33 @@
         <a th:href="@{/users}">User List</a>
     </div>
 </div>
+
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            localStorage.setItem("accessToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            window.location.href = "/users";
+        } else {
+            document.getElementById("errorMsg").innerText = data.error || "Login failed";
+            document.getElementById("errorMsg").style.display = "block";
+        }
+    });
+</script>
 </body>
 </html>

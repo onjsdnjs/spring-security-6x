@@ -1,9 +1,10 @@
 package io.springsecurity.springsecurity6x.jwt.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.jwt.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,16 +40,16 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
             throws AuthenticationException, IOException {
 
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, String> body = mapper.readValue(request.getInputStream(), Map.class);
-        String username = body.get("username");
-        String password = body.get("password");
+        LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
+        String username = login.username();
+        String password = login.password();
 
         UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(username, password);
         return this.getAuthenticationManager().authenticate(authRequest);
     }
 
     @Override
-    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException {
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
 
         String username = authResult.getName();
         List<String> roles = authResult.getAuthorities().stream()
@@ -72,6 +73,9 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
         Map<String, Object> tokens = new HashMap<>();
         tokens.put("accessToken", tokenPrefix + accessToken);
         if (refreshToken != null) tokens.put("refreshToken", tokenPrefix + refreshToken);
+
+        response.addHeader("accessToken", accessToken);
+        response.addHeader("refreshToken", refreshToken);
 
         response.setContentType("application/json");
         new ObjectMapper().writeValue(response.getOutputStream(), tokens);

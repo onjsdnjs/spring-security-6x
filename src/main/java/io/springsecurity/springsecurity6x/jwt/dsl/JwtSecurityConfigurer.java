@@ -26,8 +26,8 @@ import java.util.function.Consumer;
 
 public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityConfigurer, HttpSecurity> {
 
-    private static final String TOKEN_SERVICE_TYPE_JWT = "jwt ";
-    private static final String TOKEN_SERVICE_TYPE_SPRING = "spring ";
+    private static final String TOKEN_SERVICE_TYPE_JWT = "jwt";
+    private static final String TOKEN_SERVICE_TYPE_SPRING = "spring";
     private static ApplicationContext applicationContext;
 
     private final JwtProperties jwtProperties;
@@ -44,8 +44,6 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
     private boolean enableRefreshToken = true;
     private Map<String, String> scopeToPattern = new HashMap<>();
     private AuthenticationManager authenticationManager;
-    private AuthenticationSuccessHandler successHandler;
-    private AuthenticationFailureHandler failureHandler;
 
     public JwtSecurityConfigurer(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
@@ -66,11 +64,11 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
         }
         if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_JWT)){
             tokenService = applicationContext.getBean(JwtTokenService.class);
+
         }else if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_SPRING)){
             tokenService = applicationContext.getBean(SpringJwtTokenService.class);
         }
         authenticationFilter.setTokenService(tokenService);
-        authenticationFilter.setRefreshTokenStore(refreshTokenStore);
         authenticationFilter.setTokenPrefix(tokenPrefix);
         authenticationFilter.setAccessTokenValidity(accessTokenValidity);
         authenticationFilter.setRefreshTokenValidity(refreshTokenValidity);
@@ -79,9 +77,6 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
         authenticationFilter.setScopesClaim(scopesClaim);
         authenticationFilter.setEnableRefreshToken(enableRefreshToken);
         authenticationFilter.setScopeToPattern(scopeToPattern);
-        authenticationFilter.setAuthenticationManager(authenticationManager);
-        authenticationFilter.setAuthenticationSuccessHandler(successHandler);
-        authenticationFilter.setAuthenticationFailureHandler(failureHandler);
         http.addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(tokenService);
@@ -153,21 +148,6 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
     public JwtSecurityConfigurer enableRefreshToken(boolean enable) {
         this.enableRefreshToken = enable;
-        return this;
-    }
-
-    public JwtSecurityConfigurer authenticationManager(AuthenticationManager manager) {
-        this.authenticationManager = manager;
-        return this;
-    }
-
-    public JwtSecurityConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        this.successHandler = handler;
-        return this;
-    }
-
-    public JwtSecurityConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        this.failureHandler = handler;
         return this;
     }
 

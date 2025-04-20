@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.jwt.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -30,3 +31,4 @@ public class ResourceServerSecurityConfig {
         return http.build();
     }
 }
+*/

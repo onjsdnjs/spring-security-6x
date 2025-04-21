@@ -1,12 +1,10 @@
-package io.springsecurity.springsecurity6x.jwt.controller;
+package io.springsecurity.springsecurity6x.controller;
 
-import io.springsecurity.springsecurity6x.jwt.domain.UserDto;
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.jwt.entity.Users;
-import io.springsecurity.springsecurity6x.jwt.repository.UserRepository;
-import jakarta.servlet.http.HttpSession;
+import io.springsecurity.springsecurity6x.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt.domain;
+package io.springsecurity.springsecurity6x.domain;
 
 public record LoginRequest(String username, String password) {}
 

@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.jwt.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.jwt.domain.LoginRequest;
+import io.springsecurity.springsecurity6x.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

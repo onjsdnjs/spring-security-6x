@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt.domain;
+package io.springsecurity.springsecurity6x.domain;
 
 import lombok.Data;
 

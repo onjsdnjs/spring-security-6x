@@ -1,8 +1,12 @@
 package io.springsecurity.springsecurity6x.jwt.config;
 
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.jwt.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.JwtProperties;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.jwt.converter.JwtAuthenticationConverter;
+import io.springsecurity.springsecurity6x.jwt.converter.SpringAuthenticationConverter;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.JwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.SpringJwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
@@ -14,6 +18,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 
+import java.security.Key;
+
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtSecurityAutoConfiguration {
@@ -21,14 +27,15 @@ public class JwtSecurityAutoConfiguration {
     @Bean
     @ConditionalOnProperty(name = "jwt.provider", havingValue = "spring", matchIfMissing = true)
     public TokenService springTokenService(JwtEncoder encoder, JwtDecoder decoder) {
-        return new SpringJwtTokenService(encoder, decoder, refreshTokenStore());
+        return new SpringJwtTokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
     }
 
 
     @Bean
     @ConditionalOnProperty(name = "jwt.provider", havingValue = "jwt", matchIfMissing = true)
     public TokenService jwtTokenService() {
-        return new JwtTokenService(refreshTokenStore());
+        Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        return new JwtTokenService(refreshTokenStore(), new JwtAuthenticationConverter(secretKey), secretKey);
     }
 
     @Bean

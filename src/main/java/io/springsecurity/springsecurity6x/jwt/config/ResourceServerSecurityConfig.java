@@ -1,4 +1,3 @@
-/*
 package io.springsecurity.springsecurity6x.jwt.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +17,7 @@ public class ResourceServerSecurityConfig {
     public SecurityFilterChain resourceSecurity(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .securityMatcher("/resource/**")
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/**").hasAuthority("SCOPE_read")
                         .requestMatchers("/api/admin/**").hasAuthority("SCOPE_write")
@@ -31,4 +31,3 @@ public class ResourceServerSecurityConfig {
         return http.build();
     }
 }
-*/

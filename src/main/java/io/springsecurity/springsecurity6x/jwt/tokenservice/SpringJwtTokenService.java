@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.jwt.converter.AuthenticationConverter;
+import io.springsecurity.springsecurity6x.jwt.converter.SpringAuthenticationConverter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,11 +17,15 @@ public class SpringJwtTokenService implements TokenService {
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
     private final RefreshTokenStore refreshTokenStore;
+    private final AuthenticationConverter authenticationConverter;
 
-    public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, RefreshTokenStore refreshTokenStore) {
+    public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder,
+                                 RefreshTokenStore refreshTokenStore,
+                                 AuthenticationConverter authenticationConverter) {
         this.jwtEncoder = jwtEncoder;
         this.jwtDecoder = jwtDecoder;
         this.refreshTokenStore = refreshTokenStore;
+        this.authenticationConverter = authenticationConverter;
     }
 
     @Override
@@ -62,11 +68,7 @@ public class SpringJwtTokenService implements TokenService {
     }
 
     public Authentication getAuthenticationFromAccessToken(String token) {
-        Jwt jwt = jwtDecoder.decode(token);
-        String username = jwt.getSubject();
-        List<String> roles = jwt.getClaimAsStringList("roles");
-        List<SimpleGrantedAuthority> authorities = roles.stream().map(SimpleGrantedAuthority::new).toList();
-        return new UsernamePasswordAuthenticationToken(username, token, authorities);
+        return authenticationConverter.getAuthentication(token);
     }
 
     public String refreshAccessToken(String refreshToken) {

@@ -2,10 +2,8 @@ package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
-import jakarta.annotation.PostConstruct;
+import io.springsecurity.springsecurity6x.jwt.converter.AuthenticationConverter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,16 +15,14 @@ import java.util.stream.Collectors;
 
 public class JwtTokenService implements TokenService {
 
-    private Key secretKey;
+    private final Key secretKey;
     private final RefreshTokenStore refreshTokenStore;
+    private final AuthenticationConverter authenticationConverter;
 
-    public JwtTokenService(RefreshTokenStore refreshTokenStore) {
+    public JwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter, Key secretKey) {
         this.refreshTokenStore = refreshTokenStore;
-    }
-
-    @PostConstruct
-    public void init() {
-        secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        this.authenticationConverter = authenticationConverter;
+        this.secretKey = secretKey;
     }
 
     @Override
@@ -64,6 +60,10 @@ public class JwtTokenService implements TokenService {
 
     @Override
     public Authentication getAuthenticationFromAccessToken(String token) {
+        return authenticationConverter.getAuthentication(token);
+    }
+
+    private UsernamePasswordAuthenticationToken getUsernamePasswordAuthenticationToken(String token) {
         Claims claims = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
         String username = claims.getSubject();
         List<String> roles = (List<String>) claims.get("roles", List.class);

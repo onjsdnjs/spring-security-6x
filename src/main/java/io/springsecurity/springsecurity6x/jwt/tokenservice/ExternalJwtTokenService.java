@@ -1,51 +1,37 @@
 package io.springsecurity.springsecurity6x.jwt.tokenservice;
 
+import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.converter.AuthenticationConverter;
-import io.springsecurity.springsecurity6x.jwt.converter.SpringAuthenticationConverter;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.jwt.*;
 
-import java.time.Instant;
+import java.security.Key;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class SpringJwtTokenService implements TokenService {
+public class ExternalJwtTokenService implements TokenService {
 
-    private final JwtEncoder jwtEncoder;
-    private final JwtDecoder jwtDecoder;
+    private final Key secretKey;
     private final RefreshTokenStore refreshTokenStore;
     private final AuthenticationConverter authenticationConverter;
 
-    public SpringJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder,
-                                 RefreshTokenStore refreshTokenStore,
-                                 AuthenticationConverter authenticationConverter) {
-        this.jwtEncoder = jwtEncoder;
-        this.jwtDecoder = jwtDecoder;
+    public ExternalJwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter, Key secretKey) {
         this.refreshTokenStore = refreshTokenStore;
         this.authenticationConverter = authenticationConverter;
+        this.secretKey = secretKey;
     }
 
     @Override
     public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
         DefaultAccessTokenBuilder builder = new DefaultAccessTokenBuilder();
         consumer.accept(builder);
-
-        Instant now = Instant.now();
-        Map<String, Object> claims = new HashMap<>(builder.claims);
-        claims.putIfAbsent("roles", builder.roles);
-
-        JwtClaimsSet claimsSet = JwtClaimsSet.builder()
-                .subject(builder.username)
-                .issuedAt(now)
-                .expiresAt(now.plusMillis(builder.validity))
-                .claims(c -> c.putAll(claims))
-                .build();
-
-        JwsHeader jwsHeader = JwsHeader.with(() -> "RS256").build();
-        return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claimsSet)).getTokenValue();
+        return Jwts.builder()
+                .setSubject(builder.username)
+                .addClaims(builder.claims)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + builder.validity))
+                .signWith(secretKey)
+                .compact();
     }
 
     @Override
@@ -58,19 +44,22 @@ public class SpringJwtTokenService implements TokenService {
         return refreshToken;
     }
 
+    @Override
     public boolean validateAccessToken(String token) {
         try {
-            jwtDecoder.decode(token);
+            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
             return true;
-        } catch (JwtException e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
+    @Override
     public Authentication getAuthenticationFromAccessToken(String token) {
         return authenticationConverter.getAuthentication(token);
     }
 
+    @Override
     public String refreshAccessToken(String refreshToken) {
         String username = refreshTokenStore.getUsername(refreshToken);
         if (username == null) throw new RuntimeException("Invalid refresh token");
@@ -81,31 +70,37 @@ public class SpringJwtTokenService implements TokenService {
                 .validity(3600000));
     }
 
+    @Override
     public void invalidateToken(String refreshToken) {
         refreshTokenStore.remove(refreshToken);
     }
 
     private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
         private String username;
-        private List<String> roles = new ArrayList<>();
+        private List<String> roles;
         private Map<String, Object> claims = new HashMap<>();
         private long validity;
 
+        @Override
         public AccessTokenBuilder username(String username) {
             this.username = username;
             return this;
         }
 
+        @Override
         public AccessTokenBuilder roles(List<String> roles) {
             this.roles = roles;
+            this.claims.put("roles", roles);
             return this;
         }
 
+        @Override
         public AccessTokenBuilder claims(Map<String, Object> claims) {
             this.claims.putAll(claims);
             return this;
         }
 
+        @Override
         public AccessTokenBuilder validity(long millis) {
             this.validity = millis;
             return this;
@@ -116,11 +111,13 @@ public class SpringJwtTokenService implements TokenService {
         private String username;
         private long validity;
 
+        @Override
         public RefreshTokenBuilder username(String username) {
             this.username = username;
             return this;
         }
 
+        @Override
         public RefreshTokenBuilder validity(long millis) {
             this.validity = millis;
             return this;

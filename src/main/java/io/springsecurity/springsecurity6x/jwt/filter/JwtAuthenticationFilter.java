@@ -27,7 +27,6 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
     private long refreshTokenValidity;
     private String loginUri;
     private String rolesClaim;
-    private String scopesClaim;
     private boolean enableRefreshToken;
     private Map<String, String> scopeToPattern = new HashMap<>();
 
@@ -57,7 +56,6 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
 
         Map<String, Object> additionalClaims = new HashMap<>();
         additionalClaims.put(rolesClaim, roles);
-        additionalClaims.put(scopesClaim, extractScopesFromRoles(roles));
 
         String accessToken = tokenService.createAccessToken(builder -> builder
                 .username(username)
@@ -88,20 +86,12 @@ public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFil
         new ObjectMapper().writeValue(response.getOutputStream(), Map.of("error", "Authentication failed"));
     }
 
-    private List<String> extractScopesFromRoles(List<String> roles) {
-        return roles.stream()
-                .map(role -> scopeToPattern.getOrDefault(role, role.toLowerCase().replace("ROLE_", "")))
-                .toList();
-    }
-
     public void setTokenService(TokenService tokenService) { this.tokenService = tokenService; }
     public void setTokenPrefix(String tokenPrefix) { this.tokenPrefix = tokenPrefix; }
     public void setAccessTokenValidity(long accessTokenValidity) { this.accessTokenValidity = accessTokenValidity; }
     public void setRefreshTokenValidity(long refreshTokenValidity) { this.refreshTokenValidity = refreshTokenValidity; }
     public void setLoginUri(String loginUri) { this.loginUri = loginUri; }
     public void setRolesClaim(String rolesClaim) { this.rolesClaim = rolesClaim; }
-    public void setScopesClaim(String scopesClaim) { this.scopesClaim = scopesClaim; }
     public void setEnableRefreshToken(boolean enableRefreshToken) { this.enableRefreshToken = enableRefreshToken; }
-    public void setScopeToPattern(Map<String, String> scopeToPattern) { this.scopeToPattern = scopeToPattern; }
 }
 

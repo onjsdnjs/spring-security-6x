@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt;
+package io.springsecurity.springsecurity6x.jwt.common;
 
 import com.nimbusds.jose.jwk.RSAKey;
 

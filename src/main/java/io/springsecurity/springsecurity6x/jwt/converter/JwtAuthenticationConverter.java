@@ -20,7 +20,7 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
     public UsernamePasswordAuthenticationToken getAuthentication(String token) {
         Claims claims = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
         String username = claims.getSubject();
-        List<String> roles = (List<String>) claims.get("roles", List.class);
+        List<String> roles = (List<String>)claims.get("roles", List.class);
         List<SimpleGrantedAuthority> authorities = roles.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
         return new UsernamePasswordAuthenticationToken(username, token, authorities);
     }

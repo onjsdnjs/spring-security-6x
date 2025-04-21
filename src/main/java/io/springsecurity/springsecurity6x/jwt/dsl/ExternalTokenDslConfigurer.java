@@ -1,36 +1,28 @@
 package io.springsecurity.springsecurity6x.jwt.dsl;
 
-import io.springsecurity.springsecurity6x.jwt.InMemoryRefreshTokenStore;
-import io.springsecurity.springsecurity6x.jwt.JwtProperties;
-import io.springsecurity.springsecurity6x.jwt.JwtScopeAuthorizationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.jwt.enums.TokenType;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthenticationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.jwt.filter.JwtRefreshTokenFilter;
-import io.springsecurity.springsecurity6x.jwt.tokenservice.JwtTokenService;
-import io.springsecurity.springsecurity6x.jwt.tokenservice.SpringJwtTokenService;
+import io.springsecurity.springsecurity6x.jwt.properties.IntegrationAuthProperties;
+import io.springsecurity.springsecurity6x.jwt.tokenservice.ExternalJwtTokenService;
+import io.springsecurity.springsecurity6x.jwt.tokenservice.InternalJwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
-public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityConfigurer, HttpSecurity> {
+public class ExternalTokenDslConfigurer extends AbstractHttpConfigurer<ExternalTokenDslConfigurer, HttpSecurity> {
 
-    private static final String TOKEN_SERVICE_TYPE_JWT = "jwt";
-    private static final String TOKEN_SERVICE_TYPE_SPRING = "spring";
     private static ApplicationContext applicationContext;
 
-    private final JwtProperties jwtProperties;
+    private final IntegrationAuthProperties properties;
     private TokenService tokenService;
     private RefreshTokenStore refreshTokenStore;
     private String tokenPrefix = "Bearer ";
@@ -40,13 +32,11 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
     private String logoutUri = "/api/auth/logout";
     private String refreshUri = "/api/auth/refresh";
     private String rolesClaim = "roles";
-    private String scopesClaim = "scopes";
     private boolean enableRefreshToken = true;
-    private Map<String, String> scopeToPattern = new HashMap<>();
     private AuthenticationManager authenticationManager;
 
-    public JwtSecurityConfigurer(JwtProperties jwtProperties) {
-        this.jwtProperties = jwtProperties;
+    public ExternalTokenDslConfigurer(IntegrationAuthProperties properties) {
+        this.properties = properties;
     }
 
 
@@ -62,11 +52,11 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
             AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
             authenticationFilter.setAuthenticationManager(authenticationManager);
         }
-        if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_JWT)){
-            tokenService = applicationContext.getBean(JwtTokenService.class);
+        if(properties.getTokenType() == TokenType.EXTERNAL){
+            tokenService = applicationContext.getBean(ExternalJwtTokenService.class);
 
-        }else if(jwtProperties.getProvider().equals(TOKEN_SERVICE_TYPE_SPRING)){
-            tokenService = applicationContext.getBean(SpringJwtTokenService.class);
+        }else if(properties.getTokenType() == TokenType.INTERNAL){
+            tokenService = applicationContext.getBean(InternalJwtTokenService.class);
         }
         authenticationFilter.setTokenService(tokenService);
         authenticationFilter.setTokenPrefix(tokenPrefix);
@@ -74,9 +64,7 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
         authenticationFilter.setRefreshTokenValidity(refreshTokenValidity);
         authenticationFilter.setLoginUri(loginUri);
         authenticationFilter.setRolesClaim(rolesClaim);
-        authenticationFilter.setScopesClaim(scopesClaim);
         authenticationFilter.setEnableRefreshToken(enableRefreshToken);
-        authenticationFilter.setScopeToPattern(scopeToPattern);
         http.addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(tokenService);
@@ -91,70 +79,58 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
     }
 
-    public static JwtSecurityConfigurer jwt(JwtProperties jwtProperties, ApplicationContext applicationContext) {
-        JwtSecurityConfigurer.applicationContext = applicationContext;
-        return new JwtSecurityConfigurer(jwtProperties);
+    public static ExternalTokenDslConfigurer jwt(IntegrationAuthProperties properties, ApplicationContext applicationContext) {
+        ExternalTokenDslConfigurer.applicationContext = applicationContext;
+        return new ExternalTokenDslConfigurer(properties);
     }
 
-    public JwtSecurityConfigurer tokenService(TokenService tokenService) {
+    public ExternalTokenDslConfigurer tokenService(TokenService tokenService) {
         this.tokenService = tokenService;
         return this;
     }
 
-    public JwtSecurityConfigurer refreshTokenStore(RefreshTokenStore store) {
+    public ExternalTokenDslConfigurer refreshTokenStore(RefreshTokenStore store) {
         this.refreshTokenStore = store;
         return this;
     }
 
-    public JwtSecurityConfigurer loginEndpoint(String uri) {
+    public ExternalTokenDslConfigurer loginEndpoint(String uri) {
         this.loginUri = uri;
         return this;
     }
 
-    public JwtSecurityConfigurer logoutEndpoint(String uri) {
+    public ExternalTokenDslConfigurer logoutEndpoint(String uri) {
         this.logoutUri = uri;
         return this;
     }
 
-    public JwtSecurityConfigurer refreshEndpoint(String uri) {
+    public ExternalTokenDslConfigurer refreshEndpoint(String uri) {
         this.refreshUri = uri;
         return this;
     }
 
-    public JwtSecurityConfigurer tokenPrefix(String prefix) {
+    public ExternalTokenDslConfigurer tokenPrefix(String prefix) {
         this.tokenPrefix = prefix;
         return this;
     }
 
-    public JwtSecurityConfigurer accessTokenValidity(long time, TimeUnit unit) {
+    public ExternalTokenDslConfigurer accessTokenValidity(long time, TimeUnit unit) {
         this.accessTokenValidity = unit.toMillis(time);
         return this;
     }
 
-    public JwtSecurityConfigurer refreshTokenValidity(long time, TimeUnit unit) {
+    public ExternalTokenDslConfigurer refreshTokenValidity(long time, TimeUnit unit) {
         this.refreshTokenValidity = unit.toMillis(time);
         return this;
     }
 
-    public JwtSecurityConfigurer rolesClaim(String claim) {
+    public ExternalTokenDslConfigurer rolesClaim(String claim) {
         this.rolesClaim = claim;
         return this;
     }
 
-    public JwtSecurityConfigurer scopesClaim(String claim) {
-        this.scopesClaim = claim;
-        return this;
-    }
-
-    public JwtSecurityConfigurer enableRefreshToken(boolean enable) {
+    public ExternalTokenDslConfigurer enableRefreshToken(boolean enable) {
         this.enableRefreshToken = enable;
-        return this;
-    }
-
-    public JwtSecurityConfigurer authorizeScopes(Consumer<JwtScopeAuthorizationConfigurer> consumer) {
-        JwtScopeAuthorizationConfigurer conf = new JwtScopeAuthorizationConfigurer();
-        consumer.accept(conf);
-        this.scopeToPattern = conf.getScopeToPattern();
         return this;
     }
 }

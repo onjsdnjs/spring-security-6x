@@ -6,10 +6,10 @@ import io.springsecurity.springsecurity6x.jwt.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.jwt.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.jwt.converter.SpringAuthenticationConverter;
+import io.springsecurity.springsecurity6x.jwt.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.ExternalJwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.InternalJwtTokenService;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -20,17 +20,18 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import java.security.Key;
 
 @Configuration
+@EnableConfigurationProperties(AuthContextProperties.class)
 public class JwtSecurityAutoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token.type", havingValue = "INTERNAL")
+    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "internal")
     public TokenService internalTokenService(JwtEncoder encoder, JwtDecoder decoder) {
         return new InternalJwtTokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
     }
 
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token.type", havingValue = "EXTERNAL")
+    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "external")
     public TokenService externalTokenService() {
         Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
         return new ExternalJwtTokenService(refreshTokenStore(), new JwtAuthenticationConverter(secretKey), secretKey);

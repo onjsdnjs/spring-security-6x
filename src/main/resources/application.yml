@@ -17,6 +17,11 @@ spring:
       enabled: true
       path: /h2-console
   auth:
-    enabled-auth-types: form
-    token-type: external
+    context-mode: jwt
+    enabled-auth-types:
+      - FORM
+      - OTT
+    token-control-mode: external
+
+
 

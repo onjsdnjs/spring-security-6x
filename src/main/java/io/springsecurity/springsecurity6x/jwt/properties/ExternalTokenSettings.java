@@ -17,5 +17,5 @@ public class ExternalTokenSettings {
     private String tokenPrefix = "Bearer ";
     private String rolesClaim = "roles";
     private String scopesClaim = "scopes";
-
 }
+

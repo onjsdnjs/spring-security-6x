@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.jwt.configurer.authentication;
 
 import io.springsecurity.springsecurity6x.jwt.filter.ApiAuthenticationFilter;
-import io.springsecurity.springsecurity6x.jwt.strategy.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationStateStrategy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt.strategy;
+package io.springsecurity.springsecurity6x.jwt.configurer.state;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

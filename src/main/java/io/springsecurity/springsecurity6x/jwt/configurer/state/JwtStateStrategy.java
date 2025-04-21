@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt.strategy;
+package io.springsecurity.springsecurity6x.jwt.configurer.state;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;

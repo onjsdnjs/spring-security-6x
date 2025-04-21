@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.jwt.strategy;
+package io.springsecurity.springsecurity6x.jwt.configurer;
 
 import io.springsecurity.springsecurity6x.jwt.properties.AuthContextProperties;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

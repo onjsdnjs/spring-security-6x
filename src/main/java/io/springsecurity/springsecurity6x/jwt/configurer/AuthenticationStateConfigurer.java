@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.jwt.configurer;
 
-import io.springsecurity.springsecurity6x.jwt.strategy.JwtStateStrategy;
-import io.springsecurity.springsecurity6x.jwt.strategy.SessionStateStrategy;
-import io.springsecurity.springsecurity6x.jwt.strategy.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.jwt.configurer.state.JwtStateStrategy;
+import io.springsecurity.springsecurity6x.jwt.configurer.state.SessionStateStrategy;
 
 import java.util.function.Consumer;
 

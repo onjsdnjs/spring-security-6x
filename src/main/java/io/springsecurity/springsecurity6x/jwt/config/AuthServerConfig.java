@@ -30,31 +30,6 @@ import java.util.UUID;
 public class AuthServerConfig {
 
     @Bean
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
-        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
-                new OAuth2AuthorizationServerConfigurer();
-
-        RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
-
-        http
-                .securityMatcher(endpointsMatcher)
-                .authorizeHttpRequests(authorize -> authorize
-                        .anyRequest().authenticated()
-                )
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers(endpointsMatcher)
-                )
-                .oauth2ResourceServer(resourceServer ->
-                        resourceServer.jwt(Customizer.withDefaults()))
-
-                .with(authorizationServerConfigurer, configurer -> {
-                        configurer.authorizationServerSettings(authorizationServerSettings());
-                });
-
-        return http.build();
-    }
-
-    @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("my-client")

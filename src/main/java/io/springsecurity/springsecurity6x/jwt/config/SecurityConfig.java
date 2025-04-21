@@ -25,16 +25,17 @@ import java.util.concurrent.TimeUnit;
 public class SecurityConfig {
 
     private final ApplicationContext applicationContext;
+    private final AuthenticationProvider authenticationProvider;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, IntegrationAuthProperties properties) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, IntegrationAuthProperties integrationAuthProperties) throws Exception {
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/h2-console/**", "/login/**").permitAll()
                         .anyRequest().authenticated())
-                .authenticationProvider(authenticationProvider())
-                .with(ExternalTokenDslConfigurer.jwt(properties,applicationContext), configurer -> configurer
+                .authenticationProvider(authenticationProvider)
+                .with(ExternalTokenDslConfigurer.jwt(integrationAuthProperties,applicationContext), configurer -> configurer
                         .tokenPrefix("Bearer ")
                         .accessTokenValidity(1, TimeUnit.HOURS)
                         .refreshTokenValidity(7, TimeUnit.DAYS)
@@ -48,21 +49,5 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public AuthenticationProvider authenticationProvider(){
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setUserDetailsService(userDetailsService());
-        return daoAuthenticationProvider;
-    }
 
-    @Bean
-    public UserDetailsService userDetailsService(){
-        UserDetails user = User.withDefaultPasswordEncoder()
-                .username("onjsdnjs@gmail.com")
-                .password("1111")
-                .roles("USER")
-                .build();
-        return new InMemoryUserDetailsManager(user);
-
-    }
 }

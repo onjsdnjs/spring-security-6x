@@ -1,14 +1,13 @@
 package io.springsecurity.springsecurity6x.jwt.configurer.authentication;
 
-import io.springsecurity.springsecurity6x.jwt.filter.ApiAuthenticationFilter;
 import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.jwt.filter.ApiAuthenticationFilter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-public class ApiAuthenticationConfigurer extends AbstractHttpConfigurer<ApiAuthenticationConfigurer, HttpSecurity>  implements AuthenticationConfigurer {
+public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
 
     private String loginProcessingUrl = "/api/auth/login";
     private AuthenticationProvider authenticationProvider;

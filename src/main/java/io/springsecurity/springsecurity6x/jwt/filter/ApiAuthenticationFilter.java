@@ -1,43 +1,38 @@
 package io.springsecurity.springsecurity6x.jwt.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.domain.LoginRequest;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.io.IOException;
 import java.util.Map;
 
-public class ApiAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+public class ApiAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    public ApiAuthenticationFilter(String loginProcessingUrl) {
-        setRequiresAuthenticationRequestMatcher(
-                new AntPathRequestMatcher(loginProcessingUrl, "POST"));
-        setUsernameParameter("username");
-        setPasswordParameter("password");
+    public ApiAuthenticationFilter(String loginUri) {
+        super(new AntPathRequestMatcher(loginUri, "POST"));
     }
+
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request,
-                                                HttpServletResponse response) throws AuthenticationException {
-        String username = obtainUsername(request);
-        String password = obtainPassword(request);
+                                                HttpServletResponse response) throws AuthenticationException, IOException {
 
-        if (username == null || password == null) {
-            throw new BadCredentialsException("Username or Password not provided");
-        }
+        ObjectMapper mapper = new ObjectMapper();
+        LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
+        String username = login.username();
+        String password = login.password();
 
         UsernamePasswordAuthenticationToken authRequest =
                 new UsernamePasswordAuthenticationToken(username, password);
-
-        setDetails(request, authRequest);
         return this.getAuthenticationManager().authenticate(authRequest);
     }
 

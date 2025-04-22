@@ -30,6 +30,7 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
+
         ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl);
         filter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
         filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);

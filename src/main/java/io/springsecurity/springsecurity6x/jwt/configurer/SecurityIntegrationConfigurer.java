@@ -1,11 +1,9 @@
 package io.springsecurity.springsecurity6x.jwt.configurer;
 
-import io.springsecurity.springsecurity6x.jwt.configurer.authentication.ApiAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.configurer.authentication.AuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationStateStrategy;
 import io.springsecurity.springsecurity6x.jwt.configurer.token.AuthorizationServerConfigurer;
 import io.springsecurity.springsecurity6x.jwt.configurer.token.ResourceServerConfigurer;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 

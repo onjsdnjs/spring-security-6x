@@ -1,8 +1,10 @@
 package io.springsecurity.springsecurity6x.jwt.entity;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
+@Data
 public class Users {
 
     @Id
@@ -15,5 +17,6 @@ public class Users {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
     private String role;
 }

@@ -1,12 +1,13 @@
 package io.springsecurity.springsecurity6x.jwt.config;
 
-import io.springsecurity.springsecurity6x.jwt.configurer.IdentityConfigurer;
+import io.springsecurity.springsecurity6x.jwt.configurer.SecurityIntegrationConfigurer;
 import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
@@ -27,7 +28,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http.csrf(AbstractHttpConfigurer::disable)
-                .with(new IdentityConfigurer(), identity -> identity
+                .with(new SecurityIntegrationConfigurer(), configurer -> configurer
                         .authentication(auth -> auth
                                 .form(form -> form
                                         .loginProcessingUrl("/api/auth/login")
@@ -35,6 +36,7 @@ public class SecurityConfig {
                                 )
                                 .ott(ott -> ott
                                         .loginProcessingUrl("/login/ott")
+                                        .tokenService(new InMemoryOneTimeTokenService())
                                 )
                                 .passkey(passkey -> passkey
                                         .origin("http://localhost:8080")

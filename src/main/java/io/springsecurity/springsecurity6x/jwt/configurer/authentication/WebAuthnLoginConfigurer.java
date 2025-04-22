@@ -2,8 +2,9 @@ package io.springsecurity.springsecurity6x.jwt.configurer.authentication;
 
 import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationStateStrategy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
-public class PasskeyAuthenticationConfigurer implements AuthenticationEntryConfigurer {
+public class WebAuthnLoginConfigurer implements AuthenticationConfigurer{
 
     private String rpName = "SecureApp";
     private String rpId = "localhost";
@@ -22,16 +23,18 @@ public class PasskeyAuthenticationConfigurer implements AuthenticationEntryConfi
         this.allowedOrigins = origins;
     }
 
-    @Override
-    public void setStateStrategy(AuthenticationStateStrategy stateStrategy) {
+    public void stateStrategy(AuthenticationStateStrategy stateStrategy) {
         this.stateStrategy = stateStrategy;
     }
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.webAuthn(web -> web
-                .rpName(rpName)
-                .rpId(rpId)
-                .allowedOrigins(allowedOrigins));
+        http
+                .webAuthn(web -> web
+                        .rpName(rpName)
+                        .rpId(rpId)
+                        .allowedOrigins(allowedOrigins)
+                );
     }
 }
+

@@ -9,7 +9,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 public class AuthorizationServerConfigurer {
 
-    public void configure(HttpSecurity http) throws Exception {
+    public void  configure(HttpSecurity http) throws Exception {
 
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
 

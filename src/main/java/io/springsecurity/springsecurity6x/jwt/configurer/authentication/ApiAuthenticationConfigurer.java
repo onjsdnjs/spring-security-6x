@@ -5,9 +5,10 @@ import io.springsecurity.springsecurity6x.jwt.configurer.state.AuthenticationSta
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-public class ApiAuthenticationConfigurer implements AuthenticationEntryConfigurer {
+public class ApiAuthenticationConfigurer extends AbstractHttpConfigurer<ApiAuthenticationConfigurer, HttpSecurity>  implements AuthenticationConfigurer {
 
     private String loginProcessingUrl = "/api/auth/login";
     private AuthenticationProvider authenticationProvider;
@@ -24,7 +25,7 @@ public class ApiAuthenticationConfigurer implements AuthenticationEntryConfigure
     }
 
     @Override
-    public void setStateStrategy(AuthenticationStateStrategy strategy) {
+    public void stateStrategy(AuthenticationStateStrategy strategy) {
         this.stateStrategy = strategy;
     }
 

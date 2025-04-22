@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Passkey Login</title>
+    <style>
+        body { font-family:'Segoe UI',sans-serif; background:#f4f6f9; margin:0; padding:0; }
+        header, footer { background:#1a237e; color:#fff; text-align:center; padding:16px; }
+        nav { background:#283593; padding:16px; }
+        nav a { color:#fff; text-decoration:none; margin-right:12px; }
+        main { padding:40px; max-width:400px; margin:40px auto; background:#fff; border-radius:8px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1); text-align:center; }
+        button { padding:12px 20px; background:#1976d2; color:#fff; border:none; border-radius:4px;
+            font-size:16px; cursor:pointer; }
+        button:hover { background:#125ea6; }
+        .links { margin-top:16px; text-align:center; }
+        .links a { color:#1976d2; text-decoration:none; margin:0 8px; }
+    </style>
+</head>
+<body>
+<header>Integration Auth Platform</header>
+<nav>
+    <a href="/">Home</a>
+    <a href="/loginForm">Form</a>
+    <a href="/loginOtt">OTT</a>
+    <a href="/loginPasskey">Passkey</a>
+    <a href="/register">Register</a>
+    <a href="/users">Users</a>
+</nav>
+<main>
+    <h2>Passkey (WebAuthn) Login</h2>
+    <button id="passkeyBtn">Start Passkey Login</button>
+    <div class="links">
+        <a href="/">Home</a>
+        <a href="/register">Register</a>
+    </div>
+</main>
+<footer>© 2025 Integration Auth Inc.</footer>
+<script>
+    document.getElementById("passkeyBtn").addEventListener("click", async () => {
+        try {
+            // 1) 로그인 옵션 요청
+            const opts = await fetch("/webauthn/assertion/options").then(r => r.json());
+            // 2) WebAuthn API 호출
+            const assertion = await navigator.credentials.get({ publicKey: opts });
+            // 3) 서버로 전송
+            const res = await fetch("/login/passkey", {
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body: JSON.stringify(assertion)
+            });
+            if(res.ok) location.href="/users";
+            else alert("Passkey login failed");
+        } catch(err) {
+            console.error(err);
+            alert("Browser does not support Passkey or error occurred.");
+        }
+    });
+</script>
+</body>
+</html>

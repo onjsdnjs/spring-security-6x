@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.controller;
 
 import io.springsecurity.springsecurity6x.domain.UserDto;
-import io.springsecurity.springsecurity6x.jwt.entity.Users;
+import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -21,14 +21,9 @@ public class UserController {
     private final ModelMapper modelMapper;
 
 
-    @GetMapping("/login")
-    public String loginPage(Model model) {
-        return "jwt/login";
-    }
-
     @GetMapping("/register")
     public String registerPage(Model model) {
-        return "jwt/register";
+        return "register";
     }
 
     @PostMapping("/register")
@@ -37,13 +32,13 @@ public class UserController {
         Users users = modelMapper.map(userDto, Users.class);
         userRepository.save(users);
 
-        return "redirect:/login";
+        return "redirect:/users";
     }
 
     @GetMapping("/users")
     public String userListPage(Model model) {
         List<Users> users = userRepository.findAll();
         model.addAttribute("users", users);
-        return "jwt/users";
+        return "users";
     }
 }

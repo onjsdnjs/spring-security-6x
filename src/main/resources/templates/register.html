@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <style>
+        body { font-family:'Segoe UI',sans-serif; background:#f4f6f9; margin:0; padding:0; }
+        header, footer { background:#1a237e; color:#fff; text-align:center; padding:16px; }
+        nav { background:#283593; padding:16px; }
+        nav a { color:#fff; text-decoration:none; margin-right:12px; }
+        main { padding:40px; max-width:400px; margin:40px auto; background:#fff; border-radius:8px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        input, button { width:100%; padding:12px; margin:8px 0; border-radius:4px; }
+        input { border:1px solid #ccc; }
+        button { background:#1976d2; color:#fff; border:none; cursor:pointer; }
+        button:hover { background:#125ea6; }
+    </style>
+</head>
+<body>
+<header>Integration Auth Platform</header>
+<nav>
+    <a href="/">Home</a>
+    <a href="/loginForm">Form</a>
+    <a href="/loginOtt">OTT</a>
+    <a href="/loginPasskey">Passkey</a>
+    <a href="/register">Register</a>
+    <a href="/users">Users</a>
+</nav>
+<main>
+    <h2>회원 가입</h2>
+    <form action="/register" method="post">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <input type="text" name="role" placeholder="Role (optional)">
+        <button type="submit">Register</button>
+    </form>
+</main>
+<footer>© 2025 Integration Auth Inc.</footer>
+</body>
+</html>

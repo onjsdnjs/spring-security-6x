@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.ott;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,3 +28,4 @@ public class OttController {
     public String home() {
         return "home"; }
 }
+*/

@@ -1,87 +1,118 @@
-/* === style.css === */
-
+/* 기본 설정 */
 body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', sans-serif;
-    background: #f7f9fb;
+    background-color: #f5f7fa;
     color: #333;
 }
 
-.container {
-    max-width: 400px;
-    margin: 60px auto;
-    padding: 30px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    text-align: center;
+/* 레이아웃 전체 구조 */
+.layout {
+    display: grid;
+    grid-template-areas:
+        "header header"
+        "sidebar content"
+        "footer footer";
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100vh;
 }
 
-.auth-form {
+/* 헤더 */
+header {
+    grid-area: header;
+    background-color: #1976d2;
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 사이드바 */
+.sidebar {
+    grid-area: sidebar;
+    background-color: #eeeeee;
+    padding: 2rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 1rem;
+    height: 100%;
 }
 
-.auth-form h2 {
-    margin-bottom: 10px;
+.sidebar a {
+    text-decoration: none;
     color: #1976d2;
-}
-
-.auth-form input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    font-weight: bold;
     font-size: 16px;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    transition: background-color 0.2s;
 }
 
-.auth-form button {
-    padding: 12px;
-    background: #1976d2;
+.sidebar a:hover {
+    background-color: #d0e3f8;
+}
+
+/* 메인 컨텐츠 */
+.content {
+    grid-area: content;
+    padding: 2rem;
+    background-color: #ffffff;
+}
+
+/* 푸터 */
+footer {
+    grid-area: footer;
+    text-align: center;
+    padding: 1rem;
+    background-color: #eeeeee;
+    font-size: 14px;
+    color: #555;
+}
+
+/* 홈 섹션 */
+.welcome {
+    text-align: center;
+    padding: 3rem 2rem;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.welcome h2 {
+    font-size: 28px;
+    color: #1976d2;
+    margin-bottom: 1rem;
+}
+
+.welcome p {
+    font-size: 18px;
+    margin-bottom: 2rem;
+}
+
+/* 인증 옵션 버튼 */
+.auth-options {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.auth-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #1976d2;
     color: white;
     border: none;
     border-radius: 6px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.auth-form button:hover {
-    background: #125ea6;
-}
-
-.link-bar {
-    margin-top: 20px;
-    display: flex;
-    justify-content: space-around;
-}
-
-.link-bar a {
-    color: #1976d2;
     text-decoration: none;
-    font-weight: bold;
-    transition: color 0.3s;
+    transition: background-color 0.3s ease;
 }
 
-.link-bar a:hover {
-    color: #0e4a83;
-}
-
-.user-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-    text-align: left;
-}
-
-.user-list li {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-}
-
-.error {
-    color: #d32f2f;
-    font-size: 14px;
-    margin-top: 8px;
+.auth-button:hover {
+    background-color: #125ea6;
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Form Login</title>
+    <style>
+        body { font-family: 'Segoe UI',sans-serif; background:#f4f6f9; margin:0; padding:0; }
+        header, footer { background:#1a237e; color:#fff; text-align:center; padding:16px; }
+        nav { background:#283593; padding:16px; }
+        nav a { color:#fff; text-decoration:none; margin-right:12px; }
+        main { padding:40px; max-width:400px; margin:40px auto; background:#fff; border-radius:8px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        h2 { color:#1a237e; text-align:center; }
+        input { width:100%; padding:12px; margin:8px 0; border:1px solid #ccc; border-radius:4px; }
+        button { width:100%; padding:12px; background:#1a237e; color:#fff; border:none; border-radius:4px;
+            font-size:16px; cursor:pointer; }
+        button:hover { background:#3949ab; }
+        .links { margin-top:16px; text-align:center; }
+        .links a { color:#1976d2; text-decoration:none; margin:0 8px; }
+        .error { color:#d32f2f; text-align:center; margin-top:12px; }
+    </style>
+</head>
+<body>
+<header>Integration Auth Platform</header>
+<nav>
+    <a href="/">Home</a>
+    <a href="/loginForm">Form</a>
+    <a href="/loginOtt">OTT</a>
+    <a href="/loginPasskey">Passkey</a>
+    <a href="/register">Register</a>
+    <a href="/users">Users</a>
+</nav>
+<main>
+    <h2>Form Login</h2>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+        <p id="errorMsg" class="error" style="display:none;"></p>
+    </form>
+    <div class="links">
+        <a href="/register">Register</a>
+        <a href="/users">User List</a>
+    </div>
+</main>
+<footer>© 2025 Integration Auth Inc.</footer>
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async e => {
+        e.preventDefault();
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
+        const res = await fetch("/api/auth/login", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ username:u, password:p })
+        });
+        const data = await res.json();
+        if(res.ok){
+            localStorage.setItem("accessToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            location.href = "/users";
+        } else {
+            const err = document.getElementById("errorMsg");
+            err.innerText = data.error||"Login failed";
+            err.style.display = "block";
+        }
+    });
+</script>
+</body>
+</html>

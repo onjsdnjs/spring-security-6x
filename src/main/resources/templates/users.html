@@ -29,11 +29,12 @@
     <h2>회원 리스트</h2>
     <table>
         <thead>
-        <tr><th>회원명</th><th>권한</th></tr>
+        <tr><th>회원명</th><th>이메일</th><th>권한</th></tr>
         </thead>
         <tbody>
         <tr th:each="user : ${users}">
             <td th:text="${user.username}">username</td>
+            <td th:text="${user.email}">email@example.com</td>
             <td th:text="${user.role}">role</td>
         </tr>
         </tbody>

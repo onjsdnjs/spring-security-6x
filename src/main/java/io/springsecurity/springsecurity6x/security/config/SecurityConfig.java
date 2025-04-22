@@ -31,6 +31,9 @@ public class SecurityConfig {
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
         http.csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(authReq -> authReq
+                        .requestMatchers("/", "/login*", "/api/auth/login", "/login/**","/ott/sent","/register").permitAll()
+                        .anyRequest().authenticated())
                 .authenticationManager(authenticationManager)
                 .with(new SecurityIntegrationConfigurer(), configurer -> configurer
                         .authentication(auth -> auth

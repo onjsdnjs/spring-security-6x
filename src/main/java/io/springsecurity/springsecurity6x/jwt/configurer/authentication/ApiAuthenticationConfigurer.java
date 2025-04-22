@@ -12,6 +12,7 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
     private String loginProcessingUrl = "/api/auth/login";
     private AuthenticationProvider authenticationProvider;
     private AuthenticationStateStrategy stateStrategy;
+    private AuthenticationManager authenticationManager;
 
     public ApiAuthenticationConfigurer loginProcessingUrl(String url) {
         this.loginProcessingUrl = url;
@@ -23,6 +24,10 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
         return this;
     }
 
+    public void authenticationManager(AuthenticationManager authenticationManager){
+        this.authenticationManager = authenticationManager;
+    }
+
     @Override
     public void stateStrategy(AuthenticationStateStrategy strategy) {
         this.stateStrategy = strategy;
@@ -32,13 +37,11 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
     public void configure(HttpSecurity http) throws Exception {
 
         ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl);
-        filter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+
+        filter.setAuthenticationManager(authenticationManager);
         filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
 
         http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
 
-        if (authenticationProvider != null) {
-            http.authenticationProvider(authenticationProvider);
-        }
     }
 }

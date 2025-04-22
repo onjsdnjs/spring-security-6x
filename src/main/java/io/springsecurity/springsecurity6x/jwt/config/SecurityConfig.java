@@ -5,9 +5,11 @@ import io.springsecurity.springsecurity6x.jwt.tokenservice.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
@@ -27,12 +29,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
+        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
+
         http.csrf(AbstractHttpConfigurer::disable)
+                .authenticationManager(authenticationManager)
                 .with(new SecurityIntegrationConfigurer(), configurer -> configurer
                         .authentication(auth -> auth
                                 .form(form -> form
                                         .loginProcessingUrl("/api/auth/login")
-                                        .authenticationProvider(authenticationProvider())
+                                        .authenticationManager(authenticationManager)
                                 )
                                 .ott(ott -> ott
                                         .loginProcessingUrl("/login/ott")
@@ -55,13 +61,6 @@ public class SecurityConfig {
                 );
 
         return http.build();
-    }
-
-    @Bean
-    public AuthenticationProvider authenticationProvider(){
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setUserDetailsService(userDetailsService());
-        return daoAuthenticationProvider;
     }
 
     @Bean

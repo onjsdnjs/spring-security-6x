@@ -1,23 +1,17 @@
-// CSRF 토큰 헬퍼 그대로
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    return parts.length === 2
-        ? parts.pop().split(';').shift()
-        : null;
-}
-
 document.addEventListener("DOMContentLoaded", () => {
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+
+    // 헤더 링크
     const logoutLink = document.getElementById("logoutLink");
     if (logoutLink) {
         logoutLink.addEventListener("click", async (e) => {
-            e.preventDefault();                       // 기본 a 태그 이동 막고
-            const csrfToken = getCookie("XSRF-TOKEN");
+            e.preventDefault();
             await fetch("/logout", {
                 method:      "POST",
                 credentials: "same-origin",
                 headers: {
-                    "X-XSRF-TOKEN": csrfToken
+                    [csrfHeader]: csrfToken
                 }
             });
             window.location.href = "/loginForm";

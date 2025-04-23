@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function() {
         credentials: "same-origin"  // HTTP-Only 쿠키(accessToken) 자동 포함
     })
         .then(res => {
-            if (res.status === 401) {
+            if (res.status === 401 || res.status === 403) {
                 // 인증 실패 시 로그인 폼으로 리다이렉트
                 window.location.href = "/loginForm";
                 throw new Error("인증 실패");

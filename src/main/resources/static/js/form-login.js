@@ -1,28 +1,27 @@
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("loginForm");
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
-
         const data = {
             username: form.username.value,
             password: form.password.value
         };
 
-        const csrfToken = getCookie('XSRF-TOKEN');
-
         try {
             const res = await fetch("/api/auth/login", {
                 method:      "POST",
-                credentials: "same-origin",           // 쿠키(인증, CSRF) 포함
+                credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-XSRF-TOKEN": csrfToken
+                    [csrfHeader]:    csrfToken
                 },
                 body: JSON.stringify(data)
             });
 
             if (res.ok) {
-                // 로그인 성공 후 홈으로 이동
                 window.location.href = "/";
             } else {
                 const error = await res.json().catch(() => null);
@@ -34,12 +33,3 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
-
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-        return parts.pop().split(';').shift();
-    }
-    return null;
-}

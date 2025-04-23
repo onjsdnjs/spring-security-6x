@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @RequiredArgsConstructor
@@ -32,15 +33,8 @@ public class SecurityConfig {
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
-        CookieCsrfTokenRepository csrfTokenRepository = new CookieCsrfTokenRepository();
-        csrfTokenRepository.setCookieCustomizer(builder -> builder
-                .httpOnly(true)
-//                .secure(true)
-//                .sameSite("Strict")
-        );
-
         http.csrf(csrf -> csrf
-                .csrfTokenRepository(csrfTokenRepository))
+                .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
                 )

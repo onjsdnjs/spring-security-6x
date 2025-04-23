@@ -1,55 +1,40 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: layout}">
-<div th:fragment="content">
-    <div class="container">
-        <h2>회원 목록</h2>
-        <table id="usersTable" style="width: 800px; padding: 0; margin: 0">
-            <thead>
-            <tr><th style="text-align: center">회원명</th><th style="text-align: center">이메일</th><th style="text-align: center">권한</th></tr>
-            </thead>
-            <tbody>
-            <!-- JS 로 채워넣습니다 -->
-            </tbody>
-        </table>
-    </div>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>회원 목록</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<div class="app-wrapper">
+    <header class="app-header"
+            th:insert="~{fragments/header :: header}"></header>
+    <aside class="sidebar"
+           th:insert="~{fragments/menu   :: menu}"></aside>
+
+    <main class="content">
+        <div class="container">
+            <h2>회원 목록</h2>
+            <table id="usersTable"
+                   style="width:800px; margin:0 auto; border-collapse:collapse;">
+                <thead>
+                <tr>
+                    <th style="text-align:center">회원명</th>
+                    <th style="text-align:center">이메일</th>
+                    <th style="text-align:center">권한</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- JS 로 채워짐 -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer class="app-footer"
+            th:insert="~{fragments/footer :: footer}"></footer>
 </div>
 
-<script>
-    // 페이지 로드되면 실행
-    document.addEventListener("DOMContentLoaded", async () => {
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
-            // 토큰 없으면 로그인 페이지로
-            window.location.href = "/loginForm";
-            return;
-        }
-        try {
-            const res = await fetch("/api/users", {
-                headers: {
-                    "Authorization": token
-                }
-            });
-            if (res.status === 401) {
-                // 인증 실패 시
-                window.location.href = "/loginForm";
-                return;
-            }
-            const users = await res.json();
-            const tbody = document.querySelector("#usersTable tbody");
-            tbody.innerHTML = "";
-            users.forEach(u => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-            <td>${u.username}</td>
-            <td>${u.email}</td>
-            <td>${u.role}</td>
-          `;
-                tbody.appendChild(tr);
-            });
-        } catch (e) {
-            console.error("사용자 목록 로드 실패", e);
-        }
-    });
-</script>
+<script src="/js/users.js"></script>
+</body>
 </html>

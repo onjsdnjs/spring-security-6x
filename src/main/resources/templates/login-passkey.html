@@ -1,31 +1,28 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: layout}">
-<div th:fragment="content">
-    <div class="container">
-        <h2>Passkey 로그인</h2>
-        <button id="passkeyBtn">Passkey 인증 시작</button>
-    </div>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Passkey 로그인</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<div class="app-wrapper">
+    <header class="app-header"
+            th:insert="~{fragments/header :: header}"></header>
+    <aside class="sidebar"
+           th:insert="~{fragments/menu   :: menu}"></aside>
+
+    <main class="content">
+        <div class="container">
+            <h2>Passkey 로그인</h2>
+            <button id="passkeyBtn" style="width:300px ">Passkey 인증</button>
+        </div>
+    </main>
+
+    <footer class="app-footer"
+            th:insert="~{fragments/footer :: footer}"></footer>
 </div>
 
-<script>
-    document.getElementById("passkeyBtn").addEventListener("click", async () => {
-        try {
-            const options = await fetch("/webauthn/assertion/options").then(r => r.json());
-            const assertion = await navigator.credentials.get({ publicKey: options });
-            const res = await fetch("/login/passkey", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(assertion)
-            });
-            if (res.ok) {
-                window.location.href = "/users";
-            } else {
-                alert("Passkey 인증에 실패했습니다.");
-            }
-        } catch {
-            alert("Passkey 인증 중 오류가 발생했거나 지원되지 않는 브라우저입니다.");
-        }
-    });
-</script>
+<script src="/js/passkey-login.js"></script>
+</body>
 </html>

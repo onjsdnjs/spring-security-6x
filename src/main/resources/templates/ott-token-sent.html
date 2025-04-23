@@ -6,21 +6,34 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div th:insert="~{fragments/header :: header}"></div>
-<div th:insert="~{fragments/menu   :: menu}"></div>
+<div class="app-wrapper">
 
-<main>
-    <div class="container">
-        <h2>OTT 토큰 발송 완료</h2>
-        <p th:text="'입력하신 이메일: ' + ${email}"></p>
-        <p>아래의 링크를 클릭하여 인증을 진행하세요:</p>
-        <a th:href="${loginLink}" class="btn" th:text="${loginLink}">로그인 링크</a>
-        <div style="margin-top:16px; text-align:center; color:#1976d2;">
-            <p><strong>(시뮬레이션)</strong> 실제 메일 발송 없이 화면에 표시됩니다.</p>
+    <!-- 헤더 -->
+    <header class="app-header"
+            th:insert="~{fragments/header :: header}"></header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar"
+           th:insert="~{fragments/menu :: menu}"></aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="content">
+        <div class="container">
+            <h2>OTT 토큰 발송 완료</h2>
+            <p th:text="'입력하신 이메일: ' + ${email}"></p>
+            <p>아래의 링크를 클릭하여 인증을 진행하세요:</p>
+            <a th:href="${loginLink}"
+               class="btn"
+               th:text="${loginLink}">로그인 링크</a>
+            <div style="margin-top:16px; text-align:center; color:#1976d2;">
+                <p><strong>(시뮬레이션)</strong> 실제 메일 발송 없이 화면에 표시됩니다.</p>
+            </div>
         </div>
-    </div>
-</main>
+    </main>
 
-<div th:insert="~{fragments/footer :: footer}"></div>
+    <!-- 푸터 -->
+    <footer class="app-footer"
+            th:insert="~{fragments/footer :: footer}"></footer>
+</div>
 </body>
 </html>

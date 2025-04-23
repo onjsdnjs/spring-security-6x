@@ -1,10 +1,32 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: layout}">
-<div th:fragment="content">
-    <div class="container">
-        <h1 style="color: #1976d2">Security Auth Platform 에 오신 것을 환영합니다</h1><br>
-        <p>좌측 메뉴에서 인증 흐름을 선택하세요.</p>
-    </div>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>홈</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<!-- 1) 앱 래퍼로 전체 감싸기 -->
+<div class="app-wrapper">
+
+    <!-- 2) 헤더 -->
+    <header class="app-header" th:insert="~{fragments/header :: header}"></header>
+
+    <!-- 3) 사이드바 -->
+    <aside class="sidebar" th:insert="~{fragments/menu   :: menu}"></aside>
+
+    <!-- 4) 메인 콘텐츠 -->
+    <main class="content">
+        <div class="container">
+            <h1 style="color: #1976d2">Security Auth Platform 에 오신 것을 환영합니다</h1><br>
+            <p>좌측 메뉴에서 인증 흐름을 선택하세요.</p>
+
+        </div>
+    </main>
+
+    <!-- 5) 푸터 -->
+    <footer class="app-footer" th:insert="~{fragments/footer :: footer}"></footer>
 </div>
+
+</body>
 </html>

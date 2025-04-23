@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
             username: form.username.value,
             email: form.email.value,
             password: form.password.value,
-            role: form.roles.value,
+            roles: form.roles.value,
         };
         const res = await fetch(/*[[@{/api/register}]]*/"/api/register", {
             method: "POST",
@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         if (res.ok) {
             alert("회원가입 성공!");
-            window.location.href = /*[[@{/loginForm}]]*/"/users";
+            window.location.href = /*[[@{/loginForm}]]*/"/loginForm";
         } else {
             alert("회원가입 실패");
         }

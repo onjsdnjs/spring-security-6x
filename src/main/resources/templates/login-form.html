@@ -13,7 +13,8 @@
            th:insert="~{fragments/menu   :: menu}"></aside>
 
     <main class="content">
-        <div class="container">
+        <div class="container" style="display: flex; justify-content: flex-start; align-items: center;">
+            <h2>FORM 로그인</h2>
             <form id="loginForm"
                   th:action="@{/api/auth/login}"
                   method="post">

@@ -6,12 +6,10 @@ import io.springsecurity.springsecurity6x.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +20,7 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
+    private final PasswordEncoder passwordEncoder;
 
 
     @GetMapping("/register")
@@ -31,9 +30,10 @@ public class UserController {
 
     @PostMapping("/api/register")
     @ResponseBody
-    public ResponseEntity<String> processRegister(@ModelAttribute UserDto userDto) {
+    public ResponseEntity<String> processRegister(@RequestBody UserDto userDto) {
 
         Users users = modelMapper.map(userDto, Users.class);
+        users.setPassword(passwordEncoder.encode(users.getPassword()));
         userRepository.save(users);
 
         return ResponseEntity.ok().body("success");

@@ -24,9 +24,9 @@ document.addEventListener("DOMContentLoaded", function() {
             users.forEach(u => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-                    <td>${u.username}</td>
-                    <td>${u.email}</td>
-                    <td>${u.role}</td>
+                    <td style="text-align:center">${u.username}</td>
+                    <td style="text-align:center">${u.email}</td>
+                    <td style="text-align:center">${u.roles}</td>
                 `;
                 tbody.appendChild(tr);
             });

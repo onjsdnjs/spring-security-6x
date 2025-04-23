@@ -70,7 +70,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                 : null;
 
         // 2) HTTP-only, Secure 쿠키에 담아서 응답
-        Cookie accessCookie = new Cookie("accessToken", tokenPrefix + accessToken);
+        Cookie accessCookie = new Cookie("accessToken", accessToken);
         accessCookie.setHttpOnly(true);
 //        accessCookie.setSecure(true);         // HTTPS 환경이면 true
         accessCookie.setPath("/");
@@ -78,7 +78,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         response.addCookie(accessCookie);
 
         if (refreshToken != null) {
-            Cookie refreshCookie = new Cookie("refreshToken", tokenPrefix + refreshToken);
+            Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
             refreshCookie.setHttpOnly(true);
             refreshCookie.setSecure(true);
             refreshCookie.setPath("/");

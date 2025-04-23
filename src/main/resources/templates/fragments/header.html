@@ -2,6 +2,8 @@
     <header class="app-header">
         <h1>Security Auth Platform</h1>
         <div class="header-actions">
+            <a id="home"
+               th:href="@{/}">Home</a>
             <a id="loginLink"
                sec:authorize="isAnonymous()"
                th:href="@{/loginForm}">로그인</a>
@@ -18,9 +20,6 @@
                href="#">로그아웃</a>
         </div>
         <meta charset="UTF-8" />
-        <title th:insert="~{::title}">My App</title>
-        <link rel="stylesheet" th:href="@{/css/style.css}" />
-
         <!-- CSRF 메타 태그 -->
         <meta name="_csrf"        th:content="${_csrf.token}" />
         <meta name="_csrf_header" th:content="${_csrf.headerName}" />

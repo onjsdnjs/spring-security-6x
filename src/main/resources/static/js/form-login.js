@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (res.ok) {
             const { accessToken } = await res.json();
             localStorage.setItem("accessToken", accessToken);
-            window.location.href = /*[[@{/users}]]*/"/users";
+            window.location.href = /*[[@{/}]]*/"/";
         } else {
             alert("로그인 실패");
         }

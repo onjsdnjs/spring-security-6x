@@ -3,43 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <title>User List</title>
-    <style>
-        body { font-family:'Segoe UI',sans-serif; background:#f4f6f9; margin:0; padding:0; }
-        header, footer { background:#1a237e; color:#fff; text-align:center; padding:16px; }
-        nav { background:#283593; padding:16px; }
-        nav a { color:#fff; text-decoration:none; margin-right:12px; }
-        main { padding:40px; max-width:800px; margin:40px auto; background:#fff; border-radius:8px;
-            box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-        table { width:100%; border-collapse:collapse; }
-        th, td { padding:12px; border-bottom:1px solid #ddd; text-align:left; }
-        th { background:#1976d2; color:#fff; }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<header>Integration Auth Platform</header>
-<nav>
-    <a href="/">Home</a>
-    <a href="/loginForm">Form</a>
-    <a href="/loginOtt">OTT</a>
-    <a href="/loginPasskey">Passkey</a>
-    <a href="/register">Register</a>
-    <a href="/users">Users</a>
-</nav>
+<div th:insert="fragments/header :: header"></div>
+<div th:insert="fragments/menu   :: menu"></div>
+
 <main>
-    <h2>회원 리스트</h2>
-    <table>
-        <thead>
-        <tr><th>회원명</th><th>이메일</th><th>권한</th></tr>
-        </thead>
-        <tbody>
-        <tr th:each="user : ${users}">
-            <td th:text="${user.username}">username</td>
-            <td th:text="${user.email}">email@example.com</td>
-            <td th:text="${user.role}">role</td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="container">
+        <h2>Registered Users</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.username}">username</td>
+                <td th:text="${u.email}">email@example.com</td>
+                <td th:text="${u.role}">role</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </main>
-<footer>© 2025 Integration Auth Inc.</footer>
+
+<div th:insert="fragments/footer :: footer"></div>
 </body>
 </html>

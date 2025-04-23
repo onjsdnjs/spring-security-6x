@@ -23,5 +23,10 @@ public class LoginController {
         return "login-passkey";
     }
 
+    @GetMapping("/logout")
+    public String logout() {
+        return "logout";
+    }
+
 }
 

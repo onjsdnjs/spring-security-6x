@@ -2,90 +2,23 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Home | Integration Auth</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 0;
-        }
-        header, footer {
-            background-color: #1a237e;
-            color: #fff;
-            text-align: center;
-            padding: 16px;
-        }
-        nav {
-            background-color: #283593;
-            padding: 16px;
-            text-align: center;
-        }
-        nav a {
-            color: #fff;
-            text-decoration: none;
-            margin: 0 12px;
-            font-weight: bold;
-        }
-        main {
-            padding: 40px;
-            display: flex;
-            justify-content: center;
-        }
-        .home-container {
-            background: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 450px;
-            width: 100%;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .home-container h2 {
-            color: #1976d2;
-            margin-bottom: 8px;
-        }
-        .home-container p {
-            margin-bottom: 16px;
-        }
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 14px 0;
-            background-color: #1976d2;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 16px;
-            transition: background-color 0.3s ease;
-        }
-        .btn:hover {
-            background-color: #125ea6;
-        }
-    </style>
+    <title>Home</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<header>Integration Auth Platform</header>
-<nav>
-    <a href="/">Home</a>
-    <a href="/loginForm">Form Login</a>
-    <a href="/loginOtt">OTT Login</a>
-    <a href="/loginPasskey">Passkey Login</a>
-    <a href="/register">Register</a>
-    <a href="/users">Users</a>
-</nav>
+<div th:insert="fragments/header :: header"></div>
+<div th:insert="fragments/menu   :: menu"></div>
+
 <main>
-    <div class="home-container">
-        <h2>통합 인증 플랫폼에 오신 것을 환영합니다</h2>
+    <div class="container">
+        <h2>Unified Auth 플랫폼에 오신 것을 환영합니다</h2>
         <p>원하시는 인증 방식을 선택하세요:</p>
-        <a href="/loginForm" class="btn">Form Login</a>
-        <a href="/loginOtt" class="btn">One‑Time Token Login</a>
-        <a href="/loginPasskey" class="btn">Passkey Login</a>
+        <a href="/login-form" class="btn">Form Login</a>
+        <a href="/login-ott"   class="btn">One-Time Token Login</a>
+        <a href="/login-passkey" class="btn">Passkey Login</a>
     </div>
 </main>
-<footer>© 2025 Integration Auth Inc.</footer>
+
+<div th:insert="fragments/footer :: footer"></div>
 </body>
 </html>

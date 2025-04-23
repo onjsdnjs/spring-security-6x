@@ -3,62 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <title>OTT Login</title>
-    <style>
-        body { font-family:'Segoe UI',sans-serif; background:#f4f6f9; margin:0; padding:0; }
-        header, footer { background:#1a237e; color:#fff; text-align:center; padding:16px; }
-        nav { background:#283593; padding:16px; }
-        nav a { color:#fff; text-decoration:none; margin-right:12px; }
-        main { padding:40px; max-width:400px; margin:40px auto; background:#fff; border-radius:8px;
-            box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-        h2 { color:#1a237e; text-align:center; }
-        input[type=email] { width:100%; padding:12px; margin:8px 0; border:1px solid #ccc; border-radius:4px; }
-        button { width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:4px;
-            font-size:16px; cursor:pointer; }
-        button:hover { background:#125ea6; }
-        .links { margin-top:16px; text-align:center; }
-        .links a { color:#1976d2; text-decoration:none; margin:0 8px; }
-        .message { text-align:center; color:#1976d2; margin-top:12px; }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<header>Integration Auth Platform</header>
-<nav>
-    <a href="/">Home</a>
-    <a href="/loginForm">Form</a>
-    <a href="/loginOtt">OTT</a>
-    <a href="/loginPasskey">Passkey</a>
-    <a href="/register">Register</a>
-    <a href="/users">Users</a>
-</nav>
+<div th:insert="fragments/header :: header"></div>
+<div th:insert="fragments/menu   :: menu"></div>
+
 <main>
-    <h2>One‑Time Token Login</h2>
-    <form id="ottForm">
-        <input type="email" id="email" placeholder="Enter your email" required>
-        <button type="submit">Send Login Link</button>
-    </form>
-    <p id="message" class="message" style="display:none;"></p>
-    <div class="links">
-        <a href="/">Home</a>
-        <a href="/register">Register</a>
+    <div class="container">
+        <h2>One-Time Token Login</h2>
+        <form id="ottForm">
+            <input type="email" id="email" placeholder="Enter your email" required>
+            <button type="submit">Send Login Link</button>
+        </form>
+        <p id="message" class="message" style="display:none;"></p>
+        <div class="links">
+            <a href="/register">Register</a>
+            <a href="/users">Users</a>
+        </div>
     </div>
 </main>
-<footer>© 2025 Integration Auth Inc.</footer>
+
+<div th:insert="fragments/footer :: footer"></div>
+
 <script>
     document.getElementById("ottForm").addEventListener("submit", async e => {
         e.preventDefault();
         const email = document.getElementById("email").value;
-        const msg = document.getElementById("message");
+        const msg   = document.getElementById("message");
         try {
             const res = await fetch("/ott/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({ email })
+                method:"POST",
+                headers:{"Content-Type":"application/x-www-form-urlencoded"},
+                body:new URLSearchParams({ email })
             });
-            if(res.ok){
-                msg.innerText = "Login link sent (simulation).";
-            } else {
-                msg.innerText = "Failed to send link.";
-            }
+            msg.innerText = res.ok
+                ? "Login link sent (simulation)."
+                : "Failed to send link.";
         } catch {
             msg.innerText = "Server error.";
         }

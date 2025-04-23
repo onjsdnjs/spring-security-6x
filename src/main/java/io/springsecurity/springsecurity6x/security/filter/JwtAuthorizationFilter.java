@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
+import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -18,18 +18,13 @@ import java.util.List;
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    /** application.yml 등에 설정해 두신 액세스 토큰 만료 시간(초) */
-    private final int accessTokenMaxAgeSeconds;
 
-    public JwtAuthorizationFilter(TokenService tokenService, int accessTokenMaxAgeSeconds) {
+    public JwtAuthorizationFilter(TokenService tokenService) {
         this.tokenService                = tokenService;
-        this.accessTokenMaxAgeSeconds    = accessTokenMaxAgeSeconds;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest  request,
-                                    HttpServletResponse response,
-                                    FilterChain        filterChain)
+    protected void doFilterInternal(HttpServletRequest  request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         String accessToken  = resolveCookie(request, "accessToken");
@@ -50,18 +45,13 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 c.setHttpOnly(true);
                 c.setSecure(request.isSecure());
                 c.setPath("/");
-                c.setMaxAge(accessTokenMaxAgeSeconds);
+                c.setMaxAge((int)JwtStateStrategy.accessTokenValidity/1000);
                 response.addCookie(c);
 
                 // 2-2) 컨텍스트에 인증 정보 세팅
                 Authentication auth = tokenService.getAuthenticationFromAccessToken(newAccessToken);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
-            } else {
-                // 3) 액세스·리프레시 토큰 모두 없거나 유효하지 않은 경우 → 쿠키 삭제 후 로그인 페이지로
-                clearCookies(response);
-                response.sendRedirect(request.getContextPath() + "/loginForm");
-                return;
             }
 
         } catch (RuntimeException ex) {

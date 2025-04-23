@@ -1,29 +1,26 @@
-document.addEventListener("DOMContentLoaded", function() {
-    // 본문의 로그아웃 버튼
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", function() {
-            localStorage.removeItem("accessToken");
-            window.location.href = "/loginForm";
-        });
-    }
+// CSRF 토큰 헬퍼 그대로
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    return parts.length === 2
+        ? parts.pop().split(';').shift()
+        : null;
+}
 
-    // 헤더의 로그아웃 링크
+document.addEventListener("DOMContentLoaded", () => {
     const logoutLink = document.getElementById("logoutLink");
     if (logoutLink) {
-        logoutLink.addEventListener("click", function(e) {
-            e.preventDefault();
-            localStorage.removeItem("accessToken");
+        logoutLink.addEventListener("click", async (e) => {
+            e.preventDefault();                       // 기본 a 태그 이동 막고
+            const csrfToken = getCookie("XSRF-TOKEN");
+            await fetch("/logout", {
+                method:      "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-XSRF-TOKEN": csrfToken
+                }
+            });
             window.location.href = "/loginForm";
         });
-    }
-
-    // (선택) 로그인/로그아웃 링크 토글
-    const loginLink  = document.getElementById("loginLink");
-    if (loginLink) {
-        loginLink.style.display = localStorage.getItem("accessToken") ? "none" : "inline-block";
-    }
-    if (logoutLink) {
-        logoutLink.style.display = localStorage.getItem("accessToken") ? "inline-block" : "none";
     }
 });

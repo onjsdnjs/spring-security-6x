@@ -1,22 +1,21 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <!-- (생략) -->
-</head>
-<body>
 <div th:fragment="header">
     <header class="app-header">
         <h1>Security Auth Platform</h1>
         <div class="header-actions">
-            <!-- 로그인 상태가 아닐 때만 보임 -->
-            <a sec:authorize="isAnonymous()" th:href="@{/loginForm}">로그인</a>
-            <a sec:authorize="isAnonymous()" th:href="@{/register}">회원가입</a>
+            <a id="loginLink"
+               sec:authorize="isAnonymous()"
+               th:href="@{/loginForm}">로그인</a>
+            <a id="registerLink"
+               sec:authorize="isAnonymous()"
+               th:href="@{/register}">회원가입</a>
 
-            <!-- 인증된 사용자만 보임 -->
-            <a sec:authorize="isAuthenticated()" th:href="@{/logout}">로그아웃</a>
+            <!-- 수정 전 -->
+            <!-- <a sec:authorize="isAuthenticated()" th:href="@{/logout}">로그아웃</a> -->
+
+            <!-- 수정 후: href="#" 로 바꾸고 id 추가 -->
+            <a id="logoutLink"
+               sec:authorize="isAuthenticated()"
+               href="#">로그아웃</a>
         </div>
     </header>
 </div>
-</body>
-</html>

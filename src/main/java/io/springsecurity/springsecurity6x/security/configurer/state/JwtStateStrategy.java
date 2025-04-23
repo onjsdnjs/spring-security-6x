@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.configurer.state;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -56,6 +57,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority).toList();
 
+        // 1) 토큰 생성
         String accessToken = tokenService.createAccessToken(builder -> builder
                 .username(username)
                 .roles(roles)
@@ -67,12 +69,27 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                 .validity(refreshTokenValidity))
                 : null;
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("accessToken", tokenPrefix + accessToken);
-        if (refreshToken != null) result.put("refreshToken", tokenPrefix + refreshToken);
+        // 2) HTTP-only, Secure 쿠키에 담아서 응답
+        Cookie accessCookie = new Cookie("accessToken", tokenPrefix + accessToken);
+        accessCookie.setHttpOnly(true);
+//        accessCookie.setSecure(true);         // HTTPS 환경이면 true
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge((int)(accessTokenValidity / 1000));
+        response.addCookie(accessCookie);
 
-        response.setContentType("application/json");
-        new ObjectMapper().writeValue(response.getOutputStream(), result);
+        if (refreshToken != null) {
+            Cookie refreshCookie = new Cookie("refreshToken", tokenPrefix + refreshToken);
+            refreshCookie.setHttpOnly(true);
+            refreshCookie.setSecure(true);
+            refreshCookie.setPath("/");
+            refreshCookie.setMaxAge((int)(refreshTokenValidity / 1000));
+            response.addCookie(refreshCookie);
+        }
+
+        // 3) (선택) JSON 응답 바디 대신 상태 코드만 내려도 되고,
+        //    필요하면 쿠키만 보내고 바로 리다이렉트할 수도 있습니다.
+        //    여기서는 예시로 간단히 200 OK만 반환합니다.
+        response.setStatus(HttpServletResponse.SC_OK);
     }
 }
 

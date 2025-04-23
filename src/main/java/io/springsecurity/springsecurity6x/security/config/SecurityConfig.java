@@ -1,9 +1,8 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.repository.UserRepository;
 import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
-import io.springsecurity.springsecurity6x.security.service.CustomUserDetailsService;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
@@ -13,16 +12,12 @@ import org.springframework.security.authentication.ott.InMemoryOneTimeTokenServi
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @RequiredArgsConstructor
@@ -37,7 +32,15 @@ public class SecurityConfig {
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
-        http.csrf(AbstractHttpConfigurer::disable)
+        CookieCsrfTokenRepository csrfTokenRepository = new CookieCsrfTokenRepository();
+        csrfTokenRepository.setCookieCustomizer(builder -> builder
+                .httpOnly(true)
+//                .secure(true)
+//                .sameSite("Strict")
+        );
+
+        http.csrf(csrf -> csrf
+                .csrfTokenRepository(csrfTokenRepository))
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
                 )
@@ -70,6 +73,17 @@ public class SecurityConfig {
                         .resourceServer(resource -> resource
                                 .jwtDecoder(jwtDecoder)
                         )
+                )
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .addLogoutHandler((req, res, auth) -> {
+                            // 쿠키 삭제
+                            Cookie cookie = new Cookie("accessToken", null);
+                            cookie.setMaxAge(0);
+                            cookie.setPath("/");
+                            res.addCookie(cookie);
+                        })
+                        .logoutSuccessUrl("/loginForm")
                 );
 
         return http.build();

@@ -2,10 +2,16 @@ document.getElementById("ottForm").addEventListener("submit", async e => {
     e.preventDefault();
     const email = document.getElementById("email").value;
     const msg   = document.getElementById("message");
+    const csrfToken = getCookie("XSRF-TOKEN");
+
     try {
         const res = await fetch("/ott/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            method:      "POST",
+            credentials: "same-origin",  // 쿠키(인증·CSRF) 포함
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-XSRF-TOKEN": csrfToken
+            },
             body: new URLSearchParams({ email })
         });
         msg.innerText = res.ok
@@ -16,3 +22,12 @@ document.getElementById("ottForm").addEventListener("submit", async e => {
     }
     msg.style.display = "block";
 });
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop().split(';').shift();
+    }
+    return null;
+}

@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         if (res.ok) {
             alert("회원가입 성공!");
-            window.location.href = /*[[@{/loginForm}]]*/"/loginForm";
+            window.location.href = /*[[@{/loginForm}]]*/"/users";
         } else {
             alert("회원가입 실패");
         }

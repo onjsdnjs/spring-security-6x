@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function() {
     fetch(/*[[@{/api/users}]]*/ "/api/users", {
         headers: {
             /* JWT 토큰은 보통 "Bearer " 접두사를 붙여야 Security 필터에서 읽힙니다 */
-            "Authorization": "Bearer " + token
+            "Authorization": token
         }
     })
         .then(res => {

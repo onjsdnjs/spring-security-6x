@@ -1,24 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>User List</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
-</head>
-<body>
-<div th:insert="~{fragments/header :: header}"></div>
-<div th:insert="~{fragments/menu   :: menu}"></div>
-
-<main>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout}">
+<div th:fragment="content">
     <div class="container">
-        <h2>Registered Users</h2>
+        <h2>사용자 목록</h2>
         <table>
             <thead>
-            <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-            </tr>
+            <tr><th>Username</th><th>Email</th><th>Role</th></tr>
             </thead>
             <tbody>
             <tr th:each="u : ${users}">
@@ -29,8 +17,5 @@
             </tbody>
         </table>
     </div>
-</main>
-
-<div th:insert="~{fragments/footer :: footer}"></div>
-</body>
+</div>
 </html>

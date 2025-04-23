@@ -1,17 +1,26 @@
-<!-- fragments/menu.html -->
 <div th:fragment="menu">
-    <nav class="menu-container">
-        <div class="menu-group">
-            <div class="menu-title">1차 인증 방식</div>
-            <a href="/loginForm">Form Login</a>
-            <a href="/loginOtt?skip2fa=true">OTT Login</a>
-            <a href="/loginPasskey?skip2fa=true">Passkey Login</a>
+    <nav class="sidebar">
+        <div class="menu-section">
+            <div class="menu-title">1단계 인증</div>
+            <ul>
+                <li><a th:href="@{/loginForm}">Form 로그인</a></li>
+                <li><a th:href="@{/loginOtt}">OTT 로그인</a></li>
+                <li><a th:href="@{/loginPasskey}">Passkey 로그인</a></li>
+            </ul>
         </div>
-        <div class="menu-group">
-            <div class="menu-title">2단계 인증 방식</div>
-            <a href="/2faChoice?method=otp">Form → OTP</a>
-            <a href="/2faChoice?method=passkey">Form → Passkey</a>
+        <div class="menu-section">
+            <div class="menu-title">2단계 인증</div>
+            <ul>
+                <li><a th:href="@{/2faChoice(method='otp')}">Form → OTT</a></li>
+                <li><a th:href="@{/2faChoice(method='passkey')}">Form → Passkey</a></li>
+            </ul>
+        </div>
+        <div class="menu-section">
+            <div class="menu-title">회원</div>
+            <ul>
+                <li><a th:href="@{/register}">회원 가입</a></li>
+                <li><a th:href="@{/users}">회원 목록</a></li>
+            </ul>
         </div>
     </nav>
 </div>
-

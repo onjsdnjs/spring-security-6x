@@ -23,11 +23,6 @@ public class LoginController {
         return "login-passkey";
     }
 
-    @GetMapping("/2fa-choice")
-    public String choose2fa() {
-        return "2fa-choice";
-    }
-
     @GetMapping("/logout")
     public String logout() {
         return "logout";

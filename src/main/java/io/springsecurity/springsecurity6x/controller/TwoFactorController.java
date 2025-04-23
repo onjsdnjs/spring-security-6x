@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.controller;
 
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,22 +13,17 @@ public class TwoFactorController {
     public String choose2fa(
             @RequestParam(required = false) String method,
             @RequestParam(defaultValue = "false") boolean skip2fa,
-            Model model
-    ) {
-        // 1) skip2fa=true => 바로 1차 인증 페이지로 이동
+            HttpSession session,
+            Model model) {
+
         if (skip2fa) {
-            if ("otp".equalsIgnoreCase(method)) {
-                return "redirect:/login-ott";
-            }
-            if ("passkey".equalsIgnoreCase(method)) {
-                return "redirect:/login-passkey";
-            }
-            // 기본은 form
+            if ("otp".equalsIgnoreCase(method))   return "redirect:/loginOtt";
+            if ("passkey".equalsIgnoreCase(method))return "redirect:/loginPasskey";
             return "redirect:/login-form";
         }
 
-        // 2) 2FA 선택 페이지로 렌더링
-        model.addAttribute("selectedMethod", method);
+        // 세션에 저장된 username/email 예시
+        model.addAttribute("session", session);
         return "2fa-choice";
     }
 }

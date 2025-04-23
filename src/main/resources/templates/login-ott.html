@@ -1,30 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>OTT Login</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
-</head>
-<body>
-<div th:insert="~{fragments/header :: header}"></div>
-<div th:insert="~{fragments/menu   :: menu}"></div>
-
-<main>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout}">
+<div th:fragment="content">
     <div class="container">
-        <h2>One-Time Token Login</h2>
+        <h2>OTT 로그인</h2>
         <form id="ottForm">
-            <input type="email" id="email" placeholder="Enter your email" required>
-            <button type="submit">Send Login Link</button>
+            <input type="email" id="email" placeholder="이메일" required>
+            <button type="submit">로그인 링크 전송</button>
+            <p id="message" class="message" style="display:none;"></p>
         </form>
-        <p id="message" class="message" style="display:none;"></p>
-        <div class="links">
-            <a href="/register">Register</a>
-            <a href="/users">Users</a>
-        </div>
     </div>
-</main>
-
-<div th:insert="~{fragments/footer :: footer}"></div>
+</div>
 
 <script>
     document.getElementById("ottForm").addEventListener("submit", async e => {
@@ -33,18 +19,17 @@
         const msg   = document.getElementById("message");
         try {
             const res = await fetch("/ott/generate", {
-                method:"POST",
-                headers:{"Content-Type":"application/x-www-form-urlencoded"},
-                body:new URLSearchParams({ email })
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ email })
             });
             msg.innerText = res.ok
-                ? "Login link sent (simulation)."
-                : "Failed to send link.";
+                ? "로그인 링크가 전송되었습니다 (시뮬레이션)."
+                : "전송에 실패했습니다.";
         } catch {
-            msg.innerText = "Server error.";
+            msg.innerText = "서버 오류가 발생했습니다.";
         }
         msg.style.display = "block";
     });
 </script>
-</body>
 </html>

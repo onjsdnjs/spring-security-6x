@@ -2,8 +2,11 @@ package io.springsecurity.springsecurity6x.security.configurer;
 
 import io.springsecurity.springsecurity6x.security.configurer.authentication.AuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.configurer.token.AuthorizationServerConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.token.ResourceServerConfigurer;
+import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
@@ -15,6 +18,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     private final AuthenticationStateConfigurer stateConfigurer = new AuthenticationStateConfigurer();
     private final AuthorizationServerConfigurer authorizationServerConfigurer = new AuthorizationServerConfigurer();
     private final ResourceServerConfigurer resourceServerConfigurer = new ResourceServerConfigurer();
+    private AuthenticationStateStrategy strategy;
 
     public SecurityIntegrationConfigurer authentication(Consumer<AuthenticationTypesConfigurer> customizer) {
         customizer.accept(this.typesConfigurer);
@@ -39,7 +43,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     @Override
     public void init(HttpSecurity http) throws Exception {
 
-         AuthenticationStateStrategy strategy = stateConfigurer.buildStrategy();
+         strategy = stateConfigurer.buildStrategy();
         for (AuthenticationConfigurer configurer : typesConfigurer.getEntries()) {
             configurer.stateStrategy(strategy);
             configurer.configure(http);
@@ -48,7 +52,9 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-
+        if (strategy instanceof JwtStateStrategy jwtStateStrategy) {
+            http.addFilterAfter(new JwtAuthorizationFilter(jwtStateStrategy.tokenService()), ApiAuthenticationFilter.class);
+        }
     }
 }
 

@@ -45,6 +45,10 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         return this;
     }
 
+    public TokenService tokenService() {
+        return tokenService;
+    }
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {

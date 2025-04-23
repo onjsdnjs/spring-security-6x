@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const data = {
-            email: form.email.value,
+            username: form.username.value,
             password: form.password.value
         };
         const res = await fetch(/*[[@{/api/auth/login}]]*/"/api/auth/login", {

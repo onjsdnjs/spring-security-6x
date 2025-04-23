@@ -1,11 +1,17 @@
 <!-- fragments/menu.html -->
 <div th:fragment="menu">
-    <nav>
-        <a href="/">Home</a>
-        <a href="/loginForm">Form Login</a>
-        <a href="/loginOtt">OTT Login</a>
-        <a href="/loginPasskey">Passkey Login</a>
-        <a href="/register">Register</a>
-        <a href="/users">Users</a>
+    <nav class="menu-container">
+        <div class="menu-group">
+            <div class="menu-title">1차 인증 방식</div>
+            <a href="/loginForm">Form Login</a>
+            <a href="/loginOtt?skip2fa=true">OTT Login</a>
+            <a href="/loginPasskey?skip2fa=true">Passkey Login</a>
+        </div>
+        <div class="menu-group">
+            <div class="menu-title">2단계 인증 방식</div>
+            <a href="/2faChoice?method=otp">Form → OTP</a>
+            <a href="/2faChoice?method=passkey">Form → Passkey</a>
+        </div>
     </nav>
 </div>
+

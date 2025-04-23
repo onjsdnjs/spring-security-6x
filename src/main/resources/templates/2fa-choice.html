@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>2단계 인증 선택</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:insert="~{fragments/header :: header}"></div>
+<div th:insert="~{fragments/menu   :: menu}"></div>
+
+<main>
+    <div class="container">
+        <h2>2단계 인증</h2>
+        <p id="userInfo">사용자: </p>
+        <a href="/login-ott"      class="btn">이메일 OTP 인증</a>
+        <a href="/login-passkey"  class="btn">Passkey 인증</a>
+    </div>
+</main>
+
+<div th:insert="~{fragments/footer :: footer}"></div>
+
+<script>
+    // sessionStorage 에서 사용자명/이메일 읽어서 표시
+    document.getElementById("userInfo").innerText =
+        `사용자: ${sessionStorage.getItem("username")} (${sessionStorage.getItem("email")})`;
+</script>
+</body>
+</html>

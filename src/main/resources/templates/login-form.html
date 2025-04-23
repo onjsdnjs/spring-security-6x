@@ -11,17 +11,13 @@
 
 <main>
     <div class="container">
-        <h2>Form Login</h2>
+        <h2>Form 로그인</h2>
         <form id="loginForm">
             <input type="text"     id="username" placeholder="Username" required>
             <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Login</button>
+            <button type="submit">다음 단계</button>
             <p id="errorMsg" class="error" style="display:none;"></p>
         </form>
-        <div class="links">
-            <a href="/register">Register</a>
-            <a href="/users">User List</a>
-        </div>
     </div>
 </main>
 
@@ -32,19 +28,22 @@
         e.preventDefault();
         const u = document.getElementById("username").value;
         const p = document.getElementById("password").value;
+
+        // 1차 인증 요청
         const res = await fetch("/api/auth/login", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ username:u, password:p })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: u, password: p })
         });
         const data = await res.json();
-        if(res.ok){
-            localStorage.setItem("accessToken", data.accessToken);
-            localStorage.setItem("refreshToken", data.refreshToken);
-            location.href = "/users";
+        if (res.ok) {
+            // 성공하면 사용자 정보 저장 후 2FA 페이지로
+            sessionStorage.setItem("username", data.username);
+            sessionStorage.setItem("email",    data.email);
+            window.location.href = "/2fa-choice";
         } else {
             const err = document.getElementById("errorMsg");
-            err.innerText = data.error||"Login failed";
+            err.innerText = data.error || "로그인 실패";
             err.style.display = "block";
         }
     });

@@ -202,3 +202,31 @@ footer {
         margin: 8px 0;
     }
 }
+
+/* 메뉴 그룹 분리 */
+.menu-group {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 24px;
+    text-align: left;
+}
+
+/* 그룹 제목 */
+.menu-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+/* 메뉴 링크 */
+.menu-group a {
+    display: block;
+    color: #ffffff;
+    text-decoration: none;
+    margin: 4px 0;
+    font-size: 14px;
+}
+.menu-group a:hover {
+    text-decoration: underline;
+}

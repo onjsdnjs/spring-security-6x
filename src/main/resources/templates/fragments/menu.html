@@ -1,4 +1,4 @@
-<!-- menu.html -->
+<!-- fragments/menu.html -->
 <div th:fragment="menu">
     <nav>
         <a href="/">Home</a>
@@ -7,16 +7,5 @@
         <a href="/loginPasskey">Passkey Login</a>
         <a href="/register">Register</a>
         <a href="/users">Users</a>
-        <a id="loginLink" href="/loginForm" style="display:none;">로그인</a>
-        <a id="logoutLink" href="/logout" style="display:none;">로그아웃</a>
     </nav>
-    <script>
-        const loginL = document.getElementById("loginLink");
-        const logoutL = document.getElementById("logoutLink");
-        if (localStorage.getItem("accessToken")) {
-            logoutL.style.display = "inline-block";
-        } else {
-            loginL.style.display = "inline-block";
-        }
-    </script>
 </div>

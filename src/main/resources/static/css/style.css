@@ -13,11 +13,43 @@ html, body {
 }
 
 /* 2. Header */
+/* Header */
 header {
+    background-color: #1a237e;
+    color: #ffffff;
+    position: relative;       /* 추가 */
+    padding: 16px 0;
+    text-align: center;
+}
+
+/* 헤더 우측 버튼 컨테이너 */
+.header-actions {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+}
+
+/* 헤더 액션 버튼 스타일 (Admin, 로그인, 로그아웃) */
+.header-actions a {
+    color: #ffffff;
+    text-decoration: none;
+    margin-left: 12px;
+    font-weight: bold;
+}
+.header-actions a:hover {
+    text-decoration: underline;
+}
+
+/* … (나머지 기존 스타일) … */
+
+/* Footer */
+footer {
     background-color: #1a237e;
     color: #ffffff;
     text-align: center;
     padding: 16px 0;
+    font-size: 14px;
 }
 
 /* 3. Navigation */

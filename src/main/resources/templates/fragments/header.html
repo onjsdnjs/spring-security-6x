@@ -1,6 +1,20 @@
-<!-- header.html -->
+<!-- fragments/header.html -->
 <div th:fragment="header">
     <header>
-        <h1>Security Auth Platform</h1>
+        <h1>Unified Auth Platform</h1>
+        <div class="header-actions">
+            <a id="adminLink" href="/admin">Admin</a>
+            <a id="loginLink" href="/login-form" style="display:none;">로그인</a>
+            <a id="logoutLink" href="/logout"    style="display:none;">로그아웃</a>
+        </div>
     </header>
+    <script>
+        const loginL  = document.getElementById("loginLink");
+        const logoutL = document.getElementById("logoutLink");
+        if (localStorage.getItem("accessToken")) {
+            logoutL.style.display = "inline-block";
+        } else {
+            loginL.style.display  = "inline-block";
+        }
+    </script>
 </div>

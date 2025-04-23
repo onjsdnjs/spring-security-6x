@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
 
 @Configuration
@@ -32,9 +33,15 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "external")
-    public TokenService externalTokenService() {
-        Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-        return new ExternalJwtTokenService(refreshTokenStore(), new JwtAuthenticationConverter(secretKey), secretKey);
+    public TokenService externalTokenService(
+            RefreshTokenStore refreshTokenStore
+    ) {
+        SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        return new ExternalJwtTokenService(
+                refreshTokenStore,
+                new JwtAuthenticationConverter(key),
+                key
+        );
     }
 
     @Bean

@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.configurer.state;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,16 +8,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private TokenService tokenService;
     private String tokenPrefix = "Bearer ";
-    private long accessTokenValidity = 3600000;     // default: 1 hour
-    private long refreshTokenValidity = 604800000;  // default: 7 days
+    public static long accessTokenValidity = 3600000;     // default: 1 hour
+    public static long refreshTokenValidity = 604800000;  // default: 7 days
     private boolean enableRefreshToken = true;
 
     public JwtStateStrategy tokenService(TokenService tokenService) {

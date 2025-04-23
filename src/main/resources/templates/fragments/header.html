@@ -10,11 +10,6 @@
             <a id="registerLink"
                sec:authorize="isAnonymous()"
                th:href="@{/register}">회원가입</a>
-
-            <!-- 수정 전 -->
-            <!-- <a sec:authorize="isAuthenticated()" th:href="@{/logout}">로그아웃</a> -->
-
-            <!-- 수정 후: href="#" 로 바꾸고 id 추가 -->
             <a id="logoutLink"
                sec:authorize="isAuthenticated()"
                href="#">로그아웃</a>
@@ -24,4 +19,5 @@
         <meta name="_csrf"        th:content="${_csrf.token}" />
         <meta name="_csrf_header" th:content="${_csrf.headerName}" />
     </header>
+    <script th:src="@{/js/logout.js}"></script>
 </div>

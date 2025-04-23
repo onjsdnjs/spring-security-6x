@@ -23,4 +23,9 @@ public class SpringAuthenticationConverter implements AuthenticationConverter {
         return new UsernamePasswordAuthenticationToken(username, token, authorities);
     }
 
+    @Override
+    public List<String> getRoles(String token) {
+        return List.of();
+    }
+
 }

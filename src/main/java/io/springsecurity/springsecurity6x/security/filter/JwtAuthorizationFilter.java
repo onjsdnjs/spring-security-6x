@@ -6,61 +6,92 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
+    /** application.yml 등에 설정해 두신 액세스 토큰 만료 시간(초) */
+    private final int accessTokenMaxAgeSeconds;
 
-    public JwtAuthorizationFilter(TokenService tokenService) {
-        this.tokenService = tokenService;
+    public JwtAuthorizationFilter(TokenService tokenService, int accessTokenMaxAgeSeconds) {
+        this.tokenService                = tokenService;
+        this.accessTokenMaxAgeSeconds    = accessTokenMaxAgeSeconds;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest  request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest  request,
+                                    HttpServletResponse response,
+                                    FilterChain        filterChain)
             throws ServletException, IOException {
 
-        String token = null;
-        String header = request.getHeader("Authorization");
+        String accessToken  = resolveCookie(request, "accessToken");
+        String refreshToken = resolveCookie(request, "refreshToken");
 
-        // 1) 헤더에 Bearer 토큰이 있으면 그것 사용
-        if (header != null && header.startsWith("Bearer ")) {
-            token = header.substring(7);
-        } else {
-            // 2) 아니면 accessToken 쿠키에서 꺼내보기
-            if (request.getCookies() != null) {
-                for (Cookie c : request.getCookies()) {
-                    if ("accessToken".equals(c.getName())) {
-                        token = c.getValue();
-                    }
-                }
-            }
-        }
-
-        // 3) 토큰이 있으면 검증
-        if (token != null) {
-            try {
-                if (!tokenService.validateAccessToken(token)) {
-                    response.sendError(HttpStatus.UNAUTHORIZED.value(), "Invalid or expired JWT token");
-                    return;
-                }
-                Authentication auth = tokenService.getAuthenticationFromAccessToken(token);
+        try {
+            if (accessToken != null && tokenService.validateAccessToken(accessToken)) {
+                // 1) 액세스 토큰이 유효하면 바로 인증 세팅
+                Authentication auth = tokenService.getAuthenticationFromAccessToken(accessToken);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
-            } catch (Exception ex) {
-                SecurityContextHolder.clearContext();
-                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Failed to authenticate JWT token");
+            } else if (refreshToken != null) {
+                // 2) 액세스 토큰이 없거나 만료됐으면, 리프레시 → 새 액세스 토큰 발급
+                String newAccessToken = tokenService.refreshAccessToken(refreshToken);
+
+                // 2-1) 새 액세스 토큰을 쿠키에 담아서 응답
+                Cookie c = new Cookie("accessToken", newAccessToken);
+                c.setHttpOnly(true);
+                c.setSecure(request.isSecure());
+                c.setPath("/");
+                c.setMaxAge(accessTokenMaxAgeSeconds);
+                response.addCookie(c);
+
+                // 2-2) 컨텍스트에 인증 정보 세팅
+                Authentication auth = tokenService.getAuthenticationFromAccessToken(newAccessToken);
+                SecurityContextHolder.getContext().setAuthentication(auth);
+
+            } else {
+                // 3) 액세스·리프레시 토큰 모두 없거나 유효하지 않은 경우 → 쿠키 삭제 후 로그인 페이지로
+                clearCookies(response);
+                response.sendRedirect(request.getContextPath() + "/loginForm");
                 return;
             }
+
+        } catch (RuntimeException ex) {
+            // 리프레시 중 에러(만료, 위조 토큰 등) 발생 시에도 같은 처리
+            clearCookies(response);
+            response.sendRedirect(request.getContextPath() + "/loginForm");
+            return;
         }
 
         filterChain.doFilter(request, response);
     }
+
+    private String resolveCookie(HttpServletRequest req, String name) {
+        if (req.getCookies() == null) return null;
+        return Arrays.stream(req.getCookies())
+                .filter(c -> name.equals(c.getName()))
+                .findFirst()
+                .map(Cookie::getValue)
+                .orElse(null);
+    }
+
+    private void clearCookies(HttpServletResponse res) {
+        List<String> names = List.of("accessToken", "refreshToken");
+        for (String name : names) {
+            Cookie c = new Cookie(name, "");
+            c.setPath("/");
+            c.setHttpOnly(true);
+            c.setMaxAge(0);
+            res.addCookie(c);
+        }
+    }
 }
+

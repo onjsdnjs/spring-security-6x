@@ -2,54 +2,79 @@ package io.springsecurity.springsecurity6x.security.tokenservice;
 
 import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.security.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.JwtException;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
+/**
+ * 외부 모드용 토큰 서비스:
+ *  - 액세스·리프레시 키는 생성자에서 주입
+ *  - 리프레시 토큰 보관/만료 관리는 RefreshTokenStore 에 위임
+ *  - JWT → Authentication 변환은 AuthenticationConverter 에 위임
+ */
 public class ExternalJwtTokenService implements TokenService {
 
-    private final Key secretKey;
-    private final RefreshTokenStore refreshTokenStore;
+    private final SecretKey secretKey;
+    private final RefreshTokenStore       refreshTokenStore;
     private final AuthenticationConverter authenticationConverter;
 
-    public ExternalJwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter, Key secretKey) {
-        this.refreshTokenStore = refreshTokenStore;
+    public ExternalJwtTokenService(
+            RefreshTokenStore       refreshTokenStore,
+            AuthenticationConverter authenticationConverter,
+            SecretKey secretKey) {
+        this.refreshTokenStore       = refreshTokenStore;
         this.authenticationConverter = authenticationConverter;
         this.secretKey = secretKey;
     }
 
     @Override
     public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
-        DefaultAccessTokenBuilder builder = new DefaultAccessTokenBuilder();
-        consumer.accept(builder);
+        AccessBuilder accessBuilder = new AccessBuilder();
+        consumer.accept(accessBuilder);
+
+        Instant now = Instant.now();
         return Jwts.builder()
-                .setSubject(builder.username)
-                .addClaims(builder.claims)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + builder.validity))
+                .setSubject(accessBuilder.username)
+                .claim("roles", accessBuilder.roles)
+                .addClaims(accessBuilder.claims)
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plusMillis(accessBuilder.validity)))
                 .signWith(secretKey)
                 .compact();
     }
 
     @Override
     public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
-        DefaultRefreshTokenBuilder builder = new DefaultRefreshTokenBuilder();
-        consumer.accept(builder);
+        RefreshBuilder refreshBuilder = new RefreshBuilder();
+        consumer.accept(refreshBuilder);
 
-        String refreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.store(refreshToken, builder.username);
-        return refreshToken;
+        Instant now = Instant.now();
+        String token = Jwts.builder()
+                .setSubject(refreshBuilder.username)
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plusMillis(refreshBuilder.validity)))
+                .signWith(secretKey)
+                .compact();
+
+        refreshTokenStore.store(token, refreshBuilder.username);
+        return token;
     }
 
     @Override
     public boolean validateAccessToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
+            Jwts.parserBuilder()
+                    .setSigningKey(secretKey)
+                    .build()
+                    .parseClaimsJws(token);
             return true;
-        } catch (Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
@@ -61,13 +86,27 @@ public class ExternalJwtTokenService implements TokenService {
 
     @Override
     public String refreshAccessToken(String refreshToken) {
+        // 1) 스토어에서 username 조회 → 없으면 유효하지 않은 토큰
         String username = refreshTokenStore.getUsername(refreshToken);
-        if (username == null) throw new RuntimeException("Invalid refresh token");
+        if (username == null) {
+            throw new JwtException("Invalid or expired refresh token");
+        }
 
+        // 2) (선택) JWT에서 직접 파싱해 Subject/클레임을 꺼낼 수도 있습니다
+        //    하지만 store 로부터 username 만 얻어도 충분하다면 생략 가능
+        // List<String> roles = authenticationConverter.getRoles(refreshToken);
+        List<String> roles = authenticationConverter.getAuthentication(refreshToken)
+                .getAuthorities()
+                .stream()
+                .map(auth -> auth.getAuthority())
+                .toList();
+
+        // 3) 새 액세스 토큰 발급 (유효기간은 application 설정값)
         return createAccessToken(builder -> builder
                 .username(username)
-                .roles(List.of("ROLE_USER"))
-                .validity(3600000));
+                .roles(roles)
+                .validity(JwtStateStrategy.accessTokenValidity)
+        );
     }
 
     @Override
@@ -75,11 +114,14 @@ public class ExternalJwtTokenService implements TokenService {
         refreshTokenStore.remove(refreshToken);
     }
 
-    private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
-        private String username;
-        private List<String> roles;
-        private Map<String, Object> claims = new HashMap<>();
-        private long validity;
+    // ---------------------------------------
+    // Builder 구현체
+    // ---------------------------------------
+    private static class AccessBuilder implements AccessTokenBuilder {
+        private String              username;
+        private List<String>        roles   = Collections.emptyList();
+        private Map<String, Object> claims  = new HashMap<>();
+        private long                validity;
 
         @Override
         public AccessTokenBuilder username(String username) {
@@ -90,7 +132,6 @@ public class ExternalJwtTokenService implements TokenService {
         @Override
         public AccessTokenBuilder roles(List<String> roles) {
             this.roles = roles;
-            this.claims.put("roles", roles);
             return this;
         }
 
@@ -107,9 +148,9 @@ public class ExternalJwtTokenService implements TokenService {
         }
     }
 
-    private static class DefaultRefreshTokenBuilder implements RefreshTokenBuilder {
+    private static class RefreshBuilder implements RefreshTokenBuilder {
         private String username;
-        private long validity;
+        private long   validity;
 
         @Override
         public RefreshTokenBuilder username(String username) {

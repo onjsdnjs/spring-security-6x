@@ -1,62 +1,97 @@
 /* style.css */
-body {
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f4f6f9;
+
+/* 1. html/body를 flex 컨테이너로 만들고 높이 100% 고정 */
+html, body {
+    height: 100%;
     margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f4f6f9;
+    color: #333;
 }
+
+/* 2. Header */
 header {
     background-color: #1a237e;
-    color: #fff;
+    color: #ffffff;
     text-align: center;
-    padding: 16px;
+    padding: 16px 0;
 }
+
+/* 3. Navigation */
 nav {
     background-color: #283593;
-    padding: 16px;
+    padding: 12px 0;
     text-align: center;
+    position: relative;
 }
 nav a {
-    color: #fff;
+    color: #ffffff;
     text-decoration: none;
     margin: 0 12px;
     font-weight: bold;
+    font-size: 14px;
 }
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* 4. Main: 남은 공간 모두 차지 */
 main {
-    padding: 40px;
+    flex: 1;            /* <— 화면 높이에서 header/footer 뺀 나머지 모두 차지 */
+    padding: 40px 16px;
 }
+
+/* 5. 컨테이너 박스 */
 .container {
-    max-width: 400px;
+    max-width: 600px;
     margin: 0 auto;
-    background: #fff;
+    background-color: #ffffff;
     padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 6. 타이포 & 헤딩 */
+h1, h2, h3 {
+    color: #1976d2;
+    margin-bottom: 16px;
 }
 h2 {
-    color: #1976d2;
+    font-size: 24px;
     text-align: center;
 }
-input, button {
+
+/* 7. 폼 & 버튼 */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+button {
     width: 100%;
     padding: 12px;
     margin: 8px 0;
-    box-sizing: border-box;
+    font-size: 16px;
     border-radius: 6px;
-}
-input {
     border: 1px solid #ccc;
+}
+input:focus {
+    outline: none;
+    border-color: #1976d2;
 }
 button {
     background-color: #1976d2;
-    color: #fff;
+    color: #ffffff;
     border: none;
-    font-size: 16px;
     cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 button:hover {
     background-color: #125ea6;
 }
+
+/* 8. 링크 & 메시지 */
 .links {
     margin-top: 16px;
     text-align: center;
@@ -65,12 +100,42 @@ button:hover {
     color: #1976d2;
     text-decoration: none;
     margin: 0 8px;
+    font-size: 14px;
+}
+.links a:hover {
+    text-decoration: underline;
 }
 .error {
     color: #d32f2f;
     text-align: center;
     margin-top: 12px;
+    font-size: 14px;
 }
+.message {
+    color: #1976d2;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+/* 9. .btn 스타일 */
+.btn {
+    display: block;
+    text-align: center;
+    padding: 14px 0;
+    margin: 8px 0;
+    background-color: #1976d2;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+.btn:hover {
+    background-color: #125ea6;
+}
+
+/* 10. 테이블 */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -83,5 +148,25 @@ th, td {
 }
 th {
     background-color: #1976d2;
-    color: #fff;
+    color: #ffffff;
+}
+
+/* 11. Footer */
+footer {
+    background-color: #1a237e;
+    color: #ffffff;
+    text-align: center;
+    padding: 16px 0;
+    font-size: 14px;
+}
+
+/* 12. 반응형 */
+@media (max-width: 480px) {
+    .container {
+        padding: 20px;
+    }
+    nav a {
+        display: block;
+        margin: 8px 0;
+    }
 }

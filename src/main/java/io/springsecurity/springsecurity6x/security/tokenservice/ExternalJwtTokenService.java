@@ -92,9 +92,6 @@ public class ExternalJwtTokenService implements TokenService {
             throw new JwtException("Invalid or expired refresh token");
         }
 
-        // 2) (선택) JWT에서 직접 파싱해 Subject/클레임을 꺼낼 수도 있습니다
-        //    하지만 store 로부터 username 만 얻어도 충분하다면 생략 가능
-        // List<String> roles = authenticationConverter.getRoles(refreshToken);
         List<String> roles = authenticationConverter.getAuthentication(refreshToken)
                 .getAuthorities()
                 .stream()

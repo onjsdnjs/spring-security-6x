@@ -16,4 +16,29 @@
         </div>
     </div>
 </div>
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async e => {
+        e.preventDefault();
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            // JWT를 localStorage에 저장
+            localStorage.setItem("accessToken", data.accessToken);
+            localStorage.setItem("refreshToken", data.refreshToken);
+            // 사용자 목록 페이지로 이동
+            window.location.href = "/";
+        } else {
+            document.getElementById("errorMsg").innerText = data.error || "로그인 실패";
+            document.getElementById("errorMsg").style.display = "block";
+        }
+    });
+</script>
 </html>

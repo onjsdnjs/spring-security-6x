@@ -4,18 +4,52 @@
 <div th:fragment="content">
     <div class="container">
         <h2>사용자 목록</h2>
-        <table>
+        <table id="usersTable">
             <thead>
             <tr><th>Username</th><th>Email</th><th>Role</th></tr>
             </thead>
             <tbody>
-            <tr th:each="u : ${users}">
-                <td th:text="${u.username}">username</td>
-                <td th:text="${u.email}">email@example.com</td>
-                <td th:text="${u.role}">role</td>
-            </tr>
+            <!-- JS 로 채워넣습니다 -->
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    // 페이지 로드되면 실행
+    document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            // 토큰 없으면 로그인 페이지로
+            window.location.href = "/loginForm";
+            return;
+        }
+        try {
+            const res = await fetch("/api/users", {
+                headers: {
+                    "Authorization": token
+                }
+            });
+            if (res.status === 401) {
+                // 인증 실패 시
+                window.location.href = "/loginForm";
+                return;
+            }
+            const users = await res.json();
+            const tbody = document.querySelector("#usersTable tbody");
+            tbody.innerHTML = "";
+            users.forEach(u => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+            <td>${u.username}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+          `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error("사용자 목록 로드 실패", e);
+        }
+    });
+</script>
 </html>

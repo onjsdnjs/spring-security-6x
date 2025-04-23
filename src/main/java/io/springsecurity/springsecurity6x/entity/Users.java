@@ -21,5 +21,5 @@ public class Users {
     private String email;
 
     @Column(nullable = false)
-    private String role;
+    private String roles;
 }

@@ -5,9 +5,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = {
             username: form.username.value,
             email: form.email.value,
-            password: form.password.value
+            password: form.password.value,
+            role: form.roles.value,
         };
-        const res = await fetch(/*[[@{/api/auth/register}]]*/"/api/auth/register", {
+        const res = await fetch(/*[[@{/api/register}]]*/"/api/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)

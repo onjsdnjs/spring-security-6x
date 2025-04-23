@@ -15,7 +15,7 @@
     <main class="content">
         <div class="container">
             <form id="registerForm"
-                  th:action="@{/api/auth/register}"
+                  th:action="@{/api/register}"
                   method="post">
                 <div>
                     <label>사용자명:</label>
@@ -28,6 +28,10 @@
                 <div>
                     <label>비밀번호:</label>
                     <input type="password" name="password" required />
+                </div>
+                <div>
+                    <label>권한:</label>
+                    <input type="text" name="roles" required />
                 </div>
                 <button type="submit">가입하기</button>
             </form>

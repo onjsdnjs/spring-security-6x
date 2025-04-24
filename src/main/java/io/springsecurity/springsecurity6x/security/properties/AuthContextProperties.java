@@ -17,12 +17,12 @@ import java.util.Set;
 public class AuthContextProperties {
 
     /**
-     * 인증 상태 유지 방식 선택 (JWT, SESSION, HYBRID 등)
+     * 인증 상태 유지 방식 선택 (JWT, SESSION)
      */
     private ContextMode contextMode = ContextMode.JWT;
 
     /**
-     * 토큰 발급/검증의 주도권 설정
+     * 토큰 발급/검증의 방식 설정
      */
     private TokenControlMode tokenControlMode = TokenControlMode.JWTS;
 
@@ -35,13 +35,13 @@ public class AuthContextProperties {
      * JWT 등 외부 토큰 기반 인증 설정
      */
     @NestedConfigurationProperty
-    private ExternalTokenSettings external = new ExternalTokenSettings();
+    private JwtsTokenSettings external = new JwtsTokenSettings();
 
     /**
      * OAuth2 Resource Server 기반 자동 토큰 처리 (internal) 설정
      */
     @NestedConfigurationProperty
-    private InternalTokenSettings internal = new InternalTokenSettings();
+    private OAuth2TokenSettings internal = new OAuth2TokenSettings();
 
     public boolean isAuthEnabled(AuthType type) {
         return enabledAuthTypes.contains(type);

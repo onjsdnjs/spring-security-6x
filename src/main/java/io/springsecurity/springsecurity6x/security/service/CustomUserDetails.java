@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.entity.Users;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,17 +19,15 @@ public class CustomUserDetails implements UserDetails {
         this.user = user;
     }
 
-    // 권한 목록을 SimpleGrantedAuthority 로 변환
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         String roles = user.getRoles();  // ex: "USER,ADMIN"
-        if (roles == null || roles.isBlank()) {
+        if (!StringUtils.hasText(roles)) {
             return List.of();
         }
 
         return Arrays.stream(roles.split(","))
                 .map(String::trim)
-                // 스프링 시큐리티가 기대하는 "ROLE_" 접두사를 붙입니다
                 .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());

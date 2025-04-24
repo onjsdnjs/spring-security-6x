@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.properties;
 import lombok.Data;
 
 @Data
-public class InternalTokenSettings {
+public class OAuth2TokenSettings {
 
     private String clientId = "internal-client";
     private String clientSecret = "{noop}secret";

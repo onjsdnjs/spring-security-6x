@@ -33,16 +33,16 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest  request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String at = CookieUtil.getToken(request, TokenService.ACCESS_TOKEN);
-        String rt = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
+        String accessToken = CookieUtil.getToken(request, TokenService.ACCESS_TOKEN);
+        String refreshToken = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
 
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             // 1) 액세스 토큰 검사
-            if (at != null) {
+            if (accessToken != null) {
                 try {
-                    if (tokenService.validateAccessToken(at)) {
-                        Authentication auth = tokenService.getAuthenticationFromToken(at);
+                    if (tokenService.validateAccessToken(accessToken)) {
+                        Authentication auth = tokenService.getAuthenticationFromToken(accessToken);
                         SecurityContextHolder.getContext().setAuthentication(auth);
                         chain.doFilter(request, response);
                         return;
@@ -56,14 +56,14 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             }
 
             // 2) 리프레시 토큰이 있을 때만, 명시적 검증 후 재발급
-            if (rt != null) {
+            if (refreshToken != null) {
                 try {
                     // 2-1) 리프레시 토큰 유효성 검증
-                    if (!tokenService.validateRefreshToken(rt)) {
+                    if (!tokenService.validateRefreshToken(refreshToken)) {
                         throw new BadCredentialsException("Invalid refresh token");
                     }
                     // 2-2) 검증 통과하면 토큰 재발급
-                    Map<String,String> tokens = tokenService.refreshTokens(rt);
+                    Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
 
                     // 2-3) 쿠키 갱신
                     CookieUtil.addTokenCookie(request, response,
@@ -90,7 +90,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     throw new BadCredentialsException("Invalid refresh token", badRt);
                 }
             }
-
             chain.doFilter(request, response);
         } finally {
             // 필요 시 후처리

@@ -57,11 +57,11 @@ public class SecurityConfig {
                                 )
                         )
                         .state(state -> state
-                                /*.useJwt(jwt -> jwt
+                                .useJwt(jwt -> jwt
                                         .tokenService(tokenService)
                                         .tokenPrefix("Bearer ")
-                                )*/
-                                .useSession(session -> {}), http
+                                )
+                                /*.useSession(session -> {})*/, http
                         )
                         .authorizationServer(auth -> {})
                         .resourceServer(resource -> resource

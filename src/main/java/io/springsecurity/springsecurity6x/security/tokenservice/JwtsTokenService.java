@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 public class JwtsTokenService extends JwtTokenService {
 
     private final SecretKey secretKey;
-    private final long rotationThresholdMillis = Duration.ofDays(1).toMillis();
+    private final long rotationThresholdMillis = Duration.ofHours(12).toMillis();
 
     public JwtsTokenService(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
         super(store, converter);

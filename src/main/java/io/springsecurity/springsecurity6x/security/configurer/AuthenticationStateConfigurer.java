@@ -33,7 +33,7 @@ public class AuthenticationStateConfigurer {
 
         try {
             http.logout(logout -> logout
-                    .addLogoutHandler(new TokenLogoutHandler(tokenService.refreshTokenStore()))
+                    .addLogoutHandler(new TokenLogoutHandler(tokenService))
                     .logoutSuccessHandler(new TokenLogoutSuccessHandler()));
 
             http.exceptionHandling(exception -> exception

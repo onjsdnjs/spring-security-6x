@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
+import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvider;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
@@ -13,10 +14,10 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.util.WebUtils;
 
 public class TokenLogoutHandler implements LogoutHandler {
-    private final RefreshTokenStore refreshTokenStore;
+    private final TokenService tokenService;
 
-    public TokenLogoutHandler(RefreshTokenStore refreshTokenStore) {
-        this.refreshTokenStore = refreshTokenStore;
+    public TokenLogoutHandler(TokenService tokenService) {
+        this.tokenService = tokenService;
     }
 
     @Override
@@ -25,7 +26,7 @@ public class TokenLogoutHandler implements LogoutHandler {
         Cookie refreshCookie = WebUtils.getCookie(request, TokenService.REFRESH_TOKEN);
         if (refreshCookie != null) {
             String refreshToken = refreshCookie.getValue();
-            refreshTokenStore.remove(refreshToken);
+            tokenService.invalidateToken(refreshToken);
         }
 
         // 2) accessToken, refreshToken 쿠키 만료 처리

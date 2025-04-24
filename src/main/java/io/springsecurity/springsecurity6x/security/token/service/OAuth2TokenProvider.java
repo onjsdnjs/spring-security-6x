@@ -49,9 +49,20 @@ public class OAuth2TokenProvider extends JwtTokenService {
         return refreshToken;
     }
 
-    public boolean validateToken(String token) {
+    @Override
+    public boolean validateAccessToken(String accessToken) {
         try {
-            jwtDecoder.decode(token);
+            jwtDecoder.decode(accessToken);
+            return true;
+        } catch (JwtException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean validateRefreshToken(String refreshToken) {
+        try {
+            jwtDecoder.decode(refreshToken);
             return true;
         } catch (JwtException e) {
             return false;

@@ -13,9 +13,9 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private TokenService tokenService;
     public static String TOKEN_PREFIX = "Bearer ";
-    public static long ACCESS_TOKEN_VALIDITY = 5000;     // default: 1 hour
-//    public static long ACCESS_TOKEN_VALIDITY = 3600000;     // default: 1 hour
-    public static long REFRESH_TOKEN_VALIDITY = 10000;  // default: 7 days
+//    public static long ACCESS_TOKEN_VALIDITY = 10000;
+    public static long ACCESS_TOKEN_VALIDITY = 3600000;     // default: 1 hour
+    public static long REFRESH_TOKEN_VALIDITY = 604800000;  // default: 7 days
     private boolean enableRefreshToken = true;
 
     public JwtStateStrategy tokenService(TokenService tokenService) {

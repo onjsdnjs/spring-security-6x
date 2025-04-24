@@ -7,9 +7,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.io.IOException;
@@ -17,10 +22,16 @@ import java.util.Map;
 
 public class ApiAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    public ApiAuthenticationFilter(String loginUri) {
+    private boolean isSession = false;
+
+    public ApiAuthenticationFilter(String loginUri, SecurityContextRepository securityContextRepository) {
         super(new AntPathRequestMatcher(loginUri, "POST"));
+        setSecurityContextRepository(securityContextRepository);
     }
 
+    public void setSession(boolean session) {
+        isSession = session;
+    }
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request,
@@ -41,7 +52,11 @@ public class ApiAuthenticationFilter extends AbstractAuthenticationProcessingFil
                                             HttpServletResponse response,
                                             FilterChain chain,
                                             Authentication authResult) throws IOException, ServletException {
-        this.getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
+        if(isSession){
+            super.successfulAuthentication(request, response, chain, authResult);
+        }else{
+            this.getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
+        }
     }
 
     @Override

@@ -46,7 +46,7 @@ public class AuthenticationStateConfigurer {
         return this;
     }
 
-    public AuthenticationStateConfigurer useSession() {
+    public AuthenticationStateConfigurer useSession(Customizer<JwtStateStrategy> config) {
         this.stateStrategy = new SessionStateStrategy();
         return this;
     }

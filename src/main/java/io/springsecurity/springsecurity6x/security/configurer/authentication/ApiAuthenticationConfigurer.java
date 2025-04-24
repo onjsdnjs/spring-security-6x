@@ -6,6 +6,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 
 public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
 
@@ -36,12 +39,17 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
     @Override
     public void configure(HttpSecurity http) throws Exception {
 
-        ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl);
+        DelegatingSecurityContextRepository securityContextRepository = new DelegatingSecurityContextRepository(
+                new RequestAttributeSecurityContextRepository(),
+                new HttpSessionSecurityContextRepository());
+
+        ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl, securityContextRepository);
 
         filter.setAuthenticationManager(authenticationManager);
-        filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
+//        filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
 
         http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+        http.setSharedObject(ApiAuthenticationFilter.class, filter);
 
     }
 }

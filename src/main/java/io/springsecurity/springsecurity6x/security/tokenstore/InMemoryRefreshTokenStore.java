@@ -18,54 +18,40 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InMemoryRefreshTokenStore implements RefreshTokenStore {
 
-    private final SecretKey signingKey;
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
     private final SecureRandom secureRandom = new SecureRandom();
+    private final RefreshTokenParser parser;
 
-    public InMemoryRefreshTokenStore(SecretKey signingKey) {
-        this.signingKey     = signingKey;
+    public InMemoryRefreshTokenStore(RefreshTokenParser parser) {
+        this.parser = parser;
     }
 
     @Override
     public void store(String refreshToken, String username) {
-        // 1) JWT 파싱 → JTI(claim jti) 추출
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(signingKey)
-                .build()
-                .parseClaimsJws(refreshToken)
-                .getBody();
-        String jti = claims.getId();
+        ParsedToken pt = parser.parse(refreshToken);
+        String jti = pt.getId();
 
-        // 2) 랜덤 솔트 + 해시 생성
         String salt = generateSalt();
         String hash = hashToken(refreshToken, salt);
 
-        // 3) 서버 측 만료 시각 계산
-        Instant expiry = Instant.now().plusMillis(JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
-
-        // 4) 저장
+        Instant expiry = Instant.now()
+                .plusMillis(JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
         store.put(jti, new TokenInfo(username, salt, hash, expiry));
     }
 
     @Override
     public String getUsername(String refreshToken) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(signingKey)
-                    .build()
-                    .parseClaimsJws(refreshToken)
-                    .getBody();
-            String jti = claims.getId();
+            ParsedToken pt = parser.parse(refreshToken);
+            String jti = pt.getId();
 
             TokenInfo info = store.get(jti);
             if (info == null) return null;
 
-            // 만료 검사
             if (Instant.now().isAfter(info.getExpiry())) {
                 store.remove(jti);
                 return null;
             }
-            // 해시 일치 검사
             String candidateHash = hashToken(refreshToken, info.getSalt());
             if (!candidateHash.equals(info.getTokenHash())) {
                 return null;
@@ -79,16 +65,10 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
     @Override
     public void remove(String refreshToken) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(signingKey)
-                    .build()
-                    .parseClaimsJws(refreshToken)
-                    .getBody();
-            store.remove(claims.getId());
+            ParsedToken pt = parser.parse(refreshToken);
+            store.remove(pt.getId());
         } catch (Exception ignored) {}
     }
-
-    //------------------------------------------------------------------------------//
 
     private String generateSalt() {
         byte[] saltBytes = new byte[16];

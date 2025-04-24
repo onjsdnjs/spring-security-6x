@@ -8,12 +8,12 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class OAuth2TokenService extends JwtTokenService {
+public class OAuth2TokenProvider extends JwtTokenService {
 
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public OAuth2TokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
+    public OAuth2TokenProvider(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
         super(store, converter);
         this.jwtEncoder = encoder;
         this.jwtDecoder = decoder;
@@ -49,13 +49,23 @@ public class OAuth2TokenService extends JwtTokenService {
         return refreshToken;
     }
 
-    public boolean validateAccessToken(String token) {
+    public boolean validateToken(String token) {
         try {
             jwtDecoder.decode(token);
             return true;
         } catch (JwtException e) {
             return false;
         }
+    }
+
+    @Override
+    public boolean shouldRotateRefreshToken(String refreshToken) {
+        return false;
+    }
+
+    @Override
+    public String createAccessTokenFromRefresh(String refreshToken) {
+        return "";
     }
 }
 

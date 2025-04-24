@@ -1,10 +1,9 @@
 package io.springsecurity.springsecurity6x.security.utils;
 
-import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.HttpHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 
 /**
  * ResponseCookie 기반으로 HTTP 응답에 Set-Cookie 헤더를 추가해 주는 유틸리티 클래스
@@ -20,7 +19,7 @@ public final class CookieUtil {
      *
      * @param request     현재 HTTP 요청 (secure 여부 확인용)
      * @param response    HTTP 응답 객체
-     * @param accessToken 발급된 액세스 토큰
+     * @param token 발급된 액세스, 리프레시 토큰
      * @param cookieName 쿠키명
      */
     public static void addTokenCookie(HttpServletRequest request, HttpServletResponse response,

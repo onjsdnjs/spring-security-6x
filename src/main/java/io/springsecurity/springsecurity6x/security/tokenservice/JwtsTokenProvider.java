@@ -1,12 +1,12 @@
 package io.springsecurity.springsecurity6x.security.tokenservice;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
-import org.springframework.security.oauth2.jwt.JwtException;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -16,12 +16,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class JwtsTokenService extends JwtTokenService {
+public class JwtsTokenProvider extends JwtTokenService {
 
     private final SecretKey secretKey;
     private final long rotationThresholdMillis = Duration.ofHours(12).toMillis();
 
-    public JwtsTokenService(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
+    public JwtsTokenProvider(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
         super(store, converter);
         this.secretKey = secretKey;
     }
@@ -72,21 +72,33 @@ public class JwtsTokenService extends JwtTokenService {
     }
 
     @Override
-    public boolean validateAccessToken(String token) {
+    public boolean validateAccessToken(String accessToken) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(secretKey).build()
+                    .parseClaimsJws(accessToken);
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
+        } catch (JwtException ex) {
+            throw ex;
+        }
+    }
+
+    @Override
+    public boolean validateRefreshToken(String refreshToken) {
+        try {
+            Jwts.parserBuilder().setSigningKey(secretKey).build()
+                    .parseClaimsJws(refreshToken)
+                    .getBody();
+            // 서버 저장소에 유효한지 확인
+            String username = refreshTokenStore().getUsername(refreshToken);
+            return username != null;
+        } catch (JwtException ex) {
+            throw ex;
         }
     }
 
     @Override
     public boolean shouldRotateRefreshToken(String refreshToken) {
-        Claims claims = ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
+        Claims claims = getClaims(refreshToken);
         long remain = claims.getExpiration().getTime() - System.currentTimeMillis();
         return remain <= rotationThresholdMillis;
     }
@@ -94,7 +106,7 @@ public class JwtsTokenService extends JwtTokenService {
     @Override
     public String createAccessTokenFromRefresh(String refreshToken) {
         // 서명 검증+클레임 파싱
-        Claims claims = ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
+        Claims claims = getClaims(refreshToken);
         String username = claims.getSubject();
         List<String> roles = authenticationConverter().getRoles(refreshToken);
 
@@ -104,6 +116,10 @@ public class JwtsTokenService extends JwtTokenService {
                 .roles(roles)
                 .validity(JwtStateStrategy.ACCESS_TOKEN_VALIDITY)
         );
+    }
+
+    public Claims getClaims(String refreshToken) {
+        return ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
     }
 
 }

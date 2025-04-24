@@ -16,7 +16,9 @@ public interface TokenService {
 
     String createRefreshToken(Consumer<TokenBuilder> builder);
 
-    boolean validateAccessToken(String token);
+    boolean validateAccessToken(String accessToken);
+
+    boolean validateRefreshToken(String refreshToken);
 
     Authentication getAuthenticationFromToken(String token);
 

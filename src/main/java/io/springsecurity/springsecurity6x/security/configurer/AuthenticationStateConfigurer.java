@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthen
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutSuccessHandler;
-import io.springsecurity.springsecurity6x.security.tokenservice.JwtsTokenService;
+import io.springsecurity.springsecurity6x.security.tokenservice.JwtsTokenProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -27,7 +27,7 @@ public class AuthenticationStateConfigurer {
         this.stateStrategy = jwt;
         config.customize(jwt);
 
-        JwtsTokenService tokenService = (JwtsTokenService)jwt.tokenService();
+        JwtsTokenProvider tokenService = (JwtsTokenProvider)jwt.tokenService();
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService), UsernamePasswordAuthenticationFilter.class);
 
         try {

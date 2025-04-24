@@ -29,11 +29,12 @@ public class AuthenticationStateConfigurer {
         config.customize(jwt);
 
         JwtsTokenProvider tokenService = (JwtsTokenProvider)jwt.tokenService();
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService), ExceptionTranslationFilter.class);
+        TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
 
         try {
             http.logout(logout -> logout
-                    .addLogoutHandler(new TokenLogoutHandler(tokenService))
+                    .addLogoutHandler(logoutHandler)
                     .logoutSuccessHandler(new TokenLogoutSuccessHandler()));
 
             http.exceptionHandling(exception -> exception

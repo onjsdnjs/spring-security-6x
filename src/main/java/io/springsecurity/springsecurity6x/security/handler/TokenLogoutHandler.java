@@ -22,6 +22,7 @@ public class TokenLogoutHandler implements LogoutHandler {
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+
         // 1) 리프레시 토큰 무효화
         Cookie refreshCookie = WebUtils.getCookie(request, TokenService.REFRESH_TOKEN);
         if (refreshCookie != null) {

@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.configurer.state.SessionState
 import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtLogoutFilter;
+import io.springsecurity.springsecurity6x.security.handler.JwtLogoutHandler;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -26,6 +27,7 @@ public class AuthenticationStateConfigurer {
         config.accept(jwt);
         http.addFilterAfter(new JwtAuthorizationFilter(jwt.tokenService()), ApiAuthenticationFilter.class);
         http.addFilterAfter(new JwtLogoutFilter(jwt.tokenService(),"/api/auth/logout"), JwtAuthorizationFilter.class);
+        http.logout(logout -> logout.addLogoutHandler(new JwtLogoutHandler()));
         return this;
     }
 

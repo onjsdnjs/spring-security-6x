@@ -1,16 +1,15 @@
 package io.springsecurity.springsecurity6x.security.exceptionhandling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.domain.ErrorResponse;
+import io.springsecurity.springsecurity6x.security.utils.WebUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
@@ -20,16 +19,20 @@ public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
 
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+        if (WebUtil.isApiOrAjaxRequest(request)) {
 
-        Map<String,Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status",    401);
-        body.put("error",     "Unauthorized");
-        body.put("message",   authException.getMessage());
-        body.put("path",      request.getRequestURI());
+            ErrorResponse body = new ErrorResponse(
+                    Instant.now().toString(),
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Unauthorized",
+                    authException.getMessage(),
+                    request.getRequestURI()
+            );
 
-        mapper.writeValue(response.getOutputStream(), body);
+            mapper.writeValue(response.getOutputStream(), body);
+
+        } else {
+            response.sendRedirect("/loginForm");
+        }
     }
 }

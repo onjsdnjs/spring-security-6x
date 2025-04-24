@@ -17,9 +17,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
+
+    private static final List<String> EXCLUDE_URLS = List.of(
+            "/api/auth/login",
+            "/api/register"
+    );
 
     private final TokenService tokenService;
     private final TokenLogoutHandler logoutHandler;
@@ -27,6 +33,23 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     public JwtAuthorizationFilter(TokenService tokenService, TokenLogoutHandler logoutHandler) {
         this.tokenService = tokenService;
         this.logoutHandler = logoutHandler;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+
+        String path = request.getServletPath();
+
+        // 1) API 경로가 아니면 스킵
+        if (!path.startsWith("/api/")) {
+            return true;
+        }
+        // 2) 로그인이거나 회원가입 경로면 스킵
+        if (EXCLUDE_URLS.contains(path)) {
+            return true;
+        }
+        // 그 외에는 필터 적용
+        return false;
     }
 
     @Override

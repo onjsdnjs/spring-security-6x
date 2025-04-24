@@ -23,13 +23,14 @@ public final class CookieUtil {
      * @param accessToken 발급된 액세스 토큰
      * @param cookieName 쿠키명
      */
-    public static void addTokenCookie(HttpServletRequest request, HttpServletResponse response, String cookieName, String accessToken) {
+    public static void addTokenCookie(HttpServletRequest request, HttpServletResponse response,
+                                      String cookieName, String token, long validity) {
 
-        ResponseCookie cookie = ResponseCookie.from(cookieName, accessToken)
+        ResponseCookie cookie = ResponseCookie.from(cookieName, token)
                 .httpOnly(true)                               // js 에서 접근 불가
                 .secure(request.isSecure())                   // HTTPS 요청일 때만 전송
                 .path("/")                                     // 전체 경로에서 유효
-                .maxAge(JwtStateStrategy.ACCESS_TOKEN_VALIDITY / 1000)  // 유효기간(초)
+                .maxAge(validity / 1000)  // 유효기간(초)
                 .sameSite("Strict")                            // CSRF 방어용 SameSite
                 .build();
 

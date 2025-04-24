@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
+import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.FilterChain;
@@ -38,17 +39,28 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
             } else if (refreshToken != null && tokenService.validateAccessToken(refreshToken)) {
-                // 2) 액세스 토큰이 없거나 만료됐으면, 리프레시 → 새 액세스 토큰 발급
-                Map<String,String> tokens = tokenService.refreshAccessToken(refreshToken);
+                // 2) 액세스 토큰 만료 시 → 리프레시 토큰 검사
+                if (!tokenService.shouldRotateRefreshToken(refreshToken)) {
+                    // 2-1) 회전 불필요: RT 그대로, AT만 재발급
+                    String newAccessToken = tokenService.createAccessTokenFromRefresh(refreshToken);
+                    CookieUtil.addTokenCookie(request, response,TokenService.ACCESS_TOKEN, newAccessToken, JwtStateStrategy.ACCESS_TOKEN_VALIDITY);
 
-                // 2-1) 새 액세스 토큰을 쿠키에 담아서 응답
-                String newAccessToken = tokens.get(TokenService.ACCESS_TOKEN);
-                CookieUtil.addTokenCookie(request, response, "accessToken", newAccessToken);
+                    Authentication auth = tokenService.getAuthenticationFromToken(newAccessToken);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
 
-                // 2-2) 컨텍스트에 인증 정보 세팅
-                Authentication auth = tokenService.getAuthenticationFromToken(newAccessToken);
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                } else {
+                    // 2-2) 회전 필요: RT + AT 모두 재발급
+                    Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
 
+                    String newAccessToken  = tokens.get(TokenService.ACCESS_TOKEN);
+                    String newRefreshToken = tokens.get(TokenService.REFRESH_TOKEN);
+
+                    CookieUtil.addTokenCookie(request, response, TokenService.ACCESS_TOKEN,  newAccessToken,  JwtStateStrategy.ACCESS_TOKEN_VALIDITY);
+                    CookieUtil.addTokenCookie(request, response, TokenService.REFRESH_TOKEN, newRefreshToken, JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
+
+                    Authentication auth = tokenService.getAuthenticationFromToken(newAccessToken);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
 
         } catch (RuntimeException ex) {

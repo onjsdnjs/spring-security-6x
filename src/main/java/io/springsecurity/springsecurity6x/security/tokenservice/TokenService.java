@@ -9,21 +9,33 @@ import java.util.function.Consumer;
 
 public interface TokenService {
 
-    static final String ACCESS_TOKEN = "accessToken";
-    static final String REFRESH_TOKEN = "refreshToken";
+    String ACCESS_TOKEN = "accessToken";
+    String REFRESH_TOKEN = "refreshToken";
 
     String createAccessToken(Consumer<TokenBuilder> builder);
+
     String createRefreshToken(Consumer<TokenBuilder> builder);
+
     boolean validateAccessToken(String token);
+
     Authentication getAuthenticationFromToken(String token);
-    Map<String, String> refreshAccessToken(String refreshToken);
+
+    Map<String, String> refreshTokens(String refreshToken);
+
     void invalidateToken(String refreshToken);
 
+    boolean shouldRotateRefreshToken(String refreshToken);
+
+    String createAccessTokenFromRefresh(String refreshToken);
 
     interface TokenBuilder {
+
         TokenBuilder username(String username);
+
         TokenBuilder validity(long validity);
+
         default TokenBuilder roles(List<String> roles){return this;};
+
         default TokenBuilder claims(Map<String, Object> claims){return this;};
     }
 }

@@ -7,13 +7,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
-import java.io.IOException;
 import java.util.List;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private TokenService tokenService;
     public static String TOKEN_PREFIX = "Bearer ";
+//    public static long ACCESS_TOKEN_VALIDITY = 10000;     // default: 1 hour
     public static long ACCESS_TOKEN_VALIDITY = 3600000;     // default: 1 hour
     public static long REFRESH_TOKEN_VALIDITY = 604800000;  // default: 7 days
     private boolean enableRefreshToken = true;
@@ -48,8 +48,8 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication){
+
         String username = authentication.getName();
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority).toList();
@@ -65,9 +65,9 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                             .roles(roles)
                             .validity(REFRESH_TOKEN_VALIDITY)) : null;
 
-        CookieUtil.addTokenCookie(request, response, "accessToken", accessToken);
+        CookieUtil.addTokenCookie(request, response, "accessToken", accessToken, ACCESS_TOKEN_VALIDITY);
         if (refreshToken != null) {
-            CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken);
+            CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken, REFRESH_TOKEN_VALIDITY);
         }
 
         response.setStatus(HttpServletResponse.SC_OK);

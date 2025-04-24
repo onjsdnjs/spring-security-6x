@@ -20,7 +20,7 @@ public abstract class JwtTokenService implements TokenService {
     }
 
     @Override
-    public Map<String, String> refreshAccessToken(String refreshToken) {
+    public Map<String, String> refreshTokens(String refreshToken) {
         // 1) 스토어 조회 & 검증
         String username = refreshTokenStore.getUsername(refreshToken);
         if (username == null) {
@@ -33,6 +33,7 @@ public abstract class JwtTokenService implements TokenService {
         // 3) 새 리프레시 토큰 발급 & 저장
         String newRefreshToken = createRefreshToken(builder -> builder
                 .username(username)
+                .roles(authenticationConverter.getRoles(refreshToken))
                 .validity(JwtStateStrategy.REFRESH_TOKEN_VALIDITY)
         );
 

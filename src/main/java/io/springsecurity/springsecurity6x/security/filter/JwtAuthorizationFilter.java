@@ -58,6 +58,11 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         String accessToken = CookieUtil.getToken(request, TokenService.ACCESS_TOKEN);
         String refreshToken = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
 
+        if (accessToken == null && refreshToken == null) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         // 1) 액세스 토큰 검사
         if (accessToken != null) {
             try {

@@ -1,9 +1,7 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvider;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
-import jakarta.servlet.http.Cookie;
+import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -11,7 +9,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
-import org.springframework.web.util.WebUtils;
 
 public class TokenLogoutHandler implements LogoutHandler {
     private final TokenService tokenService;
@@ -24,10 +21,9 @@ public class TokenLogoutHandler implements LogoutHandler {
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 
         // 1) 리프레시 토큰 무효화
-        Cookie refreshCookie = WebUtils.getCookie(request, TokenService.REFRESH_TOKEN);
-        if (refreshCookie != null) {
-            String refreshToken = refreshCookie.getValue();
-            tokenService.invalidateToken(refreshToken);
+        String token = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
+        if (token != null) {
+            tokenService.invalidateToken(token);
         }
 
         // 2) accessToken, refreshToken 쿠키 만료 처리

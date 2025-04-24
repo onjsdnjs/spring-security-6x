@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilte
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.security.handler.JwtLogoutHandler;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -21,13 +22,21 @@ public class AuthenticationStateConfigurer {
         this.http = http;
     }
 
-    public AuthenticationStateConfigurer useJwt(Consumer<JwtStateStrategy> config) {
+    public AuthenticationStateConfigurer useJwt(Customizer<JwtStateStrategy> config) {
+
         JwtStateStrategy jwt = new JwtStateStrategy();
         this.stateStrategy = jwt;
-        config.accept(jwt);
+        config.customize(jwt);
+
         http.addFilterAfter(new JwtAuthorizationFilter(jwt.tokenService()), ApiAuthenticationFilter.class);
         http.addFilterAfter(new JwtLogoutFilter(jwt.tokenService(),"/api/auth/logout"), JwtAuthorizationFilter.class);
-        http.logout(logout -> logout.addLogoutHandler(new JwtLogoutHandler()));
+
+        try {
+            http.logout(logout -> logout.addLogoutHandler(new JwtLogoutHandler()));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         return this;
     }
 

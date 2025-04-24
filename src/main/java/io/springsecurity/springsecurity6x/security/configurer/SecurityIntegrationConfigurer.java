@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.configurer.token.Authorizatio
 import io.springsecurity.springsecurity6x.security.configurer.token.ResourceServerConfigurer;
 import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
@@ -20,24 +21,24 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     private final ResourceServerConfigurer resourceServerConfigurer = new ResourceServerConfigurer();
     private AuthenticationStateStrategy strategy;
 
-    public SecurityIntegrationConfigurer authentication(Consumer<AuthenticationTypesConfigurer> customizer) {
-        customizer.accept(this.typesConfigurer);
+    public SecurityIntegrationConfigurer authentication(Customizer<AuthenticationTypesConfigurer> customizer) {
+        customizer.customize(this.typesConfigurer);
         return this;
     }
 
-    public SecurityIntegrationConfigurer state(Consumer<AuthenticationStateConfigurer> customizer, HttpSecurity http) {
+    public SecurityIntegrationConfigurer state(Customizer<AuthenticationStateConfigurer> customizer, HttpSecurity http) {
         stateConfigurer = new AuthenticationStateConfigurer(http);
-        customizer.accept(this.stateConfigurer);
+        customizer.customize(this.stateConfigurer);
         return this;
     }
 
-    public SecurityIntegrationConfigurer authorizationServer(Consumer<AuthorizationServerConfigurer> customizer) {
-        customizer.accept(this.authorizationServerConfigurer);
+    public SecurityIntegrationConfigurer authorizationServer(Customizer<AuthorizationServerConfigurer> customizer) {
+        customizer.customize(this.authorizationServerConfigurer);
         return this;
     }
 
-    public SecurityIntegrationConfigurer resourceServer(Consumer<ResourceServerConfigurer> customizer) {
-        customizer.accept(this.resourceServerConfigurer);
+    public SecurityIntegrationConfigurer resourceServer(Customizer<ResourceServerConfigurer> customizer) {
+        customizer.customize(this.resourceServerConfigurer);
         return this;
     }
 

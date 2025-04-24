@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.configurer.authentication.Api
 import io.springsecurity.springsecurity6x.security.configurer.authentication.AuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.authentication.OttLoginConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.authentication.WebAuthnLoginConfigurer;
+import org.springframework.security.config.Customizer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,23 +14,23 @@ public class AuthenticationTypesConfigurer {
 
     private final List<AuthenticationConfigurer> entries = new ArrayList<>();
 
-    public AuthenticationTypesConfigurer form(Consumer<ApiAuthenticationConfigurer> config) {
+    public AuthenticationTypesConfigurer form(Customizer<ApiAuthenticationConfigurer> config) {
         ApiAuthenticationConfigurer form = new ApiAuthenticationConfigurer();
-        config.accept(form);
+        config.customize(form);
         entries.add(form);
         return this;
     }
 
-    public AuthenticationTypesConfigurer ott(Consumer<OttLoginConfigurer> config) {
+    public AuthenticationTypesConfigurer ott(Customizer<OttLoginConfigurer> config) {
         OttLoginConfigurer ott = new OttLoginConfigurer();
-        config.accept(ott);
+        config.customize(ott);
         entries.add(ott);
         return this;
     }
 
-    public AuthenticationTypesConfigurer passkey(Consumer<WebAuthnLoginConfigurer> config) {
+    public AuthenticationTypesConfigurer passkey(Customizer<WebAuthnLoginConfigurer> config) {
         WebAuthnLoginConfigurer passkey = new WebAuthnLoginConfigurer();
-        config.accept(passkey);
+        config.customize(passkey);
         entries.add(passkey);
         return this;
     }

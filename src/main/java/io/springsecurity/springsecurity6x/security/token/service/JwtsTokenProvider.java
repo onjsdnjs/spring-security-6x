@@ -75,23 +75,12 @@ public class JwtsTokenProvider extends JwtTokenService {
         if (!StringUtils.hasText(accessToken)) {
             return false;
         }
-        try {
-            // 1) 서명·형식·만료 검사
             Jwts.parserBuilder()
                     .setSigningKey(secretKey)   // 액세스 전용 키
                     .build()
                     .parseClaimsJws(accessToken);
-            return true;
-        } catch (ExpiredJwtException eje) {
-            // 액세스 토큰이 만료된 경우
-            return false;
-        } catch (JwtException | IllegalArgumentException je) {
-            // 서명 오류, 변조, 잘못된 포맷 등
-            return false;
-        } catch (Exception e) {
-            // 그 외 모든 예외
-            return false;
-        }
+
+        return true;
     }
 
     @Override
@@ -99,27 +88,14 @@ public class JwtsTokenProvider extends JwtTokenService {
         if (!StringUtils.hasText(refreshToken)) {
             return false;
         }
-        try {
-            // 1) 서명·형식·만료 검사
-            Jws<Claims> jws = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)   // 리프레시 전용 키
-                    .build()
-                    .parseClaimsJws(refreshToken);
+        Jws<Claims> jws = Jwts.parserBuilder()
+                .setSigningKey(secretKey)   // 리프레시 전용 키
+                .build()
+                .parseClaimsJws(refreshToken);
 
-            // 2) 서버 저장소에서 무효화 여부 확인
-            String username = refreshTokenStore().getUsername(refreshToken);
-            return username != null;
-
-        } catch (ExpiredJwtException eje) {
-            // 만료된 토큰
-            return false;
-        } catch (JwtException | IllegalArgumentException je) {
-            // 서명 오류, 변조, 잘못된 포맷 등
-            return false;
-        } catch (Exception e) {
-            // 그 외 모든 예외
-            return false;
-        }
+        // 2) 서버 저장소에서 무효화 여부 확인
+        String username = refreshTokenStore().getUsername(refreshToken);
+        return username != null;
     }
 
     @Override

@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.configurer.state.SessionState
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
+import io.springsecurity.springsecurity6x.security.handler.TokenLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.tokenservice.JwtsTokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,7 +32,8 @@ public class AuthenticationStateConfigurer {
 
         try {
             http.logout(logout -> logout
-                    .addLogoutHandler(new TokenLogoutHandler(tokenService.refreshTokenStore())));
+                    .addLogoutHandler(new TokenLogoutHandler(tokenService.refreshTokenStore()))
+                    .logoutSuccessHandler(new TokenLogoutSuccessHandler()));
 
             http.exceptionHandling(exception -> exception
                     .authenticationEntryPoint(new TokenAuthenticationEntryPoint()));

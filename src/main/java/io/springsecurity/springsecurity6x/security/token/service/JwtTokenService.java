@@ -43,10 +43,6 @@ public abstract class JwtTokenService implements TokenService {
             refreshTokenStore.store(newRefreshToken, username);
             usedRefresh = newRefreshToken;
 
-        }else {
-            // 2-2) 슬라이딩 만료: 서버 스토어의 만료 시각만 연장
-            //    (같은 토큰 문자열로 다시 store 하면 만료가 now+validity 로 갱신됨)
-            refreshTokenStore.store(refreshToken, username);
         }
         // 4) 새 액세스 토큰 발급
         String newAccessToken = createAccessTokenFromRefresh(usedRefresh);

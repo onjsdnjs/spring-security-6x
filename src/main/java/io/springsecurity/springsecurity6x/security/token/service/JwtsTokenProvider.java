@@ -101,9 +101,6 @@ public class JwtsTokenProvider extends JwtTokenService {
 
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
-
-        } catch (Exception e) {
-            return false;
         }
     }
 

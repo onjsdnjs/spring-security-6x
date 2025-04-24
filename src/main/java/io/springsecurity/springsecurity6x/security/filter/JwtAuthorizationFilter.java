@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
@@ -33,18 +34,19 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         try {
             if (accessToken != null && tokenService.validateAccessToken(accessToken)) {
                 // 1) 액세스 토큰이 유효하면 바로 인증 세팅
-                Authentication auth = tokenService.getAuthenticationFromAccessToken(accessToken);
+                Authentication auth = tokenService.getAuthenticationFromToken(accessToken);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
             } else if (refreshToken != null && tokenService.validateAccessToken(refreshToken)) {
                 // 2) 액세스 토큰이 없거나 만료됐으면, 리프레시 → 새 액세스 토큰 발급
-                String newAccessToken = tokenService.refreshAccessToken(refreshToken);
+                Map<String,String> tokens = tokenService.refreshAccessToken(refreshToken);
 
                 // 2-1) 새 액세스 토큰을 쿠키에 담아서 응답
+                String newAccessToken = tokens.get(TokenService.ACCESS_TOKEN_KEY);
                 CookieUtil.addTokenCookie(request, response, "accessToken", newAccessToken);
 
                 // 2-2) 컨텍스트에 인증 정보 세팅
-                Authentication auth = tokenService.getAuthenticationFromAccessToken(newAccessToken);
+                Authentication auth = tokenService.getAuthenticationFromToken(newAccessToken);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
             }

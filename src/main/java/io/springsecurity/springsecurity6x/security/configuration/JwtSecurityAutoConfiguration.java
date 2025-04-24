@@ -2,8 +2,8 @@ package io.springsecurity.springsecurity6x.security.configuration;
 
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import io.springsecurity.springsecurity6x.security.InMemoryRefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.annotation.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.tokenstore.InMemoryRefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.converter.SpringAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -18,11 +18,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
 
 @Configuration
 @EnableConfigurationProperties(AuthContextProperties.class)
 public class JwtSecurityAutoConfiguration {
+
+    SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     @Bean
     @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "internal")
@@ -33,12 +34,9 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "external")
-    public TokenService externalTokenService(
-            RefreshTokenStore refreshTokenStore
-    ) {
-        SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    public TokenService externalTokenService() {
         return new ExternalJwtTokenService(
-                refreshTokenStore,
+                refreshTokenStore(),
                 new JwtAuthenticationConverter(key),
                 key
         );
@@ -46,6 +44,6 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     public RefreshTokenStore refreshTokenStore() {
-        return new InMemoryRefreshTokenStore(); // 나중에 Redis로 교체 가능
+        return new InMemoryRefreshTokenStore(key); // 나중에 Redis로 교체 가능
     }
 }

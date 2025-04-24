@@ -9,11 +9,14 @@ import java.util.function.Consumer;
 
 public interface TokenService {
 
+    static final String ACCESS_TOKEN_KEY = "accessToken";
+    static final String REFRESH_TOKEN_KEY = "refreshToken";
+
     String createAccessToken(Consumer<TokenBuilder> builder);
     String createRefreshToken(Consumer<TokenBuilder> builder);
     boolean validateAccessToken(String token);
-    Authentication getAuthenticationFromAccessToken(String token);
-    String refreshAccessToken(String refreshToken);
+    Authentication getAuthenticationFromToken(String token);
+    Map<String, String> refreshAccessToken(String refreshToken);
     void invalidateToken(String refreshToken);
 
 

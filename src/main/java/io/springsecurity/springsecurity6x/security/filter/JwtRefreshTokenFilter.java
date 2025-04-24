@@ -27,11 +27,11 @@ public class JwtRefreshTokenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, jakarta.servlet.FilterChain filterChain) throws IOException {
 
-        Map<String, String> body = new ObjectMapper().readValue(request.getInputStream(), Map.class);
+       /* Map<String, String> body = new ObjectMapper().readValue(request.getInputStream(), Map.class);
         String refreshToken = body.get("refreshToken");
         String accessToken = tokenService.refreshAccessToken(refreshToken);
 
         response.setContentType("application/json");
-        new ObjectMapper().writeValue(response.getOutputStream(), Map.of("accessToken", "Bearer " + accessToken));
+        new ObjectMapper().writeValue(response.getOutputStream(), Map.of("accessToken", "Bearer " + accessToken));*/
     }
 }

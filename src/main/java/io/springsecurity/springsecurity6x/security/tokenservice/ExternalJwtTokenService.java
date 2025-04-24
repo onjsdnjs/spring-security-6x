@@ -1,10 +1,9 @@
 package io.springsecurity.springsecurity6x.security.tokenservice;
 
 import io.jsonwebtoken.Jwts;
-import io.springsecurity.springsecurity6x.security.annotation.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
-import org.springframework.security.core.Authentication;
+import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
 import org.springframework.security.oauth2.jwt.JwtException;
 
 import javax.crypto.SecretKey;
@@ -18,52 +17,62 @@ import java.util.function.Consumer;
  *  - 리프레시 토큰 보관/만료 관리는 RefreshTokenStore 에 위임
  *  - JWT → Authentication 변환은 AuthenticationConverter 에 위임
  */
-public class ExternalJwtTokenService implements TokenService {
+public class ExternalJwtTokenService extends JwtTokenService {
 
     private final SecretKey secretKey;
-    private final RefreshTokenStore       refreshTokenStore;
-    private final AuthenticationConverter authenticationConverter;
 
     public ExternalJwtTokenService(
-            RefreshTokenStore       refreshTokenStore,
+            RefreshTokenStore refreshTokenStore,
             AuthenticationConverter authenticationConverter,
             SecretKey secretKey) {
-        this.refreshTokenStore       = refreshTokenStore;
-        this.authenticationConverter = authenticationConverter;
+        super(refreshTokenStore, authenticationConverter);
         this.secretKey = secretKey;
     }
 
     @Override
     public String createAccessToken(Consumer<TokenBuilder> consumer) {
-
-        AccessTokenBuilder accessTokenBuilder = new AccessTokenBuilder();
-        consumer.accept(accessTokenBuilder);
+        DefaultTokenBuilder builder = new DefaultTokenBuilder();
+        consumer.accept(builder);
 
         Instant now = Instant.now();
+        String jti = UUID.randomUUID().toString();
+
         return Jwts.builder()
-                .setSubject(accessTokenBuilder.username)
-                .claim("roles", accessTokenBuilder.roles)
-                .addClaims(accessTokenBuilder.claims)
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(accessTokenBuilder.validity)))
+                .setId(jti)                                  // JTI: 토큰 고유 ID
+                .setSubject(builder.getUsername())            // sub: 사용자 식별자
+                .claim("roles", builder.getRoles())           // roles: 권한 정보
+                .claim("token_type", "access")                // token_type: 액세스 토큰 구분자
+                .addClaims(builder.getClaims())               // custom claims
+                .setIssuedAt(Date.from(now))                  // iat
+                .setExpiration(Date.from(now.plusMillis(
+                        builder.getValidity()                  // 유효기간: builder에 지정된 값
+                )))
                 .signWith(secretKey)
                 .compact();
     }
 
     @Override
     public String createRefreshToken(Consumer<TokenBuilder> consumer) {
-        RefreshTokenBuilder refreshTokenBuilder = new RefreshTokenBuilder();
-        consumer.accept(refreshTokenBuilder);
+        DefaultTokenBuilder tokenBuilder = new DefaultTokenBuilder();
+        consumer.accept(tokenBuilder);
 
         Instant now = Instant.now();
+        String jti = UUID.randomUUID().toString();  // 토큰 고유 ID
+
         String token = Jwts.builder()
-                .setSubject(refreshTokenBuilder.username)
+                // Header
+                .setId(jti)                                        // JTI
+                .setSubject(tokenBuilder.getUsername())                 // 사용자 식별자
+                .claim("token_type", "refresh")                    // 토큰 타입
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(refreshTokenBuilder.validity)))
-                .signWith(secretKey)
+                .setExpiration(Date.from(now.plusMillis(
+                        JwtStateStrategy.refreshTokenValidity)))
+                // 서명
+                .signWith(secretKey)                        // 액세스 토큰과 다른 키를 쓰면 더 안전
                 .compact();
 
-        refreshTokenStore.store(token, refreshTokenBuilder.username);
+        refreshTokenStore.store(token, tokenBuilder.getUsername());
+
         return token;
     }
 
@@ -80,82 +89,5 @@ public class ExternalJwtTokenService implements TokenService {
         }
     }
 
-    @Override
-    public Authentication getAuthenticationFromAccessToken(String token) {
-        return authenticationConverter.getAuthentication(token);
-    }
-
-    @Override
-    public String refreshAccessToken(String refreshToken) {
-        // 1) 스토어에서 username 조회 → 없으면 유효하지 않은 토큰
-        String username = refreshTokenStore.getUsername(refreshToken);
-        if (username == null) {
-            throw new JwtException("Invalid or expired refresh token");
-        }
-        List<String> roles = authenticationConverter.getRoles(refreshToken);
-
-        // 3) 새 액세스 토큰 발급 (유효기간은 application 설정값)
-        return createAccessToken(builder -> builder
-                .username(username)
-                .roles(roles)
-                .validity(JwtStateStrategy.accessTokenValidity)
-        );
-    }
-
-    @Override
-    public void invalidateToken(String refreshToken) {
-        refreshTokenStore.remove(refreshToken);
-    }
-
-    // ---------------------------------------
-    // Builder 구현체
-    // ---------------------------------------
-    private static class AccessTokenBuilder implements TokenBuilder {
-        private String              username;
-        private List<String>        roles   = Collections.emptyList();
-        private Map<String, Object> claims  = new HashMap<>();
-        private long                validity;
-
-        @Override
-        public TokenBuilder username(String username) {
-            this.username = username;
-            return this;
-        }
-
-        @Override
-        public TokenBuilder roles(List<String> roles) {
-            this.roles = roles;
-            return this;
-        }
-
-        @Override
-        public TokenBuilder claims(Map<String, Object> claims) {
-            this.claims.putAll(claims);
-            return this;
-        }
-
-        @Override
-        public TokenBuilder validity(long millis) {
-            this.validity = millis;
-            return this;
-        }
-    }
-
-    private static class RefreshTokenBuilder implements TokenBuilder {
-        private String username;
-        private long   validity;
-
-        @Override
-        public RefreshTokenBuilder username(String username) {
-            this.username = username;
-            return this;
-        }
-
-        @Override
-        public RefreshTokenBuilder validity(long millis) {
-            this.validity = millis;
-            return this;
-        }
-    }
 }
 

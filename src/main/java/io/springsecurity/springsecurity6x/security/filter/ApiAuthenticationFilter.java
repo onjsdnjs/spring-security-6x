@@ -29,7 +29,7 @@ public class ApiAuthenticationFilter extends AbstractAuthenticationProcessingFil
         setSecurityContextRepository(securityContextRepository);
     }
 
-    public void setSession(boolean session) {
+    public void session(boolean session) {
         isSession = session;
     }
 
@@ -44,6 +44,7 @@ public class ApiAuthenticationFilter extends AbstractAuthenticationProcessingFil
 
         UsernamePasswordAuthenticationToken authRequest =
                 new UsernamePasswordAuthenticationToken(username, password);
+
         return this.getAuthenticationManager().authenticate(authRequest);
     }
 

@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.configurer.state.Authenticati
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.configurer.state.SessionStateStrategy;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
+import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutSuccessHandler;
@@ -48,6 +49,8 @@ public class AuthenticationStateConfigurer {
 
     public AuthenticationStateConfigurer useSession(Customizer<JwtStateStrategy> config) {
         this.stateStrategy = new SessionStateStrategy();
+        ApiAuthenticationFilter filter = http.getSharedObject(ApiAuthenticationFilter.class);
+        filter.session(true);
         return this;
     }
 

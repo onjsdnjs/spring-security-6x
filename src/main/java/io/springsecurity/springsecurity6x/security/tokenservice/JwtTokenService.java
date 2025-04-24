@@ -63,6 +63,10 @@ public abstract class JwtTokenService implements TokenService {
         return refreshTokenStore;
     }
 
+    public AuthenticationConverter authenticationConverter() {
+        return authenticationConverter;
+    }
+
     static class DefaultTokenBuilder implements TokenBuilder {
         private String              username;
         private List<String>        roles   = Collections.emptyList();

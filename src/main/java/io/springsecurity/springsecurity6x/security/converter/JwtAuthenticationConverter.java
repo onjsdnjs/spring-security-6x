@@ -46,7 +46,7 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
         return claims.get("roles", List.class);
     }
 
-    private Claims parseClaims(String token) {
+    public Claims parseClaims(String token) {
 
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);

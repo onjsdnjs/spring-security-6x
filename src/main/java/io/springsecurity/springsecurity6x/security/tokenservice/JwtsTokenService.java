@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
+import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
 import org.springframework.security.oauth2.jwt.JwtException;
 
@@ -85,7 +86,7 @@ public class JwtsTokenService extends JwtTokenService {
 
     @Override
     public boolean shouldRotateRefreshToken(String refreshToken) {
-        Claims claims = parseClaims(refreshToken, refreshKey);
+        Claims claims = ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
         long remain = claims.getExpiration().getTime() - System.currentTimeMillis();
         return remain <= rotationThresholdMillis;
     }
@@ -93,9 +94,9 @@ public class JwtsTokenService extends JwtTokenService {
     @Override
     public String createAccessTokenFromRefresh(String refreshToken) {
         // 서명 검증+클레임 파싱
-        Claims claims = parseClaims(refreshToken, refreshKey);
+        Claims claims = ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
         String username = claims.getSubject();
-        List<String> roles = authenticationConverter.getRoles(refreshToken);
+        List<String> roles = authenticationConverter().getRoles(refreshToken);
 
         // 엑세스 토큰만 새로 발급
         return createAccessToken(builder -> builder

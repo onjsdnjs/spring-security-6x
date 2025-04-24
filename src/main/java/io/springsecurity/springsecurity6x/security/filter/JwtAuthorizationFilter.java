@@ -46,53 +46,53 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     return;
                 }
             } catch (ExpiredJwtException expiredAt) {
-                // 만료된 액세스 토큰 → 리프레시 단계로
+                System.out.println("ExpiredJwtException = " + expiredAt.getMessage());
+
             } catch (JwtException | IllegalArgumentException badAt) {
+                // 모든 토큰 강제 만료, 인증정보 삭제, 토큰 저장 삭제
                 logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
                 throw new BadCredentialsException("Invalid access token", badAt);
             }
         }else {
-            // accessToken == null 인 경우 → 절대로 리프레시 로직을 타지 않고 익명 사용자로 통과
             chain.doFilter(request, response);
             return;
         }
 
-        // 2) 리프레시 토큰이 있을 때만, 명시적 검증 후 재발급
-        if (refreshToken != null) {
-            try {
-                // 2-1) 리프레시 토큰 유효성 검증
-                if (!tokenService.validateRefreshToken(refreshToken)) {
-                    throw new BadCredentialsException("Invalid refresh token");
-                }
-                // 2-2) 검증 통과하면 토큰 재발급
-                Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
-
-                // 2-3) 쿠키 갱신
-                CookieUtil.addTokenCookie(request, response,
-                        TokenService.ACCESS_TOKEN,
-                        tokens.get(TokenService.ACCESS_TOKEN),
-                        JwtStateStrategy.ACCESS_TOKEN_VALIDITY);
-                CookieUtil.addTokenCookie(request, response,
-                        TokenService.REFRESH_TOKEN,
-                        tokens.get(TokenService.REFRESH_TOKEN),
-                        JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
-
-                Authentication auth = tokenService.getAuthenticationFromToken(tokens.get(TokenService.ACCESS_TOKEN));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-
-                chain.doFilter(request, response);
-                return;
-
-            } catch (ExpiredJwtException expiredRt) {
-                logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-                throw new BadCredentialsException("Refresh token expired", expiredRt);
-
-            } catch (JwtException | IllegalArgumentException badRt) {
-                logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-                throw new BadCredentialsException("Invalid refresh token", badRt);
-            }
+        if (refreshToken == null) {
+            chain.doFilter(request, response);
+            return;
         }
-        chain.doFilter(request, response);
+        try {
+            // 2-1) 리프레시 토큰 유효성 검증
+            if (!tokenService.validateRefreshToken(refreshToken)) {
+                throw new BadCredentialsException("Invalid refresh token");
+            }
+            // 2-2) 검증 통과하면 토큰 재발급
+            Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
+
+            // 2-3) 쿠키 갱신
+            CookieUtil.addTokenCookie(request, response,
+                    TokenService.ACCESS_TOKEN,
+                    tokens.get(TokenService.ACCESS_TOKEN),
+                    JwtStateStrategy.ACCESS_TOKEN_VALIDITY);
+            CookieUtil.addTokenCookie(request, response,
+                    TokenService.REFRESH_TOKEN,
+                    tokens.get(TokenService.REFRESH_TOKEN),
+                    JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
+
+            Authentication auth = tokenService.getAuthenticationFromToken(tokens.get(TokenService.ACCESS_TOKEN));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            chain.doFilter(request, response);
+
+        } catch (ExpiredJwtException expiredRt) {
+            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+            throw new BadCredentialsException("Refresh token expired", expiredRt);
+
+        } catch (JwtException | IllegalArgumentException badRt) {
+            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+            throw new BadCredentialsException("Invalid refresh token", badRt);
+        }
     }
 
 }

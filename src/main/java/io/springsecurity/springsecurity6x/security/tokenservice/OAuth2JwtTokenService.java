@@ -8,17 +8,15 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class InternalJwtTokenService extends JwtTokenService {
+public class OAuth2JwtTokenService extends JwtTokenService {
 
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public InternalJwtTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder,
-                                   RefreshTokenStore refreshTokenStore,
-                                   AuthenticationConverter authenticationConverter) {
-        super(refreshTokenStore, authenticationConverter);
-        this.jwtEncoder = jwtEncoder;
-        this.jwtDecoder = jwtDecoder;
+    public OAuth2JwtTokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
+        super(store, converter);
+        this.jwtEncoder = encoder;
+        this.jwtDecoder = decoder;
     }
 
     @Override

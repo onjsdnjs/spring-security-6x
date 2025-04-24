@@ -33,7 +33,7 @@ public abstract class JwtTokenService implements TokenService {
         // 3) 새 리프레시 토큰 발급 & 저장
         String newRefreshToken = createRefreshToken(builder -> builder
                 .username(username)
-                .validity(JwtStateStrategy.refreshTokenValidity)
+                .validity(JwtStateStrategy.REFRESH_TOKEN_VALIDITY)
         );
 
         refreshTokenStore.store(newRefreshToken, username);
@@ -42,7 +42,7 @@ public abstract class JwtTokenService implements TokenService {
         String newAccessToken = createAccessToken(builder -> builder
                 .username(username)
                 .roles(authenticationConverter.getRoles(refreshToken))
-                .validity(JwtStateStrategy.accessTokenValidity)
+                .validity(JwtStateStrategy.ACCESS_TOKEN_VALIDITY)
         );
 
         // 5) 클라이언트에 둘 다 반환 (또는 쿠키 설정)

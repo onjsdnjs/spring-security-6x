@@ -8,7 +8,7 @@ import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationCo
 import io.springsecurity.springsecurity6x.security.converter.SpringAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.tokenservice.ExternalJwtTokenService;
-import io.springsecurity.springsecurity6x.security.tokenservice.InternalJwtTokenService;
+import io.springsecurity.springsecurity6x.security.tokenservice.OAuth2JwtTokenService;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,7 +28,7 @@ public class JwtSecurityAutoConfiguration {
     @Bean
     @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "internal")
     public TokenService internalTokenService(JwtEncoder encoder, JwtDecoder decoder) {
-        return new InternalJwtTokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
+        return new OAuth2JwtTokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
     }
 
 

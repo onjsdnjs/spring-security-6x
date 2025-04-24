@@ -13,9 +13,9 @@ import java.util.List;
 public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private TokenService tokenService;
-    private String tokenPrefix = "Bearer ";
-    public static long accessTokenValidity = 3600000;     // default: 1 hour
-    public static long refreshTokenValidity = 604800000;  // default: 7 days
+    public static String TOKEN_PREFIX = "Bearer ";
+    public static long ACCESS_TOKEN_VALIDITY = 3600000;     // default: 1 hour
+    public static long REFRESH_TOKEN_VALIDITY = 604800000;  // default: 7 days
     private boolean enableRefreshToken = true;
 
     public JwtStateStrategy tokenService(TokenService tokenService) {
@@ -24,17 +24,17 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     }
 
     public JwtStateStrategy tokenPrefix(String prefix) {
-        this.tokenPrefix = prefix;
+        TOKEN_PREFIX = prefix;
         return this;
     }
 
     public JwtStateStrategy accessTokenValidity(long millis) {
-        accessTokenValidity = millis;
+        ACCESS_TOKEN_VALIDITY = millis;
         return this;
     }
 
     public JwtStateStrategy refreshTokenValidity(long millis) {
-        refreshTokenValidity = millis;
+        REFRESH_TOKEN_VALIDITY = millis;
         return this;
     }
 
@@ -57,13 +57,13 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         String accessToken = tokenService.createAccessToken(builder -> builder
                 .username(username)
                 .roles(roles)
-                .validity(accessTokenValidity));
+                .validity(ACCESS_TOKEN_VALIDITY));
 
         String refreshToken = enableRefreshToken ?
                     tokenService.createRefreshToken(builder -> builder
                             .username(username)
                             .roles(roles)
-                            .validity(refreshTokenValidity)) : null;
+                            .validity(REFRESH_TOKEN_VALIDITY)) : null;
 
         CookieUtil.addTokenCookie(request, response, "accessToken", accessToken);
         if (refreshToken != null) {

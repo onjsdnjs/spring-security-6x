@@ -41,7 +41,7 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
         String hash = hashToken(refreshToken, salt);
 
         // 3) 서버 측 만료 시각 계산
-        Instant expiry = Instant.now().plusMillis(JwtStateStrategy.refreshTokenValidity);
+        Instant expiry = Instant.now().plusMillis(JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
 
         // 4) 저장
         store.put(jti, new TokenInfo(username, salt, hash, expiry));

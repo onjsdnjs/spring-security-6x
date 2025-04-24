@@ -11,21 +11,12 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
-/**
- * 외부 모드용 토큰 서비스:
- *  - 액세스·리프레시 키는 생성자에서 주입
- *  - 리프레시 토큰 보관/만료 관리는 RefreshTokenStore 에 위임
- *  - JWT → Authentication 변환은 AuthenticationConverter 에 위임
- */
 public class ExternalJwtTokenService extends JwtTokenService {
 
     private final SecretKey secretKey;
 
-    public ExternalJwtTokenService(
-            RefreshTokenStore refreshTokenStore,
-            AuthenticationConverter authenticationConverter,
-            SecretKey secretKey) {
-        super(refreshTokenStore, authenticationConverter);
+    public ExternalJwtTokenService(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
+        super(store, converter);
         this.secretKey = secretKey;
     }
 
@@ -38,14 +29,14 @@ public class ExternalJwtTokenService extends JwtTokenService {
         String jti = UUID.randomUUID().toString();
 
         return Jwts.builder()
-                .setId(jti)                                  // JTI: 토큰 고유 ID
-                .setSubject(builder.getUsername())            // sub: 사용자 식별자
-                .claim("roles", builder.getRoles())           // roles: 권한 정보
-                .claim("token_type", "access")                // token_type: 액세스 토큰 구분자
-                .addClaims(builder.getClaims())               // custom claims
-                .setIssuedAt(Date.from(now))                  // iat
+                .setId(jti)
+                .setSubject(builder.getUsername())
+                .claim("roles", builder.getRoles())
+                .claim("token_type", "access")
+                .addClaims(builder.getClaims())
+                .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusMillis(
-                        builder.getValidity()                  // 유효기간: builder에 지정된 값
+                        builder.getValidity()
                 )))
                 .signWith(secretKey)
                 .compact();
@@ -57,18 +48,15 @@ public class ExternalJwtTokenService extends JwtTokenService {
         consumer.accept(tokenBuilder);
 
         Instant now = Instant.now();
-        String jti = UUID.randomUUID().toString();  // 토큰 고유 ID
+        String jti = UUID.randomUUID().toString();
 
         String token = Jwts.builder()
-                // Header
-                .setId(jti)                                        // JTI
-                .setSubject(tokenBuilder.getUsername())                 // 사용자 식별자
-                .claim("token_type", "refresh")                    // 토큰 타입
+                .setId(jti)
+                .setSubject(tokenBuilder.getUsername())
+                .claim("token_type", "refresh")
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(
-                        JwtStateStrategy.refreshTokenValidity)))
-                // 서명
-                .signWith(secretKey)                        // 액세스 토큰과 다른 키를 쓰면 더 안전
+                .setExpiration(Date.from(now.plusMillis(JwtStateStrategy.REFRESH_TOKEN_VALIDITY)))
+                .signWith(secretKey)
                 .compact();
 
         refreshTokenStore.store(token, tokenBuilder.getUsername());

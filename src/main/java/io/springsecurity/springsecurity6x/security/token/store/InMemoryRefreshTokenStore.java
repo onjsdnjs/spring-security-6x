@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
+import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 
@@ -18,10 +19,16 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore{
 
     @Override
     public void store(String refreshToken, String username) {
-        ParsedJwt jwt   = parser.parse(refreshToken);
-        String   jti    = jwt.getId();
-        Instant expiry = jwt.getExpiration();
 
+        // 1) JWT 서명·만료 검증 및 JTI 추출
+        ParsedJwt jwt = parser.parse(refreshToken);
+        String   jti = jwt.getId();
+
+        // 2) 슬라이딩 만료: 서버 스토어의 expiry는 항상 now+validity
+        Instant expiry = Instant.now()
+                .plusMillis(JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
+
+        // 3) JTI → (username, 만료) 매핑
         store.put(jti, new TokenInfo(username, expiry));
     }
 

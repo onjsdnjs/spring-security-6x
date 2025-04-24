@@ -26,10 +26,13 @@ public abstract class JwtTokenService implements TokenService {
         if (username == null) {
             throw new JwtException("Invalid or expired refresh token");
         }
+
+        // 2) 회전 필요 여부 판단
         boolean rotate = shouldRotateRefreshToken(refreshToken);
         String usedRefresh = refreshToken;
+
         if(rotate){
-            // 2) 이전 리프레시 토큰 즉시 폐기 → 토큰 회전 구현
+            // 2-1) 회전: 기존 토큰 삭제 → 새 토큰 발급 & 저장
             refreshTokenStore.remove(refreshToken);
             // 3) 새 리프레시 토큰 발급 & 저장
             String newRefreshToken = createRefreshToken(builder -> builder
@@ -39,6 +42,11 @@ public abstract class JwtTokenService implements TokenService {
             );
             refreshTokenStore.store(newRefreshToken, username);
             usedRefresh = newRefreshToken;
+
+        }else {
+            // 2-2) 슬라이딩 만료: 서버 스토어의 만료 시각만 연장
+            //    (같은 토큰 문자열로 다시 store 하면 만료가 now+validity 로 갱신됨)
+            refreshTokenStore.store(refreshToken, username);
         }
         // 4) 새 액세스 토큰 발급
         String newAccessToken = createAccessTokenFromRefresh(usedRefresh);

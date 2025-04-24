@@ -1,13 +1,11 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
-import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -74,26 +72,53 @@ public class JwtsTokenProvider extends JwtTokenService {
 
     @Override
     public boolean validateAccessToken(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return false;
+        }
         try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build()
+            // 1) 서명·형식·만료 검사
+            Jwts.parserBuilder()
+                    .setSigningKey(secretKey)   // 액세스 전용 키
+                    .build()
                     .parseClaimsJws(accessToken);
             return true;
-        } catch (JwtException ex) {
-            throw ex;
+        } catch (ExpiredJwtException eje) {
+            // 액세스 토큰이 만료된 경우
+            return false;
+        } catch (JwtException | IllegalArgumentException je) {
+            // 서명 오류, 변조, 잘못된 포맷 등
+            return false;
+        } catch (Exception e) {
+            // 그 외 모든 예외
+            return false;
         }
     }
 
     @Override
     public boolean validateRefreshToken(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            return false;
+        }
         try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build()
-                    .parseClaimsJws(refreshToken)
-                    .getBody();
-            // 서버 저장소에 유효한지 확인
+            // 1) 서명·형식·만료 검사
+            Jws<Claims> jws = Jwts.parserBuilder()
+                    .setSigningKey(secretKey)   // 리프레시 전용 키
+                    .build()
+                    .parseClaimsJws(refreshToken);
+
+            // 2) 서버 저장소에서 무효화 여부 확인
             String username = refreshTokenStore().getUsername(refreshToken);
             return username != null;
-        } catch (JwtException ex) {
-            throw ex;
+
+        } catch (ExpiredJwtException eje) {
+            // 만료된 토큰
+            return false;
+        } catch (JwtException | IllegalArgumentException je) {
+            // 서명 오류, 변조, 잘못된 포맷 등
+            return false;
+        } catch (Exception e) {
+            // 그 외 모든 예외
+            return false;
         }
     }
 

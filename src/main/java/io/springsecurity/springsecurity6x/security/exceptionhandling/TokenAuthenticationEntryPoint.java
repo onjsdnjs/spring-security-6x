@@ -8,17 +8,28 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
 
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write(objectMapper.writeValueAsString(HttpServletResponse.SC_UNAUTHORIZED));
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+
+        Map<String,Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status",    401);
+        body.put("error",     "Unauthorized");
+        body.put("message",   authException.getMessage());
+        body.put("path",      request.getRequestURI());
+
+        mapper.writeValue(response.getOutputStream(), body);
     }
 }

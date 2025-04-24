@@ -1,38 +1,40 @@
 package io.springsecurity.springsecurity6x.security.utils;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 
-/**
- * ResponseCookie 기반으로 HTTP 응답에 Set-Cookie 헤더를 추가해 주는 유틸리티 클래스
- */
-public final class CookieUtil {
+public class CookieUtil {
 
-    private CookieUtil() {
-        // 인스턴스 생성 방지
+    public static String getToken(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie c : cookies) {
+            if (name.equals(c.getName())) {
+                return c.getValue();
+            }
+        }
+        return null;
     }
 
-    /**
-     * accessToken 쿠키를 생성하여 응답 헤더에 추가한다.
-     *
-     * @param request     현재 HTTP 요청 (secure 여부 확인용)
-     * @param response    HTTP 응답 객체
-     * @param token 발급된 액세스, 리프레시 토큰
-     * @param cookieName 쿠키명
-     */
-    public static void addTokenCookie(HttpServletRequest request, HttpServletResponse response,
-                                      String cookieName, String token, long validity) {
-
-        ResponseCookie cookie = ResponseCookie.from(cookieName, token)
-                .httpOnly(true)                               // js 에서 접근 불가
-                .secure(request.isSecure())                   // HTTPS 요청일 때만 전송
-                .path("/")                                     // 전체 경로에서 유효
-                .maxAge(validity / 1000)  // 유효기간(초)
-                .sameSite("Strict")                            // CSRF 방어용 SameSite
+    public static void addTokenCookie(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String name,
+            String value,
+            long maxAgeMillis
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .path("/")
+                .httpOnly(true)
+                .secure(request.isSecure())
+                .maxAge(maxAgeMillis / 1000)
+                .sameSite("Strict")
                 .build();
-
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

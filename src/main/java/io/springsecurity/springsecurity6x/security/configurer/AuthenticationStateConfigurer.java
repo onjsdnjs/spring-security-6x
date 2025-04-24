@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.handler.TokenLogoutSuccessHan
 import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 public class AuthenticationStateConfigurer {
@@ -28,7 +29,7 @@ public class AuthenticationStateConfigurer {
         config.customize(jwt);
 
         JwtsTokenProvider tokenService = (JwtsTokenProvider)jwt.tokenService();
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService), ExceptionTranslationFilter.class);
 
         try {
             http.logout(logout -> logout

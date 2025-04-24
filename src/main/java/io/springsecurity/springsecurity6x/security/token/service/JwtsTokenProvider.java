@@ -88,14 +88,23 @@ public class JwtsTokenProvider extends JwtTokenService {
         if (!StringUtils.hasText(refreshToken)) {
             return false;
         }
-        Jws<Claims> jws = Jwts.parserBuilder()
-                .setSigningKey(secretKey)   // 리프레시 전용 키
+        try {
+            // 1) 서명·형식·만료 검사
+            Jwts.parserBuilder()
+                .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(refreshToken);
 
-        // 2) 서버 저장소에서 무효화 여부 확인
-        String username = refreshTokenStore().getUsername(refreshToken);
-        return username != null;
+            // 2) 서버 저장소에서 무효화 여부 확인
+            String username = refreshTokenStore().getUsername(refreshToken);
+            return username != null;
+
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

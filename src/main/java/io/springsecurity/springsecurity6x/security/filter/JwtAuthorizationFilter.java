@@ -62,11 +62,15 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        // 1) 리프레시 토큰 유효성 검사
+        boolean isValid = tokenService.validateRefreshToken(refreshToken);
+        if (!isValid) {
+            // 검증 실패 시 바로 로그아웃 처리 후 예외 던짐
+            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+
         try {
-            // 2-1) 리프레시 토큰 유효성 검증
-            if (!tokenService.validateRefreshToken(refreshToken)) {
-                throw new BadCredentialsException("Invalid refresh token");
-            }
             // 2-2) 검증 통과하면 토큰 재발급
             Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
 

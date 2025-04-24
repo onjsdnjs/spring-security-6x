@@ -83,7 +83,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        // 1) 리프레시 토큰 유효성 검사
+
+        // 2) 리프레시 토큰 유효성 검사
         boolean isValid = tokenService.validateRefreshToken(refreshToken);
         if (!isValid) {
             failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", null);

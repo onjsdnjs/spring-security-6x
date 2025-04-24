@@ -3,6 +3,8 @@ package io.springsecurity.springsecurity6x.security.converter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
+import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,44 +19,26 @@ import java.util.stream.Collectors;
  */
 public class JwtAuthenticationConverter implements AuthenticationConverter {
 
-    private final SecretKey secretKey;
+    private final JwtParser parser;
 
-    public JwtAuthenticationConverter(SecretKey secretKey) {
-        this.secretKey = secretKey;
+    public JwtAuthenticationConverter(JwtParser parser) {
+        this.parser = parser;
     }
 
-    /**
-     * JWT 액세스 토큰을 파싱해서 Authentication 객체로 반환
-     */
     @Override
     public Authentication getAuthentication(String token) {
-        Claims claims = parseClaims(token);
-        String username = claims.getSubject();
-        List<String> roles = claims.get("roles", List.class);
-        var authorities = roles.stream()
+        ParsedJwt jwt = parser.parse(token);
+        String user = jwt.getSubject();
+        List<String> roles = jwt.getClaim("roles", List.class);
+        var auths = roles.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
-        return new UsernamePasswordAuthenticationToken(username, null, authorities);
+        return new UsernamePasswordAuthenticationToken(user, null, auths);
     }
 
-    /**
-     * 리프레시 토큰에서만 역할 목록만 추출할 때 사용
-     */
     @Override
     public List<String> getRoles(String token) {
-        Claims claims = parseClaims(token);
-        return claims.get("roles", List.class);
-    }
-
-    public Claims parseClaims(String token) {
-
-        if (token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
-        Jws<Claims> jws = Jwts.parserBuilder()
-                .setSigningKey(secretKey)
-                .build()
-                .parseClaimsJws(token);
-        return jws.getBody();
+        ParsedJwt jwt = parser.parse(token);
+        return jwt.getClaim("roles", List.class);
     }
 }

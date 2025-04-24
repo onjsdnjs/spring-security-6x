@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
-import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;

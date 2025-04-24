@@ -1,9 +1,8 @@
-package io.springsecurity.springsecurity6x.security.tokenservice;
+package io.springsecurity.springsecurity6x.security.token.service;
 
-import io.jsonwebtoken.Claims;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
-import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.JwtException;
 

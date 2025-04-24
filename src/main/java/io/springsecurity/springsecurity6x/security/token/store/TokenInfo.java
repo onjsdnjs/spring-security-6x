@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.tokenstore;
+package io.springsecurity.springsecurity6x.security.token.store;
 
 import java.time.Instant;
 

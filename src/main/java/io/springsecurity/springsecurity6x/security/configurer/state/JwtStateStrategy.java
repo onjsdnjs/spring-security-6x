@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.configurer.state;
 
-import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

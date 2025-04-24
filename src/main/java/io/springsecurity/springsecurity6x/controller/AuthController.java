@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.controller;
 
-import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

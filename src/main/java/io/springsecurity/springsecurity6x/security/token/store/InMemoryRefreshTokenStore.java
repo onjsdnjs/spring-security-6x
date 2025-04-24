@@ -1,10 +1,9 @@
-package io.springsecurity.springsecurity6x.security.tokenstore;
+package io.springsecurity.springsecurity6x.security.token.store;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
+import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
+import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -20,15 +19,15 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
 
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
     private final SecureRandom secureRandom = new SecureRandom();
-    private final RefreshTokenParser parser;
+    private final JwtParser parser;
 
-    public InMemoryRefreshTokenStore(RefreshTokenParser parser) {
+    public InMemoryRefreshTokenStore(JwtParser parser) {
         this.parser = parser;
     }
 
     @Override
     public void store(String refreshToken, String username) {
-        ParsedToken pt = parser.parse(refreshToken);
+        ParsedJwt pt = parser.parse(refreshToken);
         String jti = pt.getId();
 
         String salt = generateSalt();
@@ -42,7 +41,7 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
     @Override
     public String getUsername(String refreshToken) {
         try {
-            ParsedToken pt = parser.parse(refreshToken);
+            ParsedJwt pt = parser.parse(refreshToken);
             String jti = pt.getId();
 
             TokenInfo info = store.get(jti);
@@ -52,8 +51,8 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
                 store.remove(jti);
                 return null;
             }
-            String candidateHash = hashToken(refreshToken, info.getSalt());
-            if (!candidateHash.equals(info.getTokenHash())) {
+            String candidate  = hashToken(refreshToken, info.getSalt());
+            if (!candidate .equals(info.getTokenHash())) {
                 return null;
             }
             return info.getUsername();
@@ -65,8 +64,8 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
     @Override
     public void remove(String refreshToken) {
         try {
-            ParsedToken pt = parser.parse(refreshToken);
-            store.remove(pt.getId());
+            ParsedJwt jwt = parser.parse(refreshToken);
+            store.remove(jwt.getId());
         } catch (Exception ignored) {}
     }
 
@@ -85,5 +84,9 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
         } catch (Exception e) {
             throw new IllegalStateException("Hash 생성 실패", e);
         }
+    }
+
+    public JwtParser parser() {
+        return parser;
     }
 }

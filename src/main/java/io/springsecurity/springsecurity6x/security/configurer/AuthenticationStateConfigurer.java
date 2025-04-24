@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthen
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutSuccessHandler;
-import io.springsecurity.springsecurity6x.security.tokenservice.JwtsTokenProvider;
+import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;

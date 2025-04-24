@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.tokenservice;
+package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -6,7 +6,8 @@ import io.jsonwebtoken.Jwts;
 import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
-import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
+import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -98,16 +99,16 @@ public class JwtsTokenProvider extends JwtTokenService {
 
     @Override
     public boolean shouldRotateRefreshToken(String refreshToken) {
-        Claims claims = getClaims(refreshToken);
-        long remain = claims.getExpiration().getTime() - System.currentTimeMillis();
+        ParsedJwt jwt = refreshTokenStore().parser().parse(refreshToken);
+        long remain = jwt.getExpiration().toEpochMilli() - System.currentTimeMillis();
         return remain <= rotationThresholdMillis;
     }
 
     @Override
     public String createAccessTokenFromRefresh(String refreshToken) {
         // 서명 검증+클레임 파싱
-        Claims claims = getClaims(refreshToken);
-        String username = claims.getSubject();
+        ParsedJwt jwt = refreshTokenStore().parser().parse(refreshToken);
+        String username = jwt.getSubject();
         List<String> roles = authenticationConverter().getRoles(refreshToken);
 
         // 엑세스 토큰만 새로 발급
@@ -117,10 +118,5 @@ public class JwtsTokenProvider extends JwtTokenService {
                 .validity(JwtStateStrategy.ACCESS_TOKEN_VALIDITY)
         );
     }
-
-    public Claims getClaims(String refreshToken) {
-        return ((JwtAuthenticationConverter)authenticationConverter()).parseClaims(refreshToken);
-    }
-
 }
 

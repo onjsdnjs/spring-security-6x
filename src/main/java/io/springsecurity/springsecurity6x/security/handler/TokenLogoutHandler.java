@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
-import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

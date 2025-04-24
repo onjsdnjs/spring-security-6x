@@ -1,4 +1,6 @@
-package io.springsecurity.springsecurity6x.security.tokenstore;
+package io.springsecurity.springsecurity6x.security.token.store;
+
+import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 
 public interface RefreshTokenStore {
 
@@ -7,4 +9,6 @@ public interface RefreshTokenStore {
     String getUsername(String refreshToken);
 
     void remove(String refreshToken);
+
+    JwtParser parser();
 }

@@ -1,7 +1,7 @@
-package io.springsecurity.springsecurity6x.security.tokenservice;
+package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
-import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import org.springframework.security.oauth2.jwt.*;
 
 import java.time.Instant;

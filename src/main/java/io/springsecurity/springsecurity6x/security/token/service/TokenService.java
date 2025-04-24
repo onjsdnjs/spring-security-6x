@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.tokenservice;
+package io.springsecurity.springsecurity6x.security.token.service;
 
 import org.springframework.security.core.Authentication;
 

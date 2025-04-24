@@ -71,14 +71,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
 
             // 2-3) 쿠키 갱신
-            CookieUtil.addTokenCookie(request, response,
-                    TokenService.ACCESS_TOKEN,
-                    tokens.get(TokenService.ACCESS_TOKEN),
-                    JwtStateStrategy.ACCESS_TOKEN_VALIDITY);
-            CookieUtil.addTokenCookie(request, response,
-                    TokenService.REFRESH_TOKEN,
-                    tokens.get(TokenService.REFRESH_TOKEN),
-                    JwtStateStrategy.REFRESH_TOKEN_VALIDITY);
+            CookieUtil.addTokenCookie(request, response, TokenService.ACCESS_TOKEN, tokens.get(TokenService.ACCESS_TOKEN));
+            CookieUtil.addTokenCookie(request, response, TokenService.REFRESH_TOKEN, tokens.get(TokenService.REFRESH_TOKEN));
 
             Authentication auth = tokenService.getAuthenticationFromToken(tokens.get(TokenService.ACCESS_TOKEN));
             SecurityContextHolder.getContext().setAuthentication(auth);

@@ -65,9 +65,9 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                             .roles(roles)
                             .validity(REFRESH_TOKEN_VALIDITY)) : null;
 
-        CookieUtil.addTokenCookie(request, response, "accessToken", accessToken, ACCESS_TOKEN_VALIDITY);
+        CookieUtil.addTokenCookie(request, response, "accessToken", accessToken);
         if (refreshToken != null) {
-            CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken, REFRESH_TOKEN_VALIDITY);
+            CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken);
         }
 
         response.setStatus(HttpServletResponse.SC_OK);

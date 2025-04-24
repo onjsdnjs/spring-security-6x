@@ -21,18 +21,11 @@ public class CookieUtil {
         return null;
     }
 
-    public static void addTokenCookie(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            String name,
-            String value,
-            long maxAgeMillis
-    ) {
+    public static void addTokenCookie(HttpServletRequest request, HttpServletResponse response, String name, String value) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .path("/")
                 .httpOnly(true)
                 .secure(request.isSecure())
-                .maxAge(maxAgeMillis / 1000)
                 .sameSite("Strict")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());

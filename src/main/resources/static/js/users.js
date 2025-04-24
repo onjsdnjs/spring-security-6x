@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (res.status === 401 || res.status === 403) {
                 // 인증 실패 시 로그인 폼으로 리다이렉트
                 window.location.href = "/loginForm";
-                throw new Error("인증 실패");
+                throw new Error("접근 실패");
             }
             return res.json();
         })

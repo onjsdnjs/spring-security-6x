@@ -40,19 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/register").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
-                .authenticationManager(authenticationManager)
-                .logout(logout -> logout.logoutSuccessUrl("/loginForm"))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            // 인증이 필요한 리소스에 토큰이 없거나 만료되었을 때
-                            response.sendRedirect(request.getContextPath() + "/loginForm");
-                        })
-                )
-                .exceptionHandling(ex -> ex
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.sendRedirect(request.getContextPath() + "/accessDenied");
-                        })
-                );
+                .authenticationManager(authenticationManager);
 
         http.with(new SecurityIntegrationConfigurer(), configurer -> configurer
                         .authentication(auth -> auth

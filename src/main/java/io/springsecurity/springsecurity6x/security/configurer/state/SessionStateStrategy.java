@@ -21,4 +21,5 @@ public class SessionStateStrategy implements AuthenticationStateStrategy {
         request.getSession(true).setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
         response.sendRedirect("/");
     }
+
 }

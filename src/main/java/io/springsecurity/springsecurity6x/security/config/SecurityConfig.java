@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
+import io.springsecurity.springsecurity6x.security.handler.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .authenticationManager(authenticationManager)
-                .with(new SecurityIntegrationConfigurer(), configurer -> configurer
+                .logout(logout -> logout
+                .logoutUrl("/logout")
+                .addLogoutHandler(new JwtLogoutHandler())
+                .logoutSuccessUrl("/loginForm")
+        )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // 인증이 필요한 리소스에 토큰이 없거나 만료되었을 때
+                            response.sendRedirect(request.getContextPath() + "/loginForm");
+                        })
+                )
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.sendRedirect(request.getContextPath() + "/access-denied");
+                        })
+                );
+
+        http.with(new SecurityIntegrationConfigurer(), configurer -> configurer
                         .authentication(auth -> auth
                                 .form(form -> form
                                         .loginProcessingUrl("/api/auth/login")
@@ -61,41 +79,14 @@ public class SecurityConfig {
                                 .useJwt(jwt -> jwt
                                         .tokenService(tokenService)
                                         .tokenPrefix("Bearer ")
-                                )
+                                ), http
                         )
                         .authorizationServer(auth -> {})
                         .resourceServer(resource -> resource
                                 .jwtDecoder(jwtDecoder)
                         )
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .addLogoutHandler((req, res, auth) -> {
-                            // 쿠키 삭제
-                            Cookie accessCookie = new Cookie("accessToken", null);
-                            accessCookie.setMaxAge(0);
-                            accessCookie.setPath("/");
-                            res.addCookie(accessCookie);
-
-                            Cookie refreshCookie = new Cookie("refreshToken", null);
-                            refreshCookie.setMaxAge(0);
-                            refreshCookie.setPath("/");
-                            res.addCookie(refreshCookie);
-                        })
-                        .logoutSuccessUrl("/loginForm")
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            // 인증이 필요한 리소스에 토큰이 없거나 만료되었을 때
-                            response.sendRedirect(request.getContextPath() + "/loginForm");
-                        })
-                )
-                // (선택) 403(Access Denied) 발생 시
-                .exceptionHandling(ex -> ex
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.sendRedirect(request.getContextPath() + "/access-denied");
-                        })
                 );
+
 
         return http.build();
     }

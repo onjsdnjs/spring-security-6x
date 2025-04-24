@@ -26,8 +26,8 @@ public class InternalJwtTokenService implements TokenService {
     }
 
     @Override
-    public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
-        DefaultAccessTokenBuilder builder = new DefaultAccessTokenBuilder();
+    public String createAccessToken(Consumer<TokenBuilder> consumer) {
+        DefaultTokenBuilder builder = new DefaultTokenBuilder();
         consumer.accept(builder);
 
         Instant now = Instant.now();
@@ -46,8 +46,8 @@ public class InternalJwtTokenService implements TokenService {
     }
 
     @Override
-    public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
-        DefaultRefreshTokenBuilder builder = new DefaultRefreshTokenBuilder();
+    public String createRefreshToken(Consumer<TokenBuilder> consumer) {
+        RefreshTokenBuilder builder = new RefreshTokenBuilder();
         consumer.accept(builder);
 
         String refreshToken = UUID.randomUUID().toString();
@@ -75,51 +75,53 @@ public class InternalJwtTokenService implements TokenService {
         return createAccessToken(builder -> builder
                 .username(username)
                 .roles(List.of("ROLE_USER"))
-                .validity(3600000));
+                .validity(3600000L));
     }
 
     public void invalidateToken(String refreshToken) {
         refreshTokenStore.remove(refreshToken);
     }
 
-    private static class DefaultAccessTokenBuilder implements AccessTokenBuilder {
+    private static class DefaultTokenBuilder implements TokenBuilder {
         private String username;
         private List<String> roles = new ArrayList<>();
         private Map<String, Object> claims = new HashMap<>();
         private long validity;
 
-        public AccessTokenBuilder username(String username) {
+        public TokenBuilder username(String username) {
             this.username = username;
             return this;
         }
 
-        public AccessTokenBuilder roles(List<String> roles) {
+        public TokenBuilder roles(List<String> roles) {
             this.roles = roles;
             return this;
         }
 
-        public AccessTokenBuilder claims(Map<String, Object> claims) {
+        public TokenBuilder claims(Map<String, Object> claims) {
             this.claims.putAll(claims);
             return this;
         }
 
-        public AccessTokenBuilder validity(long millis) {
+        public TokenBuilder validity(long millis) {
             this.validity = millis;
             return this;
         }
     }
 
-    private static class DefaultRefreshTokenBuilder implements RefreshTokenBuilder {
+    private static class RefreshTokenBuilder implements TokenBuilder {
         private String username;
         private long validity;
 
+        @Override
         public RefreshTokenBuilder username(String username) {
             this.username = username;
             return this;
         }
 
-        public RefreshTokenBuilder validity(long millis) {
-            this.validity = millis;
+        @Override
+        public RefreshTokenBuilder validity(long validity) {
+            this.validity = validity;
             return this;
         }
     }

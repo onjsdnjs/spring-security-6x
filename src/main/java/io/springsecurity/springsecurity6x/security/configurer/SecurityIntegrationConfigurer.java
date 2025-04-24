@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<SecurityIntegrationConfigurer, HttpSecurity> {
 
     private final AuthenticationTypesConfigurer typesConfigurer = new AuthenticationTypesConfigurer();
-    private final AuthenticationStateConfigurer stateConfigurer = new AuthenticationStateConfigurer();
+    private AuthenticationStateConfigurer stateConfigurer ;
     private final AuthorizationServerConfigurer authorizationServerConfigurer = new AuthorizationServerConfigurer();
     private final ResourceServerConfigurer resourceServerConfigurer = new ResourceServerConfigurer();
     private AuthenticationStateStrategy strategy;
@@ -25,7 +25,8 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         return this;
     }
 
-    public SecurityIntegrationConfigurer state(Consumer<AuthenticationStateConfigurer> customizer) {
+    public SecurityIntegrationConfigurer state(Consumer<AuthenticationStateConfigurer> customizer, HttpSecurity http) {
+        stateConfigurer = new AuthenticationStateConfigurer(http);
         customizer.accept(this.stateConfigurer);
         return this;
     }
@@ -50,12 +51,10 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         }
     }
 
-    @Override
+   @Override
     public void configure(HttpSecurity http) throws Exception {
-        if (strategy instanceof JwtStateStrategy jwtStateStrategy) {
-            http.addFilterAfter(new JwtAuthorizationFilter(jwtStateStrategy.tokenService()), ApiAuthenticationFilter.class);
-        }
-    }
+        super.configure(http);
+   }
 }
 
 

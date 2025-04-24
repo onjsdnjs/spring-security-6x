@@ -9,24 +9,19 @@ import java.util.function.Consumer;
 
 public interface TokenService {
 
-    String createAccessToken(Consumer<AccessTokenBuilder> builder);
-    String createRefreshToken(Consumer<RefreshTokenBuilder> builder);
+    String createAccessToken(Consumer<TokenBuilder> builder);
+    String createRefreshToken(Consumer<TokenBuilder> builder);
     boolean validateAccessToken(String token);
     Authentication getAuthenticationFromAccessToken(String token);
     String refreshAccessToken(String refreshToken);
     void invalidateToken(String refreshToken);
 
 
-    interface AccessTokenBuilder {
-        AccessTokenBuilder username(String username);
-        AccessTokenBuilder roles(List<String> roles);
-        AccessTokenBuilder claims(Map<String, Object> claims);
-        AccessTokenBuilder validity(long millis);
-    }
-
-    interface RefreshTokenBuilder {
-        RefreshTokenBuilder username(String username);
-        RefreshTokenBuilder validity(long millis);
+    interface TokenBuilder {
+        TokenBuilder username(String username);
+        TokenBuilder validity(long validity);
+        default TokenBuilder roles(List<String> roles){return this;};
+        default TokenBuilder claims(Map<String, Object> claims){return this;};
     }
 }
 

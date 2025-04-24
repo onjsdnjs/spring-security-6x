@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
+import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -36,17 +36,12 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 Authentication auth = tokenService.getAuthenticationFromAccessToken(accessToken);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
-            } else if (refreshToken != null) {
+            } else if (refreshToken != null && tokenService.validateAccessToken(refreshToken)) {
                 // 2) 액세스 토큰이 없거나 만료됐으면, 리프레시 → 새 액세스 토큰 발급
                 String newAccessToken = tokenService.refreshAccessToken(refreshToken);
 
                 // 2-1) 새 액세스 토큰을 쿠키에 담아서 응답
-                Cookie c = new Cookie("accessToken", newAccessToken);
-                c.setHttpOnly(true);
-                c.setSecure(request.isSecure());
-                c.setPath("/");
-                c.setMaxAge((int)JwtStateStrategy.accessTokenValidity/1000);
-                response.addCookie(c);
+                CookieUtil.addTokenCookie(request, response, "accessToken", newAccessToken);
 
                 // 2-2) 컨텍스트에 인증 정보 세팅
                 Authentication auth = tokenService.getAuthenticationFromAccessToken(newAccessToken);

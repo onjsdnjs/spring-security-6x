@@ -30,7 +30,6 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
         String username = claims.getSubject();
-        @SuppressWarnings("unchecked")
         List<String> roles = claims.get("roles", List.class);
         var authorities = roles.stream()
                 .map(SimpleGrantedAuthority::new)
@@ -48,7 +47,7 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
     }
 
     private Claims parseClaims(String token) {
-        // "Bearer " 접두사가 붙어 있을 수 있으므로 제거
+
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
         }

@@ -34,35 +34,36 @@ public class ExternalJwtTokenService implements TokenService {
     }
 
     @Override
-    public String createAccessToken(Consumer<AccessTokenBuilder> consumer) {
-        AccessBuilder accessBuilder = new AccessBuilder();
-        consumer.accept(accessBuilder);
+    public String createAccessToken(Consumer<TokenBuilder> consumer) {
+
+        AccessTokenBuilder accessTokenBuilder = new AccessTokenBuilder();
+        consumer.accept(accessTokenBuilder);
 
         Instant now = Instant.now();
         return Jwts.builder()
-                .setSubject(accessBuilder.username)
-                .claim("roles", accessBuilder.roles)
-                .addClaims(accessBuilder.claims)
+                .setSubject(accessTokenBuilder.username)
+                .claim("roles", accessTokenBuilder.roles)
+                .addClaims(accessTokenBuilder.claims)
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(accessBuilder.validity)))
+                .setExpiration(Date.from(now.plusMillis(accessTokenBuilder.validity)))
                 .signWith(secretKey)
                 .compact();
     }
 
     @Override
-    public String createRefreshToken(Consumer<RefreshTokenBuilder> consumer) {
-        RefreshBuilder refreshBuilder = new RefreshBuilder();
-        consumer.accept(refreshBuilder);
+    public String createRefreshToken(Consumer<TokenBuilder> consumer) {
+        RefreshTokenBuilder refreshTokenBuilder = new RefreshTokenBuilder();
+        consumer.accept(refreshTokenBuilder);
 
         Instant now = Instant.now();
         String token = Jwts.builder()
-                .setSubject(refreshBuilder.username)
+                .setSubject(refreshTokenBuilder.username)
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(refreshBuilder.validity)))
+                .setExpiration(Date.from(now.plusMillis(refreshTokenBuilder.validity)))
                 .signWith(secretKey)
                 .compact();
 
-        refreshTokenStore.store(token, refreshBuilder.username);
+        refreshTokenStore.store(token, refreshTokenBuilder.username);
         return token;
     }
 
@@ -91,12 +92,7 @@ public class ExternalJwtTokenService implements TokenService {
         if (username == null) {
             throw new JwtException("Invalid or expired refresh token");
         }
-
-        List<String> roles = authenticationConverter.getAuthentication(refreshToken)
-                .getAuthorities()
-                .stream()
-                .map(auth -> auth.getAuthority())
-                .toList();
+        List<String> roles = authenticationConverter.getRoles(refreshToken);
 
         // 3) 새 액세스 토큰 발급 (유효기간은 application 설정값)
         return createAccessToken(builder -> builder
@@ -114,38 +110,38 @@ public class ExternalJwtTokenService implements TokenService {
     // ---------------------------------------
     // Builder 구현체
     // ---------------------------------------
-    private static class AccessBuilder implements AccessTokenBuilder {
+    private static class AccessTokenBuilder implements TokenBuilder {
         private String              username;
         private List<String>        roles   = Collections.emptyList();
         private Map<String, Object> claims  = new HashMap<>();
         private long                validity;
 
         @Override
-        public AccessTokenBuilder username(String username) {
+        public TokenBuilder username(String username) {
             this.username = username;
             return this;
         }
 
         @Override
-        public AccessTokenBuilder roles(List<String> roles) {
+        public TokenBuilder roles(List<String> roles) {
             this.roles = roles;
             return this;
         }
 
         @Override
-        public AccessTokenBuilder claims(Map<String, Object> claims) {
+        public TokenBuilder claims(Map<String, Object> claims) {
             this.claims.putAll(claims);
             return this;
         }
 
         @Override
-        public AccessTokenBuilder validity(long millis) {
+        public TokenBuilder validity(long millis) {
             this.validity = millis;
             return this;
         }
     }
 
-    private static class RefreshBuilder implements RefreshTokenBuilder {
+    private static class RefreshTokenBuilder implements TokenBuilder {
         private String username;
         private long   validity;
 

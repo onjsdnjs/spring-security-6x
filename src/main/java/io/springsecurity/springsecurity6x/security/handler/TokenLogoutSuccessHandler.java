@@ -20,7 +20,7 @@ public class TokenLogoutSuccessHandler implements LogoutSuccessHandler {
             throws IOException {
 
         response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
         mapper.writeValue(response.getWriter(), Map.of("message", "로그아웃 되었습니다"));
     }
 }

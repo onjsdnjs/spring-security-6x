@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.configurer.authentication;
 
 import io.springsecurity.springsecurity6x.security.configurer.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.configurer.state.SessionStateStrategy;
 import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -46,6 +47,9 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
         ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl, securityContextRepository);
 
         filter.setAuthenticationManager(authenticationManager);
+        if(stateStrategy instanceof SessionStateStrategy){
+            filter.session(true);
+        }
 //        filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
 
         http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);

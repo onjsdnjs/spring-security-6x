@@ -49,8 +49,6 @@ public class AuthenticationStateConfigurer {
 
     public AuthenticationStateConfigurer useSession(Customizer<JwtStateStrategy> config) {
         this.stateStrategy = new SessionStateStrategy();
-        ApiAuthenticationFilter filter = http.getSharedObject(ApiAuthenticationFilter.class);
-        filter.session(true);
         return this;
     }
 

@@ -70,10 +70,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             } catch (ExpiredJwtException expiredAt) {
                 System.out.println("ExpiredJwtException = " + expiredAt.getMessage());
 
-            } catch (JwtException | IllegalArgumentException badAt) {
+            } catch (JwtException | IllegalArgumentException e) {
                 // 모든 토큰 강제 만료, 인증정보 삭제, 토큰 저장 삭제
-                logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-                throw new BadCredentialsException("Invalid access token", badAt);
+                failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", e);
             }
         }else {
             chain.doFilter(request, response);
@@ -87,9 +86,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         // 1) 리프레시 토큰 유효성 검사
         boolean isValid = tokenService.validateRefreshToken(refreshToken);
         if (!isValid) {
-            // 검증 실패 시 바로 로그아웃 처리 후 예외 던짐
-            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-            throw new BadCredentialsException("Invalid refresh token");
+            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", null);
         }
 
         try {
@@ -105,14 +102,17 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
             chain.doFilter(request, response);
 
-        } catch (ExpiredJwtException expiredRt) {
-            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-            throw new BadCredentialsException("Refresh token expired", expiredRt);
+        } catch (ExpiredJwtException e) {
+            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Refresh token expired", e);
 
-        } catch (JwtException | IllegalArgumentException badRt) {
-            logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
-            throw new BadCredentialsException("Invalid refresh token", badRt);
+        } catch (JwtException | IllegalArgumentException e) {
+            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", e);
         }
+    }
+
+    private void failAndLogout(HttpServletRequest req, HttpServletResponse res, Authentication authentication, String msg, Exception e) {
+        logoutHandler.logout(req,res, authentication);
+        throw new BadCredentialsException(msg, e);
     }
 
 }

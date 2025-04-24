@@ -7,8 +7,8 @@ import io.springsecurity.springsecurity6x.security.tokenstore.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.converter.JwtAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.converter.SpringAuthenticationConverter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.tokenservice.ExternalJwtTokenService;
-import io.springsecurity.springsecurity6x.security.tokenservice.OAuth2JwtTokenService;
+import io.springsecurity.springsecurity6x.security.tokenservice.JwtsTokenService;
+import io.springsecurity.springsecurity6x.security.tokenservice.OAuth2TokenService;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -26,16 +26,16 @@ public class JwtSecurityAutoConfiguration {
     SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "internal")
+    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "OAUTH2")
     public TokenService internalTokenService(JwtEncoder encoder, JwtDecoder decoder) {
-        return new OAuth2JwtTokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
+        return new OAuth2TokenService(encoder, decoder, refreshTokenStore(), new SpringAuthenticationConverter(decoder));
     }
 
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "external")
+    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "JWTS")
     public TokenService externalTokenService() {
-        return new ExternalJwtTokenService(
+        return new JwtsTokenService(
                 refreshTokenStore(),
                 new JwtAuthenticationConverter(key),
                 key

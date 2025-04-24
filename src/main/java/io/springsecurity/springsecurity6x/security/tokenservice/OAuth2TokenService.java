@@ -8,12 +8,12 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class OAuth2JwtTokenService extends JwtTokenService {
+public class OAuth2TokenService extends JwtTokenService {
 
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public OAuth2JwtTokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
+    public OAuth2TokenService(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
         super(store, converter);
         this.jwtEncoder = encoder;
         this.jwtDecoder = decoder;
@@ -45,7 +45,7 @@ public class OAuth2JwtTokenService extends JwtTokenService {
         consumer.accept(builder);
 
         String refreshToken = UUID.randomUUID().toString();
-        refreshTokenStore.store(refreshToken, builder.getUsername());
+        refreshTokenStore().store(refreshToken, builder.getUsername());
         return refreshToken;
     }
 

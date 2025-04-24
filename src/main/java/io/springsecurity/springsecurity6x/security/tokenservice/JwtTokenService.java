@@ -11,8 +11,8 @@ import java.util.*;
 public abstract class JwtTokenService implements TokenService {
 
 
-    protected final RefreshTokenStore refreshTokenStore;
-    protected final AuthenticationConverter authenticationConverter;
+    private final RefreshTokenStore refreshTokenStore;
+    private final AuthenticationConverter authenticationConverter;
 
     public JwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter) {
         this.refreshTokenStore = refreshTokenStore;
@@ -56,6 +56,10 @@ public abstract class JwtTokenService implements TokenService {
 
     public Authentication getAuthenticationFromToken(String token) {
         return authenticationConverter.getAuthentication(token);
+    }
+
+    public RefreshTokenStore refreshTokenStore() {
+        return refreshTokenStore;
     }
 
     static class DefaultTokenBuilder implements TokenBuilder {

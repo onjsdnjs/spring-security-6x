@@ -11,11 +11,11 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 
-public class ExternalJwtTokenService extends JwtTokenService {
+public class JwtsTokenService extends JwtTokenService {
 
     private final SecretKey secretKey;
 
-    public ExternalJwtTokenService(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
+    public JwtsTokenService(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
         super(store, converter);
         this.secretKey = secretKey;
     }
@@ -59,7 +59,7 @@ public class ExternalJwtTokenService extends JwtTokenService {
                 .signWith(secretKey)
                 .compact();
 
-        refreshTokenStore.store(token, tokenBuilder.getUsername());
+        refreshTokenStore().store(token, tokenBuilder.getUsername());
 
         return token;
     }

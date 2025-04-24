@@ -24,7 +24,7 @@ public class AuthContextProperties {
     /**
      * 토큰 발급/검증의 주도권 설정
      */
-    private TokenControlMode tokenControlMode = TokenControlMode.EXTERNAL;
+    private TokenControlMode tokenControlMode = TokenControlMode.JWTS;
 
     /**
      * 허용할 인증 방식 목록 (FORM, OTT, PASSKEY)

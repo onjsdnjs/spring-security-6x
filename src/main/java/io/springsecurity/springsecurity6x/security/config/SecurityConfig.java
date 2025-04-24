@@ -1,9 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
-import io.springsecurity.springsecurity6x.security.handler.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.tokenservice.TokenService;
-import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +16,6 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration

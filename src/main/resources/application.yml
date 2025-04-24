@@ -21,7 +21,7 @@ spring:
     enabled-auth-types:
       - FORM
       - OTT
-    token-control-mode: external
+    token-control-mode: JWTS
 
 
 

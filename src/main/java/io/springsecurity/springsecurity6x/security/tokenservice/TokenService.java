@@ -9,8 +9,8 @@ import java.util.function.Consumer;
 
 public interface TokenService {
 
-    static final String ACCESS_TOKEN_KEY = "accessToken";
-    static final String REFRESH_TOKEN_KEY = "refreshToken";
+    static final String ACCESS_TOKEN = "accessToken";
+    static final String REFRESH_TOKEN = "refreshToken";
 
     String createAccessToken(Consumer<TokenBuilder> builder);
     String createRefreshToken(Consumer<TokenBuilder> builder);

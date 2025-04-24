@@ -42,7 +42,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 Map<String,String> tokens = tokenService.refreshAccessToken(refreshToken);
 
                 // 2-1) 새 액세스 토큰을 쿠키에 담아서 응답
-                String newAccessToken = tokens.get(TokenService.ACCESS_TOKEN_KEY);
+                String newAccessToken = tokens.get(TokenService.ACCESS_TOKEN);
                 CookieUtil.addTokenCookie(request, response, "accessToken", newAccessToken);
 
                 // 2-2) 컨텍스트에 인증 정보 세팅

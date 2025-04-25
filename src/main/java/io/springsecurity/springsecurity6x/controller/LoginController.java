@@ -37,10 +37,10 @@ public class LoginController {
         return "ott-forward";
     }
 
-    @PostMapping("/login/ott")
+/*    @PostMapping("/login/ott")
     public String loginOttClose() {
         return "redirect:/";
-    }
+    }*/
 
     @GetMapping("/ott/sent")
     public String sentPage(@RequestParam String email, Model model) {

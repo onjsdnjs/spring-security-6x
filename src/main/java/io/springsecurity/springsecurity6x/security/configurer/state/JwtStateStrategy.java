@@ -1,14 +1,17 @@
 package io.springsecurity.springsecurity6x.security.configurer.state;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
 
@@ -68,6 +71,15 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         CookieUtil.addTokenCookie(request, response, "accessToken", accessToken);
         if (refreshToken != null) {
             CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken);
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+            mapper.writeValue(response.getWriter(), Map.of("message", "인증에 성공했습니다."));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }

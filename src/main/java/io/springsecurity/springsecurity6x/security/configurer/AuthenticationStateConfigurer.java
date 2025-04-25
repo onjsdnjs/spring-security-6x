@@ -34,7 +34,6 @@ public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<Authen
         JwtStateStrategy jwt = new JwtStateStrategy();
         customizer.customize(jwt);
         this.stateStrategy = jwt;
-
         return this;
     }
 
@@ -45,26 +44,36 @@ public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<Authen
         SessionStateStrategy session = new SessionStateStrategy();
         customizer.customize(session);
         this.stateStrategy = session;
-
         return this;
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception {
+    public void init(HttpSecurity builder) throws Exception {
+        builder.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
+
         if (stateStrategy instanceof JwtStateStrategy jwt) {
+            JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
+            builder.setSharedObject(JwtsTokenProvider.class, tokenService);
+        }
+    }
+
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        AuthenticationStateStrategy strategy = http.getSharedObject(AuthenticationStateStrategy.class);
+
+        if (strategy instanceof JwtStateStrategy) {
+            JwtsTokenProvider tokenService = http.getSharedObject(JwtsTokenProvider.class);
+            TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
 
             http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
-
-            JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
-            TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
             http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
-
             http.logout(logout -> logout
                     .addLogoutHandler(logoutHandler)
-                    .logoutSuccessHandler(new SecurityLogoutSuccessHandler()));
-
+                    .logoutSuccessHandler(new SecurityLogoutSuccessHandler())
+            );
             http.exceptionHandling(ex -> ex
-                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint()));
+                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
+            );
         }
     }
 

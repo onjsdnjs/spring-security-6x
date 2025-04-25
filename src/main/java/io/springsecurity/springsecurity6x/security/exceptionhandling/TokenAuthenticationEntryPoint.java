@@ -21,6 +21,11 @@ public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         if (WebUtil.isApiOrAjaxRequest(request)) {
 
+            // JSON 응답임을 명시
+            response.setContentType("application/json; charset=UTF-8");
+            // 401 상태 코드 설정
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
             ErrorResponse body = new ErrorResponse(
                     Instant.now().toString(),
                     HttpServletResponse.SC_UNAUTHORIZED,

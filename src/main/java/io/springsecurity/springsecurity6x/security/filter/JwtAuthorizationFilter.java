@@ -35,23 +35,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-
-        String path = request.getServletPath();
-
-        // 1) API 경로가 아니면 스킵
-        if (!path.startsWith("/api/")) {
-            return true;
-        }
-        // 2) 로그인이거나 회원가입 경로면 스킵
-        if (EXCLUDE_URLS.contains(path)) {
-            return true;
-        }
-        // 그 외에는 필터 적용
-        return false;
-    }
-
-    @Override
     protected void doFilterInternal(HttpServletRequest  request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 

@@ -11,6 +11,9 @@ import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvid
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.context.NullSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 public class AuthenticationStateConfigurer {
 
@@ -22,6 +25,8 @@ public class AuthenticationStateConfigurer {
     }
 
     public AuthenticationStateConfigurer useJwt(Customizer<JwtStateStrategy> config) {
+
+        http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository()    /* 세션 저장소 비활성화 */);
 
         JwtStateStrategy jwt = new JwtStateStrategy();
         this.stateStrategy = jwt;

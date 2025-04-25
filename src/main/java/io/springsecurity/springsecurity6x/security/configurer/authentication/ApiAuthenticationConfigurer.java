@@ -53,7 +53,7 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
         if(stateStrategy instanceof SessionStateStrategy){
             filter.session(true);
         }
-//        filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
+        filter.setAuthenticationSuccessHandler(stateStrategy::onAuthenticationSuccess);
 
         http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
         http.setSharedObject(ApiAuthenticationFilter.class, filter);

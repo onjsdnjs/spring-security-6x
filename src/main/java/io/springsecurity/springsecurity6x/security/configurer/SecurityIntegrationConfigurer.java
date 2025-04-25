@@ -11,6 +11,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.authentication.AuthenticationFilter;
 
 import java.util.function.Consumer;
 
@@ -55,7 +56,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
 
    @Override
     public void configure(HttpSecurity http) throws Exception {
-        super.configure(http);
+       super.configure(http);
    }
 }
 

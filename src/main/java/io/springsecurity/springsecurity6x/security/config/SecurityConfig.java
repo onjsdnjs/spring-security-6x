@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
+import io.springsecurity.springsecurity6x.security.ott.EmailOneTimeTokenService;
+import io.springsecurity.springsecurity6x.security.ott.EmailService;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
@@ -50,7 +52,6 @@ public class SecurityConfig {
                                 )
                                 .ott(ott -> ott
                                         .loginProcessingUrl("/login/ott")
-                                        .tokenService(new InMemoryOneTimeTokenService())
                                 )
                                 .passkey(passkey -> passkey
                                         .origin("http://localhost:8080")

@@ -1,30 +1,30 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const form       = document.getElementById("ottForm");
-    const msg        = document.getElementById("message");
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+    const form = document.getElementById("ottForm");
+    const msg  = document.getElementById("message");
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
 
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener("submit", async e => {
         e.preventDefault();
         const email = document.getElementById("email").value;
-
         try {
             const res = await fetch("/ott/generate", {
-                method:      "POST",
+                method: "POST",
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
-                    [csrfHeader]:    csrfToken
+                    [csrfHeader]: csrfToken
                 },
                 body: new URLSearchParams({ email })
             });
-
-            msg.innerText = res.ok
-                ? "로그인 링크가 전송되었습니다 (시뮬레이션)."
-                : "전송에 실패했습니다.";
+            if (res.ok) {
+                window.location.href = `/ott/sent?email=${encodeURIComponent(email)}&token=${token}`;
+            } else {
+                throw new Error();
+            }
         } catch {
-            msg.innerText = "서버 오류가 발생했습니다.";
+            msg.innerText = "토큰 요청에 실패했습니다.";
+            msg.style.display = "block";
         }
-        msg.style.display = "block";
     });
 });

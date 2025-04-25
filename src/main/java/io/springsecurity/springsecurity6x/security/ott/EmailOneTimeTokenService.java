@@ -1,60 +1,64 @@
 package io.springsecurity.springsecurity6x.security.ott;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.ott.*;
+import org.springframework.stereotype.Service;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-
+@Service
+@RequiredArgsConstructor
 public class EmailOneTimeTokenService implements OneTimeTokenService {
 
-    private InMemoryOneTimeTokenService delegate;
-    private EmailService emailService;
+    private final InMemoryOneTimeTokenService delegate = new InMemoryOneTimeTokenService();
+    private final EmailService emailService;
 
     @Value("${app.url.base:http://localhost:8080}")
     private String baseUrl;
+
     @Value("${app.url.login-path:/login/ott}")
     private String loginPath;
 
-    public EmailOneTimeTokenService(InMemoryOneTimeTokenService delegate, EmailService emailService) {
-        this.delegate = delegate;
-        this.emailService = emailService;
-    }
-
     @Override
     public OneTimeToken generate(GenerateOneTimeTokenRequest request) {
-        // 1) 토큰 생성
-        OneTimeToken oneTimeToken = delegate.generate(request);
 
-        // 2) 토큰 문자열 추출
-        String tokenValue = oneTimeToken.getTokenValue();
+        OneTimeToken token = delegate.generate(request);
+        String email = request.getUsername();
+        String loginUrl = baseUrl + loginPath;
 
-        // 3) 로그인 링크 조합
-        String loginLink = String.format("%s%s?username=%s&token=%s",
-                baseUrl, loginPath,
-                URLEncoder.encode(request.getUsername(), StandardCharsets.UTF_8),
-                URLEncoder.encode(tokenValue, StandardCharsets.UTF_8));
+        // 3) 이메일 본문 작성 및 발송
+        // HTML 이메일 본문: 폼+버튼+JS
+        String html = String.format(
+                "<html>" +
+                        "<body>" +
+                        "<form id=\"magicLinkForm\" action=\"%s\" method=\"post\" style=\"display:none;\">" +
+                        "<input type=\"hidden\" name=\"username\" value=\"%s\"/>" +
+                        "<input type=\"hidden\" name=\"token\"    value=\"%s\"/>" +
+                        "</form>" +
+                        "<button id=\"magicLinkButton\" style=\"padding:10px 20px;background:#1976d2;color:#fff;" +
+                        "border:none;border-radius:4px;cursor:pointer;\">로그인하기</button>" +
+                        "<script>" +
+                        "document.getElementById('magicLinkButton').addEventListener('click', function() {" +
+                        "document.getElementById('magicLinkForm').submit();});" +
+                        "</script>" +
+                        "</body>" +
+                        "</html>",
+                loginUrl,
+                email,
+                token.getTokenValue()
+        );
+        emailService.sendHtmlMessage(request.getUsername(), "[스프링 시큐리티] OTT 로그인 링크", html);
 
-        // 4) 이메일 발송
-        String html = """
-            <p>안녕하세요,</p>
-            <p>아래 버튼을 클릭하시면 자동 로그인됩니다:</p>
-            <p><a href="%s">로그인하기</a></p>
-            """.formatted(loginLink);
-        emailService.sendHtmlMessage(request.getUsername(), "로그인 링크", html);
-
-        return oneTimeToken;
+        return token;
     }
 
     @Override
     public OneTimeToken consume(OneTimeTokenAuthenticationToken authenticationToken) {
-        // 인증 필터가 호출할 때 토큰 검증 및 제거까지 위임
+        // 토큰 검증 및 삭제까지 위임
         return delegate.consume(authenticationToken);
     }
 
-    public void setClock(Clock clock) {
-        // (선택) 토큰 만료 테스트를 위해 Clock 설정 가능
+    public void setClock(java.time.Clock clock) {
+        // 테스트용: 토큰 만료 시간 조절
         delegate.setClock(clock);
     }
 }

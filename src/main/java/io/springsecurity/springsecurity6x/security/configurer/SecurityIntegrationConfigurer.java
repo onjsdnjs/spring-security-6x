@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.configurer.token.ResourceServ
 import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
@@ -45,7 +46,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     @Override
     public void init(HttpSecurity http) throws Exception {
 
-         strategy = stateConfigurer.buildStrategy();
+        strategy = stateConfigurer.buildStrategy();
         for (AuthenticationConfigurer configurer : typesConfigurer.getEntries()) {
             configurer.stateStrategy(strategy);
             configurer.configure(http);

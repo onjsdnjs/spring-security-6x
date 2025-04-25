@@ -1,20 +1,18 @@
 package io.springsecurity.springsecurity6x.security.configurer.authentication;
 
 import io.springsecurity.springsecurity6x.security.configurer.state.AuthenticationStateStrategy;
-import io.springsecurity.springsecurity6x.security.ott.EmailOneTimeTokenService;
-import io.springsecurity.springsecurity6x.security.ott.EmailService;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
-import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 public class OttLoginConfigurer implements AuthenticationConfigurer{
 
     private String loginUrl = "/login/ott";
     private String tokenGenerationUrl = "/ott/generate";
-    private OneTimeTokenService tokenService = new EmailOneTimeTokenService(
-            new InMemoryOneTimeTokenService(),
-            new EmailService(new JavaMailSenderImpl()));
+    private String defaultSubmitPageUrl = "/login/ott";
+    private boolean showDefaultSubmitPage = true;
+    private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+    private OneTimeTokenService tokenService;
 
     private AuthenticationStateStrategy stateStrategy;
 
@@ -23,8 +21,23 @@ public class OttLoginConfigurer implements AuthenticationConfigurer{
         return this;
     }
 
+    public OttLoginConfigurer defaultSubmitPageUrl(String url) {
+        this.defaultSubmitPageUrl = url;
+        return this;
+    }
+
     public OttLoginConfigurer tokenGeneratingUrl(String url) {
         this.tokenGenerationUrl = url;
+        return this;
+    }
+
+    public OttLoginConfigurer showDefaultSubmitPage(boolean page) {
+        this.showDefaultSubmitPage = page;
+        return this;
+    }
+
+    public OttLoginConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
+        this.tokenGenerationSuccessHandler = handler;
         return this;
     }
 
@@ -41,10 +54,12 @@ public class OttLoginConfigurer implements AuthenticationConfigurer{
     public void configure(HttpSecurity http) throws Exception {
         http
                 .oneTimeTokenLogin(ott -> ott
-                        .defaultSubmitPageUrl(loginUrl)
-                        .showDefaultSubmitPage(false)
+                        .defaultSubmitPageUrl(defaultSubmitPageUrl)
+                        .loginProcessingUrl(loginUrl)
+                        .showDefaultSubmitPage(showDefaultSubmitPage)
                         .tokenGeneratingUrl(tokenGenerationUrl)
-                        .tokenService(tokenService) // 예시
+                        .tokenService(tokenService)
+                        .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler)
                         .authenticationSuccessHandler(stateStrategy::onAuthenticationSuccess)
                 );
     }

@@ -4,7 +4,9 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Service;
 
+@Service
 public class EmailService {
     private final JavaMailSender mailSender;
 
@@ -19,7 +21,7 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setFrom("no-reply@example.com");
+            helper.setFrom("leaven73@gmail.com");
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);

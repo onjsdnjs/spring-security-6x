@@ -16,7 +16,7 @@ public class LoginController {
     }
 
     @GetMapping("/loginOtt")
-    public String userListPage() {
+    public String loginOtt() {
         return "login-ott";
     }
 

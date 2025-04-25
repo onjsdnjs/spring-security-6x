@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
+import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -26,6 +28,8 @@ public class SecurityConfig {
 
     private final TokenService tokenService;
     private final JwtDecoder jwtDecoder;
+    private final OneTimeTokenGenerationSuccessHandler ottGenSuccessHandler;
+    private final OneTimeTokenService oneTimeTokenService;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -52,6 +56,11 @@ public class SecurityConfig {
                                 )
                                 .ott(ott -> ott
                                         .loginProcessingUrl("/login/ott")
+                                        .defaultSubmitPageUrl("/login/ott")
+                                        .showDefaultSubmitPage(false)
+                                        .tokenGeneratingUrl("/ott/generate")
+                                        .tokenService(oneTimeTokenService)
+                                        .tokenGenerationSuccessHandler(ottGenSuccessHandler)
                                 )
                                 .passkey(passkey -> passkey
                                         .origin("http://localhost:8080")

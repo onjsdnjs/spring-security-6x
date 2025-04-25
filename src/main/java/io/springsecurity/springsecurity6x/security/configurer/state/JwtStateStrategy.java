@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
+import java.io.IOException;
 import java.util.List;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
@@ -70,7 +71,11 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
             CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken);
         }
 
-        response.setStatus(HttpServletResponse.SC_OK);
+        try {
+            response.sendRedirect("/");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 

@@ -1,37 +1,45 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const form      = document.getElementById('forwardForm');
-    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
-    const csrfHeader= document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+document.addEventListener('DOMContentLoaded', () => {
+    const form       = document.getElementById('forwardForm');
+    const button     = document.getElementById('forwardBtn');
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
 
-    if (!form) return;
+    button.addEventListener('click', async (e) => {
+        e.preventDefault();
 
-    // 폼 데이터 수집
-    const formData = new URLSearchParams();
-    formData.append('username', form.username.value);
-    formData.append('token', form.token.value);
+        // 1) form 데이터 준비
+        const formData = new URLSearchParams();
+        formData.append('username', document.getElementById('usernameField').value);
+        formData.append('token',    document.getElementById('tokenField').value);
 
-    // AJAX 요청
-    fetch(form.getAttribute('action'), {
-        method:      form.getAttribute('method').toUpperCase(),
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            [csrfHeader]: csrfToken
-        },
-        body: formData
-    })
-        .then(async res => {
+        try {
+            // 2) fetch 요청
+            const res = await fetch(form.getAttribute('action'), {
+                method:      form.getAttribute('method').toUpperCase(),  // POST
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    [csrfHeader]:    csrfToken
+                },
+                body: formData.toString()
+            });
+
+            // 3) 응답 로그
+            console.log('응답 객체:', res);
+            console.log('응답 status:', res.status, res.statusText);
+
+            // 4) 성공/실패 처리
             if (res.ok) {
-                // 로그인 성공 시 루트 페이지로 이동
+                // 로그인 성공하면 홈으로
                 window.location.href = '/';
             } else {
-                // 실패 시 에러 메시지 표시
                 const error = await res.json().catch(() => null);
+                console.error('로그인 실패 응답 바디:', error);
                 alert('로그인 실패: ' + (error?.message || res.statusText));
             }
-        })
-        .catch(err => {
+        } catch (err) {
             console.error('OTT 로그인 요청 중 오류:', err);
             alert('로그인 요청에 실패했습니다.');
-        });
+        }
+    });
 });

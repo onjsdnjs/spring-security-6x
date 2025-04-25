@@ -4,6 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.ott.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
@@ -20,35 +24,30 @@ public class EmailOneTimeTokenService implements OneTimeTokenService {
 
     @Override
     public OneTimeToken generate(GenerateOneTimeTokenRequest request) {
+        // 1) 토큰 생성
+        OneTimeToken oneTimeToken = delegate.generate(request);
 
-        OneTimeToken token = delegate.generate(request);
-        String email = request.getUsername();
-        String loginUrl = baseUrl + loginPath;
+        // 2) 로그인 링크 생성
+        String loginLink = UriComponentsBuilder
+                .fromHttpUrl(baseUrl)
+                .path(loginPath)
+                .queryParam("username", URLEncoder.encode(request.getUsername(), StandardCharsets.UTF_8))
+                .queryParam("token", URLEncoder.encode(oneTimeToken.getTokenValue(), StandardCharsets.UTF_8))
+                .build(true)
+                .toUriString();
 
         // 3) 이메일 본문 작성 및 발송
-        // HTML 이메일 본문: 폼+버튼+JS
         String html = String.format(
-                "<html>" +
-                        "<body>" +
-                        "<form id=\"magicLinkForm\" action=\"%s\" method=\"post\" style=\"display:none;\">" +
-                        "<input type=\"hidden\" name=\"username\" value=\"%s\"/>" +
-                        "<input type=\"hidden\" name=\"token\"    value=\"%s\"/>" +
-                        "</form>" +
-                        "<button id=\"magicLinkButton\" style=\"padding:10px 20px;background:#1976d2;color:#fff;" +
-                        "border:none;border-radius:4px;cursor:pointer;\">로그인하기</button>" +
-                        "<script>" +
-                        "document.getElementById('magicLinkButton').addEventListener('click', function() {" +
-                        "document.getElementById('magicLinkForm').submit();});" +
-                        "</script>" +
-                        "</body>" +
-                        "</html>",
-                loginUrl,
-                email,
-                token.getTokenValue()
+                "<p>안녕하세요,</p>" +
+                        "<p>아래 버튼을 클릭하시면 OTT 방식으로 자동 로그인됩니다:</p>" +
+                        "<p><a href=\"%s\" style=\"display:inline-block;padding:10px 20px;" +
+                        "background-color:#1976d2;color:#fff;text-decoration:none;" +
+                        "border-radius:4px;\">로그인하기</a></p><br/><p>감사합니다.</p>",
+                loginLink
         );
         emailService.sendHtmlMessage(request.getUsername(), "[스프링 시큐리티] OTT 로그인 링크", html);
 
-        return token;
+        return oneTimeToken;
     }
 
     @Override

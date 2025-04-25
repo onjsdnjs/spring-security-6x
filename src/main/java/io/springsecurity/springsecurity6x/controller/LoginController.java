@@ -20,6 +20,13 @@ public class LoginController {
         return "login-ott";
     }
 
+    @GetMapping("/login/ott")
+    public String loginOttForward(@RequestParam String username, @RequestParam String token, Model model) {
+        model.addAttribute("username", username);
+        model.addAttribute("token", token);
+        return "ott-forward"; // Thymeleaf 뷰 이름
+    }
+
     @GetMapping("/ott/sent")
     public String sentPage(@RequestParam String email, Model model) {
         model.addAttribute("email", email);

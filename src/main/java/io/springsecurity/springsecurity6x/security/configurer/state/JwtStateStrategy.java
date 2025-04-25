@@ -69,12 +69,6 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         if (refreshToken != null) {
             CookieUtil.addTokenCookie(request, response, "refreshToken", refreshToken);
         }
-
-        try {
-            response.sendRedirect("/");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 }
 

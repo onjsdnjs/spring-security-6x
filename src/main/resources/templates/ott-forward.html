@@ -7,18 +7,9 @@
 <body>
 <!-- 숨겨진 POST 폼: CSRF + username/token 전달 -->
 <form th:action="@{/login/ott}" method="post" id="forwardForm">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
     <input type="hidden" name="username" th:value="${username}" />
     <input type="hidden" name="token" th:value="${token}" />
 </form>
-
-<!-- 자동 폼 제출 스크립트 -->
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('forwardForm').submit();
-    });
-    /*]]>*/
-</script>
+<script src="/js/ott-forward.js"></script>
 </body>
 </html>

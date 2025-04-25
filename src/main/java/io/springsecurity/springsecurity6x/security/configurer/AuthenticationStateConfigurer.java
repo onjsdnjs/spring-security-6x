@@ -18,30 +18,38 @@ import org.springframework.security.web.context.SecurityContextRepository;
 public class AuthenticationStateConfigurer {
 
     private final HttpSecurity http;
-    private AuthenticationStateStrategy stateStrategy = new SessionStateStrategy(); // default
+    private AuthenticationStateStrategy stateStrategy;
+    private boolean configured = false;
 
     public AuthenticationStateConfigurer(HttpSecurity http) {
         this.http = http;
+        this.stateStrategy = new SessionStateStrategy(); // 기본은 세션
     }
 
-    public AuthenticationStateConfigurer useJwt(Customizer<JwtStateStrategy> config) {
+    public AuthenticationStateConfigurer useJwt(Customizer<JwtStateStrategy> customizer) {
 
-        http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository()    /* 세션 저장소 비활성화 */);
+        if (configured) {
+            throw new IllegalStateException("Authentication state already configured");
+        }
+        configured = true;
+
+        http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
 
         JwtStateStrategy jwt = new JwtStateStrategy();
+        customizer.customize(jwt);
         this.stateStrategy = jwt;
-        config.customize(jwt);
 
-        JwtsTokenProvider tokenService = (JwtsTokenProvider)jwt.tokenService();
+        JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
         TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
 
+        // 로그아웃 및 예외 처리 핸들러
         try {
             http.logout(logout -> logout
                     .addLogoutHandler(logoutHandler)
                     .logoutSuccessHandler(new SecurityLogoutSuccessHandler()));
 
-            http.exceptionHandling(exception -> exception
+            http.exceptionHandling(ex -> ex
                     .authenticationEntryPoint(new TokenAuthenticationEntryPoint()));
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -50,8 +58,16 @@ public class AuthenticationStateConfigurer {
         return this;
     }
 
-    public AuthenticationStateConfigurer useSession(Customizer<JwtStateStrategy> config) {
-        this.stateStrategy = new SessionStateStrategy();
+    public AuthenticationStateConfigurer useSession(Customizer<SessionStateStrategy> customizer) {
+        if (configured) {
+            throw new IllegalStateException("Authentication state already configured");
+        }
+        configured = true;
+
+        SessionStateStrategy session = new SessionStateStrategy();
+        customizer.customize(session);
+        this.stateStrategy = session;
+
         return this;
     }
 

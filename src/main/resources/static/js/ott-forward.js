@@ -10,8 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         // 2) 자동 fetch 요청
-        const res = await fetch(form.getAttribute('action'), {
-            method:      form.getAttribute('method').toUpperCase(),  // POST
+        const res = await fetch('/login/ott', {
+            method:      'POST',  // POST
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',

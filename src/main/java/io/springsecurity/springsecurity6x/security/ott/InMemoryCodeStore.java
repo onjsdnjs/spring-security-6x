@@ -1,27 +1,22 @@
 package io.springsecurity.springsecurity6x.security.ott;
 
+import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class InMemoryCodeStore implements CodeStore {
-
-    private final Map<String, String> store = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, OneTimeToken> store = new ConcurrentHashMap<>();
 
     @Override
-    public void save(String code, String token) {
+    public void save(String code, OneTimeToken token) {
         store.put(code, token);
     }
 
     @Override
-    public String getToken(String code) {
-        return store.get(code);
-    }
-
-    @Override
-    public void remove(String code) {
-        store.remove(code);
+    public OneTimeToken consume(String code) {
+        return store.remove(code);
     }
 }

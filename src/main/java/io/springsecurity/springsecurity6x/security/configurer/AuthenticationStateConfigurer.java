@@ -62,13 +62,13 @@ public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<Authen
         AuthenticationStateStrategy strategy = http.getSharedObject(AuthenticationStateStrategy.class);
 
         if (strategy instanceof JwtStateStrategy) {
+
             JwtsTokenProvider tokenService = http.getSharedObject(JwtsTokenProvider.class);
             TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
-
             http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
             http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
+
             http.logout(logout -> logout
-                    .addLogoutHandler(logoutHandler)
                     .logoutSuccessHandler(new SecurityLogoutSuccessHandler())
             );
             http.exceptionHandling(ex -> ex

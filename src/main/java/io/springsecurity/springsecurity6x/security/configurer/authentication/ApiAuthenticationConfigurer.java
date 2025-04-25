@@ -46,10 +46,8 @@ public class ApiAuthenticationConfigurer implements AuthenticationConfigurer {
                 new HttpSessionSecurityContextRepository());
 
         ApiAuthenticationFilter filter = new ApiAuthenticationFilter(loginProcessingUrl, securityContextRepository);
-
         filter.setAuthenticationManager(authenticationManager);
-        http.logout(logout -> logout
-                .logoutSuccessHandler(new SecurityLogoutSuccessHandler()));
+
         if(stateStrategy instanceof SessionStateStrategy){
             filter.session(true);
         }

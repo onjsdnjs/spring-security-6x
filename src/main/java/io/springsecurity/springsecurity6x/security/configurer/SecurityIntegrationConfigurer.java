@@ -14,14 +14,23 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     private AuthenticationStateConfigurer stateConfigurer ;
     private final AuthorizationServerConfigurer authorizationServerConfigurer = new AuthorizationServerConfigurer();
     private final ResourceServerConfigurer resourceServerConfigurer = new ResourceServerConfigurer();
-    private AuthenticationStateStrategy strategy;
+    private final HttpSecurity http;
+
+    public SecurityIntegrationConfigurer(HttpSecurity http) {
+        this.http = http;
+    }
 
     public SecurityIntegrationConfigurer authentication(Customizer<AuthenticationTypesConfigurer> customizer) {
         customizer.customize(this.typesConfigurer);
+        try {
+            this.http.with(typesConfigurer, Customizer.withDefaults());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         return this;
     }
 
-    public SecurityIntegrationConfigurer state(Customizer<AuthenticationStateConfigurer> customizer, HttpSecurity http) {
+    public SecurityIntegrationConfigurer state(Customizer<AuthenticationStateConfigurer> customizer) {
         stateConfigurer = new AuthenticationStateConfigurer(http);
         customizer.customize(this.stateConfigurer);
 
@@ -47,8 +56,9 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     @Override
     public void init(HttpSecurity http) throws Exception {
 
-        strategy = stateConfigurer.buildStrategy();
-        for (AuthenticationConfigurer configurer : typesConfigurer.build()) {
+        AuthenticationStateStrategy strategy = stateConfigurer.buildStrategy();
+        http.setSharedObject(AuthenticationStateStrategy.class, strategy);
+        for (AuthenticationConfigurer configurer : typesConfigurer.entries()) {
             configurer.stateStrategy(strategy);
             configurer.configure(http);
         }

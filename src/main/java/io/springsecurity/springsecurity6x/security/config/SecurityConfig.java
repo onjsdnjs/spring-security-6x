@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
                 .authenticationManager(authenticationManager);
 
-        http.with(new SecurityIntegrationConfigurer(), configurer -> configurer
+        http.with(new SecurityIntegrationConfigurer(http), configurer -> configurer
                         .authentication(auth -> auth
                                 .form(form -> form
                                         .loginProcessingUrl("/api/auth/login")
@@ -71,7 +71,7 @@ public class SecurityConfig {
                                         .tokenService(tokenService)
                                         .tokenPrefix("Bearer ")
                                 )
-                                /*.useSession(session -> {})*/, http
+                                /*.useSession(session -> {})*/
                         )
                         .authorizationServer(auth -> {})
                         .resourceServer(resource -> resource

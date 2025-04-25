@@ -8,7 +8,6 @@ import org.springframework.security.config.Customizer;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 public class AuthenticationTypesConfigurer {
 
@@ -35,7 +34,7 @@ public class AuthenticationTypesConfigurer {
         return this;
     }
 
-    public List<AuthenticationConfigurer> getEntries() {
+    public List<AuthenticationConfigurer> entries() {
         return entries;
     }
 }

@@ -2,18 +2,11 @@ package io.springsecurity.springsecurity6x.security.configurer;
 
 import io.springsecurity.springsecurity6x.security.configurer.authentication.AuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.state.AuthenticationStateStrategy;
-import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.configurer.token.AuthorizationServerConfigurer;
 import io.springsecurity.springsecurity6x.security.configurer.token.ResourceServerConfigurer;
-import io.springsecurity.springsecurity6x.security.filter.ApiAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.authentication.AuthenticationFilter;
-
-import java.util.function.Consumer;
 
 public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<SecurityIntegrationConfigurer, HttpSecurity> {
 
@@ -48,7 +41,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     public void init(HttpSecurity http) throws Exception {
 
         strategy = stateConfigurer.buildStrategy();
-        for (AuthenticationConfigurer configurer : typesConfigurer.getEntries()) {
+        for (AuthenticationConfigurer configurer : typesConfigurer.entries()) {
             configurer.stateStrategy(strategy);
             configurer.configure(http);
         }

@@ -10,12 +10,13 @@ import io.springsecurity.springsecurity6x.security.handler.SecurityLogoutSuccess
 import io.springsecurity.springsecurity6x.security.token.service.JwtsTokenProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-public class AuthenticationStateConfigurer {
+public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<AuthenticationStateConfigurer, HttpSecurity> {
 
     private final HttpSecurity http;
     private AuthenticationStateStrategy stateStrategy;
@@ -27,18 +28,14 @@ public class AuthenticationStateConfigurer {
     }
 
     public AuthenticationStateConfigurer useJwt(Customizer<JwtStateStrategy> customizer) {
-
-        if (configured) {
-            throw new IllegalStateException("Authentication state already configured");
-        }
+        assertNotConfigured();
         configured = true;
-
-        http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
 
         JwtStateStrategy jwt = new JwtStateStrategy();
         customizer.customize(jwt);
         this.stateStrategy = jwt;
 
+        /*http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
         JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
         TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
@@ -54,14 +51,12 @@ public class AuthenticationStateConfigurer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
+*/
         return this;
     }
 
     public AuthenticationStateConfigurer useSession(Customizer<SessionStateStrategy> customizer) {
-        if (configured) {
-            throw new IllegalStateException("Authentication state already configured");
-        }
+        assertNotConfigured();
         configured = true;
 
         SessionStateStrategy session = new SessionStateStrategy();
@@ -71,8 +66,33 @@ public class AuthenticationStateConfigurer {
         return this;
     }
 
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        if (stateStrategy instanceof JwtStateStrategy jwt) {
+
+            http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
+
+            JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
+            TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
+            http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
+
+            http.logout(logout -> logout
+                    .addLogoutHandler(logoutHandler)
+                    .logoutSuccessHandler(new SecurityLogoutSuccessHandler()));
+
+            http.exceptionHandling(ex -> ex
+                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint()));
+        }
+    }
+
     public AuthenticationStateStrategy buildStrategy() {
         return stateStrategy;
+    }
+
+    private void assertNotConfigured() {
+        if (configured) {
+            throw new IllegalStateException("Authentication state already configured");
+        }
     }
 }
 

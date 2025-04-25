@@ -24,6 +24,13 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     public SecurityIntegrationConfigurer state(Customizer<AuthenticationStateConfigurer> customizer, HttpSecurity http) {
         stateConfigurer = new AuthenticationStateConfigurer(http);
         customizer.customize(this.stateConfigurer);
+
+        try {
+            http.with(stateConfigurer, Customizer.withDefaults());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         return this;
     }
 

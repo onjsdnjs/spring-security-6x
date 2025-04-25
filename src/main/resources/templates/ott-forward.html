@@ -5,17 +5,20 @@
     <title>OTT 자동 로그인</title>
 </head>
 <body>
+<!-- 숨겨진 POST 폼: CSRF + username/token 전달 -->
 <form th:action="@{/login/ott}" method="post" id="forwardForm">
-    <!-- CSRF 토큰 삽입 -->
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
     <input type="hidden" name="username" th:value="${username}" />
     <input type="hidden" name="token" th:value="${token}" />
 </form>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // 페이지 로드 즉시 POST 폼 제출
+
+<!-- 자동 폼 제출 스크립트 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('forwardForm').submit();
     });
+    /*]]>*/
 </script>
 </body>
 </html>

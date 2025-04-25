@@ -68,11 +68,8 @@ public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<Authen
             http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
             http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
 
-            http.logout(logout -> logout
-                    .logoutSuccessHandler(new SecurityLogoutSuccessHandler())
-            );
             http.exceptionHandling(ex -> ex
-                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
+                 .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
             );
         }
     }

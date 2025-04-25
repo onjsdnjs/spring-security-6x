@@ -5,7 +5,7 @@ import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
-public class OttLoginConfigurer implements AuthenticationConfigurer{
+public class OttAuthenticationConfigurer implements AuthenticationConfigurer{
 
     private String loginUrl = "/login/ott";
     private String tokenGenerationUrl = "/ott/generate";
@@ -16,32 +16,32 @@ public class OttLoginConfigurer implements AuthenticationConfigurer{
 
     private AuthenticationStateStrategy stateStrategy;
 
-    public OttLoginConfigurer loginProcessingUrl(String url) {
+    public OttAuthenticationConfigurer loginProcessingUrl(String url) {
         this.loginUrl = url;
         return this;
     }
 
-    public OttLoginConfigurer defaultSubmitPageUrl(String url) {
+    public OttAuthenticationConfigurer defaultSubmitPageUrl(String url) {
         this.defaultSubmitPageUrl = url;
         return this;
     }
 
-    public OttLoginConfigurer tokenGeneratingUrl(String url) {
+    public OttAuthenticationConfigurer tokenGeneratingUrl(String url) {
         this.tokenGenerationUrl = url;
         return this;
     }
 
-    public OttLoginConfigurer showDefaultSubmitPage(boolean page) {
+    public OttAuthenticationConfigurer showDefaultSubmitPage(boolean page) {
         this.showDefaultSubmitPage = page;
         return this;
     }
 
-    public OttLoginConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
+    public OttAuthenticationConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
         this.tokenGenerationSuccessHandler = handler;
         return this;
     }
 
-    public OttLoginConfigurer tokenService(OneTimeTokenService service) {
+    public OttAuthenticationConfigurer tokenService(OneTimeTokenService service) {
         this.tokenService = service;
         return this;
     }

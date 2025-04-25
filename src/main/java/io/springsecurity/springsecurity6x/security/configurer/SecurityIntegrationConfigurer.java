@@ -41,7 +41,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     public void init(HttpSecurity http) throws Exception {
 
         strategy = stateConfigurer.buildStrategy();
-        for (AuthenticationConfigurer configurer : typesConfigurer.entries()) {
+        for (AuthenticationConfigurer configurer : typesConfigurer.build()) {
             configurer.stateStrategy(strategy);
             configurer.configure(http);
         }

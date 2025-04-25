@@ -35,23 +35,6 @@ public class AuthenticationStateConfigurer extends AbstractHttpConfigurer<Authen
         customizer.customize(jwt);
         this.stateStrategy = jwt;
 
-        /*http.setSharedObject(SecurityContextRepository.class, new NullSecurityContextRepository());
-        JwtsTokenProvider tokenService = (JwtsTokenProvider) jwt.tokenService();
-        TokenLogoutHandler logoutHandler = new TokenLogoutHandler(tokenService);
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler), ExceptionTranslationFilter.class);
-
-        // 로그아웃 및 예외 처리 핸들러
-        try {
-            http.logout(logout -> logout
-                    .addLogoutHandler(logoutHandler)
-                    .logoutSuccessHandler(new SecurityLogoutSuccessHandler()));
-
-            http.exceptionHandling(ex -> ex
-                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-*/
         return this;
     }
 

@@ -36,9 +36,6 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-                .logout(logout -> logout
-                        .addLogoutHandler(new TokenLogoutHandler(tokenService))
-                        .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()))
 
                 .authorizeHttpRequests(authReq -> authReq
                         .requestMatchers("/api/register").permitAll()
@@ -46,7 +43,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
                 .authenticationManager(authenticationManager);
 
-        http.csrf(csrf -> csrf.disable())
+        http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/login", "/error").permitAll()
                         .anyRequest().authenticated()

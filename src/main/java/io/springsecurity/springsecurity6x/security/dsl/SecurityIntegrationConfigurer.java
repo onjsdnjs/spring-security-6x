@@ -69,19 +69,6 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
         stateStrategy.init(http);
 
-        if (stateStrategy instanceof JwtStateStrategy jwtState) {
-            TokenService tokenService = jwtState.tokenService(); // JwtStateStrategy가 토큰 서비스를 가지고 있음
-            http.logout(logout -> logout
-                    .addLogoutHandler(new TokenLogoutHandler(tokenService))
-                    .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler())
-            );
-        } else if (stateStrategy instanceof SessionStateStrategy) {
-            http.logout(logout -> logout
-                    .logoutUrl("/logout")
-                    .logoutSuccessUrl("/login?logout") // 기본 로그아웃 흐름
-            );
-        }
-
         if (restDsl != null) {
             http.with(new RestLoginConfigurer(), Customizer.withDefaults());
         }

@@ -11,8 +11,6 @@ import org.springframework.security.web.context.SecurityContextRepository;
 public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuthenticationDsl, HttpSecurity> {
 
     private String loginProcessingUrl = "/api/auth/login";
-    private String usernameParameter = "username";
-    private String passwordParameter = "password";
     private String defaultSuccessUrl = "/";
     private String failureUrl = "/login?error";
     private AuthenticationSuccessHandler successHandler;
@@ -22,16 +20,6 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
 
     public RestAuthenticationDsl loginProcessingUrl(String url) {
         this.loginProcessingUrl = url;
-        return this;
-    }
-
-    public RestAuthenticationDsl usernameParameter(String param) {
-        this.usernameParameter = param;
-        return this;
-    }
-
-    public RestAuthenticationDsl passwordParameter(String param) {
-        this.passwordParameter = param;
         return this;
     }
 
@@ -64,9 +52,10 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
     public void configure(HttpSecurity http) throws Exception {
         http.with(new RestLoginConfigurer(), rest -> {
             rest
+                .loginProcessingUrl(loginProcessingUrl)
                 .defaultSuccessUrl(defaultSuccessUrl)
-                .failureUrl(failureUrl)
-                .loginProcessingUrl(loginProcessingUrl);
+                .failureUrl(failureUrl);
+
 
             if (successHandler != null) {
                 rest.successHandler(successHandler);

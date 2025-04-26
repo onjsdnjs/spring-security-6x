@@ -21,6 +21,7 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
     private AuthenticationManager authenticationManager;
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
+    private AuthenticationStateStrategy stateStrategy;
 
     public RestAuthenticationDsl loginProcessingUrl(String url) {
         this.loginProcessingUrl = url;
@@ -49,8 +50,7 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
 
     @Override
     public void init(HttpSecurity http) throws Exception {
-
-        http.setSharedObject(RestAuthenticationFilter.class, filter);
+        this.stateStrategy = http.getSharedObject(AuthenticationStateStrategy.class);
     }
 
     @Override

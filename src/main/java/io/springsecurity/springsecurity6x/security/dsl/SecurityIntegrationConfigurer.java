@@ -63,6 +63,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
     public void init(HttpSecurity http) throws Exception {
 
         if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
+
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
         stateStrategy.init(http);
 

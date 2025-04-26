@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -10,43 +9,27 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * Session 기반 인증 상태 전략
  */
 public class SessionStateStrategy implements AuthenticationStateStrategy {
 
-    private String loginPage = "/login"; // 기본값
-
-    public SessionStateStrategy loginPage(String page) {
-        this.loginPage = page;
-        return this;
-    }
+    @Override
+    public void init(HttpSecurity http) { /* 기본 Spring Security 세션 흐름 그대로 */ }
 
     @Override
-    public void init(HttpSecurity http) throws Exception {
-        // 세션 기본 사용, 별도 설정 없음
-    }
-
-    @Override
-    public void configure(HttpSecurity http) throws Exception {
-        http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(entryPoint())
-                        .accessDeniedHandler(accessDeniedHandler())
-                )
-                .logout(logout -> logout.logoutSuccessUrl(loginPage + "?logout"));
-    }
+    public void configure(HttpSecurity http) { /* 필요 시 추가 세션 설정 */ }
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
-        return (request, response, authentication) -> response.sendRedirect("/");
+        return (req, res, auth) -> res.sendRedirect("/");
     }
 
     @Override
     public AuthenticationFailureHandler failureHandler() {
-        return (request, response, exception) -> response.sendRedirect(loginPage + "?error");
+        return (req, res, ex) -> res.sendRedirect("/login?error");
     }
 
     @Override
@@ -56,13 +39,17 @@ public class SessionStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, exception) -> response.sendError(HttpServletResponse.SC_FORBIDDEN, "접근 거부");
+        return (req, res, ex) -> res.sendRedirect("/access-denied");
     }
 
     @Override
     public LogoutHandler logoutHandler() {
-        return (request, response, authentication) -> {
-            // 기본 세션 클리어 처리
+        return (req, res, auth) -> {
+            try {
+                res.sendRedirect("/login?logout");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         };
     }
 }

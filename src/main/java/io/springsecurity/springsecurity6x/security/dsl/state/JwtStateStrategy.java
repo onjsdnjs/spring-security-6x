@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
@@ -13,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -74,7 +76,10 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception {}
+    public void configure(HttpSecurity http) throws Exception {
+        // 모든 요청에 대해 JWT 토큰을 검증하는 필터 등록
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, logoutHandler()), ExceptionTranslationFilter.class);
+    }
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
@@ -122,7 +127,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     }
 
     @Override
-    public LogoutHandler logoutHandler() {
+    public TokenLogoutHandler logoutHandler() {
         return new TokenLogoutHandler(tokenService);
     }
 }

@@ -74,7 +74,6 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
                     .loginProcessingUrl(loginProcessingUrl)
                     .usernameParameter(usernameParameter)
                     .passwordParameter(passwordParameter)
-                    .securityContextRepository(securityContextRepository)
                     .defaultSuccessUrl(defaultSuccessUrl, alwaysUseDefaultSuccessUrl)
                     .failureUrl(failureUrl);
 
@@ -88,6 +87,10 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
                 form.failureHandler(failureHandler);
             } else {
                 form.failureHandler(stateStrategy.failureHandler());
+            }
+
+            if (securityContextRepository != null) {
+                form.securityContextRepository(securityContextRepository);
             }
         });
     }

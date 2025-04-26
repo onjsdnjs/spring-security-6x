@@ -40,13 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
 //                .authenticationManager(authenticationManager)
-        ;
 
-        http
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/error").permitAll()
-                        .anyRequest().authenticated()
-                )
                 .with(SecurityIntegrationConfigurer.custom(), identity -> identity
                         .rest(rest -> rest
                                 .loginProcessingUrl("/api/auth/login")

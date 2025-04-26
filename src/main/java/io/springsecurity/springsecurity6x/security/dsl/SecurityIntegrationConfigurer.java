@@ -62,7 +62,6 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
 
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
-        stateStrategy.init(http);
 
         if (restDsl != null) {
             http.with(new RestLoginConfigurer(), Customizer.withDefaults());
@@ -70,14 +69,16 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
 
         for (AbstractAuthenticationDsl dsl : authDslList) {
             dsl.init(http);
+            dsl.configure(http);
         }
     }
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        for (AbstractAuthenticationDsl dsl : authDslList) {
-            dsl.configure(http);
-        }
+//        for (AbstractAuthenticationDsl dsl : authDslList) {
+//            dsl.configure(http);
+//        }
+        stateStrategy.init(http);
         stateStrategy.configure(http);
     }
 }

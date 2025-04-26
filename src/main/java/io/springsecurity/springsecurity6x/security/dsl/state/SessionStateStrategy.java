@@ -18,10 +18,12 @@ import jakarta.servlet.http.HttpServletResponse;
  * Session 기반 인증 상태 전략
  */
 public class SessionStateStrategy implements AuthenticationStateStrategy {
-    private final String loginPage;
 
-    public SessionStateStrategy(String loginPage) {
-        this.loginPage = loginPage;
+    private String loginPage = "/login"; // 기본값
+
+    public SessionStateStrategy loginPage(String page) {
+        this.loginPage = page;
+        return this;
     }
 
     @Override

@@ -14,9 +14,9 @@ public final class AuthenticationStateDsl {
         return jwtStrategy;
     }
 
-    public SessionStateStrategy session(String loginPage) {
+    public SessionStateStrategy session() {
         assertNotSelected();
-        this.sessionStrategy = new SessionStateStrategy(loginPage);
+        this.sessionStrategy = new SessionStateStrategy();
         this.selected = true;
         return sessionStrategy;
     }

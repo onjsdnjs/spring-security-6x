@@ -76,7 +76,6 @@ public class SecurityConfig {
                                 .accessTokenValidity(2 * 3600_000)    // 2시간
                                 .refreshTokenValidity(14 * 24 * 3600_000) // 2주
                                 .enableRefreshToken(true)
-                                .session("/login")
                         )
                 );
 

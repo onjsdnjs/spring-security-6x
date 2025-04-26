@@ -1,7 +1,5 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
-package io.springsecurity.dsl;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;

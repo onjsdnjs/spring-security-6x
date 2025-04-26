@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
+import io.springsecurity.springsecurity6x.security.dsl.authentication.AbstractAuthenticationDsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.FormAuthenticationDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.OttAuthenticationDsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.PasskeyAuthenticationDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
@@ -36,8 +38,8 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         return this;
     }
 
-    public SecurityIntegrationConfigurer ott(Consumer<io.springsecurity.dsl.OttAuthenticationDsl> consumer) {
-        io.springsecurity.dsl.OttAuthenticationDsl dsl = new io.springsecurity.dsl.OttAuthenticationDsl();
+    public SecurityIntegrationConfigurer ott(Consumer<OttAuthenticationDsl> consumer) {
+        OttAuthenticationDsl dsl = new OttAuthenticationDsl();
         consumer.accept(dsl);
         authDslList.add(dsl);
         return this;

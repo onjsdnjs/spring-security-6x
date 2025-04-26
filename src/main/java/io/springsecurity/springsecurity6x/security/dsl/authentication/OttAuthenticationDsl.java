@@ -1,8 +1,7 @@
-package io.springsecurity.dsl;
+package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
-import io.springsecurity.springsecurity6x.security.dsl.AbstractAuthenticationDsl;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 public final class OttAuthenticationDsl extends AbstractAuthenticationDsl {
@@ -22,15 +21,20 @@ public final class OttAuthenticationDsl extends AbstractAuthenticationDsl {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.oneTimeTokenLogin(ott -> ott
-                .defaultSubmitPageUrl(defaultSubmitPageUrl)
-                .loginProcessingUrl(loginProcessingUrl)
-                .showDefaultSubmitPage(showDefaultSubmitPage)
-                .tokenGeneratingUrl(tokenGeneratingUrl)
-                .tokenService(tokenService)
-                .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler)
-                .authenticationSuccessHandler(stateStrategy.successHandler())
-                .authenticationFailureHandler(stateStrategy.failureHandler())
-        );
+        http.oneTimeTokenLogin(ott -> {
+            ott
+                    .defaultSubmitPageUrl(defaultSubmitPageUrl)
+                    .loginProcessingUrl(loginProcessingUrl)
+                    .showDefaultSubmitPage(showDefaultSubmitPage)
+                    .tokenGeneratingUrl(tokenGeneratingUrl)
+                    .tokenService(tokenService);
+
+            if (tokenGenerationSuccessHandler != null) {
+                ott.tokenGenerationSuccessHandler(tokenGenerationSuccessHandler);
+            } else {
+                ott.authenticationSuccessHandler(stateStrategy.successHandler());
+            }
+
+        });
     }
 }

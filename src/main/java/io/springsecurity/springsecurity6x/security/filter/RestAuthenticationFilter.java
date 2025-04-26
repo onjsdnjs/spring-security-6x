@@ -18,15 +18,9 @@ import java.util.Map;
 
 public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    private boolean isSession = false;
-
     public RestAuthenticationFilter(String loginUri, SecurityContextRepository securityContextRepository) {
         super(new AntPathRequestMatcher(loginUri, "POST"));
         setSecurityContextRepository(securityContextRepository);
-    }
-
-    public void session(boolean session) {
-        isSession = session;
     }
 
     @Override
@@ -49,21 +43,19 @@ public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFi
                                             HttpServletResponse response,
                                             FilterChain chain,
                                             Authentication authResult) throws IOException, ServletException {
-        if(isSession){
-            super.successfulAuthentication(request, response, chain, authResult);
-        }else{
-            this.getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
-        }
+
+        getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
     }
 
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request,
                                               HttpServletResponse response,
-                                              AuthenticationException failed) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                              AuthenticationException failed) throws IOException, ServletException {
+        /*response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         new ObjectMapper().writeValue(response.getOutputStream(),
-                Map.of("error", failed.getMessage()));
+                Map.of("error", failed.getMessage()));*/
+        getFailureHandler().onAuthenticationFailure(request, response, failed);
     }
 }
 

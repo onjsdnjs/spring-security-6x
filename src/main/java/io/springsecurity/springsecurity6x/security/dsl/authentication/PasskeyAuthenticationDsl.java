@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
-import io.springsecurity.springsecurity6x.security.dsl.AbstractAuthenticationDsl;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public final class PasskeyAuthenticationDsl extends AbstractAuthenticationDsl {

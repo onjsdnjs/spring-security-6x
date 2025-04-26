@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.dsl.authentication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 /**
  * Form 로그인 DSL
@@ -18,6 +19,7 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
     private String failureUrl = "/login?error";
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
+    private SecurityContextRepository securityContextRepository;
 
     public FormAuthenticationDsl loginPage(String loginPage) {
         this.loginPage = loginPage;
@@ -72,6 +74,7 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
                     .loginProcessingUrl(loginProcessingUrl)
                     .usernameParameter(usernameParameter)
                     .passwordParameter(passwordParameter)
+                    .securityContextRepository(securityContextRepository)
                     .defaultSuccessUrl(defaultSuccessUrl, alwaysUseDefaultSuccessUrl)
                     .failureUrl(failureUrl);
 

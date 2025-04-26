@@ -1,9 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
-import io.springsecurity.springsecurity6x.security.dsl.authentication.AbstractAuthenticationDsl;
-import io.springsecurity.springsecurity6x.security.dsl.authentication.FormAuthenticationDsl;
-import io.springsecurity.springsecurity6x.security.dsl.authentication.OttAuthenticationDsl;
-import io.springsecurity.springsecurity6x.security.dsl.authentication.PasskeyAuthenticationDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
 import org.springframework.security.config.Customizer;
@@ -16,7 +13,7 @@ import java.util.function.Consumer;
 
 public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<SecurityIntegrationConfigurer, HttpSecurity> {
 
-    private io.springsecurity.dsl.RestAuthenticationDsl restDsl;
+    private RestAuthenticationDsl restDsl;
     private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
     private AuthenticationStateStrategy stateStrategy;
 
@@ -24,8 +21,8 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
 
     public static SecurityIntegrationConfigurer custom() { return new SecurityIntegrationConfigurer(); }
 
-    public SecurityIntegrationConfigurer rest(Consumer<io.springsecurity.dsl.RestAuthenticationDsl> consumer) {
-        io.springsecurity.dsl.RestAuthenticationDsl dsl = new io.springsecurity.dsl.RestAuthenticationDsl();
+    public SecurityIntegrationConfigurer rest(Consumer<RestAuthenticationDsl> consumer) {
+        RestAuthenticationDsl dsl = new RestAuthenticationDsl();
         consumer.accept(dsl);
         this.restDsl = dsl;
         return this;
@@ -68,7 +65,7 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
         stateStrategy.init(http);
 
         if (restDsl != null) {
-            http.with(restDsl, Customizer.withDefaults());
+            http.with(new RestLoginConfigurer(), Customizer.withDefaults());
         }
 
         for (AbstractAuthenticationDsl dsl : authDslList) {

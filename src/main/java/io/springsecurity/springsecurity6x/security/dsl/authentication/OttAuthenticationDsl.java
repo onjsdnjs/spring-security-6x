@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
@@ -9,7 +10,7 @@ public final class OttAuthenticationDsl extends AbstractAuthenticationDsl {
     private String defaultSubmitPageUrl = "/login/ott";
     private String tokenGeneratingUrl = "/ott/generate";
     private boolean showDefaultSubmitPage = true;
-    private OneTimeTokenService tokenService;
+    private OneTimeTokenService tokenService = new InMemoryOneTimeTokenService();
     private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
 
     public OttAuthenticationDsl loginProcessingUrl(String url) { this.loginProcessingUrl = url; return this; }

@@ -1,35 +1,25 @@
-package io.springsecurity.dsl;
+package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
+import io.springsecurity.springsecurity6x.security.dsl.RestLoginConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
-import io.springsecurity.springsecurity6x.security.dsl.state.SessionStateStrategy;
-import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.DelegatingSecurityContextRepository;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuthenticationDsl, HttpSecurity> {
 
     private String loginProcessingUrl = "/api/auth/login";
-    private AuthenticationProvider authenticationProvider;
     private AuthenticationManager authenticationManager;
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
     private AuthenticationStateStrategy stateStrategy;
+    private SecurityContextRepository securityContextRepository;
 
     public RestAuthenticationDsl loginProcessingUrl(String url) {
         this.loginProcessingUrl = url;
-        return this;
-    }
-
-    public RestAuthenticationDsl authenticationProvider(AuthenticationProvider provider) {
-        this.authenticationProvider = provider;
         return this;
     }
 
@@ -55,27 +45,27 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        RestAuthenticationFilter filter = new RestAuthenticationFilter(
-                loginProcessingUrl,
-                new DelegatingSecurityContextRepository(
-                        new RequestAttributeSecurityContextRepository(),
-                        new HttpSessionSecurityContextRepository()
-                )
-        );
-        filter.setAuthenticationManager(authenticationManager);
+        http.with(new RestLoginConfigurer(), rest -> {
 
-        if (successHandler != null) {
-            filter.setAuthenticationSuccessHandler(successHandler);
-        } else {
-            filter.setAuthenticationSuccessHandler(stateStrategy.successHandler());
-        }
+            rest.loginProcessingUrl(loginProcessingUrl);
 
-        if (failureHandler != null) {
-            filter.setAuthenticationFailureHandler(failureHandler);
-        } else {
-            filter.setAuthenticationFailureHandler(stateStrategy.failureHandler());
-        }
+            if (authenticationManager != null) {
+                rest.authenticationManager(authenticationManager);
+            }
+            if (successHandler != null) {
+                rest.successHandler(successHandler);
+            } else {
+                rest.successHandler(stateStrategy.successHandler());
+            }
 
-        http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+            if (failureHandler != null) {
+                rest.failureHandler(failureHandler);
+            } else {
+                rest.failureHandler(stateStrategy.failureHandler());
+            }
+            if (securityContextRepository != null) {
+                rest.securityContextRepository(securityContextRepository);
+            }
+        });
     }
 }

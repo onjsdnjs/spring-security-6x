@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.dsl.SecurityIntegrationConfigurer;
-import io.springsecurity.springsecurity6x.security.handler.SecurityLogoutSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,6 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -39,7 +38,7 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                 .logout(logout -> logout
                         .addLogoutHandler(new TokenLogoutHandler(tokenService))
-                        .logoutSuccessHandler(new SecurityLogoutSuccessHandler()))
+                        .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()))
 
                 .authorizeHttpRequests(authReq -> authReq
                         .requestMatchers("/api/register").permitAll()

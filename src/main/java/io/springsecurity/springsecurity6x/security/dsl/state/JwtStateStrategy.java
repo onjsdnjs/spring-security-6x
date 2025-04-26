@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -56,20 +57,24 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         return this;
     }
 
-    @Override
-    public void init(HttpSecurity http) throws Exception {
-        http.securityContext(sc -> sc.securityContextRepository(new NullSecurityContextRepository()));
+    public TokenService tokenService() {
+        return tokenService;
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception {
+    public void init(HttpSecurity http) throws Exception {
         http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .securityContext(ctx -> ctx.securityContextRepository(new NullSecurityContextRepository()))
+                .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(entryPoint())
                         .accessDeniedHandler(accessDeniedHandler())
                 )
-                .logout(logout -> logout.addLogoutHandler(logoutHandler()));
+                .logout(logout -> logout.addLogoutHandler(logoutHandler()));;
     }
+
+    @Override
+    public void configure(HttpSecurity http) throws Exception {}
 
     @Override
     public AuthenticationSuccessHandler successHandler() {

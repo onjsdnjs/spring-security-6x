@@ -3,6 +3,11 @@ package io.springsecurity.springsecurity6x.security.dsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.dsl.state.JwtStateStrategy;
+import io.springsecurity.springsecurity6x.security.dsl.state.SessionStateStrategy;
+import io.springsecurity.springsecurity6x.security.handler.StrategyAwareLogoutSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -63,6 +68,19 @@ public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<Securi
 
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
         stateStrategy.init(http);
+
+        if (stateStrategy instanceof JwtStateStrategy jwtState) {
+            TokenService tokenService = jwtState.tokenService(); // JwtStateStrategy가 토큰 서비스를 가지고 있음
+            http.logout(logout -> logout
+                    .addLogoutHandler(new TokenLogoutHandler(tokenService))
+                    .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler())
+            );
+        } else if (stateStrategy instanceof SessionStateStrategy) {
+            http.logout(logout -> logout
+                    .logoutUrl("/logout")
+                    .logoutSuccessUrl("/login?logout") // 기본 로그아웃 흐름
+            );
+        }
 
         if (restDsl != null) {
             http.with(new RestLoginConfigurer(), Customizer.withDefaults());

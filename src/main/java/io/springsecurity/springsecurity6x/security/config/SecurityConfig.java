@@ -1,31 +1,23 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.configurer.SecurityIntegrationConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.SecurityIntegrationConfigurer;
 import io.springsecurity.springsecurity6x.security.handler.SecurityLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
-import io.springsecurity.springsecurity6x.security.ott.EmailOneTimeTokenService;
-import io.springsecurity.springsecurity6x.security.ott.EmailService;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
@@ -34,8 +26,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 public class SecurityConfig {
 
     private final TokenService tokenService;
-    private final JwtDecoder jwtDecoder;
-    private final OneTimeTokenGenerationSuccessHandler ottGenSuccessHandler;
+    private final OneTimeTokenGenerationSuccessHandler ottHandler;
     private final OneTimeTokenService oneTimeTokenService;
 
     @Bean
@@ -56,36 +47,39 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
                 .authenticationManager(authenticationManager);
 
-        http.with(new SecurityIntegrationConfigurer(http), configurer -> configurer
-                        .authentication(auth -> auth
-                                .form(form -> form
-                                        .loginProcessingUrl("/api/auth/login")
-                                        .authenticationManager(authenticationManager)
-                                )
-                                .ott(ott -> ott
-                                        .loginProcessingUrl("/login/ott")
-                                        .defaultSubmitPageUrl("/login/ott")
-                                        .showDefaultSubmitPage(false)
-                                        .tokenGeneratingUrl("/ott/generate")
-                                        .tokenService(oneTimeTokenService)
-                                        .tokenGenerationSuccessHandler(ottGenSuccessHandler)
-                                )
-                                .passkey(passkey -> passkey
-                                        .origin("http://localhost:8080")
-                                )
+        http.csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/login", "/error").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .with(SecurityIntegrationConfigurer.custom(), identity -> identity
+                        .rest(rest -> rest
+                                .loginProcessingUrl("/api/auth/login")
+                                .authenticationManager(authenticationManager)
+                        )
+                        .form(form -> form
+                                .loginPage("/login")
+                        )
+                        .ott(ott -> ott
+                                .loginProcessingUrl("/login/ott")
+                                .tokenService(oneTimeTokenService)
+                                .tokenGenerationSuccessHandler(ottHandler)
+                        )
+                        .passkey(passkey -> passkey
+                                .rpName("SecureApp")
+                                .rpId("localhost")
+                                .allowedOrigins("http://localhost:8080")
                         )
                         .state(state -> state
-                                .useJwt(jwt -> jwt
-                                        .tokenService(tokenService)
-                                        .tokenPrefix("Bearer ")
-                                )
-                                /*.useSession(session -> {})*/
-                        )
-                        .authorizationServer(auth -> {})
-                        .resourceServer(resource -> resource
-                                .jwtDecoder(jwtDecoder)
+                                .jwt(tokenService)
+                                .tokenPrefix("Bearer-MyApp ")
+                                .accessTokenValidity(2 * 3600_000)    // 2시간
+                                .refreshTokenValidity(14 * 24 * 3600_000) // 2주
+                                .enableRefreshToken(true)
+                                .session("/login")
                         )
                 );
+
 
         return http.build();
     }

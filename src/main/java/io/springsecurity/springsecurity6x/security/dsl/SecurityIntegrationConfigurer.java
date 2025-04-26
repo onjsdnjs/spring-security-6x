@@ -1,0 +1,87 @@
+package io.springsecurity.springsecurity6x.security.dsl;
+
+import io.springsecurity.springsecurity6x.security.dsl.authentication.FormAuthenticationDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.PasskeyAuthenticationDsl;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<SecurityIntegrationConfigurer, HttpSecurity> {
+
+    private io.springsecurity.dsl.RestAuthenticationDsl restDsl;
+    private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
+    private AuthenticationStateStrategy stateStrategy;
+
+    private SecurityIntegrationConfigurer() {}
+
+    public static SecurityIntegrationConfigurer custom() { return new SecurityIntegrationConfigurer(); }
+
+    public SecurityIntegrationConfigurer rest(Consumer<io.springsecurity.dsl.RestAuthenticationDsl> consumer) {
+        io.springsecurity.dsl.RestAuthenticationDsl dsl = new io.springsecurity.dsl.RestAuthenticationDsl();
+        consumer.accept(dsl);
+        this.restDsl = dsl;
+        return this;
+    }
+
+    public SecurityIntegrationConfigurer form(Consumer<FormAuthenticationDsl> consumer) {
+        FormAuthenticationDsl dsl = new FormAuthenticationDsl();
+        consumer.accept(dsl);
+        authDslList.add(dsl);
+        return this;
+    }
+
+    public SecurityIntegrationConfigurer ott(Consumer<io.springsecurity.dsl.OttAuthenticationDsl> consumer) {
+        io.springsecurity.dsl.OttAuthenticationDsl dsl = new io.springsecurity.dsl.OttAuthenticationDsl();
+        consumer.accept(dsl);
+        authDslList.add(dsl);
+        return this;
+    }
+
+    public SecurityIntegrationConfigurer passkey(Consumer<PasskeyAuthenticationDsl> consumer) {
+        PasskeyAuthenticationDsl dsl = new PasskeyAuthenticationDsl();
+        consumer.accept(dsl);
+        authDslList.add(dsl);
+        return this;
+    }
+
+    public SecurityIntegrationConfigurer state(Consumer<AuthenticationStateDsl> consumer) {
+        AuthenticationStateDsl dsl = new AuthenticationStateDsl();
+        consumer.accept(dsl);
+        this.stateStrategy = dsl.build();
+        return this;
+    }
+
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+
+        if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
+        http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
+        stateStrategy.init(http);
+
+        if (restDsl != null) {
+            http.with(restDsl, Customizer.withDefaults());
+        }
+
+        for (AbstractAuthenticationDsl dsl : authDslList) {
+            dsl.init(http);
+        }
+    }
+
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        for (AbstractAuthenticationDsl dsl : authDslList) {
+            dsl.configure(http);
+        }
+        stateStrategy.configure(http);
+    }
+}
+
+
+
+

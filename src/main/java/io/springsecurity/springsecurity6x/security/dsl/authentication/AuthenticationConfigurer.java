@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.configurer.authentication;
+package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
-import io.springsecurity.springsecurity6x.security.configurer.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public interface AuthenticationConfigurer {

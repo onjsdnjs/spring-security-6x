@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
-import io.springsecurity.springsecurity6x.security.configurer.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 

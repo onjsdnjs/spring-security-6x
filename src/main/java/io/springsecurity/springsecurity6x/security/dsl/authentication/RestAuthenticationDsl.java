@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
 import io.springsecurity.springsecurity6x.security.dsl.RestLoginConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -12,7 +11,10 @@ import org.springframework.security.web.context.SecurityContextRepository;
 public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuthenticationDsl, HttpSecurity> {
 
     private String loginProcessingUrl = "/api/auth/login";
-    private AuthenticationManager authenticationManager;
+    private String usernameParameter = "username";
+    private String passwordParameter = "password";
+    private String defaultSuccessUrl = "/";
+    private String failureUrl = "/login?error";
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
     private AuthenticationStateStrategy stateStrategy;
@@ -23,8 +25,23 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
         return this;
     }
 
-    public RestAuthenticationDsl authenticationManager(AuthenticationManager manager) {
-        this.authenticationManager = manager;
+    public RestAuthenticationDsl usernameParameter(String param) {
+        this.usernameParameter = param;
+        return this;
+    }
+
+    public RestAuthenticationDsl passwordParameter(String param) {
+        this.passwordParameter = param;
+        return this;
+    }
+
+    public RestAuthenticationDsl defaultSuccessUrl(String url, boolean alwaysUse) {
+        this.defaultSuccessUrl = url;
+        return this;
+    }
+
+    public RestAuthenticationDsl failureUrl(String url) {
+        this.failureUrl = url;
         return this;
     }
 
@@ -46,12 +63,11 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
     @Override
     public void configure(HttpSecurity http) throws Exception {
         http.with(new RestLoginConfigurer(), rest -> {
+            rest
+                .defaultSuccessUrl(defaultSuccessUrl)
+                .failureUrl(failureUrl)
+                .loginProcessingUrl(loginProcessingUrl);
 
-            rest.loginProcessingUrl(loginProcessingUrl);
-
-            if (authenticationManager != null) {
-                rest.authenticationManager(authenticationManager);
-            }
             if (successHandler != null) {
                 rest.successHandler(successHandler);
             } else {

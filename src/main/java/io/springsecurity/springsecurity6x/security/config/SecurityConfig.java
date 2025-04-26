@@ -41,7 +41,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/register").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
-                .authenticationManager(authenticationManager);
+//                .authenticationManager(authenticationManager)
+        ;
 
         http
                 .authorizeHttpRequests(auth -> auth
@@ -51,7 +52,6 @@ public class SecurityConfig {
                 .with(SecurityIntegrationConfigurer.custom(), identity -> identity
                         .rest(rest -> rest
                                 .loginProcessingUrl("/api/auth/login")
-                                .authenticationManager(authenticationManager)
                         )
                         .form(form -> form
                                 .loginPage("/login")

@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -18,10 +19,27 @@ import java.util.Map;
 
 public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    public RestAuthenticationFilter(String loginUri, SecurityContextRepository securityContextRepository) {
-        super(new AntPathRequestMatcher(loginUri, "POST"));
-        setSecurityContextRepository(securityContextRepository);
+    public static final String SPRING_SECURITY_FORM_USERNAME_KEY = "username";
+
+    public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
+
+    private static final AntPathRequestMatcher DEFAULT_ANT_PATH_REQUEST_MATCHER =
+            new AntPathRequestMatcher("/api/auth/login", "POST");
+
+    private String usernameParameter = SPRING_SECURITY_FORM_USERNAME_KEY;
+
+    private String passwordParameter = SPRING_SECURITY_FORM_PASSWORD_KEY;
+
+    private boolean postOnly = true;
+
+    public RestAuthenticationFilter() {
+        super(DEFAULT_ANT_PATH_REQUEST_MATCHER);
     }
+
+    public RestAuthenticationFilter(AuthenticationManager authenticationManager) {
+        super(DEFAULT_ANT_PATH_REQUEST_MATCHER, authenticationManager);
+    }
+
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request,
@@ -51,11 +69,9 @@ public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFi
     protected void unsuccessfulAuthentication(HttpServletRequest request,
                                               HttpServletResponse response,
                                               AuthenticationException failed) throws IOException, ServletException {
-        /*response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        new ObjectMapper().writeValue(response.getOutputStream(),
-                Map.of("error", failed.getMessage()));*/
+
         getFailureHandler().onAuthenticationFailure(request, response, failed);
+
     }
 }
 

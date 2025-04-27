@@ -8,10 +8,10 @@ import java.util.Map;
 
 public class SpringOAuth2AuthorizationServerClient implements AuthorizationServerClient {
 
-    private RestClient restClient;
-    private String tokenEndpoint;
-    private String clientId;
-    private String clientSecret;
+    private final RestClient restClient;
+    private final String tokenEndpoint;
+    private final String clientId;
+    private final String clientSecret;
 
     public SpringOAuth2AuthorizationServerClient(AuthContextProperties properties) {
         this.restClient = RestClient.builder().baseUrl(properties.getInternal().getIssuerUri()).build();

@@ -1,14 +1,12 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.enums.TokenTransport;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;

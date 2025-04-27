@@ -34,8 +34,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         if (accessToken != null) {
             try {
                 if (tokenValidator.validateAccessToken(accessToken)) {
-//                    Authentication authentication = tokenValidator.getAuthentication(accessToken);
-//                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    Authentication authentication = tokenValidator.getAuthentication(accessToken);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
                 // 토큰 검증 실패 시 전체 인증정보 클리어 + 로그아웃

@@ -1,15 +1,19 @@
 package io.springsecurity.springsecurity6x.security.token.validator;
 
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
+import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-public class InternalJwtTokenValidator implements TokenValidator {
+public class DefaultJwtTokenValidator implements TokenValidator {
 
     private final JwtParser jwtParser;
     private final RefreshTokenStore refreshTokenStore;
     private final long rotationThresholdMillis;
 
-    public InternalJwtTokenValidator(JwtParser jwtParser, RefreshTokenStore refreshTokenStore, long rotateThresholdMillis) {
+    public DefaultJwtTokenValidator(JwtParser jwtParser, RefreshTokenStore refreshTokenStore, long rotateThresholdMillis) {
         this.jwtParser = jwtParser;
         this.refreshTokenStore = refreshTokenStore;
         this.rotationThresholdMillis = rotateThresholdMillis;
@@ -38,5 +42,18 @@ public class InternalJwtTokenValidator implements TokenValidator {
         var parsed = jwtParser.parse(refreshToken);
         long remain = parsed.expiration().toEpochMilli() - System.currentTimeMillis();
         return remain <= rotationThresholdMillis;
+    }
+
+    @Override
+    public Authentication getAuthentication(String token) {
+        ParsedJwt parsedJwt = jwtParser.parse(token);
+
+        return new UsernamePasswordAuthenticationToken(
+                parsedJwt.subject(),
+                null,
+                parsedJwt.roles().stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .toList()
+        );
     }
 }

@@ -13,8 +13,7 @@ import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParse
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.validator.ExternalJwtTokenValidator;
-import io.springsecurity.springsecurity6x.security.token.validator.InternalJwtTokenValidator;
+import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
@@ -87,17 +86,17 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     }
 
     private TokenValidator resolveTokenValidator() {
+
+        JwtParser parser = null;
         if (effectiveIssuer() == TokenIssuer.INTERNAL) {
-            JwtParser parser = new InternalJwtParser(secretKey);
-            RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
-            return new InternalJwtTokenValidator(parser, store, properties.getInternal().getRefreshRotateThreshold());
+            parser = new InternalJwtParser(secretKey);
 
         } else if (effectiveIssuer() == TokenIssuer.AUTHORIZATION_SERVER) {
-            JwtParser parser = new ExternalJwtParser();
-            RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
-            return new ExternalJwtTokenValidator(parser, store);
+            parser = new ExternalJwtParser();
         }
-        throw new IllegalStateException("지원하지 않는 TokenIssuer: " + effectiveIssuer());
+
+        RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
+        return new DefaultJwtTokenValidator(parser, store, properties.getInternal().getRefreshRotateThreshold());
     }
 
     @Override

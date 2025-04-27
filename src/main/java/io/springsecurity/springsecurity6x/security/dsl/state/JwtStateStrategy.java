@@ -11,6 +11,8 @@ import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
@@ -25,20 +27,18 @@ import javax.crypto.SecretKey;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
 
-    private final TokenCreator creator;
     private final TokenValidator validator;
-    private final TokenTransportHandler transport;
     private final AuthenticationHandlers handlers;
 
-    public JwtStateStrategy(SecretKey key,
-                            AuthContextProperties props,
-                            TokenTransportHandler transport) {
+    public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
+
         JwtParser parser = new InternalJwtParser(key);
-        var store      = new InMemoryRefreshTokenStore(parser);
-        this.creator   = new InternalJwtCreator(key);
+        RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
+        TokenCreator creator = new InternalJwtCreator(key);
+        TokenTransportHandler transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
+
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        this.transport = transport;
-        this.handlers  = new JwtAuthenticationHandlers(creator, transport, props);
+        this.handlers  = new JwtAuthenticationHandlers(creator, transportHandler, props);
     }
 
     @Override

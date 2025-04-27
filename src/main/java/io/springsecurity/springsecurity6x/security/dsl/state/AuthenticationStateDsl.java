@@ -21,8 +21,8 @@ public final class AuthenticationStateDsl {
 
     public JwtStateStrategy jwt() {
         assertNotSelected();
-        TokenTransportHandler transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
-        this.jwtStrategy = new JwtStateStrategy(secretKey, properties, transportHandler);
+
+        this.jwtStrategy = new JwtStateStrategy(secretKey, properties);
         this.selected = true;
         return jwtStrategy;
     }

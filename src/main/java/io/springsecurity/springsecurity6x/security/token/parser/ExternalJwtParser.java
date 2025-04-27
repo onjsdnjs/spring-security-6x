@@ -9,7 +9,7 @@ public class ExternalJwtParser implements JwtParser {
     @Override
     public ParsedJwt parse(String token) {
         // 주의: 외부 JWT는 이미 ResourceServer가 서명 검증 완료한 상태임
-        Jwt jwt = (Jwt) ((JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getToken();
+        Jwt jwt = ((JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getToken();
 
         return new ParsedJwt(
                 jwt.getId(),

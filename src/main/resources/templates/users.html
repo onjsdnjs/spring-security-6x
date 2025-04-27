@@ -4,19 +4,33 @@
     <meta charset="UTF-8" />
     <title>회원 목록</title>
     <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <style>
+        .token-mode-buttons {
+            margin-bottom: 20px;
+        }
+        .token-mode-buttons button {
+            margin-right: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 <div class="app-wrapper">
-    <header class="app-header"
-            th:insert="~{fragments/header :: header}"></header>
-    <aside class="sidebar"
-           th:insert="~{fragments/menu   :: menu}"></aside>
+    <header class="app-header" th:insert="~{fragments/header :: header}"></header>
+    <aside class="sidebar" th:insert="~{fragments/menu   :: menu}"></aside>
 
     <main class="content">
-        <div class="container" style="display: flex; justify-content: flex-start; align-items: center;">
+        <div class="container" style="display: flex; flex-direction: column; align-items: center;">
             <h2>회원 목록</h2>
-            <table id="usersTable"
-                   style="width:70%; margin:0 auto; border-collapse:collapse;">
+
+            <div class="token-mode-buttons">
+                <button id="headerModeBtn">헤더 방식 사용</button>
+                <button id="cookieModeBtn">쿠키 방식 사용</button>
+            </div>
+
+            <table id="usersTable" style="width:70%; margin:0 auto; border-collapse:collapse;">
                 <thead>
                 <tr>
                     <th style="text-align:center">회원명</th>
@@ -25,14 +39,13 @@
                 </tr>
                 </thead>
                 <tbody>
-                <!-- JS 로 채워짐 -->
+                <!-- JS로 채워짐 -->
                 </tbody>
             </table>
         </div>
     </main>
 
-    <footer class="app-footer"
-            th:insert="~{fragments/footer :: footer}"></footer>
+    <footer class="app-footer" th:insert="~{fragments/footer :: footer}"></footer>
 </div>
 
 <script src="/js/users.js"></script>

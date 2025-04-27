@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.dsl;
+package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -8,19 +8,18 @@ import org.springframework.security.config.annotation.web.configurers.SecurityCo
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
-public final class RestLoginConfigurer <H extends HttpSecurityBuilder<H>> extends
-        AbstractAuthenticationFilterConfigurer<H, RestLoginConfigurer<H>, RestAuthenticationFilter> {
+public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>> extends
+        AbstractAuthenticationFilterConfigurer<H, RestAuthenticationConfigurer<H>, RestAuthenticationFilter> {
 
-    public RestLoginConfigurer() {
+    public RestAuthenticationConfigurer() {
         super(new RestAuthenticationFilter(), null);
     }
 
     @Override
-    public RestLoginConfigurer<H> loginPage(String loginPage) {
+    public RestAuthenticationConfigurer<H> loginPage(String loginPage) {
         return super.loginPage(loginPage);
     }
 

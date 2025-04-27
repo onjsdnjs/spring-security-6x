@@ -3,8 +3,7 @@ package io.springsecurity.springsecurity6x.security.dsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -72,9 +71,10 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
 
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
+        http.setSharedObject(AuthenticationHandlers.class, stateStrategy);
 
         if (restDsl != null) {
-            http.with(new RestLoginConfigurer(), Customizer.withDefaults());
+            http.with(new RestAuthenticationConfigurer(), Customizer.withDefaults());
         }
 
         for (AbstractAuthenticationDsl dsl : authDslList) {

@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
-import io.springsecurity.springsecurity6x.security.dsl.RestLoginConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -37,7 +36,7 @@ public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.with(new RestLoginConfigurer(), rest -> {
+        http.with(new RestAuthenticationConfigurer(), rest -> {
             rest
                 .loginProcessingUrl(loginProcessingUrl)
                 .defaultSuccessUrl(defaultSuccessUrl)

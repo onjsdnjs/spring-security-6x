@@ -29,14 +29,15 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private final TokenValidator validator;
     private final AuthenticationHandlers handlers;
+    private final TokenTransportHandler transportHandler;
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
         JwtParser parser = new InternalJwtParser(key);
         RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
         TokenCreator creator = new InternalJwtCreator(key);
-        TokenTransportHandler transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
 
+        this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
         this.handlers  = new JwtAuthenticationHandlers(creator, transportHandler, props);
     }
@@ -57,7 +58,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     @Override
     public void configure(HttpSecurity http) {
         http.addFilterAfter(
-                new JwtAuthorizationFilter(validator, transport, logoutHandler()),
+                new JwtAuthorizationFilter(validator, transportHandler, logoutHandler()),
                 ExceptionTranslationFilter.class);
     }
 

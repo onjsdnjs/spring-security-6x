@@ -11,6 +11,7 @@ import io.springsecurity.springsecurity6x.security.token.creator.InternalJwtCrea
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
+import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
@@ -34,16 +35,18 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     private final TokenCreator creator;
     private final RefreshTokenStore store;
     private final AuthContextProperties props;
+    private final InternalJwtTokenService internalJwtTokenService;
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
         JwtParser parser = new InternalJwtParser(key);
         this.props = props;
-        this.store = new InMemoryRefreshTokenStore(parser);
         this.creator = new InternalJwtCreator(key);
+        this.internalJwtTokenService = new InternalJwtTokenService(creator, props);
+        this.store = new InMemoryRefreshTokenStore(parser);
         this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        this.handlers  = new JwtAuthenticationHandlers(creator, transportHandler, props);
+        this.handlers  = new JwtAuthenticationHandlers(internalJwtTokenService, transportHandler, props);
     }
 
     public AuthenticationHandlers authHandlers() {

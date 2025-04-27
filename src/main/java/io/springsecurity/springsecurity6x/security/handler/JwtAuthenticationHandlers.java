@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
+import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -22,46 +22,27 @@ import java.util.Map;
  */
 public class JwtAuthenticationHandlers implements AuthenticationHandlers {
 
-    private final TokenCreator tokenCreator;
+    private final TokenService tokenService;
     private final TokenTransportHandler transportHandler;
     private final AuthContextProperties properties;
 
-    public JwtAuthenticationHandlers(TokenCreator tokenCreator,
+    public JwtAuthenticationHandlers(TokenService tokenService,
                                      TokenTransportHandler transportHandler,
                                      AuthContextProperties properties) {
-        this.tokenCreator = tokenCreator;
+        this.tokenService = tokenService;
         this.transportHandler = transportHandler;
         this.properties = properties;
     }
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
+
         return (request, response, authentication) -> {
-            String username = authentication.getName();
-            List<String> roles = authentication.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .toList();
-
-            TokenRequest tokenRequest = TokenRequest.builder()
-                    .tokenType("access")
-                    .username(username)
-                    .roles(roles)
-                    .validity(properties.getInternal().getAccessTokenValidity())
-                    .build();
-            String accessToken = tokenCreator.createToken(tokenRequest);
-
+            String accessToken = tokenService.createAccessToken(authentication);
             String refreshToken = null;
             if (properties.getInternal().isEnableRefreshToken()) {
-                tokenRequest = TokenRequest.builder()
-                        .tokenType("refresh")
-                        .username(username)
-                        .roles(roles)
-                        .validity(properties.getInternal().getRefreshTokenValidity())
-                        .build();
-
-                refreshToken = tokenCreator.createToken(tokenRequest);
+                refreshToken = tokenService.createRefreshToken(authentication);
             }
-
             // Header 또는 Cookie 방식으로 전송
             transportHandler.sendAccessToken(response, accessToken);
             if (refreshToken != null) {

@@ -30,10 +30,11 @@ public final class RestLoginConfigurer <H extends HttpSecurityBuilder<H>> extend
     }
 
     @Override
-    public void init(H http) throws Exception {}
+    public void init(H http) {}
 
     @Override
     public void configure(H http) throws Exception {
+
         AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
         RestAuthenticationFilter authFilter = new RestAuthenticationFilter(authenticationManager);
         SessionAuthenticationStrategy sessionAuthenticationStrategy = http.getSharedObject(SessionAuthenticationStrategy.class);
@@ -54,4 +55,3 @@ public final class RestLoginConfigurer <H extends HttpSecurityBuilder<H>> extend
         http.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
     }
 }
-

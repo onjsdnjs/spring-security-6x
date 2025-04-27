@@ -5,7 +5,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 /**
  * 공통 DSL 추상 클래스
  */
-public abstract class AbstractAuthenticationDsl {
+public abstract class AbstractAuthenticationDsl implements AuthenticationDsl {
     protected AuthenticationStateStrategy stateStrategy;
 
     public void init(HttpSecurity http) {

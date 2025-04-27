@@ -5,11 +5,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SecurityContextConfigurer;
-import org.springframework.security.web.PortMapper;
 import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -31,45 +30,28 @@ public final class RestLoginConfigurer <H extends HttpSecurityBuilder<H>> extend
     }
 
     @Override
-    public void init(H http) throws Exception {
-
-        super.init(http);
-
-        /*RestAuthenticationFilter filter = getAuthenticationFilter();
-        AuthenticationManager manager = http.getSharedObject(AuthenticationManager.class);
-
-        if (manager != null) {
-            filter.setAuthenticationManager(manager);
-        }*/
-    }
+    public void init(H http) throws Exception {}
 
     @Override
     public void configure(H http) throws Exception {
-
-        this.authFilter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
-        this.authFilter.setAuthenticationSuccessHandler(this.successHandler);
-        this.authFilter.setAuthenticationFailureHandler(this.failureHandler);
-        if (this.authenticationDetailsSource != null) {
-            this.authFilter.setAuthenticationDetailsSource(this.authenticationDetailsSource);
-        }
-        SessionAuthenticationStrategy sessionAuthenticationStrategy = http
-                .getSharedObject(SessionAuthenticationStrategy.class);
+        AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+        RestAuthenticationFilter authFilter = new RestAuthenticationFilter(authenticationManager);
+        SessionAuthenticationStrategy sessionAuthenticationStrategy = http.getSharedObject(SessionAuthenticationStrategy.class);
         if (sessionAuthenticationStrategy != null) {
-            this.authFilter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy);
+            authFilter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy);
         }
         RememberMeServices rememberMeServices = http.getSharedObject(RememberMeServices.class);
         if (rememberMeServices != null) {
-            this.authFilter.setRememberMeServices(rememberMeServices);
+            authFilter.setRememberMeServices(rememberMeServices);
         }
         SecurityContextConfigurer securityContextConfigurer = http.getConfigurer(SecurityContextConfigurer.class);
         if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
             SecurityContextRepository securityContextRepository = securityContextConfigurer
                     .getSecurityContextRepository();
-            this.authFilter.setSecurityContextRepository(securityContextRepository);
+            authFilter.setSecurityContextRepository(securityContextRepository);
         }
-        this.authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-        F filter = postProcess(this.authFilter);
-        http.addFilter(filter);
+        authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
+        http.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
     }
 }
 

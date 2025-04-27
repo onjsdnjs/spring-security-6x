@@ -3,12 +3,11 @@ package io.springsecurity.springsecurity6x.security.dsl.authentication;
 import io.springsecurity.springsecurity6x.security.dsl.RestLoginConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuthenticationDsl, HttpSecurity> {
+public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
 
     private String loginProcessingUrl = "/api/auth/login";
     private String defaultSuccessUrl = "/";
@@ -44,7 +43,7 @@ public final class RestAuthenticationDsl extends AbstractHttpConfigurer<RestAuth
     }
 
     @Override
-    public void init(HttpSecurity http) throws Exception {
+    public void init(HttpSecurity http) {
         this.stateStrategy = http.getSharedObject(AuthenticationStateStrategy.class);
     }
 

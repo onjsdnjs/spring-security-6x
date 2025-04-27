@@ -32,6 +32,7 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     public AuthIntegrationPlatformConfigurer rest(Consumer<RestAuthenticationDsl> consumer) {
         RestAuthenticationDsl dsl = new RestAuthenticationDsl();
         consumer.accept(dsl);
+        authDslList.add(dsl);
         this.restDsl = dsl;
         return this;
     }

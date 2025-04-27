@@ -3,9 +3,12 @@ package io.springsecurity.springsecurity6x.security.handler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
+import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -39,23 +42,28 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
                     .map(GrantedAuthority::getAuthority)
                     .toList();
 
-            // 액세스 토큰 생성
-            String accessToken = tokenCreator.builder()
+            TokenRequest tokenRequest = TokenRequest.builder()
                     .tokenType("access")
                     .username(username)
-                    .roles(roles)
+                    .roles(authentication.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .toList())
                     .validity(properties.getInternal().getAccessTokenValidity())
                     .build();
+            String accessToken = tokenCreator.createToken(tokenRequest);
 
-            // 리프레시 토큰 생성 (옵션)
             String refreshToken = null;
             if (properties.getInternal().isEnableRefreshToken()) {
-                refreshToken = tokenCreator.builder()
+                tokenRequest = TokenRequest.builder()
                         .tokenType("refresh")
                         .username(username)
-                        .roles(roles)
+                        .roles(authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .toList())
                         .validity(properties.getInternal().getRefreshTokenValidity())
                         .build();
+
+                refreshToken = tokenCreator.createToken(tokenRequest);
             }
 
             // Header 또는 Cookie 방식으로 전송

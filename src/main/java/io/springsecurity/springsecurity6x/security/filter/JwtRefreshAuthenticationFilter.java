@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
@@ -10,6 +11,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Map;
@@ -60,23 +63,34 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String newAccessToken = tokenCreator.builder()
+            Authentication authentication = tokenValidator.getAuthentication(refreshToken);
+            TokenRequest tokenRequest = TokenRequest.builder()
                     .tokenType("access")
                     .username(username)
+                    .roles(authentication.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .toList())
                     .validity(properties.getInternal().getAccessTokenValidity())
                     .build();
 
-            String newRefreshToken;
+            String newAccessToken = tokenCreator.createToken(tokenRequest);
+
+            String newRefreshToken = "";
             if (properties.getInternal().isEnableRefreshToken() && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
                 refreshTokenStore.remove(refreshToken);
 
-                newRefreshToken = tokenCreator.builder()
+                tokenRequest = TokenRequest.builder()
                         .tokenType("refresh")
                         .username(username)
+                        .roles(authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .toList())
                         .validity(properties.getInternal().getRefreshTokenValidity())
                         .build();
 
+                newRefreshToken = tokenCreator.createToken(tokenRequest);
                 refreshTokenStore.store(newRefreshToken, username);
+                
             } else {
                 newRefreshToken = refreshToken;
             }

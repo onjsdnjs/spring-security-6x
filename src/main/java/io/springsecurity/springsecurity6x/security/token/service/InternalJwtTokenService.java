@@ -20,27 +20,21 @@ public class InternalJwtTokenService implements TokenService {
     @Override
     public String createAccessToken(Authentication authentication) {
 
-        return tokenCreator.builder()
+      /*  return tokenCreator.builder()
                 .tokenType("access")
                 .username(authentication.getName())
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .toList())
                 .validity(properties.getInternal().getAccessTokenValidity())
-                .build();
+                .build();*/
+        return null;
     }
 
     @Override
     public String createRefreshToken(Authentication authentication) {
 
-        return tokenCreator.builder()
-                .tokenType("refresh")
-                .username(authentication.getName())
-                .roles(authentication.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .toList())
-                .validity(properties.getInternal().getRefreshTokenValidity())
-                .build();
+        return null;
     }
 
     private List<String> getRoles(Authentication authentication) {

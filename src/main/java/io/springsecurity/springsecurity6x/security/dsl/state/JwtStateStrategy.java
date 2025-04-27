@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
@@ -30,13 +31,16 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     private final TokenValidator validator;
     private final AuthenticationHandlers handlers;
     private final TokenTransportHandler transportHandler;
+    private final TokenCreator creator;
+    private final RefreshTokenStore store;
+    private final AuthContextProperties props;
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
         JwtParser parser = new InternalJwtParser(key);
-        RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
-        TokenCreator creator = new InternalJwtCreator(key);
-
+        this.props = props;
+        this.store = new InMemoryRefreshTokenStore(parser);
+        this.creator = new InternalJwtCreator(key);
         this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
         this.handlers  = new JwtAuthenticationHandlers(creator, transportHandler, props);
@@ -61,9 +65,8 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public void configure(HttpSecurity http) {
-        http.addFilterAfter(
-                new JwtAuthorizationFilter(validator, transportHandler, logoutHandler()),
-                ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(validator, transportHandler, logoutHandler()), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(validator, transportHandler, creator, store, props), JwtAuthorizationFilter.class);
     }
 
     public LogoutHandler logoutHandler(){

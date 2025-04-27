@@ -25,8 +25,8 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     public JwtRefreshAuthenticationFilter(
             TokenValidator tokenValidator,
-            TokenCreator tokenCreator,
             TokenTransportHandler tokenTransportHandler,
+            TokenCreator tokenCreator,
             RefreshTokenStore refreshTokenStore,
             AuthContextProperties properties
     ) {

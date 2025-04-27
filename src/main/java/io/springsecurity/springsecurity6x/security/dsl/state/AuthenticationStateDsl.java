@@ -5,23 +5,24 @@ import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTr
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import org.springframework.context.ApplicationContext;
 
+import javax.crypto.SecretKey;
+
 public final class AuthenticationStateDsl {
-    private final ApplicationContext applicationContext;
     private JwtStateStrategy jwtStrategy;
     private SessionStateStrategy sessionStrategy;
     private boolean selected = false;
-    private AuthContextProperties properties;
+    private final AuthContextProperties properties;
+    private final SecretKey secretKey;
 
     public AuthenticationStateDsl(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
         properties = applicationContext.getBean(AuthContextProperties.class);
+        secretKey = applicationContext.getBean(SecretKey.class);
     }
 
     public JwtStateStrategy jwt() {
         assertNotSelected();
-        
         TokenTransportHandler transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
-        this.jwtStrategy = new JwtStateStrategy(applicationContext, properties);
+        this.jwtStrategy = new JwtStateStrategy(secretKey, properties, transportHandler);
         this.selected = true;
         return jwtStrategy;
     }

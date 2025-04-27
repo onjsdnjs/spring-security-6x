@@ -26,10 +26,8 @@ public class DefaultJwtTokenValidator implements TokenValidator {
 
     @Override
     public boolean validateRefreshToken(String token) {
-        if (!jwtParser.isValidRefreshToken(token)) {
-            return false;
-        }
-        return refreshTokenStore.getUsername(token) != null;
+        return jwtParser.isValidRefreshToken(token)
+                && refreshTokenStore.getUsername(token) != null;
     }
 
     @Override
@@ -39,9 +37,8 @@ public class DefaultJwtTokenValidator implements TokenValidator {
 
     @Override
     public boolean shouldRotateRefreshToken(String refreshToken) {
-        var parsed = jwtParser.parse(refreshToken);
-        long remain = parsed.expiration().toEpochMilli() - System.currentTimeMillis();
-        return remain <= rotationThresholdMillis;
+        ParsedJwt p = jwtParser.parse(refreshToken);
+        return p.expiration().toEpochMilli() - System.currentTimeMillis() <= rotationThresholdMillis;
     }
 
     @Override

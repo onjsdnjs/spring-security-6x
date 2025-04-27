@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -17,9 +18,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenValidator tokenValidator;
     private final TokenTransportHandler transportHandler;
-    private final TokenLogoutHandler logoutHandler;
+    private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenValidator tokenValidator, TokenTransportHandler transportHandler, TokenLogoutHandler logoutHandler) {
+    public JwtAuthorizationFilter(TokenValidator tokenValidator, TokenTransportHandler transportHandler, LogoutHandler logoutHandler) {
         this.tokenValidator = tokenValidator;
         this.transportHandler = transportHandler;
         this.logoutHandler = logoutHandler;

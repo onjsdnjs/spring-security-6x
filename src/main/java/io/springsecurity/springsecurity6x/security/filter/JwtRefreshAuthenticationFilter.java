@@ -64,16 +64,8 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             }
 
             Authentication authentication = tokenValidator.getAuthentication(refreshToken);
-            TokenRequest tokenRequest = TokenRequest.builder()
-                    .tokenType("access")
-                    .username(username)
-                    .roles(authentication.getAuthorities().stream()
-                            .map(GrantedAuthority::getAuthority)
-                            .toList())
-                    .validity(properties.getInternal().getAccessTokenValidity())
-                    .build();
-
-            String newAccessToken = tokenCreator.createToken(tokenRequest);
+            String newAccessToken = getString(username, authentication);
+            TokenRequest tokenRequest;
 
             String newRefreshToken = "";
             if (properties.getInternal().isEnableRefreshToken() && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
@@ -90,7 +82,7 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
                 newRefreshToken = tokenCreator.createToken(tokenRequest);
                 refreshTokenStore.store(newRefreshToken, username);
-                
+
             } else {
                 newRefreshToken = refreshToken;
             }
@@ -109,6 +101,20 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
         }
+    }
+
+    private String getString(String username, Authentication authentication) {
+        TokenRequest tokenRequest = TokenRequest.builder()
+                .tokenType("access")
+                .username(username)
+                .roles(authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .toList())
+                .validity(properties.getInternal().getAccessTokenValidity())
+                .build();
+
+        String newAccessToken = tokenCreator.createToken(tokenRequest);
+        return newAccessToken;
     }
 }
 

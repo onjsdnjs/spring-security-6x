@@ -45,9 +45,7 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
             TokenRequest tokenRequest = TokenRequest.builder()
                     .tokenType("access")
                     .username(username)
-                    .roles(authentication.getAuthorities().stream()
-                            .map(GrantedAuthority::getAuthority)
-                            .toList())
+                    .roles(roles)
                     .validity(properties.getInternal().getAccessTokenValidity())
                     .build();
             String accessToken = tokenCreator.createToken(tokenRequest);
@@ -57,9 +55,7 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
                 tokenRequest = TokenRequest.builder()
                         .tokenType("refresh")
                         .username(username)
-                        .roles(authentication.getAuthorities().stream()
-                                .map(GrantedAuthority::getAuthority)
-                                .toList())
+                        .roles(roles)
                         .validity(properties.getInternal().getRefreshTokenValidity())
                         .build();
 

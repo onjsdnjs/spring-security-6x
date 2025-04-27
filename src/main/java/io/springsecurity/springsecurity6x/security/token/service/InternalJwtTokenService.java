@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -20,21 +21,32 @@ public class InternalJwtTokenService implements TokenService {
     @Override
     public String createAccessToken(Authentication authentication) {
 
-      /*  return tokenCreator.builder()
+        TokenRequest tokenRequest = TokenRequest.builder()
                 .tokenType("access")
                 .username(authentication.getName())
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .toList())
                 .validity(properties.getInternal().getAccessTokenValidity())
-                .build();*/
-        return null;
+                .build();
+
+        return tokenCreator.createToken(tokenRequest);
+
     }
 
     @Override
     public String createRefreshToken(Authentication authentication) {
 
-        return null;
+        TokenRequest tokenRequest = TokenRequest.builder()
+                .tokenType("refresh")
+                .username(authentication.getName())
+                .roles(authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .toList())
+                .validity(properties.getInternal().getRefreshTokenValidity())
+                .build();
+
+        return tokenCreator.createToken(tokenRequest);
     }
 
     private List<String> getRoles(Authentication authentication) {

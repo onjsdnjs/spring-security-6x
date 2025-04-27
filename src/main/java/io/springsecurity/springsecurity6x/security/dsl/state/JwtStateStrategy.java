@@ -68,7 +68,6 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        // 모든 요청에 대해 JWT 토큰을 검증하는 필터 등록
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, tokenTransportHandler, logoutHandler()), ExceptionTranslationFilter.class);
     }
 

@@ -71,7 +71,7 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
 
         http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
-        http.setSharedObject(AuthenticationHandlers.class, stateStrategy);
+        http.setSharedObject(AuthenticationHandlers.class, stateStrategy.authHandlers());
 
         if (restDsl != null) {
             http.with(new RestAuthenticationConfigurer(), Customizer.withDefaults());

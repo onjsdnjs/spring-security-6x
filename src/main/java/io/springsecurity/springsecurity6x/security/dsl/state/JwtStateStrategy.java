@@ -42,6 +42,10 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         this.handlers  = new JwtAuthenticationHandlers(creator, transportHandler, props);
     }
 
+    public AuthenticationHandlers authHandlers() {
+        return handlers;
+    }
+
     @Override
     public void init(HttpSecurity http) throws Exception {
         http

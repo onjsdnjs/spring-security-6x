@@ -1,8 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import org.springframework.context.ApplicationContext;
 
 import javax.crypto.SecretKey;

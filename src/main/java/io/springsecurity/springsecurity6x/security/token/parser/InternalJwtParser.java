@@ -16,12 +16,7 @@ public class InternalJwtParser implements JwtParser {
 
     @Override
     public ParsedJwt parse(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(secretKey)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-
+        Claims claims = getClaims(token);
         return new ParsedJwt(
                 claims.getId(),
                 claims.getSubject(),
@@ -33,11 +28,7 @@ public class InternalJwtParser implements JwtParser {
     @Override
     public boolean isValidAccessToken(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            Claims claims = getClaims(token);
             return !"refresh".equals(claims.get("token_type"));
         } catch (Exception e) {
             return false;
@@ -47,15 +38,19 @@ public class InternalJwtParser implements JwtParser {
     @Override
     public boolean isValidRefreshToken(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            Claims claims = getClaims(token);
             return "refresh".equals(claims.get("token_type"));
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }
 

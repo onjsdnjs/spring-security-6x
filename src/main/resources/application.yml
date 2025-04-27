@@ -21,6 +21,12 @@ spring:
       - FORM
       - OTT
     token-control-mode: JWTS
+    external:
+      accessTokenValidity: 3600000
+      refreshTokenValidity: 604800000
+      enableRefreshToken: true
+      tokenPrefix: Bearer
+
 
   mail:
     host: smtp.gmail.com

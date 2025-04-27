@@ -1,22 +1,28 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
-import io.springsecurity.springsecurity6x.security.dsl.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.JwtException;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public abstract class JwtTokenService implements TokenService {
 
 
     private final RefreshTokenStore refreshTokenStore;
     private final AuthenticationConverter authenticationConverter;
+    private final AuthContextProperties properties;
 
-    public JwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter) {
+    public JwtTokenService(RefreshTokenStore refreshTokenStore, AuthenticationConverter authenticationConverter, ApplicationContext applicationContext) {
         this.refreshTokenStore = refreshTokenStore;
         this.authenticationConverter = authenticationConverter;
+        properties = applicationContext.getBean(AuthContextProperties.class);
     }
 
     @Override
@@ -38,7 +44,7 @@ public abstract class JwtTokenService implements TokenService {
             String newRefreshToken = createRefreshToken(builder -> builder
                     .username(username)
                     .roles(authenticationConverter.getRoles(refreshToken))
-                    .validity(JwtStateStrategy.REFRESH_TOKEN_VALIDITY)
+                    .validity(properties.getExternal().getRefreshTokenValidity())
             );
             refreshTokenStore.store(newRefreshToken, username);
             usedRefresh = newRefreshToken;
@@ -61,6 +67,10 @@ public abstract class JwtTokenService implements TokenService {
 
     public RefreshTokenStore refreshTokenStore() {
         return refreshTokenStore;
+    }
+
+    public AuthContextProperties properties() {
+        return properties;
     }
 
     public AuthenticationConverter authenticationConverter() {

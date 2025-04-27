@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.dsl.SecurityIntegrationConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
@@ -41,7 +41,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
 //                .authenticationManager(authenticationManager)
 
-                .with(SecurityIntegrationConfigurer.custom(), identity -> identity
+                .with(AuthIntegrationPlatformConfigurer.custom(), identity -> identity
                         .rest(rest -> rest
                                 .loginProcessingUrl("/api/auth/login")
                         )

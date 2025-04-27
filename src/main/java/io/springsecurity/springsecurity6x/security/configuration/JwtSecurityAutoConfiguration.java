@@ -14,6 +14,7 @@ import io.springsecurity.springsecurity6x.security.token.service.OAuth2TokenProv
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -40,12 +41,12 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "JWTS")
-    public TokenService externalTokenService() {
+    public TokenService externalTokenService(ApplicationContext applicationContext) {
         JwtParser parser = new JwtsParser(key);
         return new JwtsTokenProvider(
                 refreshTokenStore(parser),
                 new JwtAuthenticationConverter(parser),
-                key
+                key, applicationContext
         );
     }
 

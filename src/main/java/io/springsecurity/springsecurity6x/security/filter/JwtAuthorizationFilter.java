@@ -2,9 +2,9 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.utils.CookieUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,96 +13,66 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
-    private static final List<String> EXCLUDE_URLS = List.of(
-            "/api/auth/login",
-            "/api/register"
-    );
-
     private final TokenService tokenService;
-    private final TokenLogoutHandler logoutHandler;
+    private final TokenTransportHandler  transportHandler;
+    private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenService tokenService, TokenLogoutHandler logoutHandler) {
+    public JwtAuthorizationFilter(TokenService tokenService, TokenTransportHandler transportHandler, LogoutHandler logoutHandler) {
         this.tokenService = tokenService;
         this.logoutHandler = logoutHandler;
+        this.transportHandler = transportHandler;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest  request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = CookieUtil.getToken(request, TokenService.ACCESS_TOKEN);
-        String refreshToken = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
+        String accessToken = transportHandler.resolveAccessToken(request);
+        String refreshToken = transportHandler.resolveRefreshToken(request);
 
-        if (accessToken == null && refreshToken == null) {
-            chain.doFilter(request, response);
-            return;
-        }
-
-        // 1) 액세스 토큰 검사
         if (accessToken != null) {
             try {
                 if (tokenService.validateAccessToken(accessToken)) {
                     Authentication auth = tokenService.getAuthenticationFromToken(accessToken);
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                    chain.doFilter(request, response);
-                    return;
                 }
-            } catch (ExpiredJwtException expiredAt) {
-                System.out.println("ExpiredJwtException = " + expiredAt.getMessage());
-
-            } catch (JwtException | IllegalArgumentException e) {
-                // 모든 토큰 강제 만료, 인증정보 삭제, 토큰 저장 삭제
-                failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", e);
+            } catch (ExpiredJwtException e) {
+                // accessToken 만료: 무시하고 refreshToken 검사로 넘어감
+            } catch (Exception e) {
+                failAndLogout(request, response, SecurityContextHolder.getContext().getAuthentication(), "Invalid access token", e);
+                return;
             }
-        }else {
-            chain.doFilter(request, response);
-            return;
         }
 
-        if (refreshToken == null) {
-            chain.doFilter(request, response);
-            return;
+        if (SecurityContextHolder.getContext().getAuthentication() == null && refreshToken != null) {
+            try {
+                Map<String, String> tokens = tokenService.refreshTokens(refreshToken);
+                transportHandler.sendAccessToken(response, tokens.get(TokenService.ACCESS_TOKEN));
+                transportHandler.sendRefreshToken(response, tokens.get(TokenService.REFRESH_TOKEN));
+
+                Authentication auth = tokenService.getAuthenticationFromToken(tokens.get(TokenService.ACCESS_TOKEN));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+
+            } catch (Exception e) {
+                failAndLogout(request, response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", e);
+                return;
+            }
         }
 
-        // 2) 리프레시 토큰 유효성 검사
-        boolean isValid = tokenService.validateRefreshToken(refreshToken);
-        if (!isValid) {
-            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", null);
-        }
-
-        try {
-            // 2-2) 검증 통과하면 토큰 재발급
-            Map<String,String> tokens = tokenService.refreshTokens(refreshToken);
-
-            // 2-3) 쿠키 갱신
-            CookieUtil.addTokenCookie(request, response, TokenService.ACCESS_TOKEN, tokens.get(TokenService.ACCESS_TOKEN));
-            CookieUtil.addTokenCookie(request, response, TokenService.REFRESH_TOKEN, tokens.get(TokenService.REFRESH_TOKEN));
-
-            Authentication auth = tokenService.getAuthenticationFromToken(tokens.get(TokenService.ACCESS_TOKEN));
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            chain.doFilter(request, response);
-
-        } catch (ExpiredJwtException e) {
-            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Refresh token expired", e);
-
-        } catch (JwtException | IllegalArgumentException e) {
-            failAndLogout(request,response, SecurityContextHolder.getContext().getAuthentication(), "Invalid refresh token", e);
-        }
+        chain.doFilter(request, response);
     }
 
     private void failAndLogout(HttpServletRequest req, HttpServletResponse res, Authentication authentication, String msg, Exception e) {
         logoutHandler.logout(req,res, authentication);
         throw new BadCredentialsException(msg, e);
     }
-
 }
 

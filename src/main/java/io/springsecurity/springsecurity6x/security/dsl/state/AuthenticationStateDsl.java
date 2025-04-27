@@ -1,22 +1,27 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import org.springframework.context.ApplicationContext;
 
 public final class AuthenticationStateDsl {
+    private final ApplicationContext applicationContext;
     private JwtStateStrategy jwtStrategy;
     private SessionStateStrategy sessionStrategy;
     private boolean selected = false;
 
-    public JwtStateStrategy jwt(TokenService ts) {
+    public AuthenticationStateDsl(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
+
+    public JwtStateStrategy jwt() {
         assertNotSelected();
-        this.jwtStrategy = new JwtStateStrategy(ts);
+        this.jwtStrategy = new JwtStateStrategy(applicationContext);
         this.selected = true;
         return jwtStrategy;
     }
 
     public SessionStateStrategy session() {
         assertNotSelected();
-        this.sessionStrategy = new SessionStateStrategy();
+        this.sessionStrategy = new SessionStateStrategy(applicationContext);
         this.selected = true;
         return sessionStrategy;
     }

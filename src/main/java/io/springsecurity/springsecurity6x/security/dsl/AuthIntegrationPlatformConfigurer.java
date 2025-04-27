@@ -3,6 +3,9 @@ package io.springsecurity.springsecurity6x.security.dsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -11,46 +14,52 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class SecurityIntegrationConfigurer extends AbstractHttpConfigurer<SecurityIntegrationConfigurer, HttpSecurity> {
+public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<AuthIntegrationPlatformConfigurer, HttpSecurity> {
 
+    private final ApplicationContext applicationContext;
     private RestAuthenticationDsl restDsl;
     private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
     private AuthenticationStateStrategy stateStrategy;
 
-    private SecurityIntegrationConfigurer() {}
+    private AuthIntegrationPlatformConfigurer(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
 
-    public static SecurityIntegrationConfigurer custom() { return new SecurityIntegrationConfigurer(); }
+    public static AuthIntegrationPlatformConfigurer custom(ApplicationContext applicationContext) {
+        return new AuthIntegrationPlatformConfigurer(applicationContext);
+    }
 
-    public SecurityIntegrationConfigurer rest(Consumer<RestAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer rest(Consumer<RestAuthenticationDsl> consumer) {
         RestAuthenticationDsl dsl = new RestAuthenticationDsl();
         consumer.accept(dsl);
         this.restDsl = dsl;
         return this;
     }
 
-    public SecurityIntegrationConfigurer form(Consumer<FormAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer form(Consumer<FormAuthenticationDsl> consumer) {
         FormAuthenticationDsl dsl = new FormAuthenticationDsl();
         consumer.accept(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public SecurityIntegrationConfigurer ott(Consumer<OttAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer ott(Consumer<OttAuthenticationDsl> consumer) {
         OttAuthenticationDsl dsl = new OttAuthenticationDsl();
         consumer.accept(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public SecurityIntegrationConfigurer passkey(Consumer<PasskeyAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer passkey(Consumer<PasskeyAuthenticationDsl> consumer) {
         PasskeyAuthenticationDsl dsl = new PasskeyAuthenticationDsl();
         consumer.accept(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public SecurityIntegrationConfigurer state(Consumer<AuthenticationStateDsl> consumer) {
-        AuthenticationStateDsl dsl = new AuthenticationStateDsl();
+    public AuthIntegrationPlatformConfigurer state(Consumer<AuthenticationStateDsl> consumer) {
+
+        AuthenticationStateDsl dsl = new AuthenticationStateDsl(applicationContext);
         consumer.accept(dsl);
         this.stateStrategy = dsl.build();
         return this;

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -15,6 +16,12 @@ import java.io.IOException;
  * Session 기반 인증 상태 전략
  */
 public class SessionStateStrategy implements AuthenticationStateStrategy {
+
+    private final ApplicationContext applicationContext;
+
+    public SessionStateStrategy(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
 
     @Override
     public void init(HttpSecurity http) { /* 기본 Spring Security 세션 흐름 그대로 */ }

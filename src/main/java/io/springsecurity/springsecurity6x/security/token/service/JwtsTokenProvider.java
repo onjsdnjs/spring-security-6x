@@ -3,8 +3,10 @@ package io.springsecurity.springsecurity6x.security.token.service;
 import io.jsonwebtoken.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.JwtStateStrategy;
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import org.springframework.context.ApplicationContext;
 import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
@@ -20,8 +22,8 @@ public class JwtsTokenProvider extends JwtTokenService {
     private final SecretKey secretKey;
     private final long rotationThresholdMillis = Duration.ofHours(12).toMillis();
 
-    public JwtsTokenProvider(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey) {
-        super(store, converter);
+    public JwtsTokenProvider(RefreshTokenStore store, AuthenticationConverter converter, SecretKey secretKey, ApplicationContext applicationContext) {
+        super(store, converter, applicationContext);
         this.secretKey = secretKey;
     }
 
@@ -122,7 +124,7 @@ public class JwtsTokenProvider extends JwtTokenService {
         return createAccessToken(builder -> builder
                 .username(username)
                 .roles(roles)
-                .validity(JwtStateStrategy.ACCESS_TOKEN_VALIDITY)
+                .validity(properties().getExternal().getAccessTokenValidity())
         );
     }
 }

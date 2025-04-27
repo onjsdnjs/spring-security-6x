@@ -92,7 +92,3 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         stateStrategy.configure(http);
     }
 }
-
-
-
-

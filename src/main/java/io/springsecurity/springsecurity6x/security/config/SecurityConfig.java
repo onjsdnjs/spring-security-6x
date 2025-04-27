@@ -1,9 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.ApplicationContext;
@@ -25,7 +23,6 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final TokenService tokenService;
     private final OneTimeTokenGenerationSuccessHandler ottHandler;
     private final OneTimeTokenService oneTimeTokenService;
 

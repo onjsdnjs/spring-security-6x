@@ -14,7 +14,6 @@ import java.util.Map;
 
 public abstract class JwtTokenService implements TokenService {
 
-
     private final RefreshTokenStore refreshTokenStore;
     private final AuthenticationConverter authenticationConverter;
     private final AuthContextProperties properties;

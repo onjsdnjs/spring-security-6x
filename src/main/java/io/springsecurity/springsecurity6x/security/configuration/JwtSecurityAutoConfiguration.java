@@ -29,8 +29,8 @@ public class JwtSecurityAutoConfiguration {
     SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "OAUTH2")
-    public TokenService internalTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
+    @ConditionalOnProperty(name = "spring.auth.token-issuer", havingValue = "authorization_server")
+    public TokenService externalTokenService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
         return new OAuth2TokenProvider(
                 jwtEncoder,
                 jwtDecoder,
@@ -40,8 +40,8 @@ public class JwtSecurityAutoConfiguration {
 
 
     @Bean
-    @ConditionalOnProperty(name = "spring.auth.token-control-mode", havingValue = "JWTS")
-    public TokenService externalTokenService(ApplicationContext applicationContext) {
+    @ConditionalOnProperty(name = "spring.auth.token-issuer", havingValue = "internal")
+    public TokenService internalTokenService(ApplicationContext applicationContext) {
         JwtParser parser = new JwtsParser(key);
         return new JwtsTokenProvider(
                 refreshTokenStore(parser),

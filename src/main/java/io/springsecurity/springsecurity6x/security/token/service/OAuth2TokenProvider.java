@@ -14,7 +14,7 @@ public class OAuth2TokenProvider extends JwtTokenService {
     private final JwtDecoder jwtDecoder;
 
     public OAuth2TokenProvider(JwtEncoder encoder, JwtDecoder decoder, RefreshTokenStore store, AuthenticationConverter converter) {
-        super(store, converter);
+        super(store, converter, null);
         this.jwtEncoder = encoder;
         this.jwtDecoder = decoder;
     }

@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
+import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
@@ -60,7 +61,9 @@ public class SecurityConfig {
                                 .rpId("localhost")
                                 .allowedOrigins("http://localhost:8080")
                         )
-                        .state(AuthenticationStateDsl::jwt)
+                        .state(state -> state
+                                .jwt()
+                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER))
                 );
 
 

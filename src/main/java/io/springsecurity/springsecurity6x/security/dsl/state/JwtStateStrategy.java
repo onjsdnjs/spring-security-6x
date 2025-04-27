@@ -1,6 +1,9 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.dsl.authorizationserver.AuthorizationServerClient;
+import io.springsecurity.springsecurity6x.security.dsl.authorizationserver.SpringOAuth2AuthorizationServerClient;
+import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -23,7 +26,6 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,10 +34,15 @@ import java.util.Map;
 public class JwtStateStrategy implements AuthenticationStateStrategy {
     private TokenService tokenService;
     private TokenTransportHandler tokenTransportHandler = new HeaderTokenTransportHandler();
+    private TokenIssuer tokenIssuer = TokenIssuer.INTERNAL; // 기본 INTERNAL
+    private boolean tokenIssuerSet = false;
     private final AuthContextProperties properties;
+    private AuthorizationServerClient authServerClient; // AUTH_SERVER 연동 객체
 
-    public JwtStateStrategy(ApplicationContext applicationContext) {
-        properties = applicationContext.getBean(AuthContextProperties.class);
+    public JwtStateStrategy(ApplicationContext applicationContext){
+        this.tokenService = applicationContext.getBean(TokenService.class);
+        this.properties = applicationContext.getBean(AuthContextProperties.class);
+        this.authServerClient = new SpringOAuth2AuthorizationServerClient(properties);
     }
 
     public JwtStateStrategy tokenService(TokenService tokenService) {
@@ -43,8 +50,25 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         return this;
     }
 
+    public JwtStateStrategy authorizationServerClient(AuthorizationServerClient client) {
+        this.authServerClient = client;
+        return this;
+    }
+
     public JwtStateStrategy tokenTransportHandler(TokenTransportHandler tokenTransportHandler) {
+        if (tokenTransportHandler == null) {
+            throw new IllegalArgumentException("tokenTransportHandler cannot be null");
+        }
         this.tokenTransportHandler = tokenTransportHandler;
+        return this;
+    }
+
+    public JwtStateStrategy tokenIssuer(TokenIssuer issuer) {
+        if (issuer == null || tokenIssuerSet) {
+            throw new IllegalArgumentException("TokenIssuer cannot be null or can only be set once");
+        }
+        this.tokenIssuer = issuer;
+        this.tokenIssuerSet = true;
         return this;
     }
 
@@ -71,30 +95,39 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
+        if (tokenTransportHandler == null) {
+            throw new IllegalStateException("TokenTransportHandler must be configured before use.");
+        }
 
         return (request, response, authentication) -> {
+            String accessToken;
+            String refreshToken = null;
+            if (tokenIssuer == TokenIssuer.INTERNAL) {
+                accessToken = tokenService.createAccessToken(builder -> builder
+                        .username(authentication.getName())
+                        .roles(authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .toList())
+                        .validity(properties.getInternal().getAccessTokenTtl())
+                );
 
-            if (tokenTransportHandler == null) {
-                throw new IllegalStateException("TokenTransportHandler must be configured before use.");
-            }
-
-            String username = authentication.getName();
-            List<String> roles = authentication.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .toList();
-
-            String accessToken = tokenService.createAccessToken(builder -> builder
-                    .username(username)
-                    .roles(roles)
-                    .validity(properties.getInternal().getAccessTokenTtl())
-            );
-
-            String refreshToken = properties.getExternal().isEnableRefreshToken() ?
-                    tokenService.createRefreshToken(builder -> builder
-                            .username(username)
-                            .roles(roles)
+                if (properties.getExternal().isEnableRefreshToken()) {
+                    refreshToken = tokenService.createRefreshToken(builder -> builder
+                            .username(authentication.getName())
+                            .roles(authentication.getAuthorities().stream()
+                                    .map(GrantedAuthority::getAuthority)
+                                    .toList())
                             .validity(properties.getInternal().getRefreshTokenTtl())
-                    ) : null;
+                    );
+                }
+            } else if (tokenIssuer == TokenIssuer.AUTHORIZATION_SERVER) {
+                if (authServerClient == null) {
+                    throw new IllegalStateException("AuthorizationServerClient must be configured when using AUTHORIZATION_SERVER mode");
+                }
+                accessToken = authServerClient.issueAccessToken();
+            } else {
+                throw new IllegalStateException("Unknown TokenIssuer");
+            }
 
             tokenTransportHandler.sendAccessToken(response, accessToken);
             if (refreshToken != null) {
@@ -103,7 +136,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "JWT Authentication Successful"));
+            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful"));
         };
     }
 

@@ -5,8 +5,10 @@ import lombok.Data;
 @Data
 public class OAuth2TokenSettings {
 
-    private String clientId = "internal-client";
-    private String clientSecret = "{noop}secret";
+    private String clientId = "leaven73";
+    private String clientSecret = "1111";
+    private String issuerUri = "http://localhost:9000";
+    private String tokenEndpoint = "/oauth2/token";
 
     private long accessTokenTtl = 3600000;     // 1시간
     private long refreshTokenTtl = 604800000;  // 7일

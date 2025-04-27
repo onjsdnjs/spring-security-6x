@@ -1,9 +1,9 @@
 package io.springsecurity.springsecurity6x.security.properties;
 
-import io.springsecurity.springsecurity6x.security.enums.TokenControlMode;
+import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.enums.ContextMode;
+import io.springsecurity.springsecurity6x.security.enums.AuthStateMode;
 import lombok.Data;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.stereotype.Component;
@@ -19,12 +19,12 @@ public class AuthContextProperties {
     /**
      * 인증 상태 유지 방식 선택 (JWT, SESSION)
      */
-    private ContextMode contextMode = ContextMode.JWT;
+    private AuthStateMode authStateMode = AuthStateMode.JWT;
 
     /**
      * 토큰 발급/검증의 방식 설정
      */
-    private TokenControlMode tokenControlMode = TokenControlMode.JWTS;
+    private TokenIssuer tokenIssuer = TokenIssuer.INTERNAL;
 
     /**
      * 허용할 인증 방식 목록 (FORM, OTT, PASSKEY)

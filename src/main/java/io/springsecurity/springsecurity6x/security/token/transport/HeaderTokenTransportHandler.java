@@ -2,38 +2,44 @@ package io.springsecurity.springsecurity6x.security.token.transport;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
 
 public class HeaderTokenTransportHandler implements TokenTransportHandler {
 
+    private static final String ACCESS_TOKEN_HEADER  = "Authorization";
+    private static final String REFRESH_TOKEN_HEADER = "X-Refresh-Token";
+    private static final String BEARER_PREFIX        = "Bearer ";
+
     @Override
-    public String resolveAccessToken(HttpServletRequest request) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
+    public String extractAccessToken(HttpServletRequest request) {
+        String authHeader = request.getHeader(ACCESS_TOKEN_HEADER);
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length());
         }
         return null;
     }
 
     @Override
-    public String resolveRefreshToken(HttpServletRequest request) {
-        return request.getHeader("X-Refresh-Token");
+    public String extractRefreshToken(HttpServletRequest request) {
+        return request.getHeader(REFRESH_TOKEN_HEADER);
     }
 
     @Override
     public void sendAccessToken(HttpServletResponse response, String accessToken) {
-        response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        response.setHeader(ACCESS_TOKEN_HEADER, BEARER_PREFIX + accessToken);
     }
 
     @Override
     public void sendRefreshToken(HttpServletResponse response, String refreshToken) {
-        response.setHeader("X-Refresh-Token", refreshToken);
+        response.setHeader(REFRESH_TOKEN_HEADER, refreshToken);
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
-        response.setHeader(HttpHeaders.AUTHORIZATION, "");
-        response.setHeader("X-Refresh-Token", "");
+        response.setHeader(ACCESS_TOKEN_HEADER, "");
+        response.setHeader(REFRESH_TOKEN_HEADER, "");
     }
 }
+
+
+
 

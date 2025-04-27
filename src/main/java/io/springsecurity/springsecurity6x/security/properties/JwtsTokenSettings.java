@@ -11,6 +11,7 @@ public class JwtsTokenSettings {
 
     private long accessTokenValidity = 3600000;       // 1시간
     private long refreshTokenValidity = 604800000;    // 7일
+    private long refreshRotateThreshold = 43200000; // 기본 12시간 (밀리초)
 
     private boolean enableRefreshToken = true;
 

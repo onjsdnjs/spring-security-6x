@@ -1,10 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.parser;
 
 import java.time.Instant;
+import java.util.List;
 
-public interface ParsedJwt {
-    String getId();
-    String getSubject();
-    Instant getExpiration();
-    <T> T getClaim(String name, Class<T> type);
-}
+public record ParsedJwt(String id, String subject, Instant expiration, List<String> roles) {}

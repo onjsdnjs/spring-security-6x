@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.springsecurity.springsecurity6x.security.converter.AuthenticationConverter;
@@ -80,3 +81,4 @@ public class OAuth2TokenProvider extends JwtTokenService {
     }
 }
 
+*/

@@ -22,16 +22,6 @@ public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
         return this;
     }
 
-    public RestAuthenticationDsl defaultSuccessUrl(String url, boolean alwaysUse) {
-        this.defaultSuccessUrl = url;
-        return this;
-    }
-
-    public RestAuthenticationDsl failureUrl(String url) {
-        this.failureUrl = url;
-        return this;
-    }
-
     public RestAuthenticationDsl successHandler(AuthenticationSuccessHandler handler) {
         this.successHandler = handler;
         return this;

@@ -46,11 +46,11 @@ public final class RestLoginConfigurer <H extends HttpSecurityBuilder<H>> extend
             authFilter.setRememberMeServices(rememberMeServices);
         }
         SecurityContextConfigurer securityContextConfigurer = http.getConfigurer(SecurityContextConfigurer.class);
-        if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
+        /*if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
             SecurityContextRepository securityContextRepository = securityContextConfigurer
                     .getSecurityContextRepository();
             authFilter.setSecurityContextRepository(securityContextRepository);
-        }
+        }*/
         authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
         http.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
     }

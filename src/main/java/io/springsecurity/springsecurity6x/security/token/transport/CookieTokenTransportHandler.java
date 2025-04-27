@@ -1,56 +1,77 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.ResponseCookie;
 
 public class CookieTokenTransportHandler implements TokenTransportHandler {
 
+    private static final String ACCESS_TOKEN_COOKIE  = "accessToken";
+    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    private static final String COOKIE_PATH          = "/";
+    private static final boolean HTTP_ONLY           = true;
+    private static final boolean SECURE              = false; // 운영에서는 true
+    private static final String SAME_SITE            = "Strict";
+
     @Override
-    public String resolveAccessToken(HttpServletRequest request) {
-        return getCookieValue(request, TokenService.ACCESS_TOKEN);
+    public String extractAccessToken(HttpServletRequest request) {
+        return extractCookie(request, ACCESS_TOKEN_COOKIE);
     }
 
     @Override
-    public String resolveRefreshToken(HttpServletRequest request) {
-        return getCookieValue(request, TokenService.REFRESH_TOKEN);
+    public String extractRefreshToken(HttpServletRequest request) {
+        return extractCookie(request, REFRESH_TOKEN_COOKIE);
     }
 
-    @Override
-    public void sendAccessToken(HttpServletResponse response, String accessToken) {
-        addTokenCookie(response, TokenService.ACCESS_TOKEN, accessToken, 3600);
-    }
-
-    @Override
-    public void sendRefreshToken(HttpServletResponse response, String refreshToken) {
-        addTokenCookie(response, TokenService.REFRESH_TOKEN, refreshToken, 7 * 24 * 3600);
-    }
-
-    @Override
-    public void clearTokens(HttpServletResponse response) {
-        addTokenCookie(response, TokenService.ACCESS_TOKEN, "", 0);
-        addTokenCookie(response, TokenService.REFRESH_TOKEN, "", 0);
-    }
-
-    private String getCookieValue(HttpServletRequest request, String name) {
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if (name.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
+    private String extractCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) return null;
+        for (Cookie cookie : request.getCookies()) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
             }
         }
         return null;
     }
 
-    private void addTokenCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAge);
-        response.addCookie(cookie);
+    @Override
+    public void sendAccessToken(HttpServletResponse response, String accessToken) {
+        addCookie(response, ACCESS_TOKEN_COOKIE, accessToken, 3600); // 1시간
+    }
+
+    @Override
+    public void sendRefreshToken(HttpServletResponse response, String refreshToken) {
+        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, 604800); // 7일
+    }
+
+    @Override
+    public void clearTokens(HttpServletResponse response) {
+        removeCookie(response, ACCESS_TOKEN_COOKIE);
+        removeCookie(response, REFRESH_TOKEN_COOKIE);
+    }
+
+    private void addCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .path(COOKIE_PATH)
+                .httpOnly(HTTP_ONLY)
+                .secure(SECURE)
+                .sameSite(SAME_SITE)
+                .maxAge(maxAgeSeconds)
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
+
+    private void removeCookie(HttpServletResponse response, String name) {
+        ResponseCookie expired = ResponseCookie.from(name, "")
+                .path(COOKIE_PATH)
+                .httpOnly(HTTP_ONLY)
+                .secure(SECURE)
+                .sameSite(SAME_SITE)
+                .maxAge(0)
+                .build();
+        response.addHeader("Set-Cookie", expired.toString());
     }
 }
+
+
 

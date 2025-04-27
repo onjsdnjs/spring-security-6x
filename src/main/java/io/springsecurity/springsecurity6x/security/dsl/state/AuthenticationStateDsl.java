@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import org.springframework.context.ApplicationContext;
 
 public final class AuthenticationStateDsl {
@@ -7,21 +10,25 @@ public final class AuthenticationStateDsl {
     private JwtStateStrategy jwtStrategy;
     private SessionStateStrategy sessionStrategy;
     private boolean selected = false;
+    private AuthContextProperties properties;
 
     public AuthenticationStateDsl(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
+        properties = applicationContext.getBean(AuthContextProperties.class);
     }
 
     public JwtStateStrategy jwt() {
         assertNotSelected();
-        this.jwtStrategy = new JwtStateStrategy(applicationContext);
+        
+        TokenTransportHandler transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
+        this.jwtStrategy = new JwtStateStrategy(applicationContext, properties);
         this.selected = true;
         return jwtStrategy;
     }
 
     public SessionStateStrategy session() {
         assertNotSelected();
-        this.sessionStrategy = new SessionStateStrategy(applicationContext);
+        this.sessionStrategy = new SessionStateStrategy(properties);
         this.selected = true;
         return sessionStrategy;
     }

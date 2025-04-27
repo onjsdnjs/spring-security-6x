@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,10 +18,10 @@ import java.io.IOException;
  */
 public class SessionStateStrategy implements AuthenticationStateStrategy {
 
-    private final ApplicationContext applicationContext;
+    private final AuthContextProperties properties;
 
-    public SessionStateStrategy(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public SessionStateStrategy(AuthContextProperties properties) {
+        this.properties = properties;
     }
 
     @Override

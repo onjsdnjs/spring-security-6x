@@ -14,10 +14,10 @@ public class SpringOAuth2AuthorizationServerClient implements AuthorizationServe
     private final String clientSecret;
 
     public SpringOAuth2AuthorizationServerClient(AuthContextProperties properties) {
-        this.restClient = RestClient.builder().baseUrl(properties.getInternal().getIssuerUri()).build();
-        this.tokenEndpoint = properties.getInternal().getTokenEndpoint();
-        this.clientId = properties.getInternal().getClientId();
-        this.clientSecret = properties.getInternal().getClientSecret();
+        this.restClient = RestClient.builder().baseUrl(properties.getExternal().getIssuerUri()).build();
+        this.tokenEndpoint = properties.getExternal().getTokenEndpoint();
+        this.clientId = properties.getExternal().getClientId();
+        this.clientSecret = properties.getExternal().getClientSecret();
     }
 
     @Override

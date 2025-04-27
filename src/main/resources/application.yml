@@ -19,7 +19,7 @@ spring:
     enabled-auth-types:
       - FORM
       - OTT
-    external:
+    internal:
       accessTokenValidity: 3600000
       refreshTokenValidity: 604800000
       enableRefreshToken: true

@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.converter;
 
 import io.jsonwebtoken.Claims;
@@ -14,9 +15,11 @@ import java.security.Key;
 import java.util.List;
 import java.util.stream.Collectors;
 
+*/
 /**
  * JWT 문자열을 파싱하여 Spring Security Authentication 으로 변환하는 컴포넌트
- */
+ *//*
+
 public class JwtAuthenticationConverter implements AuthenticationConverter {
 
     private final JwtParser parser;
@@ -42,3 +45,4 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
         return jwt.getClaim("roles", List.class);
     }
 }
+*/

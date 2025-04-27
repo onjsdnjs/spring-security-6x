@@ -23,7 +23,7 @@ public class TokenLogoutHandler implements LogoutHandler {
         // 1) 리프레시 토큰 무효화
         String token = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
         if (token != null) {
-            tokenService.invalidateToken(token);
+//            tokenService.invalidateToken(token);
         }
 
         // 2) accessToken, refreshToken 쿠키 만료 처리

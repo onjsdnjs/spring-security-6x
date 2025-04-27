@@ -1,15 +1,13 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
-import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
@@ -29,17 +27,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, ApplicationContext applicationContext) throws Exception {
 
-        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
-
         http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-
                 .authorizeHttpRequests(authReq -> authReq
                         .requestMatchers("/api/register").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
-//                .authenticationManager(authenticationManager)
 
                 .with(AuthIntegrationPlatformConfigurer.custom(applicationContext), identity -> identity
                         .rest(rest -> rest
@@ -58,12 +51,10 @@ public class SecurityConfig {
                                 .rpId("localhost")
                                 .allowedOrigins("http://localhost:8080")
                         )
-                        .state(state -> state
-                                .jwt()
-                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER))
+                        .state(AuthenticationStateDsl::jwt
+//                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER)
+                        )
                 );
-
-
         return http.build();
     }
 

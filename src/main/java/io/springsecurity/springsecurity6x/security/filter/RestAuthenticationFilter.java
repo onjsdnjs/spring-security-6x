@@ -19,18 +19,8 @@ import java.util.Map;
 
 public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
-    public static final String SPRING_SECURITY_FORM_USERNAME_KEY = "username";
-
-    public static final String SPRING_SECURITY_FORM_PASSWORD_KEY = "password";
-
     private static final AntPathRequestMatcher DEFAULT_ANT_PATH_REQUEST_MATCHER =
             new AntPathRequestMatcher("/api/auth/login", "POST");
-
-    private String usernameParameter = SPRING_SECURITY_FORM_USERNAME_KEY;
-
-    private String passwordParameter = SPRING_SECURITY_FORM_PASSWORD_KEY;
-
-    private boolean postOnly = true;
 
     public RestAuthenticationFilter() {
         super(DEFAULT_ANT_PATH_REQUEST_MATCHER);

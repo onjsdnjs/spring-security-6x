@@ -1,18 +1,16 @@
 package io.springsecurity.springsecurity6x.security.properties;
 
-import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.AuthStateMode;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
-import org.springframework.stereotype.Component;
 
 import java.util.EnumSet;
 import java.util.Set;
 
 @Data
-@Component
 @ConfigurationProperties(prefix = "spring.auth")
 public class AuthContextProperties {
 

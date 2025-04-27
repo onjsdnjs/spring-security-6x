@@ -16,17 +16,16 @@ spring:
       enabled: true
       path: /h2-console
   auth:
-    context-mode: JWT
     enabled-auth-types:
       - FORM
       - OTT
-    token-control-mode: JWTS
     external:
       accessTokenValidity: 3600000
       refreshTokenValidity: 604800000
       enableRefreshToken: true
       tokenPrefix: Bearer
-
+    token-issuer: internal
+    auth-state-mode: jwt
 
   mail:
     host: smtp.gmail.com

@@ -32,18 +32,21 @@ import java.util.Map;
  * JWT 기반 인증 상태 전략
  */
 public class JwtStateStrategy implements AuthenticationStateStrategy {
-    private final ApplicationContext applicationContext;
     private TokenService tokenService;
-    private final TokenTransportHandler tokenTransportHandler = new HeaderTokenTransportHandler();
+    private TokenTransportHandler tokenTransportHandler = new HeaderTokenTransportHandler();
     private final AuthContextProperties properties;
 
     public JwtStateStrategy(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
-        properties = this.applicationContext.getBean(AuthContextProperties.class);
+        properties = applicationContext.getBean(AuthContextProperties.class);
     }
 
     public JwtStateStrategy tokenService(TokenService tokenService) {
         this.tokenService = tokenService;
+        return this;
+    }
+
+    public JwtStateStrategy tokenTransportHandler(TokenTransportHandler tokenTransportHandler) {
+        this.tokenTransportHandler = tokenTransportHandler;
         return this;
     }
 
@@ -73,6 +76,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     public AuthenticationSuccessHandler successHandler() {
 
         return (request, response, authentication) -> {
+
             if (tokenTransportHandler == null) {
                 throw new IllegalStateException("TokenTransportHandler must be configured before use.");
             }
@@ -105,6 +109,8 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
             new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "JWT Authentication Successful"));
         };
     }
+
+
 
     @Override
     public AuthenticationFailureHandler failureHandler() {

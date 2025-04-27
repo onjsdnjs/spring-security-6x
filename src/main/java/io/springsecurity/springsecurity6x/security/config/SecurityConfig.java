@@ -1,9 +1,11 @@
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,7 +29,7 @@ public class SecurityConfig {
     private final OneTimeTokenService oneTimeTokenService;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, ApplicationContext applicationContext) throws Exception {
 
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
         AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
@@ -41,7 +43,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll())
 //                .authenticationManager(authenticationManager)
 
-                .with(AuthIntegrationPlatformConfigurer.custom(), identity -> identity
+                .with(AuthIntegrationPlatformConfigurer.custom(applicationContext), identity -> identity
                         .rest(rest -> rest
                                 .loginProcessingUrl("/api/auth/login")
                         )
@@ -58,13 +60,7 @@ public class SecurityConfig {
                                 .rpId("localhost")
                                 .allowedOrigins("http://localhost:8080")
                         )
-                        .state(state -> state
-                                .jwt(tokenService)
-                                .tokenPrefix("Bearer-MyApp ")
-                                .accessTokenValidity(2 * 3600_000)    // 2시간
-                                .refreshTokenValidity(14 * 24 * 3600_000) // 2주
-                                .enableRefreshToken(true)
-                        )
+                        .state(AuthenticationStateDsl::jwt)
                 );
 
 

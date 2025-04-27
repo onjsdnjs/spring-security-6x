@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication;
 
 import io.springsecurity.springsecurity6x.security.dsl.RestLoginConfigurer;
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -14,7 +13,6 @@ public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
     private String failureUrl = "/login?error";
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
-    private AuthenticationStateStrategy stateStrategy;
     private SecurityContextRepository securityContextRepository;
 
     public RestAuthenticationDsl loginProcessingUrl(String url) {
@@ -34,7 +32,7 @@ public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
 
     @Override
     public void init(HttpSecurity http) {
-        this.stateStrategy = http.getSharedObject(AuthenticationStateStrategy.class);
+        super.init(http);
     }
 
     @Override
@@ -45,18 +43,18 @@ public final class RestAuthenticationDsl extends AbstractAuthenticationDsl {
                 .defaultSuccessUrl(defaultSuccessUrl)
                 .failureUrl(failureUrl);
 
-
             if (successHandler != null) {
                 rest.successHandler(successHandler);
             } else {
-                rest.successHandler(stateStrategy.successHandler());
+                rest.successHandler(authenticationHandlers.successHandler());
             }
 
             if (failureHandler != null) {
                 rest.failureHandler(failureHandler);
             } else {
-                rest.failureHandler(stateStrategy.failureHandler());
+                rest.failureHandler(authenticationHandlers.failureHandler());
             }
+
             if (securityContextRepository != null) {
                 rest.securityContextRepository(securityContextRepository);
             }

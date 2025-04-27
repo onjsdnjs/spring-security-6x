@@ -13,11 +13,17 @@ import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTo
 import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import javax.crypto.SecretKey;
 
@@ -43,10 +49,10 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     public void init(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(handlers.entryPoint())
-                        .accessDeniedHandler(handlers.accessDeniedHandler()))
+                        .authenticationEntryPoint(entryPoint())
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .logout(l -> l.addLogoutHandler(logoutHandler()));
         http.setSharedObject(AuthenticationHandlers.class, handlers);
     }
@@ -60,7 +66,21 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override public AuthenticationSuccessHandler successHandler() { return handlers.successHandler(); }
     @Override public AuthenticationFailureHandler failureHandler() { return handlers.failureHandler(); }
-    @Override public LogoutHandler logoutHandler()     { return new TokenLogoutHandler(validator); }
+
+    @Override
+    public AuthenticationEntryPoint entryPoint() {
+        return new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Override
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, exception) ->
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
+    }
+
+    @Override public LogoutHandler logoutHandler(){
+        return new TokenLogoutHandler(validator);
+    }
 }
 
 

@@ -80,13 +80,12 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
             if (successHandler != null) {
                 form.successHandler(successHandler);
             } else {
-                form.successHandler(stateStrategy.successHandler());
+                form.successHandler(authenticationHandlers.successHandler());
             }
-
             if (failureHandler != null) {
                 form.failureHandler(failureHandler);
             } else {
-                form.failureHandler(stateStrategy.failureHandler());
+                form.failureHandler(authenticationHandlers.failureHandler());
             }
 
             if (securityContextRepository != null) {

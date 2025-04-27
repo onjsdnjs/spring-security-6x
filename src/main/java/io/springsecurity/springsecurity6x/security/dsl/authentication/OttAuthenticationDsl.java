@@ -33,7 +33,7 @@ public final class OttAuthenticationDsl extends AbstractAuthenticationDsl {
             if (tokenGenerationSuccessHandler != null) {
                 ott.tokenGenerationSuccessHandler(tokenGenerationSuccessHandler);
             } else {
-                ott.authenticationSuccessHandler(stateStrategy.successHandler());
+                ott.authenticationSuccessHandler(authenticationHandlers.successHandler());
             }
 
         });

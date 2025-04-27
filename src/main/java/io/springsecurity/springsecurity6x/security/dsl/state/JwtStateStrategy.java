@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
+import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.JwtAuthenticationHandlers;
@@ -10,21 +11,16 @@ import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
+import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+
 import javax.crypto.SecretKey;
 
 public class JwtStateStrategy implements AuthenticationStateStrategy {
@@ -51,8 +47,9 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(entryPoint())
-                        .accessDeniedHandler(accessDeniedHandler()))
+                        .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
+                        .accessDeniedHandler((request, response, exception) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
                 .logout(l -> l.addLogoutHandler(logoutHandler()));
         http.setSharedObject(AuthenticationHandlers.class, handlers);
     }
@@ -64,21 +61,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
                 ExceptionTranslationFilter.class);
     }
 
-    @Override public AuthenticationSuccessHandler successHandler() { return handlers.successHandler(); }
-    @Override public AuthenticationFailureHandler failureHandler() { return handlers.failureHandler(); }
-
-    @Override
-    public AuthenticationEntryPoint entryPoint() {
-        return new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
-    }
-
-    @Override
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, exception) ->
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
-    }
-
-    @Override public LogoutHandler logoutHandler(){
+    public LogoutHandler logoutHandler(){
         return new TokenLogoutHandler(validator);
     }
 }

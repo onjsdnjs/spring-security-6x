@@ -1,5 +1,5 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication;
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
+
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

@@ -10,7 +10,7 @@ public interface TokenValidator {
 
     void invalidateRefreshToken(String refreshToken);
 
-    boolean shouldRotateRefreshToken(String refreshToken);
-
     Authentication getAuthentication(String token);
+
+    default boolean shouldRotateRefreshToken(String refreshToken){return false;};
 }

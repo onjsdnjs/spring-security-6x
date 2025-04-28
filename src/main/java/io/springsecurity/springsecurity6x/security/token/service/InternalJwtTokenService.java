@@ -43,6 +43,11 @@ public class InternalJwtTokenService implements TokenService {
     }
 
     @Override
+    public void invalidateRefreshToken(String token) {
+        tokenValidator.invalidateRefreshToken(token);
+    }
+
+    @Override
     public RefreshResult refresh(String refreshToken) {
 
         if (!validateRefreshToken(refreshToken)) throw new TokenValidationException("Invalid refresh token");

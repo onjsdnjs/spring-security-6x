@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
@@ -11,14 +11,13 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<AuthIntegrationPlatformConfigurer, HttpSecurity> {
 
     private final ApplicationContext applicationContext;
     private RestAuthenticationDsl restDsl;
     private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
-    private AuthenticationStateConfigurer stateStrategy;
+    private AuthenticationStateConfigurer stateConfigurer;
 
     private AuthIntegrationPlatformConfigurer(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -28,50 +27,53 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         return new AuthIntegrationPlatformConfigurer(applicationContext);
     }
 
-    public AuthIntegrationPlatformConfigurer rest(Consumer<RestAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer rest(Customizer<RestAuthenticationDsl> customizer) {
         RestAuthenticationDsl dsl = new RestAuthenticationDsl();
-        consumer.accept(dsl);
+        customizer.customize(dsl);
         authDslList.add(dsl);
         this.restDsl = dsl;
         return this;
     }
 
-    public AuthIntegrationPlatformConfigurer form(Consumer<FormAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer form(Customizer<FormAuthenticationDsl> customizer) {
         FormAuthenticationDsl dsl = new FormAuthenticationDsl();
-        consumer.accept(dsl);
+        customizer.customize(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public AuthIntegrationPlatformConfigurer ott(Consumer<OttAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer ott(Customizer<OttAuthenticationDsl> customizer) {
         OttAuthenticationDsl dsl = new OttAuthenticationDsl();
-        consumer.accept(dsl);
+        customizer.customize(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public AuthIntegrationPlatformConfigurer passkey(Consumer<PasskeyAuthenticationDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer passkey(Customizer<PasskeyAuthenticationDsl> customizer) {
         PasskeyAuthenticationDsl dsl = new PasskeyAuthenticationDsl();
-        consumer.accept(dsl);
+        customizer.customize(dsl);
         authDslList.add(dsl);
         return this;
     }
 
-    public AuthIntegrationPlatformConfigurer state(Consumer<AuthenticationStateDsl> consumer) {
+    public AuthIntegrationPlatformConfigurer state(Customizer<AuthenticationStateDsl> customizer) {
 
         AuthenticationStateDsl dsl = new AuthenticationStateDsl(applicationContext);
-        consumer.accept(dsl);
-        this.stateStrategy = dsl.build();
+        customizer.customize(dsl);
+        this.stateConfigurer = dsl.build();
         return this;
     }
 
     @Override
     public void init(HttpSecurity http) throws Exception {
 
-        if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
+        if (stateConfigurer == null) throw new IllegalStateException("state() DSL 호출 필수");
 
-        http.setSharedObject(AuthenticationStateConfigurer.class, stateStrategy);
-        http.setSharedObject(AuthenticationHandlers.class, stateStrategy.authHandlers());
+        stateConfigurer.init(http);
+        stateConfigurer.configure(http);
+
+        http.setSharedObject(AuthenticationStateConfigurer.class, stateConfigurer);
+        http.setSharedObject(AuthenticationHandlers.class, stateConfigurer.authHandlers());
 
         if (restDsl != null) {
             http.with(new RestAuthenticationConfigurer(), Customizer.withDefaults());
@@ -81,14 +83,5 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
             dsl.init(http);
             dsl.configure(http);
         }
-    }
-
-    @Override
-    public void configure(HttpSecurity http) throws Exception {
-//        for (AbstractAuthenticationDsl dsl : authDslList) {
-//            dsl.configure(http);
-//        }
-        stateStrategy.init(http);
-        stateStrategy.configure(http);
     }
 }

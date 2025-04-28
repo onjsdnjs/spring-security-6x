@@ -12,6 +12,7 @@ import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenStrategy;
@@ -29,25 +30,15 @@ import javax.crypto.SecretKey;
 
 public class JwtStateConfigurer implements AuthenticationStateConfigurer {
 
-    private final TokenValidator validator;
-    private final AuthenticationHandlers handlers;
-    private final TokenTransportStrategy transport;
-    private final TokenCreator creator;
-    private final RefreshTokenStore store;
+    private final SecretKey key;
     private final AuthContextProperties props;
-    private final InternalJwtTokenService tokenService;
-    private final JwtParser parser;
+    private TokenService tokenService;
+    private AuthenticationHandlers handlers;
 
     public JwtStateConfigurer(SecretKey key, AuthContextProperties props) {
-
+        this.key = key;
         this.props = props;
-        this.parser = new InternalJwtParser(key);
-        this.creator = new InternalJwtCreator(key);
-        this.transport = new HeaderTokenStrategy(); // 기본 Header
-        this.store = new InMemoryRefreshTokenStore(parser);
-        this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        this.tokenService = new InternalJwtTokenService(validator, creator, store, props);
-        this.handlers  = new JwtAuthenticationHandlers(tokenService, transport, props);
+
     }
 
     public AuthenticationHandlers authHandlers() {
@@ -64,17 +55,25 @@ public class JwtStateConfigurer implements AuthenticationStateConfigurer {
                         .accessDeniedHandler((request, response, exception) ->
                                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
                 .logout(l -> l.addLogoutHandler(logoutHandler()));
-        http.setSharedObject(AuthenticationHandlers.class, handlers);
     }
 
     @Override
     public void configure(HttpSecurity http) {
+
+        JwtParser parser = new InternalJwtParser(key);
+        TokenCreator creator = new InternalJwtCreator(key);
+        RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
+        TokenValidator validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
+        TokenTransportStrategy transport = new HeaderTokenStrategy();
+        tokenService = new InternalJwtTokenService(validator, creator, store, props);
+        handlers  = new JwtAuthenticationHandlers(tokenService, transport, props);
+
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transport, logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
     }
 
     public LogoutHandler logoutHandler(){
-        return new TokenLogoutHandler(validator);
+        return new TokenLogoutHandler(tokenService);
     }
 }
 

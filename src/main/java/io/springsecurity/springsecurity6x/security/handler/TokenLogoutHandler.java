@@ -12,10 +12,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 public class TokenLogoutHandler implements LogoutHandler {
-    private final TokenValidator tokenValidator;
+    private final TokenService tokenService;
 
-    public TokenLogoutHandler(TokenValidator tokenValidator) {
-        this.tokenValidator = tokenValidator;
+    public TokenLogoutHandler(TokenService tokenService) {
+        this.tokenService = tokenService;
     }
 
     @Override
@@ -24,7 +24,7 @@ public class TokenLogoutHandler implements LogoutHandler {
         // 1) 리프레시 토큰 무효화
         String token = CookieUtil.getToken(request, TokenService.REFRESH_TOKEN);
         if (token != null) {
-            tokenValidator.invalidateRefreshToken(token);
+            tokenService.invalidateRefreshToken(token);
         }
 
         // 2) accessToken, refreshToken 쿠키 만료 처리

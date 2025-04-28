@@ -6,8 +6,8 @@ import org.springframework.context.ApplicationContext;
 import javax.crypto.SecretKey;
 
 public final class AuthenticationStateDsl {
-    private JwtStateConfigurer jwtStrategy;
-    private SessionStateConfigurer sessionStrategy;
+    private JwtStateConfigurer jwtStateConfigurer;
+    private SessionStateConfigurer sessionStateConfigurer;
     private boolean selected = false;
     private final AuthContextProperties properties;
     private final SecretKey secretKey;
@@ -20,24 +20,24 @@ public final class AuthenticationStateDsl {
     public JwtStateConfigurer jwt() {
         assertNotSelected();
 
-        this.jwtStrategy = new JwtStateConfigurer(secretKey, properties);
+        this.jwtStateConfigurer = new JwtStateConfigurer(secretKey, properties);
         this.selected = true;
-        return jwtStrategy;
+        return jwtStateConfigurer;
     }
 
     public SessionStateConfigurer session() {
         assertNotSelected();
-        this.sessionStrategy = new SessionStateConfigurer(properties);
+        this.sessionStateConfigurer = new SessionStateConfigurer(properties);
         this.selected = true;
-        return sessionStrategy;
+        return sessionStateConfigurer;
     }
 
     public AuthenticationStateConfigurer build() {
-        if (jwtStrategy != null) {
-            return jwtStrategy;
+        if (jwtStateConfigurer != null) {
+            return jwtStateConfigurer;
 
-        } else if (sessionStrategy != null) {
-            return sessionStrategy;
+        } else if (sessionStateConfigurer != null) {
+            return sessionStateConfigurer;
 
         } else {
             throw new IllegalStateException("jwt() 또는 session() 중 하나는 반드시 설정해야 합니다.");

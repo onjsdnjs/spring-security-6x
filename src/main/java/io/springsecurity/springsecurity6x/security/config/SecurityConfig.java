@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformCo
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,8 +18,10 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final AuthIntegrationPlatformConfigurer platformConfigurer;
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, ApplicationContext applicationContext) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
@@ -29,21 +30,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
 
-                .with(AuthIntegrationPlatformConfigurer.custom(applicationContext), identity -> identity
-                        .rest(rest -> rest
-                                .loginProcessingUrl("/api/auth/login")
-                        )
-                        .form(form -> form
-                                .loginPage("/login")
-                        )
-                        .ott(ott -> ott
-                                .loginProcessingUrl("/login/ott")
-                        )
-                        .passkey(passkey -> passkey
-                                .rpName("SecureApp")
-                                .rpId("localhost")
-                                .allowedOrigins("http://localhost:8080")
-                        )
+                .with(platformConfigurer, platformConfigurer -> platformConfigurer
+                        .rest(rest -> rest.loginProcessingUrl("/api/auth/login"))
+                        .form(form -> form.loginPage("/login"))
+                        .ott(ott -> ott.loginProcessingUrl("/login/ott"))
+                        .passkey(passkey -> passkey.rpName("SecureApp").rpId("localhost").allowedOrigins("http://localhost:8080"))
                         .state(AuthenticationStateDsl::jwt
 //                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER)
                         )

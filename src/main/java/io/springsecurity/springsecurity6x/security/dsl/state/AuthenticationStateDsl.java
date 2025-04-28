@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import org.springframework.context.ApplicationContext;
 
 import javax.crypto.SecretKey;
 
@@ -12,9 +11,9 @@ public final class AuthenticationStateDsl {
     private final AuthContextProperties properties;
     private final SecretKey secretKey;
 
-    public AuthenticationStateDsl(ApplicationContext applicationContext) {
-        properties = applicationContext.getBean(AuthContextProperties.class);
-        secretKey = applicationContext.getBean(SecretKey.class);
+    public AuthenticationStateDsl(AuthContextProperties props, SecretKey key) {
+        this.secretKey = key;
+        this.properties = props;
     }
 
     public JwtStateConfigurer jwt() {

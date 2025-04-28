@@ -4,28 +4,32 @@ import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
-import org.springframework.context.ApplicationContext;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
+import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<AuthIntegrationPlatformConfigurer, HttpSecurity> {
 
-    private final ApplicationContext applicationContext;
     private RestAuthenticationDsl restDsl;
-    private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
     private AuthenticationStateConfigurer stateConfigurer;
+    private final AuthenticationStateDsl stateDsl;
+    private List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
 
-    private AuthIntegrationPlatformConfigurer(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
+        this.stateDsl = stateDsl;
+        this.authDslList = new ArrayList<>();
     }
 
-    public static AuthIntegrationPlatformConfigurer custom(ApplicationContext applicationContext) {
-        return new AuthIntegrationPlatformConfigurer(applicationContext);
-    }
+    /*public static AuthIntegrationPlatformConfigurer build(AuthContextProperties props, SecretKey key) {
+        AuthenticationStateDsl stateDsl = new AuthenticationStateDsl(props, key);
+        return new AuthIntegrationPlatformConfigurer(stateDsl);
+    }*/
 
     public AuthIntegrationPlatformConfigurer rest(Customizer<RestAuthenticationDsl> customizer) {
         RestAuthenticationDsl dsl = new RestAuthenticationDsl();
@@ -56,11 +60,8 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         return this;
     }
 
-    public AuthIntegrationPlatformConfigurer state(Customizer<AuthenticationStateDsl> customizer) {
-
-        AuthenticationStateDsl dsl = new AuthenticationStateDsl(applicationContext);
-        customizer.customize(dsl);
-        this.stateConfigurer = dsl.build();
+    public AuthIntegrationPlatformConfigurer state(Function<AuthenticationStateDsl, AuthenticationStateConfigurer> fn) {
+        this.stateConfigurer = fn.apply(stateDsl);
         return this;
     }
 

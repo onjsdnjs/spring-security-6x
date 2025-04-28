@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.properties;
 import io.springsecurity.springsecurity6x.security.enums.AuthStateMode;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
+import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
@@ -18,6 +19,11 @@ public class AuthContextProperties {
      * 인증 상태 유지 방식 선택 (JWT, SESSION)
      */
     private AuthStateMode authStateMode = AuthStateMode.JWT;
+
+    /**
+     * 인증 상태 유지 방식 선택 (JWT, SESSION)
+     */
+    private TokenTransportType tokenTransportType = TokenTransportType.HEADER;
 
     /**
      * 토큰 발급/검증의 방식 설정

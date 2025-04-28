@@ -36,6 +36,7 @@ spring:
 
     token-issuer: authorization_server
     auth-state-mode: jwt
+    token-transport-type: header
 
   mail:
     host: smtp.gmail.com

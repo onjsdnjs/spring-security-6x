@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.jwt;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
+import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
@@ -18,6 +19,7 @@ import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTo
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,12 +35,16 @@ public class JwtStateConfigurer implements AuthenticationStateConfigurer {
 
     private final SecretKey key;
     private final AuthContextProperties props;
+    private final TokenTransportStrategy transport;
     private TokenService tokenService;
     private AuthenticationHandlers handlers;
 
     public JwtStateConfigurer(SecretKey key, AuthContextProperties props) {
         this.key = key;
         this.props = props;
+
+        TokenTransportType transportType = props.getTokenTransportType();
+        this.transport = TokenTransportStrategyFactory.create(transportType);
     }
 
     public AuthenticationHandlers authHandlers() {
@@ -64,7 +70,6 @@ public class JwtStateConfigurer implements AuthenticationStateConfigurer {
         TokenCreator creator = new InternalJwtCreator(key);
         RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
         TokenValidator validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        TokenTransportStrategy transport = new HeaderTokenStrategy();
         tokenService = new InternalJwtTokenService(validator, creator, store, props);
         handlers  = new JwtAuthenticationHandlers(tokenService, transport, props);
 

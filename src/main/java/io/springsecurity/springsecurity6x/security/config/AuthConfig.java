@@ -15,8 +15,8 @@ import javax.crypto.SecretKey;
 public class AuthConfig {
 
     @Bean
-    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
-        return new AuthIntegrationPlatformConfigurer(stateDsl);
+    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl,AuthContextProperties props) {
+        return new AuthIntegrationPlatformConfigurer(stateDsl, props);
     }
 
     @Bean

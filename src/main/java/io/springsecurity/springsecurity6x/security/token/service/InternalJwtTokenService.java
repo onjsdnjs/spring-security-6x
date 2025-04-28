@@ -71,9 +71,7 @@ public class InternalJwtTokenService implements TokenService {
         TokenRequest tokenRequest = TokenRequest.builder()
                 .tokenType("access")
                 .username(authentication.getName())
-                .roles(authentication.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .toList())
+                .roles(getRoles(authentication))
                 .validity(properties.getInternal().getAccessTokenValidity())
                 .build();
 
@@ -87,9 +85,7 @@ public class InternalJwtTokenService implements TokenService {
         TokenRequest tokenRequest = TokenRequest.builder()
                 .tokenType("refresh")
                 .username(authentication.getName())
-                .roles(authentication.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .toList())
+                .roles(getRoles(authentication))
                 .validity(properties.getInternal().getRefreshTokenValidity())
                 .build();
 

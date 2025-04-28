@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.config;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.oauth2client.OAuth2ClientDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.modelmapper.ModelMapper;
@@ -15,8 +16,11 @@ import javax.crypto.SecretKey;
 public class AuthConfig {
 
     @Bean
-    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl,AuthContextProperties props) {
-        return new AuthIntegrationPlatformConfigurer(stateDsl, props);
+    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(
+            AuthenticationStateDsl stateDsl,
+            AuthContextProperties props,
+            OAuth2ClientDsl oauth2ClientDsl) {
+        return new AuthIntegrationPlatformConfigurer(stateDsl, oauth2ClientDsl);
     }
 
     @Bean
@@ -34,4 +38,14 @@ public class AuthConfig {
         return new ModelMapper();
     }
 
+    @Bean
+    public OAuth2ClientDsl oauth2ClientDsl(AuthContextProperties props) {
+        return new OAuth2ClientDsl()
+                .tokenUri(props.getExternal().getIssuerUri() + props.getExternal().getTokenEndpoint())
+                .clientId(props.getExternal().getClientId())
+                .clientSecret(props.getExternal().getClientSecret())
+                .scope(props.getExternal().getScope())
+                .build();
+    }
 }
+

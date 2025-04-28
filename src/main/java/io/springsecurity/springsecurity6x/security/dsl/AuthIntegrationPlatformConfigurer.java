@@ -5,7 +5,6 @@ import io.springsecurity.springsecurity6x.security.dsl.oauth2client.OAuth2Client
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,19 +19,13 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     private AuthenticationStateConfigurer stateConfigurer;
     private final AuthenticationStateDsl stateDsl;
     private final List<AbstractAuthenticationDsl> authDslList;
-    private final AuthContextProperties properties;
-    private OAuth2ClientDsl oauth2ClientDsl;
+    private final OAuth2ClientDsl oauth2ClientDsl;
 
-    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl, AuthContextProperties properties) {
+    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl, OAuth2ClientDsl oauth2ClientDsl) {
         this.stateDsl = stateDsl;
-        this.properties = properties;
+        this.oauth2ClientDsl = oauth2ClientDsl;
         this.authDslList = new ArrayList<>();
     }
-
-    /*public static AuthIntegrationPlatformConfigurer build(AuthContextProperties props, SecretKey key) {
-        AuthenticationStateDsl stateDsl = new AuthenticationStateDsl(props, key);
-        return new AuthIntegrationPlatformConfigurer(stateDsl);
-    }*/
 
     public AuthIntegrationPlatformConfigurer rest(Customizer<RestAuthenticationDsl> customizer) {
         RestAuthenticationDsl dsl = new RestAuthenticationDsl();
@@ -69,18 +62,17 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     }
 
     public AuthIntegrationPlatformConfigurer oauth2Client(Customizer<OAuth2ClientDsl> customizer) {
-        OAuth2ClientDsl dsl = new OAuth2ClientDsl(properties);
-        customizer.customize(dsl);
-        this.oauth2ClientDsl = dsl.build();
+        customizer.customize(oauth2ClientDsl);
         return this;
     }
 
     public OAuth2ClientDsl oauth2ClientDsl() {
         if (oauth2ClientDsl == null) {
-            throw new IllegalStateException("oauth2Client() DSL 호출 필수입니다.");
+            throw new IllegalStateException("OAuth2ClientDsl이 주입되지 않았습니다.");
         }
         return oauth2ClientDsl;
     }
+
 
     @Override
     public void init(HttpSecurity http) throws Exception {

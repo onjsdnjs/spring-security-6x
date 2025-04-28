@@ -26,8 +26,8 @@ spring:
       tokenPrefix: Bearer
 
     external:
-      client-id: default-client
-      client-secret: default-secret
+      client-id: client-app
+      client-secret: secret
       issuer-uri: http://localhost:9000
       token-endpoint: /oauth2/token
       scope: read

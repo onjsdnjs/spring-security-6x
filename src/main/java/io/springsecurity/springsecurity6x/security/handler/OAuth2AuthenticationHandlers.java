@@ -17,11 +17,11 @@ import java.util.Map;
 public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
 
     private final OAuth2ResourceClient resourceClient;
-    private final TokenTransportStrategy transportHandler;
+    private final TokenTransportStrategy transport;
 
-    public OAuth2AuthenticationHandlers(OAuth2ResourceClient resourceClient, TokenTransportStrategy transportHandler) {
+    public OAuth2AuthenticationHandlers(OAuth2ResourceClient resourceClient, TokenTransportStrategy transport) {
         this.resourceClient = resourceClient;
-        this.transportHandler = transportHandler;
+        this.transport = transport;
     }
 
     @Override
@@ -31,7 +31,7 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
             String accessToken = resourceClient.issueAccessToken(authentication.getName());
 
             // AccessToken을 Header 또는 Cookie 방식으로 전송
-            transportHandler.writeAccessToken(response, accessToken);
+            transport.writeAccessToken(response, accessToken);
 
             // JSON 성공 응답
             response.setStatus(HttpServletResponse.SC_OK);

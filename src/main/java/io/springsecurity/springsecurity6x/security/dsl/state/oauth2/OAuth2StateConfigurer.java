@@ -6,14 +6,16 @@ import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ResourceClient;
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2TokenProvider;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
-import io.springsecurity.springsecurity6x.security.filter.OAuth2AuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.filter.OAuth2AuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.OAuth2AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 /**
  * OAuth2 Client 설정을 DSL 방식으로 구성하는 클래스
@@ -69,27 +71,32 @@ public class OAuth2StateConfigurer extends JwtStateConfigurer {
     }
 
     @Override
-    public void init(HttpSecurity http) {
-
+    public void init(HttpSecurity http) throws Exception {
         OAuth2HttpClient httpClient = new OAuth2HttpClient();
         OAuth2ClientRequest clientRequest = new OAuth2ClientRequest(clientId, clientSecret, scope);
         OAuth2TokenProvider tokenProvider = new OAuth2TokenProvider(tokenUri, clientRequest);
         OAuth2ResourceClient resourceClient = new OAuth2ResourceClient(tokenProvider);
 
-        this.handlers = new OAuth2AuthenticationHandlers(resourceClient, transport);
+        OAuth2AuthenticationHandlers handlers = new OAuth2AuthenticationHandlers(resourceClient, transport);
+        this.handlers = handlers;
+//        TokenLogoutHandler logoutHandler = handlers.logoutHandler();
 
         http.setSharedObject(OAuth2HttpClient.class, httpClient);
         http.setSharedObject(OAuth2TokenProvider.class, tokenProvider);
         http.setSharedObject(OAuth2ResourceClient.class, resourceClient);
         http.setSharedObject(AuthenticationHandlers.class, handlers);
+        http.setSharedObject(TokenTransportStrategy.class, transport);
+//        http.setSharedObject(LogoutHandler.class, logoutHandler);
     }
 
     @Override
     public void configure(HttpSecurity http) {
-        OAuth2AuthenticationFilter oauth2Filter = new OAuth2AuthenticationFilter(
+        OAuth2AuthorizationFilter oauth2Filter = new OAuth2AuthorizationFilter(
                 http.getSharedObject(OAuth2HttpClient.class),
                 http.getSharedObject(OAuth2TokenProvider.class),
-                http.getSharedObject(OAuth2ResourceClient.class)
+                http.getSharedObject(OAuth2ResourceClient.class),
+                http.getSharedObject(TokenTransportStrategy.class),
+                http.getSharedObject(LogoutHandler.class)
         );
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
     }

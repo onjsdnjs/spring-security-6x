@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.dsl.oauth2client;
+package io.springsecurity.springsecurity6x.security.dsl.oauth2client.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

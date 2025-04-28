@@ -1,24 +1,23 @@
-package io.springsecurity.springsecurity6x.security.dsl.oauth2client;
+package io.springsecurity.springsecurity6x.security.dsl.oauth2client.client;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
-public class OAuth2RestClient {
+public class OAuth2HttpClient {
 
     private final RestClient restClient;
-    private final OAuth2TokenProvider tokenProvider;
 
-    public OAuth2RestClient(OAuth2TokenProvider tokenProvider) {
+    public OAuth2HttpClient() {
         this.restClient = RestClient.builder().build();
-        this.tokenProvider = tokenProvider;
     }
 
-    public <T> T get(String uri, Class<T> responseType) {
+    public <T> T get(String uri, String bearerToken, Class<T> responseType) {
         try {
             return restClient.get()
                     .uri(uri)
-                    .headers(headers -> headers.setBearerAuth(tokenProvider.getAccessToken()))
+                    .headers(headers -> headers.setBearerAuth(bearerToken))
                     .retrieve()
                     .body(responseType);
         } catch (RestClientResponseException e) {
@@ -26,15 +25,28 @@ public class OAuth2RestClient {
         }
     }
 
-    public <T> T post(String uri, Object body, Class<T> responseType) {
+    public <T> T post(String uri, String formBody, Class<T> responseType) {
+        try {
+            return restClient.post()
+                    .uri(uri)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                    .body(formBody)
+                    .retrieve()
+                    .body(responseType);
+        } catch (RestClientResponseException e) {
+            throw new RuntimeException("인가 서버 POST 요청 실패: " + e.getResponseBodyAsString(), e);
+        }
+    }
+
+    public <T> T post(String uri, Object jsonBody, String bearerToken, Class<T> responseType) {
         try {
             return restClient.post()
                     .uri(uri)
                     .headers(headers -> {
-                        headers.setBearerAuth(tokenProvider.getAccessToken());
+                        headers.setBearerAuth(bearerToken);
                         headers.setContentType(MediaType.APPLICATION_JSON);
                     })
-                    .body(body)
+                    .body(jsonBody)
                     .retrieve()
                     .body(responseType);
         } catch (RestClientResponseException e) {

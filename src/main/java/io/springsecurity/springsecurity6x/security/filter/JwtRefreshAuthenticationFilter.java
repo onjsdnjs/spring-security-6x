@@ -16,14 +16,14 @@ import java.util.Map;
 public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transportHandler;
+    private final TokenTransportStrategy transport;
     private final String refreshUri;
 
     public JwtRefreshAuthenticationFilter(TokenService tokenService,
-                                          TokenTransportStrategy transportHandler,
+                                          TokenTransportStrategy transport,
                                           AuthContextProperties properties) {
         this.tokenService     = tokenService;
-        this.transportHandler = transportHandler;
+        this.transport = transport;
         this.refreshUri       = properties.getInternal().getRefreshUri();
     }
 
@@ -35,12 +35,12 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = transportHandler.resolveRefreshToken(req);
+        String token = transport.resolveRefreshToken(req);
         try {
             TokenService.RefreshResult result = tokenService.refresh(token);
 
-            transportHandler.writeAccessToken(res, result.accessToken());
-            transportHandler.writeRefreshToken(res, result.refreshToken());
+            transport.writeAccessToken(res, result.accessToken());
+            transport.writeRefreshToken(res, result.refreshToken());
 
             res.setStatus(HttpServletResponse.SC_OK);
             res.setContentType("application/json;charset=UTF-8");

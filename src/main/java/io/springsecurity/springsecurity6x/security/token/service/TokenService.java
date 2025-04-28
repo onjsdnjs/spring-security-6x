@@ -19,7 +19,7 @@ public interface TokenService {
 
     String createRefreshToken(Authentication authentication);
 
-    /** 리프레시 토큰 유효성 검증 */
+    /** 엑세스 토큰 유효성 검증 */
     boolean validateAccessToken(String refreshToken);
 
     /** 리프레시 토큰 유효성 검증 */

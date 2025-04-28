@@ -16,12 +16,12 @@ import java.io.IOException;
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transportHandler;
+    private final TokenTransportStrategy transport;
     private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenService tokenService, TokenTransportStrategy transportHandler, LogoutHandler logoutHandler) {
+    public JwtAuthorizationFilter(TokenService tokenService, TokenTransportStrategy transport, LogoutHandler logoutHandler) {
         this.tokenService = tokenService;
-        this.transportHandler = transportHandler;
+        this.transport = transport;
         this.logoutHandler = logoutHandler;
     }
 
@@ -29,7 +29,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = transportHandler.resolveAccessToken(request);
+        String accessToken = transport.resolveAccessToken(request);
 
         if (accessToken != null) {
             try {

@@ -2,11 +2,9 @@ package io.springsecurity.springsecurity6x.security.token.transport;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
 public class HeaderTokenStrategy implements TokenTransportStrategy {
-
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {

@@ -44,9 +44,8 @@ public class InternalJwtTokenService implements TokenService {
 
     @Override
     public RefreshResult refresh(String refreshToken) {
-        if (!validateRefreshToken(refreshToken)) {
-            throw new TokenValidationException("Invalid refresh token");
-        }
+
+        if (!validateRefreshToken(refreshToken)) throw new TokenValidationException("Invalid refresh token");
 
         Authentication auth = getAuthentication(refreshToken);
         String newAccess = createAccessToken(auth);
@@ -58,7 +57,6 @@ public class InternalJwtTokenService implements TokenService {
             newRefresh = createRefreshToken(auth);
             refreshTokenStore.store(newRefresh, auth.getName());
         }
-
         return new RefreshResult(newAccess, newRefresh);
     }
 

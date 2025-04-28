@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.dsl.oauth2client.OAuth2Client
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,10 +20,12 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     private AuthenticationStateConfigurer stateConfigurer;
     private final AuthenticationStateDsl stateDsl;
     private final List<AbstractAuthenticationDsl> authDslList;
+    private final AuthContextProperties properties;
     private OAuth2ClientDsl oauth2ClientDsl;
 
-    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
+    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl, AuthContextProperties properties) {
         this.stateDsl = stateDsl;
+        this.properties = properties;
         this.authDslList = new ArrayList<>();
     }
 
@@ -66,7 +69,7 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     }
 
     public AuthIntegrationPlatformConfigurer oauth2Client(Customizer<OAuth2ClientDsl> customizer) {
-        OAuth2ClientDsl dsl = new OAuth2ClientDsl();
+        OAuth2ClientDsl dsl = new OAuth2ClientDsl(properties);
         customizer.customize(dsl);
         this.oauth2ClientDsl = dsl.build();
         return this;

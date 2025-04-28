@@ -24,6 +24,16 @@ spring:
       refreshTokenValidity: 604800000
       enableRefreshToken: true
       tokenPrefix: Bearer
+
+    external:
+      client-id: default-client
+      client-secret: default-secret
+      issuer-uri: http://localhost:9000
+      token-endpoint: /oauth2/token
+      scope: read
+      refresh-token-ttl: 604800000
+      access-token-ttl: 3600000
+
     token-issuer: internal
     auth-state-mode: jwt
 

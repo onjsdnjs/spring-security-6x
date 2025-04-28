@@ -38,6 +38,12 @@ public class SecurityConfig {
                         .state(AuthenticationStateDsl::jwt
 //                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER)
                         )
+                        .oauth2Client(oauth2 -> oauth2
+                                .tokenUri("https://auth-server.com/oauth2/token")
+                                .clientId("client-app")
+                                .clientSecret("secret")
+                                .scope("read write")
+                        )
                 );
         return http.build();
     }

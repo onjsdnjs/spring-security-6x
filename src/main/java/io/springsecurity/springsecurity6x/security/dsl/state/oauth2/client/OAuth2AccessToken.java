@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.dsl.oauth2client.client;
+package io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client;
 
 import java.time.Instant;
 

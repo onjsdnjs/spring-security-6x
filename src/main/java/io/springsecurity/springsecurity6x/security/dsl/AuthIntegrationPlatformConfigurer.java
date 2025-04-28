@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
-import io.springsecurity.springsecurity6x.security.dsl.oauth2client.OAuth2ClientDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
@@ -19,11 +18,9 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     private AuthenticationStateConfigurer stateConfigurer;
     private final AuthenticationStateDsl stateDsl;
     private final List<AbstractAuthenticationDsl> authDslList;
-    private final OAuth2ClientDsl oauth2ClientDsl;
 
-    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl, OAuth2ClientDsl oauth2ClientDsl) {
+    public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
         this.stateDsl = stateDsl;
-        this.oauth2ClientDsl = oauth2ClientDsl;
         this.authDslList = new ArrayList<>();
     }
 
@@ -60,19 +57,6 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         this.stateConfigurer = fn.apply(stateDsl);
         return this;
     }
-
-    public AuthIntegrationPlatformConfigurer oauth2Client(Customizer<OAuth2ClientDsl> customizer) {
-        customizer.customize(oauth2ClientDsl);
-        return this;
-    }
-
-    public OAuth2ClientDsl oauth2ClientDsl() {
-        if (oauth2ClientDsl == null) {
-            throw new IllegalStateException("OAuth2ClientDsl이 주입되지 않았습니다.");
-        }
-        return oauth2ClientDsl;
-    }
-
 
     @Override
     public void init(HttpSecurity http) throws Exception {

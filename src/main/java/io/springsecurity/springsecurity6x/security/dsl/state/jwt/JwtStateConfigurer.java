@@ -1,5 +1,6 @@
-package io.springsecurity.springsecurity6x.security.dsl.state;
+package io.springsecurity.springsecurity6x.security.dsl.state.jwt;
 
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
@@ -38,7 +39,6 @@ public class JwtStateConfigurer implements AuthenticationStateConfigurer {
     public JwtStateConfigurer(SecretKey key, AuthContextProperties props) {
         this.key = key;
         this.props = props;
-
     }
 
     public AuthenticationHandlers authHandlers() {

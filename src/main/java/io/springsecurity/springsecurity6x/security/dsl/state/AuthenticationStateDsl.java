@@ -1,11 +1,15 @@
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
+import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurer;
+import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 
 import javax.crypto.SecretKey;
 
 public final class AuthenticationStateDsl {
-    private JwtStateConfigurer jwtStateConfigurer;
+    private AuthenticationStateConfigurer selectedConfigurer;
     private SessionStateConfigurer sessionStateConfigurer;
     private boolean selected = false;
     private final AuthContextProperties properties;
@@ -18,29 +22,37 @@ public final class AuthenticationStateDsl {
 
     public JwtStateConfigurer jwt() {
         assertNotSelected();
+        JwtStateConfigurer configurer;
 
-        this.jwtStateConfigurer = new JwtStateConfigurer(secretKey, properties);
+        if (properties.getTokenIssuer() == TokenIssuer.INTERNAL) {
+            configurer = new JwtStateConfigurer(secretKey, properties);
+
+        } else if (properties.getTokenIssuer() == TokenIssuer.AUTHORIZATION_SERVER) {
+            configurer = new OAuth2StateConfigurer(properties);
+
+        } else {
+            throw new IllegalStateException("지원하지 않는 TokenIssuer입니다: " + properties.getTokenIssuer());
+        }
+
+        this.selectedConfigurer = configurer;
         this.selected = true;
-        return jwtStateConfigurer;
+        return configurer;
     }
 
     public SessionStateConfigurer session() {
         assertNotSelected();
-        this.sessionStateConfigurer = new SessionStateConfigurer(properties);
+        SessionStateConfigurer configurer = new SessionStateConfigurer(properties);
+        this.selectedConfigurer = configurer;
         this.selected = true;
-        return sessionStateConfigurer;
+        return configurer;
     }
 
+
     public AuthenticationStateConfigurer build() {
-        if (jwtStateConfigurer != null) {
-            return jwtStateConfigurer;
-
-        } else if (sessionStateConfigurer != null) {
-            return sessionStateConfigurer;
-
-        } else {
+        if (selectedConfigurer == null) {
             throw new IllegalStateException("jwt() 또는 session() 중 하나는 반드시 설정해야 합니다.");
         }
+        return selectedConfigurer;
     }
 
     private void assertNotSelected() {

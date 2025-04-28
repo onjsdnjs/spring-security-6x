@@ -39,7 +39,7 @@ public class AuthContextProperties {
      * OAuth2 Resource Server 기반 자동 토큰 처리 (internal) 설정
      */
     @NestedConfigurationProperty
-    private OAuth2TokenSettings external = new OAuth2TokenSettings();
+    private OAuth2TokenSettings oauth2 = new OAuth2TokenSettings();
 
     public boolean isAuthEnabled(AuthType type) {
         return enabledAuthTypes.contains(type);

@@ -25,7 +25,7 @@ spring:
       enableRefreshToken: true
       tokenPrefix: Bearer
 
-    external:
+    oauth2:
       client-id: client-app
       client-secret: secret
       issuer-uri: http://localhost:9000

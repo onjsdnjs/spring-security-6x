@@ -1,5 +1,6 @@
-package io.springsecurity.springsecurity6x.security.dsl.state;
+package io.springsecurity.springsecurity6x.security.dsl.state.session;
 
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.DefaultAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;

@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
 import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
@@ -13,8 +12,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 import java.util.Map;
 
@@ -27,13 +26,9 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
     private final AuthContextProperties properties;
     private final String refreshUri;
 
-    public JwtRefreshAuthenticationFilter(
-            TokenValidator tokenValidator,
-            TokenTransportHandler tokenTransportHandler,
-            InternalJwtTokenService tokenService,
-            RefreshTokenStore refreshTokenStore,
-            AuthContextProperties properties
-    ) {
+    public JwtRefreshAuthenticationFilter(TokenValidator tokenValidator, TokenTransportHandler tokenTransportHandler,
+            InternalJwtTokenService tokenService, RefreshTokenStore refreshTokenStore, AuthContextProperties properties) {
+
         this.tokenValidator = tokenValidator;
         this.tokenService = tokenService;
         this.tokenTransportHandler = tokenTransportHandler;

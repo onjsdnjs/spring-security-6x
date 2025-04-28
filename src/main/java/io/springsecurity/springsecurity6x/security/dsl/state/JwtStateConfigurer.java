@@ -27,7 +27,7 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 import javax.crypto.SecretKey;
 
-public class JwtStateStrategy implements AuthenticationStateStrategy {
+public class JwtStateConfigurer implements AuthenticationStateConfigurer {
 
     private final TokenValidator validator;
     private final AuthenticationHandlers handlers;
@@ -38,7 +38,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     private final InternalJwtTokenService tokenService;
     private final JwtParser parser;
 
-    public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
+    public JwtStateConfigurer(SecretKey key, AuthContextProperties props) {
 
         this.props = props;
         this.parser = new InternalJwtParser(key);

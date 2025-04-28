@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.dsl;
 
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateStrategy;
+import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
@@ -18,7 +18,7 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     private final ApplicationContext applicationContext;
     private RestAuthenticationDsl restDsl;
     private final List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
-    private AuthenticationStateStrategy stateStrategy;
+    private AuthenticationStateConfigurer stateStrategy;
 
     private AuthIntegrationPlatformConfigurer(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -70,7 +70,7 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
 
         if (stateStrategy == null) throw new IllegalStateException("state() DSL 호출 필수");
 
-        http.setSharedObject(AuthenticationStateStrategy.class, stateStrategy);
+        http.setSharedObject(AuthenticationStateConfigurer.class, stateStrategy);
         http.setSharedObject(AuthenticationHandlers.class, stateStrategy.authHandlers());
 
         if (restDsl != null) {

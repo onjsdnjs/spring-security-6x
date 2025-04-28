@@ -6,8 +6,8 @@ import org.springframework.context.ApplicationContext;
 import javax.crypto.SecretKey;
 
 public final class AuthenticationStateDsl {
-    private JwtStateStrategy jwtStrategy;
-    private SessionStateStrategy sessionStrategy;
+    private JwtStateConfigurer jwtStrategy;
+    private SessionStateConfigurer sessionStrategy;
     private boolean selected = false;
     private final AuthContextProperties properties;
     private final SecretKey secretKey;
@@ -17,22 +17,22 @@ public final class AuthenticationStateDsl {
         secretKey = applicationContext.getBean(SecretKey.class);
     }
 
-    public JwtStateStrategy jwt() {
+    public JwtStateConfigurer jwt() {
         assertNotSelected();
 
-        this.jwtStrategy = new JwtStateStrategy(secretKey, properties);
+        this.jwtStrategy = new JwtStateConfigurer(secretKey, properties);
         this.selected = true;
         return jwtStrategy;
     }
 
-    public SessionStateStrategy session() {
+    public SessionStateConfigurer session() {
         assertNotSelected();
-        this.sessionStrategy = new SessionStateStrategy(properties);
+        this.sessionStrategy = new SessionStateConfigurer(properties);
         this.selected = true;
         return sessionStrategy;
     }
 
-    public AuthenticationStateStrategy build() {
+    public AuthenticationStateConfigurer build() {
         if (jwtStrategy != null) {
             return jwtStrategy;
 

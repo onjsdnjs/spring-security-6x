@@ -8,16 +8,16 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 /**
  * Session 기반 인증 상태 전략
  */
-public class SessionStateStrategy implements AuthenticationStateStrategy {
+public class SessionStateConfigurer implements AuthenticationStateConfigurer {
 
     private final AuthContextProperties properties;
     private final AuthenticationHandlers handlers;
 
-    public SessionStateStrategy(AuthContextProperties properties) {
+    public SessionStateConfigurer(AuthContextProperties properties) {
         this(properties, new DefaultAuthenticationHandlers());
     }
 
-    public SessionStateStrategy(AuthContextProperties properties, AuthenticationHandlers handlers) {
+    public SessionStateConfigurer(AuthContextProperties properties, AuthenticationHandlers handlers) {
         this.properties = properties;
         this.handlers = handlers;
     }

@@ -1,9 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.*;
 
 /**
  * 인증 성공/실패에 대한 기본 핸들러 구현체.
@@ -16,7 +13,7 @@ public class DefaultAuthenticationHandlers implements AuthenticationHandlers {
 
     public DefaultAuthenticationHandlers() {
         // 로그인 성공 시 "/" 로 리다이렉트
-        this.successHandler = new SimpleUrlAuthenticationSuccessHandler("/");
+        this.successHandler = new SavedRequestAwareAuthenticationSuccessHandler();
         // 로그인 실패 시 "/login?error" 로 리다이렉트
         this.failureHandler = new SimpleUrlAuthenticationFailureHandler("/login?error");
     }

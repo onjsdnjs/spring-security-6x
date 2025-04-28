@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
+import io.springsecurity.springsecurity6x.security.dsl.oauth2client.OAuth2ClientDsl;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
@@ -17,7 +18,8 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     private RestAuthenticationDsl restDsl;
     private AuthenticationStateConfigurer stateConfigurer;
     private final AuthenticationStateDsl stateDsl;
-    private List<AbstractAuthenticationDsl> authDslList = new ArrayList<>();
+    private final List<AbstractAuthenticationDsl> authDslList;
+    private OAuth2ClientDsl oauth2ClientDsl;
 
     public AuthIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
         this.stateDsl = stateDsl;
@@ -61,6 +63,20 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
     public AuthIntegrationPlatformConfigurer state(Function<AuthenticationStateDsl, AuthenticationStateConfigurer> fn) {
         this.stateConfigurer = fn.apply(stateDsl);
         return this;
+    }
+
+    public AuthIntegrationPlatformConfigurer oauth2Client(Customizer<OAuth2ClientDsl> customizer) {
+        OAuth2ClientDsl dsl = new OAuth2ClientDsl();
+        customizer.customize(dsl);
+        this.oauth2ClientDsl = dsl.build();
+        return this;
+    }
+
+    public OAuth2ClientDsl oauth2ClientDsl() {
+        if (oauth2ClientDsl == null) {
+            throw new IllegalStateException("oauth2Client() DSL 호출 필수입니다.");
+        }
+        return oauth2ClientDsl;
     }
 
     @Override

@@ -31,7 +31,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private final TokenValidator validator;
     private final AuthenticationHandlers handlers;
-    private final TokenTransportStrategy transportHandler;
+    private final TokenTransportStrategy transport;
     private final TokenCreator creator;
     private final RefreshTokenStore store;
     private final AuthContextProperties props;
@@ -40,14 +40,14 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
-        this.parser = new InternalJwtParser(key);
         this.props = props;
+        this.parser = new InternalJwtParser(key);
         this.creator = new InternalJwtCreator(key);
+        this.transport = new HeaderTokenStrategy(); // 기본 Header
         this.store = new InMemoryRefreshTokenStore(parser);
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
         this.tokenService = new InternalJwtTokenService(validator, creator, store, props);
-        this.transportHandler = new HeaderTokenStrategy(); // 기본 Header
-        this.handlers  = new JwtAuthenticationHandlers(tokenService, transportHandler, props);
+        this.handlers  = new JwtAuthenticationHandlers(tokenService, transport, props);
     }
 
     public AuthenticationHandlers authHandlers() {
@@ -69,8 +69,8 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public void configure(HttpSecurity http) {
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transportHandler, logoutHandler()), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transportHandler, props), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transport, logoutHandler()), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
     }
 
     public LogoutHandler logoutHandler(){

@@ -4,12 +4,10 @@ import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
-import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;

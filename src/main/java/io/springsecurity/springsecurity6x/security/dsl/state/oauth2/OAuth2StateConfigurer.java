@@ -10,7 +10,6 @@ import io.springsecurity.springsecurity6x.security.filter.OAuth2AuthenticationFi
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.OAuth2AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

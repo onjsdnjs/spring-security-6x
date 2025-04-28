@@ -36,16 +36,17 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     private final RefreshTokenStore store;
     private final AuthContextProperties props;
     private final InternalJwtTokenService tokenService;
+    private final JwtParser parser;
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
-        JwtParser parser = new InternalJwtParser(key);
+        this.parser = new InternalJwtParser(key);
         this.props = props;
         this.creator = new InternalJwtCreator(key);
-        this.tokenService = new InternalJwtTokenService(creator, props);
         this.store = new InMemoryRefreshTokenStore(parser);
-        this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
+        this.tokenService = new InternalJwtTokenService(validator, creator, store, props);
+        this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.handlers  = new JwtAuthenticationHandlers(tokenService, transportHandler, props);
     }
 

@@ -16,6 +16,17 @@ public interface TokenService {
 
     String createRefreshToken(Authentication authentication);
 
+    /** 리프레시 토큰 유효성 검증 */
+    boolean validateRefreshToken(String refreshToken);
+
+    /** 리프레시 토큰으로부터 Authentication 획득 */
+    Authentication getAuthentication(String refreshToken);
+
+    /** 토큰 리프레시 실행 후 결과 반환 */
+    RefreshResult refresh(String refreshToken);
+
+    record RefreshResult(String accessToken, String refreshToken) {}
+
 
 }
 

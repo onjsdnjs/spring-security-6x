@@ -31,7 +31,8 @@ public class OAuth2StateConfigurer extends JwtStateConfigurer {
     public OAuth2StateConfigurer(AuthContextProperties properties) {
 
         super(null, properties);
-        if (properties == null || properties.getOauth2() == null) {
+
+        if (properties.getOauth2() == null) {
             throw new IllegalArgumentException("OAuth2 설정이 누락되었습니다. application.yml 파일을 확인하세요.");
         }
 

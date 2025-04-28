@@ -9,7 +9,7 @@ import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandler
 import io.springsecurity.springsecurity6x.security.handler.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.creator.InternalJwtCreator;
+import io.springsecurity.springsecurity6x.security.token.creator.JwtCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
@@ -17,7 +17,6 @@ import io.springsecurity.springsecurity6x.security.token.service.InternalJwtToke
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
@@ -67,7 +66,7 @@ public class JwtStateConfigurer implements AuthenticationStateConfigurer {
     public void configure(HttpSecurity http) {
 
         JwtParser parser = new InternalJwtParser(key);
-        TokenCreator creator = new InternalJwtCreator(key);
+        TokenCreator creator = new JwtCreator(key);
         RefreshTokenStore store = new InMemoryRefreshTokenStore(parser);
         TokenValidator validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
         tokenService = new InternalJwtTokenService(validator, creator, store, props);

@@ -7,11 +7,11 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.*;
 
-public class InternalJwtCreator implements TokenCreator {
+public class JwtCreator implements TokenCreator {
 
     private final SecretKey secretKey;
 
-    public InternalJwtCreator(SecretKey secretKey) {
+    public JwtCreator(SecretKey secretKey) {
         this.secretKey = secretKey;
     }
 

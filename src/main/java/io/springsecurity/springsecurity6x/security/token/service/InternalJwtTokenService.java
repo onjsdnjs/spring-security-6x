@@ -28,6 +28,11 @@ public class InternalJwtTokenService implements TokenService {
     }
 
     @Override
+    public boolean validateAccessToken(String accessToken) {
+        return accessToken != null && tokenValidator.validateAccessToken(accessToken);
+    }
+
+    @Override
     public boolean validateRefreshToken(String refreshToken) {
         return refreshToken != null && tokenValidator.validateRefreshToken(refreshToken);
     }

@@ -11,10 +11,16 @@ public interface TokenService {
 
     String ACCESS_TOKEN = "accessToken";
     String REFRESH_TOKEN = "refreshToken";
+    String ACCESS_TOKEN_HEADER  = "Authorization";
+    String REFRESH_TOKEN_HEADER = "X-Refresh-Token";
+    String BEARER_PREFIX        = "Bearer ";
 
     String createAccessToken(Authentication authentication);
 
     String createRefreshToken(Authentication authentication);
+
+    /** 리프레시 토큰 유효성 검증 */
+    boolean validateAccessToken(String refreshToken);
 
     /** 리프레시 토큰 유효성 검증 */
     boolean validateRefreshToken(String refreshToken);

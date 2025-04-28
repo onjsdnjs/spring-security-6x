@@ -1,27 +1,29 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseCookie;
 
-public class CookieTokenTransportHandler implements TokenTransportHandler {
+import static io.springsecurity.springsecurity6x.security.token.service.TokenService.ACCESS_TOKEN;
+import static io.springsecurity.springsecurity6x.security.token.service.TokenService.REFRESH_TOKEN;
 
-    private static final String ACCESS_TOKEN_COOKIE  = "accessToken";
-    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+public class CookieTokenStrategy implements TokenTransportStrategy {
+
     private static final String COOKIE_PATH          = "/";
     private static final boolean HTTP_ONLY           = true;
     private static final boolean SECURE              = false; // 운영에서는 true
     private static final String SAME_SITE            = "Strict";
 
     @Override
-    public String extractAccessToken(HttpServletRequest request) {
-        return extractCookie(request, ACCESS_TOKEN_COOKIE);
+    public String resolveAccessToken(HttpServletRequest request) {
+        return extractCookie(request, ACCESS_TOKEN);
     }
 
     @Override
-    public String extractRefreshToken(HttpServletRequest request) {
-        return extractCookie(request, REFRESH_TOKEN_COOKIE);
+    public String resolveRefreshToken(HttpServletRequest request) {
+        return extractCookie(request, REFRESH_TOKEN);
     }
 
     private String extractCookie(HttpServletRequest request, String name) {
@@ -35,19 +37,19 @@ public class CookieTokenTransportHandler implements TokenTransportHandler {
     }
 
     @Override
-    public void sendAccessToken(HttpServletResponse response, String accessToken) {
-        addCookie(response, ACCESS_TOKEN_COOKIE, accessToken, 3600); // 1시간
+    public void writeAccessToken(HttpServletResponse response, String accessToken) {
+        addCookie(response, ACCESS_TOKEN, accessToken, 3600); // 1시간
     }
 
     @Override
-    public void sendRefreshToken(HttpServletResponse response, String refreshToken) {
-        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, 604800); // 7일
+    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
+        addCookie(response, REFRESH_TOKEN, refreshToken, 604800); // 7일
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
-        removeCookie(response, ACCESS_TOKEN_COOKIE);
-        removeCookie(response, REFRESH_TOKEN_COOKIE);
+        removeCookie(response, ACCESS_TOKEN);
+        removeCookie(response, REFRESH_TOKEN);
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {

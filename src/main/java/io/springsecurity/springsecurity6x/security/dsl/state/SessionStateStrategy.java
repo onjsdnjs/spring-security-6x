@@ -2,19 +2,8 @@ package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.DefaultAuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.creator.InternalJwtCreator;
-import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
-import io.springsecurity.springsecurity6x.security.token.parser.InternalJwtParser;
-import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
-import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-
-import javax.crypto.SecretKey;
 
 /**
  * Session 기반 인증 상태 전략

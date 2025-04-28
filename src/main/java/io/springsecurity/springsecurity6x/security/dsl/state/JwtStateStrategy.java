@@ -14,8 +14,8 @@ import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
 import io.springsecurity.springsecurity6x.security.token.store.InMemoryRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
-import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
+import io.springsecurity.springsecurity6x.security.token.transport.HeaderTokenStrategy;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.DefaultJwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,7 +31,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     private final TokenValidator validator;
     private final AuthenticationHandlers handlers;
-    private final TokenTransportHandler transportHandler;
+    private final TokenTransportStrategy transportHandler;
     private final TokenCreator creator;
     private final RefreshTokenStore store;
     private final AuthContextProperties props;
@@ -46,7 +46,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
         this.store = new InMemoryRefreshTokenStore(parser);
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
         this.tokenService = new InternalJwtTokenService(validator, creator, store, props);
-        this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
+        this.transportHandler = new HeaderTokenStrategy(); // 기본 Header
         this.handlers  = new JwtAuthenticationHandlers(tokenService, transportHandler, props);
     }
 
@@ -69,8 +69,8 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
 
     @Override
     public void configure(HttpSecurity http) {
-        http.addFilterAfter(new JwtAuthorizationFilter(validator, transportHandler, logoutHandler()), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(validator, transportHandler, tokenService, store, props), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transportHandler, logoutHandler()), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transportHandler, props), JwtAuthorizationFilter.class);
     }
 
     public LogoutHandler logoutHandler(){

@@ -1,8 +1,7 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
-import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,12 +15,12 @@ import java.io.IOException;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
-    private final TokenValidator tokenValidator;
-    private final TokenTransportHandler transportHandler;
+    private final TokenService tokenService;
+    private final TokenTransportStrategy transportHandler;
     private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenValidator tokenValidator, TokenTransportHandler transportHandler, LogoutHandler logoutHandler) {
-        this.tokenValidator = tokenValidator;
+    public JwtAuthorizationFilter(TokenService tokenService, TokenTransportStrategy transportHandler, LogoutHandler logoutHandler) {
+        this.tokenService = tokenService;
         this.transportHandler = transportHandler;
         this.logoutHandler = logoutHandler;
     }
@@ -30,12 +29,12 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = transportHandler.extractAccessToken(request);
+        String accessToken = transportHandler.resolveAccessToken(request);
 
         if (accessToken != null) {
             try {
-                if (tokenValidator.validateAccessToken(accessToken)) {
-                    Authentication authentication = tokenValidator.getAuthentication(accessToken);
+                if (tokenService.validateAccessToken(accessToken)) {
+                    Authentication authentication = tokenService.getAuthentication(accessToken);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {

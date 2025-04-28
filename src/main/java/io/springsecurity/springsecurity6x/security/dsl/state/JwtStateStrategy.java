@@ -35,18 +35,18 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     private final TokenCreator creator;
     private final RefreshTokenStore store;
     private final AuthContextProperties props;
-    private final InternalJwtTokenService internalJwtTokenService;
+    private final InternalJwtTokenService tokenService;
 
     public JwtStateStrategy(SecretKey key, AuthContextProperties props) {
 
         JwtParser parser = new InternalJwtParser(key);
         this.props = props;
         this.creator = new InternalJwtCreator(key);
-        this.internalJwtTokenService = new InternalJwtTokenService(creator, props);
+        this.tokenService = new InternalJwtTokenService(creator, props);
         this.store = new InMemoryRefreshTokenStore(parser);
         this.transportHandler = new HeaderTokenTransportHandler(); // 기본 Header
         this.validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        this.handlers  = new JwtAuthenticationHandlers(internalJwtTokenService, transportHandler, props);
+        this.handlers  = new JwtAuthenticationHandlers(tokenService, transportHandler, props);
     }
 
     public AuthenticationHandlers authHandlers() {
@@ -69,7 +69,7 @@ public class JwtStateStrategy implements AuthenticationStateStrategy {
     @Override
     public void configure(HttpSecurity http) {
         http.addFilterAfter(new JwtAuthorizationFilter(validator, transportHandler, logoutHandler()), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(validator, transportHandler, creator, store, props), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(validator, transportHandler, tokenService, store, props), JwtAuthorizationFilter.class);
     }
 
     public LogoutHandler logoutHandler(){

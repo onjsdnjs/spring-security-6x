@@ -2,8 +2,9 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
+import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportHandler;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
@@ -20,7 +21,7 @@ import java.util.Map;
 public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenValidator tokenValidator;
-    private final TokenCreator tokenCreator;
+    private final TokenService tokenService;
     private final TokenTransportHandler tokenTransportHandler;
     private final RefreshTokenStore refreshTokenStore;
     private final AuthContextProperties properties;
@@ -29,12 +30,12 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
     public JwtRefreshAuthenticationFilter(
             TokenValidator tokenValidator,
             TokenTransportHandler tokenTransportHandler,
-            TokenCreator tokenCreator,
+            InternalJwtTokenService tokenService,
             RefreshTokenStore refreshTokenStore,
             AuthContextProperties properties
     ) {
         this.tokenValidator = tokenValidator;
-        this.tokenCreator = tokenCreator;
+        this.tokenService = tokenService;
         this.tokenTransportHandler = tokenTransportHandler;
         this.refreshTokenStore = refreshTokenStore;
         this.properties = properties;
@@ -57,40 +58,18 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            String username = refreshTokenStore.getUsername(refreshToken);
-            if (username == null) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token expired or revoked");
-                return;
-            }
-
             Authentication authentication = tokenValidator.getAuthentication(refreshToken);
-            String newAccessToken = getString(username, authentication);
-            TokenRequest tokenRequest;
+            String newAccessToken = tokenService.createAccessToken(authentication);
 
-            String newRefreshToken = "";
+            String newRefreshToken = refreshToken;
             if (properties.getInternal().isEnableRefreshToken() && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
                 refreshTokenStore.remove(refreshToken);
-
-                tokenRequest = TokenRequest.builder()
-                        .tokenType("refresh")
-                        .username(username)
-                        .roles(authentication.getAuthorities().stream()
-                                .map(GrantedAuthority::getAuthority)
-                                .toList())
-                        .validity(properties.getInternal().getRefreshTokenValidity())
-                        .build();
-
-                newRefreshToken = tokenCreator.createToken(tokenRequest);
-                refreshTokenStore.store(newRefreshToken, username);
-
-            } else {
-                newRefreshToken = refreshToken;
+                newRefreshToken = tokenService.createRefreshToken(authentication);
+                refreshTokenStore.store(newRefreshToken, authentication.getName());
             }
 
             tokenTransportHandler.sendAccessToken(response, newAccessToken);
-            if (newRefreshToken != null) {
-                tokenTransportHandler.sendRefreshToken(response, newRefreshToken);
-            }
+            tokenTransportHandler.sendRefreshToken(response, newRefreshToken);
 
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json;charset=UTF-8");
@@ -101,20 +80,6 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
         }
-    }
-
-    private String getString(String username, Authentication authentication) {
-        TokenRequest tokenRequest = TokenRequest.builder()
-                .tokenType("access")
-                .username(username)
-                .roles(authentication.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .toList())
-                .validity(properties.getInternal().getAccessTokenValidity())
-                .build();
-
-        String newAccessToken = tokenCreator.createToken(tokenRequest);
-        return newAccessToken;
     }
 }
 

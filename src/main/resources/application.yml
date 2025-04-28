@@ -34,7 +34,7 @@ spring:
       refresh-token-ttl: 604800000
       access-token-ttl: 3600000
 
-    token-issuer: internal
+    token-issuer: authorization_server
     auth-state-mode: jwt
 
   mail:

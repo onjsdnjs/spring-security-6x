@@ -61,12 +61,11 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
             .exceptionHandling(e -> e
                     .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
                     .accessDeniedHandler((request, response, exception) ->
-                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
-            .logout(l -> l.addLogoutHandler(logoutHandler()));
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
     }
 
     @Override
-    public void configure(HttpSecurity http) {
+    public void configure(HttpSecurity http) throws Exception {
 
         TokenParser parser = new JwtTokenParser(key);
         TokenCreator creator = new JwtTokenCreator(key);
@@ -76,6 +75,7 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         transport.setTokenService(tokenService);
         handlers  = new JwtAuthenticationHandlers(tokenService);
 
+        http.logout(logout -> logout.addLogoutHandler(handlers.logoutHandler()));
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
     }

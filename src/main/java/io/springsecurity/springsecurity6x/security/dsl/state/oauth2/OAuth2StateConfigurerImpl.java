@@ -96,11 +96,13 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     }
 
     @Override
-    public void configure(HttpSecurity http) {
+    public void configure(HttpSecurity http) throws Exception  {
         JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(
                 http.getSharedObject(TokenService.class),
                 http.getSharedObject(LogoutHandler.class)
         );
+
+        http.logout(logout -> logout.addLogoutHandler(handlers.logoutHandler()));
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
     }
 }

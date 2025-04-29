@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
-    // const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
 
     const logoutLink = document.getElementById("logoutLink");
     if (!logoutLink) return;
@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
             method:      "POST",
             credentials: "same-origin",             // 쿠키 전송
             headers: {
-                // [csrfHeader]: csrfToken,            // CSRF 헤더
+                [csrfHeader]: csrfToken,            // CSRF 헤더
                 "Accept": "application/json"        // JSON 응답 명시(Optional)
             }
         });

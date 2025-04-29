@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    // const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    // const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
 
     let useHeaderMode = localStorage.getItem("useHeaderMode") === "true";
 
@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    // [csrfHeader]:    csrfToken
+                    [csrfHeader]:    csrfToken
                 }
             });
 

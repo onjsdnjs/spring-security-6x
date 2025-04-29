@@ -53,13 +53,17 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) throws IOException {
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         writeAccessToken(response, accessToken);
         writeRefreshToken(response, refreshToken);
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-        new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
+        try {
+            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
+        } catch (IOException e) {
+            throw new RuntimeException("쿠키 응답 메시지 작성 실패", e);
+        }
     }
 
     @Override

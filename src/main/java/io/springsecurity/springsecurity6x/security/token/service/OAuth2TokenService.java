@@ -38,11 +38,6 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) throws Exception {
-        transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
-    }
-
-    @Override
     public String createRefreshToken(Authentication authentication) {
         throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token을 발급하지 않습니다.");
     }

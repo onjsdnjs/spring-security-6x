@@ -21,7 +21,7 @@ public interface TokenService extends TokenValidator {
     String resolveRefreshToken(HttpServletRequest request);
     void writeAccessToken(HttpServletResponse response, String accessToken);
     void writeRefreshToken(HttpServletResponse response, String refreshToken);
-    void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) throws Exception;
+    default void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){}
     void clearTokens(HttpServletResponse response);
     AuthContextProperties properties();
     record RefreshResult(String accessToken, String refreshToken) {}

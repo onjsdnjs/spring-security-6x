@@ -31,8 +31,7 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
             String accessToken = tokenService.createAccessToken(authentication);
             String refreshToken = tokenService.createRefreshToken(authentication);
 
-            tokenService.writeAccessToken(response, accessToken);
-            tokenService.writeRefreshToken(response, refreshToken);
+            tokenService.writeAccessAndRefreshToken(response, accessToken, refreshToken);
 
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");

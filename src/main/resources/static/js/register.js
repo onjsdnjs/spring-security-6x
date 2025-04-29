@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     const form       = document.getElementById("registerForm");
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+    // const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    // const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    [csrfHeader]:    csrfToken
+                    // [csrfHeader]:    csrfToken
                 },
                 body: JSON.stringify(data)
             });

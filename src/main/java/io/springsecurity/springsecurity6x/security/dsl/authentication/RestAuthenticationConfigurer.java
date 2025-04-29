@@ -31,10 +31,10 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     @Override
     public void init(H http) {}
 
-    @Override
+    /*@Override
     public void configure(H http) throws Exception {
 
-        AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+        *//*AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
         RestAuthenticationFilter authFilter = new RestAuthenticationFilter(authenticationManager);
         SessionAuthenticationStrategy sessionAuthenticationStrategy = http.getSharedObject(SessionAuthenticationStrategy.class);
         if (sessionAuthenticationStrategy != null) {
@@ -45,12 +45,13 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
             authFilter.setRememberMeServices(rememberMeServices);
         }
         SecurityContextConfigurer securityContextConfigurer = http.getConfigurer(SecurityContextConfigurer.class);
-        /*if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
+        *//**//*if (securityContextConfigurer != null && securityContextConfigurer.isRequireExplicitSave()) {
             SecurityContextRepository securityContextRepository = securityContextConfigurer
                     .getSecurityContextRepository();
             authFilter.setSecurityContextRepository(securityContextRepository);
-        }*/
+        }*//**//*
         authFilter.setSecurityContextHolderStrategy(getSecurityContextHolderStrategy());
-        http.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
-    }
+        authFilter.setAuthenticationSuccessHandler();
+        http.addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);*//*
+    }*/
 }

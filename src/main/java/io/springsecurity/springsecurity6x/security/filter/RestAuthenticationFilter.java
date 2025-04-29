@@ -11,39 +11,38 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.io.IOException;
 import java.util.Map;
 
-public class RestAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
+public class RestAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private static final AntPathRequestMatcher DEFAULT_ANT_PATH_REQUEST_MATCHER =
             new AntPathRequestMatcher("/api/auth/login", "POST");
 
     public RestAuthenticationFilter() {
-        super(DEFAULT_ANT_PATH_REQUEST_MATCHER);
+        setRequiresAuthenticationRequestMatcher(DEFAULT_ANT_PATH_REQUEST_MATCHER);
     }
-
-    public RestAuthenticationFilter(AuthenticationManager authenticationManager) {
-        super(DEFAULT_ANT_PATH_REQUEST_MATCHER, authenticationManager);
-    }
-
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request,
-                                                HttpServletResponse response) throws AuthenticationException, IOException {
+                                                HttpServletResponse response) throws AuthenticationException {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
 
-        ObjectMapper mapper = new ObjectMapper();
-        LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
-        String username = login.username();
-        String password = login.password();
+            LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
+            String username = login.username();
+            String password = login.password();
 
-        UsernamePasswordAuthenticationToken authRequest =
-                new UsernamePasswordAuthenticationToken(username, password);
+            UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(username, password);
+            return this.getAuthenticationManager().authenticate(authRequest);
 
-        return this.getAuthenticationManager().authenticate(authRequest);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

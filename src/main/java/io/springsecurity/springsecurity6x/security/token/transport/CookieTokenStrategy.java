@@ -48,6 +48,12 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+        writeAccessToken(response, accessToken);
+        writeRefreshToken(response, refreshToken);
+    }
+
+    @Override
     public void clearTokens(HttpServletResponse response) {
         removeCookie(response, ACCESS_TOKEN);
         removeCookie(response, REFRESH_TOKEN);

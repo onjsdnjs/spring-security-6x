@@ -43,6 +43,11 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+        writeTokens(response, accessToken, refreshToken, tokenService.properties().getAccessTokenValidity());
+    }
+
+    @Override
     public void clearTokens(HttpServletResponse response) {
         writeTokens(response, null, null, 0);
     }
@@ -52,7 +57,7 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json;charset=UTF-8");
 
-            AccessTokenResponse body = new AccessTokenResponse(
+            TokenResponse body = new TokenResponse(
                     accessToken,
                     "Bearer",
                     expiresIn,

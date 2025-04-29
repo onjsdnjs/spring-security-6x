@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+    // const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    // const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
 
     const headerModeBtn = document.getElementById("headerModeBtn");
     const cookieModeBtn = document.getElementById("cookieModeBtn");
@@ -44,10 +44,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     alert("세션이 만료되었습니다. 다시 로그인하세요.");
                     window.location.href = "/loginForm";
                 }
+            }else{
+                const users = await res.json();
+                renderUsers(users);
             }
-
-            const users = await res.json();
-            renderUsers(users);
 
         } catch (err) {
             console.error("사용자 목록 로딩 실패:", err);
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    [csrfHeader]:    csrfToken
+                    // [csrfHeader]:    csrfToken
                 }
             });
 

@@ -25,8 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const tokenInfo = await res.json();
 
                 // 예: localStorage에 저장
-                localStorage.setItem("accessToken", tokenInfo.access_token);
-                localStorage.setItem("refreshToken", tokenInfo.refresh_token);
+                localStorage.setItem("accessToken", tokenInfo.accessToken);
+                localStorage.setItem("refreshToken", tokenInfo.refreshToken);
 
                 alert("로그인 성공: Access Token 저장 완료");
                 window.location.href = "/";

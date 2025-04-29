@@ -3,27 +3,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
     // const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
 
-    const headerModeBtn = document.getElementById("headerModeBtn");
-    const cookieModeBtn = document.getElementById("cookieModeBtn");
-
-    let useHeaderMode = false;  // 기본은 쿠키 모드
-
-    headerModeBtn.addEventListener("click", () => {
-        useHeaderMode = true;
-        alert("헤더 방식으로 변경되었습니다.");
-    });
-
-    cookieModeBtn.addEventListener("click", () => {
-        useHeaderMode = false;
-        alert("쿠키 방식으로 변경되었습니다.");
-    });
+    let useHeaderMode = localStorage.getItem("useHeaderMode") === "true";
 
     async function loadUsers() {
         try {
             const headers = {};
 
             if (useHeaderMode) {
-                const accessToken = localStorage.getItem("access_token");
+                const accessToken = localStorage.getItem("accessToken");
                 if (accessToken) {
                     headers["Authorization"] = `Bearer ${accessToken}`;
                 }
@@ -75,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Refresh 성공:", tokens);
 
             if (useHeaderMode) {
-                localStorage.setItem("access_token", tokens.access_token);
+                localStorage.setItem("accessToken", tokens.accessToken);
             }
             return true;
 

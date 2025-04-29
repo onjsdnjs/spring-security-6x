@@ -19,21 +19,17 @@ import java.util.Map;
 public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transport;
 
-    public OAuth2AuthenticationHandlers(TokenService tokenService, TokenTransportStrategy transport) {
+    public OAuth2AuthenticationHandlers(TokenService tokenService) {
         this.tokenService = tokenService;
-        this.transport = transport;
     }
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
-            // accessToken 발급 (수동/자동 모두 TokenService가 처리)
-            String accessToken = tokenService.createAccessToken(authentication);
 
-            // AccessToken을 Header 또는 Cookie 방식으로 전송
-            transport.writeAccessToken(response, accessToken);
+            String accessToken = tokenService.createAccessToken(authentication);
+            tokenService.writeAccessToken(response, accessToken);
 
             // JSON 성공 응답
             response.setStatus(HttpServletResponse.SC_OK);
@@ -52,7 +48,7 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
     }
 
     public LogoutHandler logoutHandler(){
-        return new OAuth2LogoutHandler(transport);
+        return new OAuth2LogoutHandler(tokenService);
     }
 }
 

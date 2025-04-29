@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,38 +19,33 @@ import java.io.IOException;
 public class OAuth2AuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transport;
     private final LogoutHandler logoutHandler;
 
-    public OAuth2AuthorizationFilter(TokenService tokenService,
-                                     TokenTransportStrategy transport,
-                                     LogoutHandler logoutHandler) {
+    public OAuth2AuthorizationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
         this.tokenService = tokenService;
-        this.transport = transport;
         this.logoutHandler = logoutHandler;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = transport.resolveAccessToken(request);
+        String accessToken = tokenService.resolveAccessToken(request);
+
         if (accessToken != null) {
             try {
-                boolean valid = tokenService.validateAccessToken(accessToken);
-                if (!valid) throw new IllegalStateException("Access token invalid or expired");
-
-                Authentication authentication = tokenService.getAuthentication(accessToken);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
+                if (tokenService.validateAccessToken(accessToken)) {
+                    Authentication authentication = tokenService.getAuthentication(accessToken);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
                 logoutHandler.logout(request, response, null);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Access token invalid");
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
                 return;
             }
         }
 
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
     }
 }

@@ -2,15 +2,18 @@ package io.springsecurity.springsecurity6x.security.token.parser;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
 import java.security.Key;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class JwtParser implements TokenParser {
+public class JwtTokenParser implements TokenParser {
 
     private final Key secretKey;
 
-    public JwtParser(Key secretKey) {
+    public JwtTokenParser(Key secretKey) {
         this.secretKey = secretKey;
     }
 
@@ -52,5 +55,7 @@ public class JwtParser implements TokenParser {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+
 }
 

@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler.logout;
 
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -14,16 +14,15 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
  */
 public class OAuth2LogoutHandler implements LogoutHandler {
 
-    private final TokenTransportStrategy transport;
+    private final TokenService tokenService;
 
-    public OAuth2LogoutHandler(TokenTransportStrategy transport) {
-        this.transport = transport;
+    public OAuth2LogoutHandler(TokenService tokenService) {
+        this.tokenService = tokenService;
     }
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        // AccessToken만 삭제
-        transport.clearTokens(response);
+        tokenService.clearTokens(response);
         SecurityContextHolder.clearContext();
     }
 }

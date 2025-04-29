@@ -20,50 +20,34 @@ import java.util.Map;
 public class JwtAuthenticationHandlers implements AuthenticationHandlers {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transport;
-    private final AuthContextProperties properties;
 
-    public JwtAuthenticationHandlers(TokenService tokenService,
-                                     TokenTransportStrategy transport,
-                                     AuthContextProperties properties) {
+    public JwtAuthenticationHandlers(TokenService tokenService) {
         this.tokenService = tokenService;
-        this.transport = transport;
-        this.properties = properties;
     }
 
     @Override
     public AuthenticationSuccessHandler successHandler() {
-
         return (request, response, authentication) -> {
             String accessToken = tokenService.createAccessToken(authentication);
-            String refreshToken = null;
-            if (properties.getInternal().isEnableRefreshToken()) {
-                refreshToken = tokenService.createRefreshToken(authentication);
-            }
-            // Header 또는 Cookie 방식으로 전송
-            transport.writeAccessToken(response, accessToken);
-            if (refreshToken != null) {
-                transport.writeRefreshToken(response, refreshToken);
-            }
+            String refreshToken = tokenService.createRefreshToken(authentication);
 
-            // JSON 응답 (message)
+            tokenService.writeAccessToken(response, accessToken);
+            tokenService.writeRefreshToken(response, refreshToken);
+
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-            new ObjectMapper().writeValue(
-                    response.getWriter(),
-                    Map.of("message", "Authentication Successful")
-            );
+            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
         };
     }
 
     @Override
     public AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) ->
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication Failed");
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT Authentication Failed");
     }
 
     public LogoutHandler logoutHandler(){
-        return new TokenLogoutHandler(tokenService, transport);
+        return new TokenLogoutHandler(tokenService);
     }
 }
 

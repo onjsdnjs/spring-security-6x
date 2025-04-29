@@ -1,13 +1,15 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.oauth2;
 
-import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.*;
+import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ClientRequest;
+import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2HttpClient;
+import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ResourceClient;
+import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2TokenProvider;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
-import io.springsecurity.springsecurity6x.security.filter.OAuth2AuthorizationFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.OAuth2TokenCreator;
-import io.springsecurity.springsecurity6x.security.token.parser.OAuth2TokenParser;
 import io.springsecurity.springsecurity6x.security.token.service.OAuth2TokenService;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
@@ -28,7 +30,6 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     private String scope;
 
     private AuthenticationHandlers handlers;
-    private TokenService tokenService;
     private final TokenTransportStrategy transport;
 
     public OAuth2StateConfigurerImpl(AuthContextProperties properties) {
@@ -71,19 +72,17 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     }
 
     @Override
-    public void init(HttpSecurity http) throws Exception {
+    public void init(HttpSecurity http){
+
         OAuth2HttpClient httpClient = new OAuth2HttpClient();
         OAuth2ClientRequest clientRequest = new OAuth2ClientRequest(clientId, clientSecret, scope);
         OAuth2TokenProvider tokenProvider = new OAuth2TokenProvider(tokenUri, clientRequest);
         OAuth2ResourceClient resourceClient = new OAuth2ResourceClient(tokenProvider);
 
-        // --- TokenService 준비
         var creator = new OAuth2TokenCreator(tokenProvider);
         var validator = new OAuth2TokenValidator(resourceClient);
-        this.tokenService = new OAuth2TokenService(creator, validator);
-
-        // --- AuthenticationHandlers 준비
-        this.handlers = new OAuth2AuthenticationHandlers(tokenService, transport);
+        TokenService tokenService = new OAuth2TokenService(creator, validator, transport);
+        this.handlers = new OAuth2AuthenticationHandlers(tokenService);
 
         http.setSharedObject(OAuth2HttpClient.class, httpClient);
         http.setSharedObject(OAuth2TokenProvider.class, tokenProvider);
@@ -96,9 +95,8 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
 
     @Override
     public void configure(HttpSecurity http) {
-        OAuth2AuthorizationFilter oauth2Filter = new OAuth2AuthorizationFilter(
+        JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(
                 http.getSharedObject(TokenService.class),
-                http.getSharedObject(TokenTransportStrategy.class),
                 http.getSharedObject(LogoutHandler.class)
         );
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);

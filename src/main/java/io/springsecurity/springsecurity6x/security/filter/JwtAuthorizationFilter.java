@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,12 +15,10 @@ import java.io.IOException;
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transport;
     private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenService tokenService, TokenTransportStrategy transport, LogoutHandler logoutHandler) {
+    public JwtAuthorizationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
         this.tokenService = tokenService;
-        this.transport = transport;
         this.logoutHandler = logoutHandler;
     }
 
@@ -29,7 +26,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = transport.resolveAccessToken(request);
+        String accessToken = tokenService.resolveAccessToken(request);
 
         if (accessToken != null) {
             try {
@@ -38,8 +35,8 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
-                // 토큰 검증 실패 시 전체 인증정보 클리어 + 로그아웃
-                logoutHandler.logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+                SecurityContextHolder.clearContext();
+                logoutHandler.logout(request, response, null);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
                 return;
             }

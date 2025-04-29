@@ -7,13 +7,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-public class DefaultJwtTokenValidator implements TokenValidator {
+public class JwtTokenValidator implements TokenValidator {
 
     private final TokenParser tokenParser;
     private final RefreshTokenStore refreshTokenStore;
     private final long rotationThresholdMillis;
 
-    public DefaultJwtTokenValidator(TokenParser tokenParser, RefreshTokenStore refreshTokenStore, long rotateThresholdMillis) {
+    public JwtTokenValidator(TokenParser tokenParser, RefreshTokenStore refreshTokenStore, long rotateThresholdMillis) {
         this.tokenParser = tokenParser;
         this.refreshTokenStore = refreshTokenStore;
         this.rotationThresholdMillis = rotateThresholdMillis;

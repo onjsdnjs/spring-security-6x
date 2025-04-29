@@ -1,26 +1,26 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 
-/**
- * OAuth2 기반 TokenService 구현
- * - Client Credentials Flow 전용
- */
 public class OAuth2TokenService implements TokenService {
 
     private final TokenCreator tokenCreator;
     private final TokenValidator tokenValidator;
+    private final TokenTransportStrategy transport;
 
-    public OAuth2TokenService(TokenCreator tokenCreator, TokenValidator tokenValidator) {
+    public OAuth2TokenService(TokenCreator tokenCreator, TokenValidator tokenValidator, TokenTransportStrategy transport) {
         this.tokenCreator = tokenCreator;
         this.tokenValidator = tokenValidator;
+        this.transport = transport;
     }
 
     @Override
     public String createAccessToken(Authentication authentication) {
-        // OAuth2는 username/password 기반이 아니므로 authentication은 무시
         return tokenCreator.createToken(null);
     }
 
@@ -41,12 +41,12 @@ public class OAuth2TokenService implements TokenService {
 
     @Override
     public boolean validateRefreshToken(String token) {
-        return false;
+        return false; // Client Credentials Flow에서는 refresh_token 사용 안함
     }
 
     @Override
     public void invalidateRefreshToken(String refreshToken) {
-        throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token 무효화가 필요하지 않습니다.");
+        throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token 무효화를 지원하지 않습니다.");
     }
 
     @Override
@@ -55,10 +55,31 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public boolean shouldRotateRefreshToken(String refreshToken) {
-        return false;
+    public String resolveAccessToken(HttpServletRequest request) {
+        return transport.resolveAccessToken(request);
+    }
+
+    @Override
+    public String resolveRefreshToken(HttpServletRequest request) {
+        return transport.resolveRefreshToken(request);
+    }
+
+    @Override
+    public void writeAccessToken(HttpServletResponse response, String accessToken) {
+        transport.writeAccessToken(response, accessToken);
+    }
+
+    @Override
+    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
+        transport.writeRefreshToken(response, refreshToken);
+    }
+
+    @Override
+    public void clearTokens(HttpServletResponse response) {
+        transport.clearTokens(response);
     }
 }
+
 
 
 

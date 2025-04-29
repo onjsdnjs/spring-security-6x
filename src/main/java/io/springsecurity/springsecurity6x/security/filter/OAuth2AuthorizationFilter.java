@@ -32,20 +32,14 @@ public class OAuth2AuthorizationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         String accessToken = transport.resolveAccessToken(request);
-
         if (accessToken != null) {
             try {
                 boolean valid = tokenService.validateAccessToken(accessToken);
-
-                if (!valid) {
-                    throw new IllegalStateException("Access token invalid or expired");
-                }
+                if (!valid) throw new IllegalStateException("Access token invalid or expired");
 
                 Authentication authentication = tokenService.getAuthentication(accessToken);
                 SecurityContextHolder.getContext().setAuthentication(authentication);

@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.handler.authentication;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.handler.logout.OAuth2LogoutHandler;
-import io.springsecurity.springsecurity6x.security.handler.logout.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.http.HttpServletResponse;

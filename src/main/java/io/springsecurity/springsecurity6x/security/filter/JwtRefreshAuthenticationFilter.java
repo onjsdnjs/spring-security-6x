@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 
 public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 

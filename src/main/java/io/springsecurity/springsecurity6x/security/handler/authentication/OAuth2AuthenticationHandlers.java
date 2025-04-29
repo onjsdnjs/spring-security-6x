@@ -1,15 +1,11 @@
 package io.springsecurity.springsecurity6x.security.handler.authentication;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.handler.logout.OAuth2LogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.MediaType;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
-
-import java.util.Map;
 
 /**
  * OAuth2 기반 인증 성공/실패 핸들러 구현체

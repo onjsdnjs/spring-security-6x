@@ -11,7 +11,6 @@ import io.springsecurity.springsecurity6x.security.properties.AuthContextPropert
 import javax.crypto.SecretKey;
 
 public final class AuthenticationStateDsl {
-    private AuthenticationStateConfigurer selectedConfigurer;
     private boolean selected = false;
     private final AuthContextProperties properties;
     private final SecretKey secretKey;
@@ -24,7 +23,6 @@ public final class AuthenticationStateDsl {
     public JwtStateConfigurer jwt() {
         assertNotSelected();
         JwtStateConfigurer jwtStateConfigurer = new JwtStateConfigurerImpl(secretKey, properties);
-        this.selectedConfigurer = jwtStateConfigurer;
         this.selected = true;
         return jwtStateConfigurer;
     }
@@ -32,7 +30,6 @@ public final class AuthenticationStateDsl {
     public OAuth2StateConfigurer oauth2() {
         assertNotSelected();
         OAuth2StateConfigurer oauth2StateConfigurer = new OAuth2StateConfigurerImpl(properties);
-        this.selectedConfigurer = oauth2StateConfigurer;
         this.selected = true;
         return oauth2StateConfigurer;
     }
@@ -40,7 +37,6 @@ public final class AuthenticationStateDsl {
     public SessionStateConfigurer session() {
         assertNotSelected();
         SessionStateConfigurer sessionStateConfigurer = new SessionStateConfigurerImpl(properties);
-        this.selectedConfigurer = sessionStateConfigurer;
         this.selected = true;
         return sessionStateConfigurer;
     }

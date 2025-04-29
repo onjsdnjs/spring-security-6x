@@ -12,7 +12,6 @@ import javax.crypto.SecretKey;
 
 public final class AuthenticationStateDsl {
     private AuthenticationStateConfigurer selectedConfigurer;
-    private SessionStateConfigurerImpl sessionStateConfigurerImpl;
     private boolean selected = false;
     private final AuthContextProperties properties;
     private final SecretKey secretKey;
@@ -46,19 +45,8 @@ public final class AuthenticationStateDsl {
         return sessionStateConfigurer;
     }
 
-
-    public AuthenticationStateConfigurer build() {
-        if (selectedConfigurer != null) {
-            return selectedConfigurer;
-        } else {
-            throw new IllegalStateException("jwt(), oauth2(), session() 중 하나는 반드시 설정해야 합니다.");
-        }
-    }
-
     private void assertNotSelected() {
-        if (selected) {
-            throw new IllegalStateException("jwt(), oauth2(), session() 중 하나만 호출할 수 있습니다.");
-        }
+        if (selected) throw new IllegalStateException("jwt(), oauth2(), session() 중 하나만 호출할 수 있습니다.");
     }
 }
 

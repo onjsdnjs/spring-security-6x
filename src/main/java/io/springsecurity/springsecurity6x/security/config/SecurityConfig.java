@@ -35,9 +35,7 @@ public class SecurityConfig {
                     .form(form -> form.loginPage("/login"))
                     .ott(ott -> ott.loginProcessingUrl("/login/ott"))
                     .passkey(passkey -> passkey.rpName("SecureApp").rpId("localhost").allowedOrigins("http://localhost:8080"))
-                    .state(AuthenticationStateDsl::jwt
-//                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER)
-                    )
+                    .state(AuthenticationStateDsl::jwt)
             );
         return http.build();
     }

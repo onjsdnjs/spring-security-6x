@@ -10,4 +10,9 @@ public class HomeController {
     public String home() {
         return "home";
     }
+
+    @GetMapping("/authMode")
+    public String authMode() {
+        return "auth-mode";
+    }
 }

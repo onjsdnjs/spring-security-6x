@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>인증방식 선택</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+
+<div class="app-wrapper">
+
+    <!-- 헤더 -->
+    <header class="app-header" th:insert="~{fragments/header :: header}"></header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" th:insert="~{fragments/menu :: menu}"></aside>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="content">
+        <div class="container" style="display: flex; flex-direction: column; align-items: center; margin-top: 100px;">
+            <h2>사용할 인증 방식을 선택하세요</h2>
+
+            <div class="mode-buttons" style="margin-top: 30px;">
+                <button style="margin: 10px; padding: 14px 28px; font-size: 16px; cursor: pointer;"
+                        onclick="selectMode('header')">헤더 방식 사용</button>
+                <button style="margin: 10px; padding: 14px 28px; font-size: 16px; cursor: pointer;"
+                        onclick="selectMode('cookie')">쿠키 방식 사용</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="app-footer" th:insert="~{fragments/footer :: footer}"></footer>
+
+</div>
+
+<script>
+    function selectMode(mode) {
+        if (mode === 'header') {
+            localStorage.setItem('useHeaderMode', 'true');
+        } else {
+            localStorage.setItem('useHeaderMode', 'false');
+        }
+        window.location.href = "/login";  // 선택 후 로그인 화면으로 이동
+    }
+</script>
+
+</body>
+</html>

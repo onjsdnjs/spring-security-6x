@@ -20,24 +20,24 @@ public class OAuth2TokenParser implements TokenParser {
     public ParsedJwt parse(String token) {
         var userInfo = resourceClient.getUserInfo(token);
 
-        if (userInfo == null || !userInfo.isActive()) {
+        if (userInfo == null || !userInfo.active()) {
             throw new RuntimeException("Token is inactive or invalid.");
         }
 
-        List<String> roles = (userInfo.getScope() != null)
-                ? Arrays.stream(userInfo.getScope().split(" "))
+        List<String> roles = (userInfo.scope() != null)
+                ? Arrays.stream(userInfo.scope().split(" "))
                 .map(String::trim)
                 .filter(role -> !role.isEmpty())
                 .collect(Collectors.toList())
                 : Collections.emptyList();
 
-        Instant expiration = (userInfo.getExpiresAt() != null)
-                ? Instant.ofEpochSecond(userInfo.getExpiresAt())
+        Instant expiration = (userInfo.expiresAt() != null)
+                ? Instant.ofEpochSecond(userInfo.expiresAt())
                 : Instant.now().plusSeconds(3600);  // 예외 대비 기본 만료 1시간 설정 (옵션)
 
         return new ParsedJwt(
                 null,                      // OAuth2 AccessToken에는 jti(id) 없음
-                userInfo.getUsername(),     // subject
+                userInfo.username(),     // subject
                 expiration,                 // expiration
                 roles                       // roles
         );
@@ -46,7 +46,7 @@ public class OAuth2TokenParser implements TokenParser {
     @Override
     public boolean isValidAccessToken(String token) {
         var userInfo = resourceClient.getUserInfo(token);
-        return userInfo != null && userInfo.isActive();
+        return userInfo != null && userInfo.active();
     }
 
     @Override

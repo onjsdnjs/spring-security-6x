@@ -37,16 +37,16 @@ public class OAuth2TokenValidator implements TokenValidator {
     public Authentication getAuthentication(String token) {
         OAuth2IntrospectionResponse userInfo = resourceClient.getUserInfo(token);
 
-        if (!userInfo.isActive()) {
+        if (!userInfo.active()) {
             throw new RuntimeException("Token is invalid");
         }
 
-        List<SimpleGrantedAuthority> authorities = Arrays.stream(userInfo.getScope().split(" "))
+        List<SimpleGrantedAuthority> authorities = Arrays.stream(userInfo.scope().split(" "))
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
         return new UsernamePasswordAuthenticationToken(
-                userInfo.getUsername(),
+                userInfo.username(),
                 null,
                 authorities
         );

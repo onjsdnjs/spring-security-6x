@@ -1,10 +1,15 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+
+import java.io.IOException;
+import java.util.Map;
 
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.ACCESS_TOKEN;
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.REFRESH_TOKEN;
@@ -51,6 +56,14 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
         writeAccessToken(response, accessToken);
         writeRefreshToken(response, refreshToken);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+        try {
+            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

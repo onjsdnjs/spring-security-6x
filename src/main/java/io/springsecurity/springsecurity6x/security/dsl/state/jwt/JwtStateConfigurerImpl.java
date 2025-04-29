@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
@@ -75,7 +76,9 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         transport.setTokenService(tokenService);
         handlers  = new JwtAuthenticationHandlers(tokenService);
 
-        http.logout(logout -> logout.addLogoutHandler(handlers.logoutHandler()));
+        http.logout(logout -> logout
+                .addLogoutHandler(handlers.logoutHandler())
+                .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
     }

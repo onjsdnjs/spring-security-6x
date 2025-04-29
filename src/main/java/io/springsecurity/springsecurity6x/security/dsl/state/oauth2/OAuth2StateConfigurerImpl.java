@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.OAuth2TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.service.OAuth2TokenService;
@@ -102,7 +103,9 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
                 http.getSharedObject(LogoutHandler.class)
         );
 
-        http.logout(logout -> logout.addLogoutHandler(handlers.logoutHandler()));
+        http.logout(logout -> logout
+                .addLogoutHandler(handlers.logoutHandler())
+                .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
     }
 }

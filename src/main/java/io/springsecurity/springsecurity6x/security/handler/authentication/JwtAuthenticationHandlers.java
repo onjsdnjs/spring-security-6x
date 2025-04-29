@@ -24,7 +24,6 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
         return (request, response, authentication) -> {
             String accessToken = tokenService.createAccessToken(authentication);
             String refreshToken = tokenService.createRefreshToken(authentication);
-
             try {
                 tokenService.writeAccessAndRefreshToken(response, accessToken, refreshToken);
             } catch (Exception e) {

@@ -28,12 +28,6 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
         return (request, response, authentication) -> {
             String accessToken = tokenService.createAccessToken(authentication);
             tokenService.writeAccessToken(response, accessToken);
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-            new ObjectMapper().writeValue(
-                    response.getWriter(),
-                    Map.of("message", "Authentication Successful")
-            );
         };
     }
 

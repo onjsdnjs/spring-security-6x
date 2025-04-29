@@ -63,7 +63,6 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
                     expiresIn,
                     refreshToken
             );
-
             new ObjectMapper().writeValue(response.getWriter(), body);
         } catch (IOException e) {
             throw new RuntimeException("토큰 JSON 응답 실패", e);

@@ -45,6 +45,7 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     @Override
     public void writeAccessToken(HttpServletResponse response, String accessToken) {
         addCookie(response, ACCESS_TOKEN, accessToken, (int)tokenService.properties().getAccessTokenValidity()/1000); // 1시간
+        write(response);
     }
 
     @Override
@@ -56,7 +57,10 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         writeAccessToken(response, accessToken);
         writeRefreshToken(response, refreshToken);
+        write(response);
+    }
 
+    private static void write(HttpServletResponse response) {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
         try {

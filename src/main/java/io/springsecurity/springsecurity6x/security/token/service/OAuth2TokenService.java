@@ -38,7 +38,7 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) throws Exception {
         transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
     }
 

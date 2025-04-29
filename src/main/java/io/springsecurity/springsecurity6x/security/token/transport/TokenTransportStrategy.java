@@ -14,7 +14,7 @@ public interface TokenTransportStrategy {
 
     void writeRefreshToken(HttpServletResponse response, String refreshToken);
 
-    void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken);
+    void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) throws Exception;
 
     void clearTokens(HttpServletResponse response);
 

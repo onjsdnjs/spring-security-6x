@@ -43,7 +43,7 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         writeTokens(response, accessToken, refreshToken, tokenService.properties().getAccessTokenValidity());
     }
 

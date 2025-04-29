@@ -19,11 +19,10 @@ spring:
     enabled-auth-types:
       - FORM
       - OTT
-    internal:
-      accessTokenValidity: 3600000
-      refreshTokenValidity: 604800000
-      enableRefreshToken: true
-      tokenPrefix: Bearer
+    accessTokenValidity: 3600000
+    refreshTokenValidity: 604800000
+    enableRefreshToken: true
+    tokenPrefix: Bearer
 
     oauth2:
       client-id: client-app
@@ -31,8 +30,6 @@ spring:
       issuer-uri: http://localhost:9000
       token-endpoint: /oauth2/token
       scope: read
-      refresh-token-ttl: 604800000
-      access-token-ttl: 3600000
 
     token-issuer: authorization_server
     auth-state-mode: jwt

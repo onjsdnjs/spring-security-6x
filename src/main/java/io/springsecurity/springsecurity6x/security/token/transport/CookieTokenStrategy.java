@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +15,7 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     private static final boolean HTTP_ONLY           = true;
     private static final boolean SECURE              = false; // 운영에서는 true
     private static final String SAME_SITE            = "Strict";
+    private TokenService tokenService;
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
@@ -37,18 +39,23 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
 
     @Override
     public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        addCookie(response, ACCESS_TOKEN, accessToken, 3600); // 1시간
+        addCookie(response, ACCESS_TOKEN, accessToken, (int)tokenService.properties().getAccessTokenValidity()/1000); // 1시간
     }
 
     @Override
     public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        addCookie(response, REFRESH_TOKEN, refreshToken, 604800); // 7일
+        addCookie(response, REFRESH_TOKEN, refreshToken, (int)tokenService.properties().getRefreshTokenValidity()/1000); // 7일
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
         removeCookie(response, ACCESS_TOKEN);
         removeCookie(response, REFRESH_TOKEN);
+    }
+
+    @Override
+    public void setTokenService(TokenService tokenService) {
+        this.tokenService = tokenService;
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {

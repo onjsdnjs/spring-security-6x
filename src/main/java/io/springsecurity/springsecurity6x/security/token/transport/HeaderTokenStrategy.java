@@ -1,10 +1,22 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
 public class HeaderTokenStrategy implements TokenTransportStrategy {
+
+    private TokenService tokenService;
+
+    @Override
+    public void setTokenService(TokenService tokenService) {
+        this.tokenService = tokenService;
+    }
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
@@ -22,20 +34,38 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
 
     @Override
     public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        response.setHeader(ACCESS_TOKEN_HEADER, BEARER_PREFIX + accessToken);
+        writeTokens(response, accessToken, null, tokenService.properties().getAccessTokenValidity());
     }
 
     @Override
     public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        response.setHeader(REFRESH_TOKEN_HEADER, refreshToken);
+        writeTokens(response, null, refreshToken, tokenService.properties().getRefreshTokenValidity());
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
-        response.setHeader(ACCESS_TOKEN_HEADER, "");
-        response.setHeader(REFRESH_TOKEN_HEADER, "");
+        writeTokens(response, null, null, 0);
+    }
+
+    private void writeTokens(HttpServletResponse response, String accessToken, String refreshToken, long expiresIn) {
+        try {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json;charset=UTF-8");
+
+            AccessTokenResponse body = new AccessTokenResponse(
+                    accessToken,
+                    "Bearer",
+                    expiresIn,
+                    refreshToken
+            );
+
+            new ObjectMapper().writeValue(response.getWriter(), body);
+        } catch (IOException e) {
+            throw new RuntimeException("토큰 JSON 응답 실패", e);
+        }
     }
 }
+
 
 
 

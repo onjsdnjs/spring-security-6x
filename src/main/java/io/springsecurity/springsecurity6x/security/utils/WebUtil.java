@@ -13,5 +13,4 @@ public class WebUtil {
                 || "XMLHttpRequest".equalsIgnoreCase(xRequested)
                 || uri.startsWith("/api/");
     }
-
 }

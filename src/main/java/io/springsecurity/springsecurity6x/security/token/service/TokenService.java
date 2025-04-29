@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,7 +22,7 @@ public interface TokenService extends TokenValidator {
     void writeAccessToken(HttpServletResponse response, String accessToken);
     void writeRefreshToken(HttpServletResponse response, String refreshToken);
     void clearTokens(HttpServletResponse response);
-
+    AuthContextProperties properties();
     record RefreshResult(String accessToken, String refreshToken) {}
 }
 

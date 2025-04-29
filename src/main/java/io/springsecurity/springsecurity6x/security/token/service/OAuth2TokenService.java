@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
@@ -12,11 +13,13 @@ public class OAuth2TokenService implements TokenService {
     private final TokenCreator tokenCreator;
     private final TokenValidator tokenValidator;
     private final TokenTransportStrategy transport;
+    private final AuthContextProperties props;
 
-    public OAuth2TokenService(TokenCreator tokenCreator, TokenValidator tokenValidator, TokenTransportStrategy transport) {
+    public OAuth2TokenService(TokenCreator tokenCreator, TokenValidator tokenValidator, TokenTransportStrategy transport, AuthContextProperties props) {
         this.tokenCreator = tokenCreator;
         this.tokenValidator = tokenValidator;
         this.transport = transport;
+        this.props = props;
     }
 
     @Override
@@ -77,6 +80,11 @@ public class OAuth2TokenService implements TokenService {
     @Override
     public void clearTokens(HttpServletResponse response) {
         transport.clearTokens(response);
+    }
+
+    @Override
+    public AuthContextProperties properties() {
+        return props;
     }
 }
 

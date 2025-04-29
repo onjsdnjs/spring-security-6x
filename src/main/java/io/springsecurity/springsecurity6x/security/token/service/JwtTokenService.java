@@ -39,7 +39,7 @@ public class JwtTokenService implements TokenService {
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
-                .validity(props.getInternal().getAccessTokenValidity())
+                .validity(props.getAccessTokenValidity())
                 .build();
 
         return tokenCreator.createToken(tokenRequest);
@@ -53,7 +53,7 @@ public class JwtTokenService implements TokenService {
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
-                .validity(props.getInternal().getRefreshTokenValidity())
+                .validity(props.getRefreshTokenValidity())
                 .build();
 
         String token = tokenCreator.createToken(tokenRequest);
@@ -72,7 +72,7 @@ public class JwtTokenService implements TokenService {
         String newAccessToken = createAccessToken(auth);
         String newRefreshToken = refreshToken;
 
-        boolean rotateEnabled = props.getInternal().isEnableRefreshToken();
+        boolean rotateEnabled = props.isEnableRefreshToken();
         if (rotateEnabled && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
             tokenStore.remove(refreshToken);
             newRefreshToken = createRefreshToken(auth);
@@ -124,6 +124,11 @@ public class JwtTokenService implements TokenService {
     @Override
     public void clearTokens(HttpServletResponse response) {
         transport.clearTokens(response);
+    }
+
+    @Override
+    public AuthContextProperties properties() {
+        return props;
     }
 }
 

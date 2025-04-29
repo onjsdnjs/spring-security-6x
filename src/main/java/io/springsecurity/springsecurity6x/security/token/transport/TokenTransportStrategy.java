@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -14,6 +15,8 @@ public interface TokenTransportStrategy {
     void writeRefreshToken(HttpServletResponse response, String refreshToken);
 
     void clearTokens(HttpServletResponse response);
+
+    void setTokenService(TokenService tokenService);
 }
 
 

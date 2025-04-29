@@ -24,6 +24,7 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
  */
 public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
 
+    private final AuthContextProperties properties;
     private String tokenUri;
     private String clientId;
     private String clientSecret;
@@ -32,7 +33,8 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     private AuthenticationHandlers handlers;
     private final TokenTransportStrategy transport;
 
-    public OAuth2StateConfigurerImpl(AuthContextProperties properties) {
+    public OAuth2StateConfigurerImpl(AuthContextProperties props) {
+        this.properties = props;
         if (properties.getOauth2() == null) {
             throw new IllegalArgumentException("OAuth2 설정이 누락되었습니다. application.yml 파일을 확인하세요.");
         }
@@ -81,7 +83,7 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
 
         var creator = new OAuth2TokenCreator(tokenProvider);
         var validator = new OAuth2TokenValidator(resourceClient);
-        TokenService tokenService = new OAuth2TokenService(creator, validator, transport);
+        TokenService tokenService = new OAuth2TokenService(creator, validator, transport, properties);
         this.handlers = new OAuth2AuthenticationHandlers(tokenService);
 
         http.setSharedObject(OAuth2HttpClient.class, httpClient);

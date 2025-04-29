@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
 
+@Getter
 public class OAuth2AccessTokenResponse {
 
     @JsonProperty("access_token")
@@ -16,23 +18,7 @@ public class OAuth2AccessTokenResponse {
     @JsonProperty("scope")
     private String scope;
 
-    // 기본 생성자 (RestClient가 필요로 함)
     public OAuth2AccessTokenResponse() {}
 
-    public String getAccessToken() {
-        return accessToken;
-    }
-
-    public int getExpiresIn() {
-        return expiresIn;
-    }
-
-    public String getTokenType() {
-        return tokenType;
-    }
-
-    public String getScope() {
-        return scope;
-    }
 }
 

@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.dsl;
 import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
-import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;

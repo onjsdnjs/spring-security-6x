@@ -1,26 +1,26 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
-import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
-import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import org.springframework.security.core.Authentication;
 
+/**
+ * OAuth2 기반 TokenService 구현
+ * - Client Credentials Flow 전용
+ */
 public class OAuth2TokenService implements TokenService {
 
     private final TokenCreator tokenCreator;
     private final TokenValidator tokenValidator;
 
-    public OAuth2TokenService(TokenCreator tokenCreator,
-                              TokenParser tokenParser,
-                              TokenValidator tokenValidator,
-                              RefreshTokenStore refreshTokenStore) {
+    public OAuth2TokenService(TokenCreator tokenCreator, TokenValidator tokenValidator) {
         this.tokenCreator = tokenCreator;
         this.tokenValidator = tokenValidator;
     }
 
     @Override
     public String createAccessToken(Authentication authentication) {
+        // OAuth2는 username/password 기반이 아니므로 authentication은 무시
         return tokenCreator.createToken(null);
     }
 
@@ -41,12 +41,12 @@ public class OAuth2TokenService implements TokenService {
 
     @Override
     public boolean validateRefreshToken(String token) {
-        return tokenValidator.validateRefreshToken(token);
+        return false;
     }
 
     @Override
     public void invalidateRefreshToken(String refreshToken) {
-        tokenValidator.invalidateRefreshToken(refreshToken);
+        throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token 무효화가 필요하지 않습니다.");
     }
 
     @Override
@@ -59,5 +59,6 @@ public class OAuth2TokenService implements TokenService {
         return false;
     }
 }
+
 
 

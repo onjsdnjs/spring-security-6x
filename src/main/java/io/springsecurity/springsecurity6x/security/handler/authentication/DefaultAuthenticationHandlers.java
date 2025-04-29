@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.handler;
+package io.springsecurity.springsecurity6x.security.handler.authentication;
 
 import org.springframework.security.web.authentication.*;
 

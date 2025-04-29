@@ -1,6 +1,7 @@
-package io.springsecurity.springsecurity6x.security.handler;
+package io.springsecurity.springsecurity6x.security.handler.authentication;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.handler.logout.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 import java.util.Map;
 
@@ -18,14 +20,14 @@ import java.util.Map;
 public class JwtAuthenticationHandlers implements AuthenticationHandlers {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transportHandler;
+    private final TokenTransportStrategy transport;
     private final AuthContextProperties properties;
 
     public JwtAuthenticationHandlers(TokenService tokenService,
-                                     TokenTransportStrategy transportHandler,
+                                     TokenTransportStrategy transport,
                                      AuthContextProperties properties) {
         this.tokenService = tokenService;
-        this.transportHandler = transportHandler;
+        this.transport = transport;
         this.properties = properties;
     }
 
@@ -39,9 +41,9 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
                 refreshToken = tokenService.createRefreshToken(authentication);
             }
             // Header 또는 Cookie 방식으로 전송
-            transportHandler.writeAccessToken(response, accessToken);
+            transport.writeAccessToken(response, accessToken);
             if (refreshToken != null) {
-                transportHandler.writeRefreshToken(response, refreshToken);
+                transport.writeRefreshToken(response, refreshToken);
             }
 
             // JSON 응답 (message)
@@ -58,6 +60,10 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
     public AuthenticationFailureHandler failureHandler() {
         return (request, response, exception) ->
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication Failed");
+    }
+
+    public LogoutHandler logoutHandler(){
+        return new TokenLogoutHandler(tokenService, transport);
     }
 }
 

@@ -1,19 +1,18 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.jwt;
 
-import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.handler.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.JwtAuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.TokenLogoutHandler;
+import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.logout.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
-import io.springsecurity.springsecurity6x.security.token.service.InternalJwtTokenService;
+import io.springsecurity.springsecurity6x.security.token.service.JwtTokenService;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.JwtRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
@@ -69,14 +68,10 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         TokenCreator creator = new JwtTokenCreator(key);
         RefreshTokenStore store = new JwtRefreshTokenStore(parser);
         TokenValidator validator = new DefaultJwtTokenValidator(parser, store, props.getInternal().getRefreshRotateThreshold());
-        tokenService = new InternalJwtTokenService(validator, creator, store, props);
+        tokenService = new JwtTokenService(validator, creator, store, props);
         handlers  = new JwtAuthenticationHandlers(tokenService, transport, props);
 
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transport, logoutHandler()), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, transport, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
-    }
-
-    public LogoutHandler logoutHandler(){
-        return new TokenLogoutHandler(tokenService);
     }
 }

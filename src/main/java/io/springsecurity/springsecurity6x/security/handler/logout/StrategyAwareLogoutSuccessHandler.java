@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.handler;
+package io.springsecurity.springsecurity6x.security.handler.logout;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,67 +1,100 @@
-document.addEventListener("DOMContentLoaded", function() {
-    let useHeader = true; // 기본은 Header 방식
+document.addEventListener("DOMContentLoaded", () => {
+    const headerModeBtn = document.getElementById("headerModeBtn");
+    const cookieModeBtn = document.getElementById("cookieModeBtn");
 
-    const headerModeBtn = document.getElementById('headerModeBtn');
-    const cookieModeBtn = document.getElementById('cookieModeBtn');
-    const usersTableBody = document.querySelector("#usersTable tbody");
+    let useHeaderMode = false;  // 기본은 쿠키 모드
 
-    headerModeBtn.addEventListener('click', () => {
-        useHeader = true;
-        alert("헤더 방식으로 전환되었습니다.");
-        loadUsers();
+    headerModeBtn.addEventListener("click", () => {
+        useHeaderMode = true;
+        alert("헤더 방식으로 변경되었습니다.");
     });
 
-    cookieModeBtn.addEventListener('click', () => {
-        useHeader = false;
-        alert("쿠키 방식으로 전환되었습니다.");
-        loadUsers();
+    cookieModeBtn.addEventListener("click", () => {
+        useHeaderMode = false;
+        alert("쿠키 방식으로 변경되었습니다.");
     });
 
     async function loadUsers() {
         try {
-            const accessToken = sessionStorage.getItem('access_token');
-            if (!accessToken && useHeader) {
-                alert("Access Token이 없습니다. 로그인 해주세요.");
-                return;
+            const headers = {};
+
+            if (useHeaderMode) {
+                const accessToken = localStorage.getItem("access_token");
+                if (accessToken) {
+                    headers["Authorization"] = `Bearer ${accessToken}`;
+                }
             }
 
-            const headers = useHeader ? {
-                'Authorization': 'Bearer ' + accessToken
-            } : {};
+            const res = await fetch("/api/users", {
+                method: "GET",
+                credentials: "same-origin",
+                headers: headers
+            });
 
-            const options = {
-                method: 'GET',
-                headers: headers,
-                credentials: useHeader ? 'same-origin' : 'include' // Header는 same-origin, Cookie는 include
-            };
-
-            const res = await fetch('/api/users', options);
-
-            if (res.status === 401 || res.status === 403) {
-                alert("인증 실패. 로그인 해주세요.");
-                window.location.href = '/loginForm'; // 로그인 페이지로 이동
-                return;
+            if (res.status === 401) {
+                console.warn("AccessToken 만료, 리프레시 시도 중...");
+                const refreshSuccess = await refreshTokens();
+                if (refreshSuccess) {
+                    return loadUsers(); // 토큰 갱신 후 재시도
+                } else {
+                    alert("세션이 만료되었습니다. 다시 로그인하세요.");
+                    window.location.href = "/loginForm";
+                }
             }
 
             const users = await res.json();
-            usersTableBody.innerHTML = ""; // 테이블 초기화
+            renderUsers(users);
 
-            users.forEach(u => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td style="text-align:center">${u.username}</td>
-                    <td style="text-align:center">${u.email}</td>
-                    <td style="text-align:center">${u.roles}</td>
-                `;
-                usersTableBody.appendChild(tr);
-            });
-
-        } catch (error) {
-            console.error("회원 목록 로드 실패:", error);
-            alert("회원 목록을 불러오는 중 오류가 발생했습니다.");
+        } catch (err) {
+            console.error("사용자 목록 로딩 실패:", err);
+            alert("오류가 발생했습니다.");
         }
     }
 
-    // 페이지 로딩 후 바로 호출
+    async function refreshTokens() {
+        try {
+            const res = await fetch("/api/auth/refresh", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (!res.ok) {
+                console.error("Refresh 실패:", res.status);
+                return false;
+            }
+
+            const tokens = await res.json();
+            console.log("Refresh 성공:", tokens);
+
+            if (useHeaderMode) {
+                localStorage.setItem("access_token", tokens.access_token);
+            }
+            return true;
+
+        } catch (err) {
+            console.error("Refresh 요청 실패:", err);
+            return false;
+        }
+    }
+
+    function renderUsers(users) {
+        const tbody = document.querySelector("#usersTable tbody");
+        tbody.innerHTML = "";
+
+        users.forEach(user => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="text-align:center">${user.username}</td>
+                <td style="text-align:center">${user.email}</td>
+                <td style="text-align:center">${user.roles}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 페이지 로드 시 자동으로 사용자 목록 조회
     loadUsers();
 });

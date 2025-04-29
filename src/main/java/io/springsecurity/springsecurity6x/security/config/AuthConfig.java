@@ -3,7 +3,6 @@ package io.springsecurity.springsecurity6x.security.config;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.security.dsl.AuthIntegrationPlatformConfigurer;
-import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.OAuth2StateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.modelmapper.ModelMapper;

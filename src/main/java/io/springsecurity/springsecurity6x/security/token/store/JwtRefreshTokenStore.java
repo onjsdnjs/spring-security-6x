@@ -1,24 +1,24 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
-import io.springsecurity.springsecurity6x.security.token.parser.JwtParser;
+import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class InMemoryRefreshTokenStore implements RefreshTokenStore {
+public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
-    private final JwtParser jwtParser;
+    private final TokenParser tokenParser;
 
-    public InMemoryRefreshTokenStore(JwtParser jwtParser) {
-        this.jwtParser = jwtParser;
+    public JwtRefreshTokenStore(TokenParser tokenParser) {
+        this.tokenParser = tokenParser;
     }
 
     @Override
     public void store(String refreshToken, String username) {
-        ParsedJwt parsedJwt = jwtParser.parse(refreshToken);
+        ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
         String jti = parsedJwt.id();
         Instant expiry = parsedJwt.expiration();
 
@@ -28,7 +28,7 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
     @Override
     public String getUsername(String refreshToken) {
         try {
-            ParsedJwt parsedJwt = jwtParser.parse(refreshToken);
+            ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String jti = parsedJwt.id();
 
             TokenInfo info = store.get(jti);
@@ -51,15 +51,14 @@ public class InMemoryRefreshTokenStore implements RefreshTokenStore {
     @Override
     public void remove(String refreshToken) {
         try {
-            ParsedJwt parsedJwt = jwtParser.parse(refreshToken);
+            ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String jti = parsedJwt.id();
             store.remove(jti);
         } catch (Exception ignored) {
         }
     }
 
-    @Override
-    public JwtParser parser() {
-        return jwtParser;
+    public TokenParser parser() {
+        return tokenParser;
     }
 }

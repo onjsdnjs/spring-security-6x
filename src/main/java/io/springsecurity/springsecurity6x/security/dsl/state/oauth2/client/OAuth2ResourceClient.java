@@ -12,17 +12,10 @@ public class OAuth2ResourceClient {
         this.tokenProvider = tokenProvider;
     }
 
-    /**
-     * 액세스 토큰을 새로 발급받는다.
-     */
     public String issueAccessToken(String username) {
-        // OAuth2에서는 username 기반이 아니고, Client Credentials로 발급
         return tokenProvider.getAccessToken();
     }
 
-    /**
-     * 액세스 토큰 유효성 검사
-     */
     public boolean validateAccessToken(String accessToken) {
         try {
             Map<String, Object> introspectionResponse = httpClient.post(
@@ -37,21 +30,28 @@ public class OAuth2ResourceClient {
         }
     }
 
-    /**
-     * 보호된 리소스에 GET 요청
-     */
+    public OAuth2IntrospectionResponse getUserInfo(String accessToken) {
+        Map<String, Object> introspectionResponse = httpClient.post(
+                tokenProvider.getIntrospectUri(),
+                "token=" + accessToken,
+                Map.class
+        );
+
+        return new OAuth2IntrospectionResponse(
+                (Boolean) introspectionResponse.getOrDefault("active", false),
+                (String) introspectionResponse.getOrDefault("username", null),
+                (String) introspectionResponse.getOrDefault("scope", ""),
+                introspectionResponse.get("exp") != null
+                        ? ((Number) introspectionResponse.get("exp")).longValue()
+                        : null
+        );
+    }
+
     public <T> T get(String uri, Class<T> responseType) {
         return httpClient.get(uri, tokenProvider.getAccessToken(), responseType);
     }
 
-    /**
-     * 보호된 리소스에 POST 요청
-     */
     public <T> T post(String uri, Object body, Class<T> responseType) {
         return httpClient.post(uri, body, tokenProvider.getAccessToken(), responseType);
     }
 }
-
-
-
-

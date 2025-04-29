@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class JwtTokenService implements TokenService {

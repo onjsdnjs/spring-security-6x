@@ -14,7 +14,7 @@ public interface TokenTransportStrategy {
 
     void clearTokens(HttpServletResponse response);
 
-    void setTokenService(TokenService tokenService);
+    default void setTokenService(TokenService tokenService){};
 }
 
 

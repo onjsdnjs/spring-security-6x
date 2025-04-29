@@ -57,8 +57,4 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
         } catch (Exception ignored) {
         }
     }
-
-    public TokenParser parser() {
-        return tokenParser;
-    }
 }

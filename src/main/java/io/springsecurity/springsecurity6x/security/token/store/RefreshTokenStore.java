@@ -1,10 +1,7 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
-public interface RefreshTokenStore {
-
-    void store(String refreshToken, String username);
-
+public interface RefreshTokenStore{
+    void store(String token, String username);
+    void remove(String token);
     String getUsername(String refreshToken);
-
-    void remove(String refreshToken);
 }

@@ -8,8 +8,9 @@ import io.springsecurity.springsecurity6x.security.handler.authentication.Authen
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.token.creator.AccessTokenGenerationStrategy;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
-import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.creator.TokenGenerationStrategy;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtTokenParser;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.service.JwtTokenService;
@@ -69,10 +70,10 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
     public void configure(HttpSecurity http) throws Exception {
 
         TokenParser parser = new JwtTokenParser(key);
-        TokenCreator creator = new JwtTokenCreator(key);
+        JwtTokenCreator tokenCreator = new JwtTokenCreator(key);
         RefreshTokenStore store = new JwtRefreshTokenStore(parser);
         TokenValidator validator = new JwtTokenValidator(parser, store, props.getRefreshRotateThreshold());
-        TokenService tokenService = new JwtTokenService(validator, creator, store, transport, props);
+        TokenService tokenService = new JwtTokenService(validator, tokenCreator, store, transport, props);
         transport.setTokenService(tokenService);
         handlers  = new JwtAuthenticationHandlers(tokenService);
 

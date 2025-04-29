@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import io.springsecurity.springsecurity6x.security.enums.TokenType;
 import io.springsecurity.springsecurity6x.security.exception.TokenValidationException;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
@@ -12,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class JwtTokenService implements TokenService {
@@ -33,32 +35,27 @@ public class JwtTokenService implements TokenService {
 
     @Override
     public String createAccessToken(Authentication authentication) {
-        TokenRequest tokenRequest = TokenRequest.builder()
-                .tokenType("access")
-                .username(authentication.getName())
-                .roles(authentication.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .collect(Collectors.toList()))
-                .validity(props.getAccessTokenValidity())
-                .build();
-
-        return tokenCreator.createToken(tokenRequest);
+        return getToken(authentication, TokenType.ACCESS.name().toLowerCase(), props.getAccessTokenValidity());
     }
 
     @Override
     public String createRefreshToken(Authentication authentication) {
+        String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity());
+        tokenStore.store(token, authentication.getName());
+        return token;
+    }
+
+    private String getToken(Authentication authentication, String tokenType, long validity) {
         TokenRequest tokenRequest = TokenRequest.builder()
-                .tokenType("refresh")
+                .tokenType(tokenType)
                 .username(authentication.getName())
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
-                .validity(props.getRefreshTokenValidity())
+                .validity(validity)
                 .build();
 
-        String token = tokenCreator.createToken(tokenRequest);
-        tokenStore.store(token, authentication.getName());
-        return token;
+        return tokenCreator.createToken(tokenRequest);
     }
 
     @Override

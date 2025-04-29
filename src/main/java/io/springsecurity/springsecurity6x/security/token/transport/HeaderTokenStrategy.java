@@ -33,16 +33,6 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
-    public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        writeTokens(response, accessToken, null, tokenService.properties().getAccessTokenValidity());
-    }
-
-    @Override
-    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        writeTokens(response, null, refreshToken, tokenService.properties().getRefreshTokenValidity());
-    }
-
-    @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         writeTokens(response, accessToken, refreshToken, tokenService.properties().getAccessTokenValidity());
     }

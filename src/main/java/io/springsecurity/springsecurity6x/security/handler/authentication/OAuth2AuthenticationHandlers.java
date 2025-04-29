@@ -27,7 +27,7 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
     public AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
             String accessToken = tokenService.createAccessToken(authentication);
-            tokenService.writeAccessToken(response, accessToken);
+            tokenService.writeAccessAndRefreshToken(response, accessToken, null);
         };
     }
 

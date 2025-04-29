@@ -34,17 +34,10 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             chain.doFilter(req, res);
             return;
         }
-
         String token = transport.resolveRefreshToken(req);
         try {
             TokenService.RefreshResult result = tokenService.refresh(token);
-
-            transport.writeAccessToken(res, result.accessToken());
-            transport.writeRefreshToken(res, result.refreshToken());
-
-            res.setStatus(HttpServletResponse.SC_OK);
-            res.setContentType("application/json;charset=UTF-8");
-            new ObjectMapper().writeValue(res.getWriter(), Map.of("message", "Refresh successful"));
+            transport.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
 
         } catch (Exception e) {
             res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");

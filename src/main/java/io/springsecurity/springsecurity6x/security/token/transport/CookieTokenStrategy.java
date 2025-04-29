@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.Map;
@@ -43,31 +44,10 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
-    public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        addCookie(response, ACCESS_TOKEN, accessToken, (int)tokenService.properties().getAccessTokenValidity()/1000); // 1시간
-        write(response);
-    }
-
-    @Override
-    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        addCookie(response, REFRESH_TOKEN, refreshToken, (int)tokenService.properties().getRefreshTokenValidity()/1000); // 7일
-    }
-
-    @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
-        writeAccessToken(response, accessToken);
-        writeRefreshToken(response, refreshToken);
+        addCookie(response, ACCESS_TOKEN, accessToken, (int)tokenService.properties().getAccessTokenValidity()/1000); // 1시간
+        addCookie(response, REFRESH_TOKEN, refreshToken, (int) tokenService.properties().getRefreshTokenValidity() / 1000); // 7일
         write(response);
-    }
-
-    private static void write(HttpServletResponse response) {
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-        try {
-            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
-        } catch (IOException e) {
-            throw new RuntimeException("쿠키 응답 메시지 작성 실패", e);
-        }
     }
 
     @Override
@@ -101,6 +81,16 @@ public class CookieTokenStrategy implements TokenTransportStrategy {
                 .maxAge(0)
                 .build();
         response.addHeader("Set-Cookie", expired.toString());
+    }
+
+    private static void write(HttpServletResponse response) {
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+        try {
+            new ObjectMapper().writeValue(response.getWriter(), Map.of("message", "Authentication Successful (JWT)"));
+        } catch (IOException e) {
+            throw new RuntimeException("쿠키 응답 메시지 작성 실패", e);
+        }
     }
 }
 

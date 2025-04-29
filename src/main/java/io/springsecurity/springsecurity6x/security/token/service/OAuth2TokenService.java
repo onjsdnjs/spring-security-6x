@@ -32,9 +32,10 @@ public class OAuth2TokenService implements TokenService {
         return transport.resolveRefreshToken(request);
     }
 
+
     @Override
-    public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        transport.writeAccessToken(response, accessToken);
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
+        transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
     }
 
     @Override
@@ -70,11 +71,6 @@ public class OAuth2TokenService implements TokenService {
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
         return transport.resolveAccessToken(request);
-    }
-
-    @Override
-    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        transport.writeRefreshToken(response, refreshToken);
     }
 
     @Override

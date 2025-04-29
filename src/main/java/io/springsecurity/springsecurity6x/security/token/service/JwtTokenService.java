@@ -82,16 +82,6 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
-    public void writeAccessToken(HttpServletResponse response, String accessToken) {
-        transport.writeAccessToken(response, accessToken);
-    }
-
-    @Override
-    public void writeRefreshToken(HttpServletResponse response, String refreshToken) {
-        transport.writeRefreshToken(response, refreshToken);
-    }
-
-    @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
     }

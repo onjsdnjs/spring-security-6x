@@ -24,6 +24,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
@@ -48,14 +49,20 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
 
     @Override
     public void init(HttpSecurity http) throws Exception {
+
+        if(props.getTokenTransportType() == TokenTransportType.HEADER){
+            http.csrf(AbstractHttpConfigurer::disable);
+        }else{
+            http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
+        }
+
         http
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
-                        .accessDeniedHandler((request, response, exception) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
-                .logout(l -> l.addLogoutHandler(logoutHandler()));
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(e -> e
+                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
+                    .accessDeniedHandler((request, response, exception) ->
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
+            .logout(l -> l.addLogoutHandler(logoutHandler()));
     }
 
     @Override

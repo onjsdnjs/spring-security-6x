@@ -1,4 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
+
+    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+
     const headerModeBtn = document.getElementById("headerModeBtn");
     const cookieModeBtn = document.getElementById("cookieModeBtn");
 
@@ -57,7 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 credentials: "same-origin",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    [csrfHeader]:    csrfToken
                 }
             });
 

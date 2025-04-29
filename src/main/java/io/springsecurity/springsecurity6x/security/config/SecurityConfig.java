@@ -23,22 +23,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")))
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-                .authorizeHttpRequests(authReq -> authReq
-                        .requestMatchers("/api/register").permitAll()
-                        .requestMatchers("/api/**").authenticated()
-                        .anyRequest().permitAll())
+        http
+            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+            .authorizeHttpRequests(authReq -> authReq
+                    .requestMatchers("/api/register").permitAll()
+                    .requestMatchers("/api/**").authenticated()
+                    .anyRequest().permitAll())
 
-                .with(platformConfigurer, platformConfigurer -> platformConfigurer
-                        .rest(rest -> rest.loginProcessingUrl("/api/auth/login"))
-                        .form(form -> form.loginPage("/login"))
-                        .ott(ott -> ott.loginProcessingUrl("/login/ott"))
-                        .passkey(passkey -> passkey.rpName("SecureApp").rpId("localhost").allowedOrigins("http://localhost:8080"))
-                        .state(AuthenticationStateDsl::jwt
+            .with(platformConfigurer, platformConfigurer -> platformConfigurer
+                    .rest(rest -> rest.loginProcessingUrl("/api/auth/login"))
+                    .form(form -> form.loginPage("/login"))
+                    .ott(ott -> ott.loginProcessingUrl("/login/ott"))
+                    .passkey(passkey -> passkey.rpName("SecureApp").rpId("localhost").allowedOrigins("http://localhost:8080"))
+                    .state(AuthenticationStateDsl::jwt
 //                                .tokenIssuer(TokenIssuer.AUTHORIZATION_SERVER)
-                        )
-                );
+                    )
+            );
         return http.build();
     }
 

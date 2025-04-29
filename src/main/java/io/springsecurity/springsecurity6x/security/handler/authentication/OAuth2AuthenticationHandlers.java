@@ -3,7 +3,6 @@ package io.springsecurity.springsecurity6x.security.handler.authentication;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.handler.logout.OAuth2LogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -27,11 +26,8 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
     @Override
     public AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
-
             String accessToken = tokenService.createAccessToken(authentication);
             tokenService.writeAccessToken(response, accessToken);
-
-            // JSON 성공 응답
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
             new ObjectMapper().writeValue(

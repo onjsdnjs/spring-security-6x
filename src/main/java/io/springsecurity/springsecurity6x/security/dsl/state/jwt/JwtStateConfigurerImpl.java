@@ -83,6 +83,6 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, transport, props), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, props), JwtAuthorizationFilter.class);
     }
 }

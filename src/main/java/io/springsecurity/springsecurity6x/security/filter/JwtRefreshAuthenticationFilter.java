@@ -14,14 +14,11 @@ import java.io.IOException;
 public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final TokenTransportStrategy transport;
     private final String refreshUri;
 
     public JwtRefreshAuthenticationFilter(TokenService tokenService,
-                                          TokenTransportStrategy transport,
                                           AuthContextProperties properties) {
         this.tokenService     = tokenService;
-        this.transport = transport;
         this.refreshUri       = properties.getInternal().getRefreshUri();
     }
 
@@ -32,10 +29,10 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             chain.doFilter(req, res);
             return;
         }
-        String token = transport.resolveRefreshToken(req);
+        String token = tokenService.resolveRefreshToken(req);
         try {
             TokenService.RefreshResult result = tokenService.refresh(token);
-            transport.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
+            tokenService.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
 
         } catch (Exception e) {
             res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");

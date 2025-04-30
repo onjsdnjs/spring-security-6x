@@ -6,7 +6,7 @@ import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2TokenProvider;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
-import io.springsecurity.springsecurity6x.security.filter.JwtLogoutFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
@@ -106,11 +106,12 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
         JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(tokenService, logoutHandler);
 
         http.logout(logout -> logout
+                .logoutUrl("/api/auth/logout")
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
 
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(new JwtLogoutFilter(tokenService), LogoutFilter.class);
+        http.addFilterBefore(new JwtPreAuthenticationFilter(tokenService), LogoutFilter.class);
     }
 }
 

@@ -12,11 +12,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-public class JwtLogoutFilter extends OncePerRequestFilter {
+public class JwtPreAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
 
-    public JwtLogoutFilter(TokenService tokenService) {
+    public JwtPreAuthenticationFilter(TokenService tokenService) {
         this.tokenService = tokenService;
     }
 
@@ -29,6 +29,7 @@ public class JwtLogoutFilter extends OncePerRequestFilter {
             String token = tokenService.resolveAccessToken(request);
             if (StringUtils.hasText(token) && tokenService.validateAccessToken(token)) {
                 Authentication authentication = tokenService.getAuthentication(token);
+
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }

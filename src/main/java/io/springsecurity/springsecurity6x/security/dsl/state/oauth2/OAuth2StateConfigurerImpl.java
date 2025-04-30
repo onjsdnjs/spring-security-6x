@@ -104,7 +104,6 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
         );
 
         http.logout(logout -> logout
-                .logoutUrl("/api/auth/logout")
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);

@@ -19,9 +19,16 @@ document.addEventListener("DOMContentLoaded", () => {
     logoutLink.addEventListener("click", async (e) => {
         e.preventDefault();
 
-        const headers = {};
+        const headers = { "Content-Type": "application/json" };
         if (authMode !== "header" && csrfHeader && csrfToken) {
             headers[csrfHeader] = csrfToken;
+        }
+
+        if (authMode === "header" || authMode === "header_cookie") {
+            const accessToken = TokenMemory.accessToken;
+            if (accessToken) {
+                headers["Authorization"] = `Bearer ${accessToken}`;
+            }
         }
 
         try {

@@ -76,7 +76,6 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         handlers  = new JwtAuthenticationHandlers(tokenService);
 
         http.logout(logout -> logout
-                .logoutUrl("/api/auth/logout")
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);

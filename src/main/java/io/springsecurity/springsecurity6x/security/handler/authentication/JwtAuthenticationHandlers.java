@@ -3,9 +3,11 @@ package io.springsecurity.springsecurity6x.security.handler.authentication;
 import io.springsecurity.springsecurity6x.security.handler.logout.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.util.StringUtils;
 
 /**
  * JWT 기반 인증 성공/실패 핸들러 구현체.
@@ -22,8 +24,14 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
     @Override
     public AuthenticationSuccessHandler successHandler() {
         return (request, response, authentication) -> {
-            String accessToken = tokenService.createAccessToken(authentication);
-            String refreshToken = tokenService.createRefreshToken(authentication);
+
+            String deviceId = request.getHeader("X-Device-Id"); // deviceId 추출
+            if (!StringUtils.hasText(deviceId)) {
+                throw new BadCredentialsException("Device ID is missing");
+            }
+
+            String accessToken = tokenService.createAccessToken(authentication, deviceId);
+            String refreshToken = tokenService.createRefreshToken(authentication, deviceId);
             try {
                 tokenService.writeAccessAndRefreshToken(response, accessToken, refreshToken);
             } catch (Exception e) {

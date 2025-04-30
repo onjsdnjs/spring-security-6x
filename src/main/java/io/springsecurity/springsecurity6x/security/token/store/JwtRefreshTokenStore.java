@@ -40,7 +40,6 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
     public String getUsername(String refreshToken) {
         try {
             ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
-            String jti = parsedJwt.id();
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId(); // deviceId 추출 메서드 필요
 
@@ -58,12 +57,21 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void blacklist(String token, String username, String reason) {
-        blacklist.put(token, new TokenInfo(username, Instant.now(), reason));
+        ParsedJwt parsedJwt = tokenParser.parse(token);
+        String deviceId = parsedJwt.deviceId();
+        blacklist.put(key(username, deviceId), new TokenInfo(username, Instant.now(), reason));
     }
 
     @Override
     public boolean isBlacklisted(String token) {
-        return blacklist.containsKey(token);
+        try {
+            ParsedJwt parsedJwt = tokenParser.parse(token);
+            String subject = parsedJwt.subject();
+            String deviceId = parsedJwt.deviceId();
+            return blacklist.containsKey(key(subject, deviceId));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
@@ -73,7 +81,8 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId();
             store.remove(key(subject, deviceId));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

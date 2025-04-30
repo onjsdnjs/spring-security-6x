@@ -23,7 +23,7 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public String createAccessToken(Authentication authentication) {
+    public String createAccessToken(Authentication authentication, String deviceId) {
         return tokenCreator.createToken(null);
     }
 
@@ -39,7 +39,7 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public String createRefreshToken(Authentication authentication) {
+    public String createRefreshToken(Authentication authentication, String deviceId) {
         throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token을 발급하지 않습니다.");
     }
 

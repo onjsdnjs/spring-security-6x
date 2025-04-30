@@ -53,4 +53,8 @@ public class JwtTokenValidator implements TokenValidator {
                         .toList()
         );
     }
+
+    public TokenParser tokenParser() {
+        return tokenParser;
+    }
 }

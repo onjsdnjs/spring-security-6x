@@ -16,8 +16,7 @@ public class TokenInfo {
     private String reason;
 
     public TokenInfo(String username, Instant expiration) {
-        this.username = username;
-        this.expiration = expiration;
+        this(username, expiration, null);
     }
 
     public TokenInfo(String username, Instant expiration, String reason) {

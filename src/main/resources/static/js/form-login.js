@@ -19,12 +19,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = {
             username: form.username.value,
-            password: form.password.value,
-            deviceId: getDeviceId() // 예시: UUID 또는 고정값
+            password: form.password.value
         };
 
         const headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-Device-Id": generateDeviceId()
         };
 
         if (authMode !== "header" && csrfHeader && csrfToken) {
@@ -63,12 +63,12 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("로그인 중 오류가 발생했습니다.");
         }
     });
-    function getDeviceId() {
-        let id = localStorage.getItem("deviceId");
-        if (!id) {
-            id = crypto.randomUUID();
-            localStorage.setItem("deviceId", id);
+    function generateDeviceId() {
+        let deviceId = localStorage.getItem("deviceId");
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem("deviceId", deviceId);
         }
-        return id;
+        return deviceId;
     }
 });

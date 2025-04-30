@@ -39,7 +39,9 @@ public class OAuth2TokenParser implements TokenParser {
                 null,                      // OAuth2 AccessToken에는 jti(id) 없음
                 userInfo.username(),     // subject
                 expiration,                 // expiration
-                roles                       // roles
+                roles,
+                null
+                // roles
         );
     }
 

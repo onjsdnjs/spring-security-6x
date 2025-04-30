@@ -34,18 +34,18 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
-    public String createAccessToken(Authentication authentication) {
-        return getToken(authentication, TokenType.ACCESS.name().toLowerCase(), props.getAccessTokenValidity());
+    public String createAccessToken(Authentication authentication, String deviceId) {
+        return getToken(authentication, TokenType.ACCESS.name().toLowerCase(), props.getAccessTokenValidity(), deviceId);
     }
 
     @Override
-    public String createRefreshToken(Authentication authentication) {
-        String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity());
+    public String createRefreshToken(Authentication authentication, String deviceId) {
+        String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity(), deviceId);
         tokenStore.save(token, authentication.getName());
         return token;
     }
 
-    private String getToken(Authentication authentication, String tokenType, long validity) {
+    private String getToken(Authentication authentication, String tokenType, long validity, String deviceId) {
         TokenRequest tokenRequest = TokenRequest.builder()
                 .tokenType(tokenType)
                 .username(authentication.getName())
@@ -53,6 +53,7 @@ public class JwtTokenService implements TokenService {
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
                 .validity(validity)
+                .deviceId(deviceId)
                 .build();
 
         return tokenCreator.createToken(tokenRequest);
@@ -70,13 +71,14 @@ public class JwtTokenService implements TokenService {
         }
 
         Authentication auth = getAuthentication(refreshToken);
-        String newAccessToken = createAccessToken(auth);
+        String deviceId = tokenValidator.tokenParser().parse(refreshToken).deviceId();
+        String newAccessToken = createAccessToken(auth, deviceId);
         String newRefreshToken = refreshToken;
 
         boolean rotateEnabled = props.isEnableRefreshToken();
         if (rotateEnabled && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
             tokenStore.remove(refreshToken);
-            newRefreshToken = createRefreshToken(auth);
+            newRefreshToken = createRefreshToken(auth, deviceId);
             tokenStore.save(newRefreshToken, auth.getName());
         }
         return new RefreshResult(newAccessToken, newRefreshToken);

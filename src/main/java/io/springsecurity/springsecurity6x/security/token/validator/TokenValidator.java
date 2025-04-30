@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.validator;
 
+import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import org.springframework.security.core.Authentication;
 
 public interface TokenValidator {
@@ -13,4 +14,6 @@ public interface TokenValidator {
     Authentication getAuthentication(String token);
 
     default boolean shouldRotateRefreshToken(String refreshToken){return false;};
+
+    default TokenParser tokenParser(){return null;}
 }

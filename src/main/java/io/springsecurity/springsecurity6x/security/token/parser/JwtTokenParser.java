@@ -24,7 +24,8 @@ public class JwtTokenParser implements TokenParser {
                 claims.getId(),
                 claims.getSubject(),
                 claims.getExpiration().toInstant(),
-                claims.get("roles", List.class)
+                claims.get("roles", List.class),
+                claims.get("deviceId", String.class)
         );
     }
 

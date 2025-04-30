@@ -37,6 +37,7 @@
 </div>
 
 <script>
+    localStorage.setItem('authMode', 'header');
     function selectMode(mode) {
         localStorage.setItem('authMode', mode);
         window.location.href = "/loginForm";

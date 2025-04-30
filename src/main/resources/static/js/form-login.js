@@ -3,10 +3,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!form) return;
 
     const authMode   = localStorage.getItem("authMode") === null ? "header" : localStorage.getItem("authMode");
-    const csrfTokenMeta  = document.querySelector('meta[name="_csrf"]');
+    let csrfToken = null;
+    let csrfHeader = null;
+    const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
-    const csrfToken  = csrfTokenMeta?.getAttribute("content");
-    const csrfHeader = csrfHeaderMeta?.getAttribute("content");
+    if (csrfTokenMeta && csrfHeaderMeta) {
+        csrfToken = csrfTokenMeta.getAttribute("content");
+        csrfHeader = csrfHeaderMeta.getAttribute("content");
+    }
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();

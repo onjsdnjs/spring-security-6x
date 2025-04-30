@@ -1,7 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
     const form       = document.getElementById("registerForm");
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
+
+    const authMode   = localStorage.getItem("authMode");
+    let csrfToken = null;
+    let csrfHeader = null;
+    const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
+    const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+    if (csrfTokenMeta && csrfHeaderMeta) {
+        csrfToken = csrfTokenMeta.getAttribute("content");
+        csrfHeader = csrfHeaderMeta.getAttribute("content");
+    }
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -12,14 +20,19 @@ document.addEventListener("DOMContentLoaded", () => {
             roles:    form.roles.value
         };
 
+        const headers = {
+            "Content-Type": "application/json"
+        };
+
+        if (authMode !== "header" && csrfHeader && csrfToken) {
+            headers[csrfHeader] = csrfToken;
+        }
+
         try {
             const res = await fetch("/api/register", {
                 method:      "POST",
                 credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    [csrfHeader]:    csrfToken
-                },
+                headers,
                 body: JSON.stringify(data)
             });
 

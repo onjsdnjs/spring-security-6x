@@ -26,6 +26,8 @@ public class TokenLogoutHandler implements LogoutHandler {
         String refreshToken = tokenService.resolveRefreshToken(request);
         if (refreshToken != null) {
             tokenService.invalidateRefreshToken(refreshToken);
+            String username = (authentication != null) ? authentication.getName() : "unknown";
+            tokenService.blacklist(refreshToken, username);
         }
         tokenService.clearTokens(response);
         SecurityContextHolder.clearContext();

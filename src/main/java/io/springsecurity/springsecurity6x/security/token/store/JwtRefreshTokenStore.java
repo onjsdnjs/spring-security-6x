@@ -32,20 +32,25 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             String jti = parsedJwt.id();
 
             TokenInfo info = store.get(jti);
-            if (info == null) {
-                return null;
-            }
-
-            // 만료 체크 후 삭제
+            if (info == null) return null;
             if (Instant.now().isAfter(info.expiry())) {
                 store.remove(jti);
                 return null;
             }
-
             return info.username();
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @Override
+    public void blacklist(String token, String username) {
+        store.put(token, new TokenInfo(username, Instant.now()));
+    }
+
+    @Override
+    public boolean isBlacklisted(String token) {
+        return store.containsKey(token);
     }
 
     @Override

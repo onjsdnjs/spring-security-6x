@@ -4,4 +4,6 @@ public interface RefreshTokenStore{
     void store(String token, String username);
     void remove(String token);
     String getUsername(String refreshToken);
+    void blacklist(String token, String username);
+    boolean isBlacklisted(String token);
 }

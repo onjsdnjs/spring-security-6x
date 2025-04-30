@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import io.jsonwebtoken.JwtException;
 import io.springsecurity.springsecurity6x.security.enums.TokenType;
 import io.springsecurity.springsecurity6x.security.exception.TokenValidationException;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -60,6 +61,10 @@ public class JwtTokenService implements TokenService {
     @Override
     public RefreshResult refresh(String refreshToken) {
 
+        if (tokenStore.isBlacklisted(refreshToken)) {
+            throw new JwtException("Blacklisted refresh token");
+        }
+
         if (!validateRefreshToken(refreshToken)) {
             throw new TokenValidationException("Invalid refresh token");
         }
@@ -75,6 +80,11 @@ public class JwtTokenService implements TokenService {
             tokenStore.store(newRefreshToken, auth.getName());
         }
         return new RefreshResult(newAccessToken, newRefreshToken);
+    }
+
+    @Override
+    public void blacklist(String refreshToken, String username) {
+        tokenStore.blacklist(refreshToken, username);
     }
 
     @Override

@@ -3,5 +3,5 @@ package io.springsecurity.springsecurity6x.security.enums;
 public enum TokenTransportType {
     COOKIE,
     HEADER,
-    MIXED
+    HEADER_COOKIE
 }

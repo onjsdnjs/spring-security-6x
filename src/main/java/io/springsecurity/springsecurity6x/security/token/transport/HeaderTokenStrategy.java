@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
+
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
-public class HeaderTokenStrategy implements TokenTransportStrategy {
+public class HeaderTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
 
     private TokenService tokenService;
 
@@ -31,29 +30,18 @@ public class HeaderTokenStrategy implements TokenTransportStrategy {
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
-        writeTokens(response, accessToken, refreshToken, tokenService.properties().getAccessTokenValidity());
+    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+        TokenResponse body = new TokenResponse(
+                accessToken,
+                "Bearer",
+                tokenService.properties().getAccessTokenValidity(),
+                refreshToken
+        );
+        writeJson(response, body);
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
-        writeTokens(response, null, null, 0);
-    }
-
-    private void writeTokens(HttpServletResponse response, String accessToken, String refreshToken, long expiresIn) {
-        try {
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json;charset=UTF-8");
-
-            TokenResponse body = new TokenResponse(
-                    accessToken,
-                    "Bearer",
-                    expiresIn,
-                    refreshToken
-            );
-            new ObjectMapper().writeValue(response.getWriter(), body);
-        } catch (IOException e) {
-            throw new RuntimeException("토큰 JSON 응답 실패", e);
-        }
+        writeJson(response, new TokenResponse(null, null, 0, null));
     }
 }

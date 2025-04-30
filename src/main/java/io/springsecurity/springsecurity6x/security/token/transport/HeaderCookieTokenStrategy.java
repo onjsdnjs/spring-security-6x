@@ -5,14 +5,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.util.StringUtils;
 
-import java.util.Map;
+import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
-import static io.springsecurity.springsecurity6x.security.token.service.TokenService.ACCESS_TOKEN;
-import static io.springsecurity.springsecurity6x.security.token.service.TokenService.REFRESH_TOKEN;
+public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
 
-public class CookieTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
-
-    private static final String COOKIE_PATH = "/";
+    private static final String COOKIE_PATH = "/api/token/refresh";
     private TokenService tokenService;
 
     @Override
@@ -22,7 +19,11 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
-        return extractCookie(request, ACCESS_TOKEN);
+        String header = request.getHeader(ACCESS_TOKEN_HEADER);
+        if (header != null && header.startsWith(BEARER_PREFIX)) {
+            return header.substring(BEARER_PREFIX.length());
+        }
+        return null;
     }
 
     @Override
@@ -32,23 +33,24 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
 
     @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
-        if (StringUtils.hasText(accessToken)) {
-            addCookie(response, ACCESS_TOKEN, accessToken,
-                    (int) tokenService.properties().getAccessTokenValidity() / 1000, COOKIE_PATH);
-        }
+
+        TokenResponse body = new TokenResponse(
+                accessToken,
+                "Bearer",
+                tokenService.properties().getAccessTokenValidity(),
+                refreshToken
+        );
+        writeJson(response, body);
+
         if (StringUtils.hasText(refreshToken)) {
             addCookie(response, REFRESH_TOKEN, refreshToken,
                     (int) tokenService.properties().getRefreshTokenValidity() / 1000, COOKIE_PATH);
         }
-        writeJson(response, Map.of("message", "Authentication Successful (JWT)"));
     }
 
     @Override
     public void clearTokens(HttpServletResponse response) {
-        removeCookie(response, ACCESS_TOKEN, COOKIE_PATH);
         removeCookie(response, REFRESH_TOKEN, COOKIE_PATH);
     }
 }
-
-
 

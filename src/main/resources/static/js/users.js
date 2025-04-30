@@ -1,15 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').getAttribute("content");
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute("content");
-
-    let useHeaderMode = localStorage.getItem("useHeaderMode") === "true";
+    const authMode   = localStorage.getItem("authMode");
+    const csrfTokenMeta  = document.querySelector('meta[name="_csrf"]');
+    const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+    const csrfToken  = csrfTokenMeta?.getAttribute("content");
+    const csrfHeader = csrfHeaderMeta?.getAttribute("content");
 
     async function loadUsers() {
         try {
             const headers = {};
 
-            if (useHeaderMode) {
+            if (authMode === "header" || authMode === "header_cookie") {
                 const accessToken = localStorage.getItem("accessToken");
                 if (accessToken) {
                     headers["Authorization"] = `Bearer ${accessToken}`;
@@ -26,12 +26,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.warn("AccessToken 만료, 리프레시 시도 중...");
                 const refreshSuccess = await refreshTokens();
                 if (refreshSuccess) {
-                    return loadUsers(); // 토큰 갱신 후 재시도
+                    return loadUsers();
                 } else {
-                    // alert("세션이 만료되었습니다. 다시 로그인하세요.");
                     window.location.href = "/loginForm";
                 }
-            }else{
+            } else {
                 const users = await res.json();
                 renderUsers(users);
             }
@@ -44,30 +43,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function refreshTokens() {
         try {
+            const headers = {
+                "Content-Type": "application/json"
+            };
+
+            if (authMode !== "header" && csrfHeader && csrfToken) {
+                headers[csrfHeader] = csrfToken;
+            }
+
             const res = await fetch("/api/auth/refresh", {
                 method: "POST",
                 credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    [csrfHeader]:    csrfToken
-                }
+                headers
             });
 
-            if (!res.ok) {
-                console.error("Refresh 실패:", res.status);
-                return false;
+            if (!res.ok) return false;
+
+            const data = await res.json();
+            console.log("리프레시 성공:", data);
+
+            if (authMode === "header" || authMode === "header_cookie") {
+                localStorage.setItem("accessToken", data.accessToken);
             }
 
-            const tokens = await res.json();
-            console.log("Refresh 성공:", tokens);
-
-            if (useHeaderMode) {
-                localStorage.setItem("accessToken", tokens.accessToken);
-            }
             return true;
 
         } catch (err) {
-            console.error("Refresh 요청 실패:", err);
+            console.error("리프레시 요청 실패:", err);
             return false;
         }
     }
@@ -87,6 +89,5 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 페이지 로드 시 자동으로 사용자 목록 조회
     loadUsers();
 });

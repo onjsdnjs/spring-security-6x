@@ -16,8 +16,10 @@
         </div>
         <meta charset="UTF-8" />
         <!-- CSRF 메타 태그 -->
-        <meta name="_csrf"        th:content="${_csrf.token}" />
-        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+        <th:block th:if="${_csrf != null}">
+            <meta name="_csrf" th:content="${_csrf.token}" />
+            <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+        </th:block>
     </header>
     <script th:src="@{/js/logout.js}"></script>
 </div>

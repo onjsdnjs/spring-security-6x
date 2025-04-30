@@ -25,6 +25,8 @@
                         onclick="selectMode('header')">헤더 방식 사용</button>
                 <button style="margin: 10px; padding: 14px 28px; font-size: 16px; cursor: pointer;"
                         onclick="selectMode('cookie')">쿠키 방식 사용</button>
+                <button style="margin: 10px; padding: 14px 28px; font-size: 16px; cursor: pointer;"
+                        onclick="selectMode('header_cookie')">헤더+쿠키 방식 사용</button>
             </div>
         </div>
     </main>
@@ -36,12 +38,8 @@
 
 <script>
     function selectMode(mode) {
-        if (mode === 'header') {
-            localStorage.setItem('useHeaderMode', 'true');
-        } else {
-            localStorage.setItem('useHeaderMode', 'false');
-        }
-        window.location.href = "/loginForm";  // 선택 후 로그인 화면으로 이동
+        localStorage.setItem('authMode', mode);
+        window.location.href = "/loginForm";
     }
 </script>
 

@@ -38,7 +38,7 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
                 tokenService.writeAccessAndRefreshToken(response, result.accessToken(), result.refreshToken());
             } catch (Exception e) {
                 logoutHandler.logout(request, response, null);
-                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 로그인 상태가 아님: 정상 흐름
             }
         } else {
             response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름

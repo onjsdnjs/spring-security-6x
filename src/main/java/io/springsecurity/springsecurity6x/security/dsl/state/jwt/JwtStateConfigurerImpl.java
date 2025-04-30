@@ -47,10 +47,6 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         return handlers;
     }
 
-    public TokenTransportStrategy getTransportStrategy() {
-        return transport;
-    }
-
     @Override
     public void init(HttpSecurity http) throws Exception {
 

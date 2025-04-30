@@ -9,7 +9,7 @@ import static io.springsecurity.springsecurity6x.security.token.service.TokenSer
 
 public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
 
-    private static final String COOKIE_PATH = "/api/token/refresh";
+    private static final String COOKIE_PATH = "/";
     private TokenService tokenService;
 
     @Override
@@ -34,18 +34,17 @@ public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy im
     @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
 
-        TokenResponse body = new TokenResponse(
-                accessToken,
-                "Bearer",
-                tokenService.properties().getAccessTokenValidity(),
-                refreshToken
-        );
-        writeJson(response, body);
-
         if (StringUtils.hasText(refreshToken)) {
             addCookie(response, REFRESH_TOKEN, refreshToken,
                     (int) tokenService.properties().getRefreshTokenValidity() / 1000, COOKIE_PATH);
         }
+        TokenResponse body = new TokenResponse(
+                accessToken,
+                "Bearer",
+                tokenService.properties().getAccessTokenValidity(),
+                null
+        );
+        writeJson(response, body);
     }
 
     @Override

@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("loginForm");
     if (!form) return;
 
-    const authMode   = localStorage.getItem("authMode");
+    const authMode   = localStorage.getItem("authMode") === null ? "header" : localStorage.getItem("authMode");
     const csrfTokenMeta  = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
     const csrfToken  = csrfTokenMeta?.getAttribute("content");

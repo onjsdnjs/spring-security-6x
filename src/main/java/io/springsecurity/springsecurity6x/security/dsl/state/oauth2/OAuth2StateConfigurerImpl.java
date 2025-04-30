@@ -74,6 +74,10 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
         return handlers;
     }
 
+    public TokenTransportStrategy getTransportStrategy() {
+        return transport;
+    }
+
     @Override
     public void init(HttpSecurity http){
 

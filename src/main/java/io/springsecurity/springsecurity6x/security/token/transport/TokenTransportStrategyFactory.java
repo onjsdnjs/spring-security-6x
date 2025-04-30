@@ -6,12 +6,12 @@ import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 public class TokenTransportStrategyFactory {
 
     public static TokenTransportStrategy create(TokenTransportType type) {
-
-        if (type == TokenTransportType.COOKIE) {
-            return new CookieTokenStrategy();
-        } else {
-            return new HeaderTokenStrategy();
-        }
+        return switch (type) {
+            case HEADER -> new HeaderTokenStrategy();
+            case COOKIE -> new CookieTokenStrategy();
+            case HEADER_COOKIE -> new HeaderCookieTokenStrategy();
+        };
     }
 }
+
 

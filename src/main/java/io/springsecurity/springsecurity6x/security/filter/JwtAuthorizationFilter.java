@@ -26,18 +26,19 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = tokenService.resolveAccessToken(request);
-
-        if (accessToken != null) {
-            try {
-                if (tokenService.validateAccessToken(accessToken)) {
-                    Authentication authentication = tokenService.getAuthentication(accessToken);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            String accessToken = tokenService.resolveAccessToken(request);
+            if (accessToken != null) {
+                try {
+                    if (tokenService.validateAccessToken(accessToken)) {
+                        Authentication authentication = tokenService.getAuthentication(accessToken);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } catch (Exception e) {
+                    logoutHandler.logout(request, response, null);
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
+                    return;
                 }
-            } catch (Exception e) {
-                logoutHandler.logout(request, response, null);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
-                return;
             }
         }
 

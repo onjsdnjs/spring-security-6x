@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -15,30 +16,32 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
     private final String refreshUri;
+    private final LogoutHandler logoutHandler;
 
-    public JwtRefreshAuthenticationFilter(TokenService tokenService,
-                                          AuthContextProperties properties) {
+    public JwtRefreshAuthenticationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
         this.tokenService     = tokenService;
-        this.refreshUri       = properties.getInternal().getRefreshUri();
+        this.refreshUri       = tokenService.properties().getInternal().getRefreshUri();
+        this.logoutHandler = logoutHandler;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
 
-        if (!refreshUri.equals(req.getRequestURI())) {
-            chain.doFilter(req, res);
+        if (!refreshUri.equals(request.getRequestURI())) {
+            chain.doFilter(request, response);
             return;
         }
-        String token = tokenService.resolveRefreshToken(req);
+        String token = tokenService.resolveRefreshToken(request);
         if (StringUtils.hasText(token)) {
             try {
                 TokenService.RefreshResult result = tokenService.refresh(token);
-                tokenService.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
+                tokenService.writeAccessAndRefreshToken(response, result.accessToken(), result.refreshToken());
             } catch (Exception e) {
-                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
+                logoutHandler.logout(request, response, null);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
             }
         } else {
-            res.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름
         }
     }
 }

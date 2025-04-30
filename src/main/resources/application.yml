@@ -31,7 +31,7 @@ spring:
     token-issuer: internal
     auth-state-mode: jwt
     token-transport-type: header_cookie
-    allow-multiple-logins: false
+    allow-multiple-logins: true
     max-concurrent-logins: 3
 
   mail:

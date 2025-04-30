@@ -5,9 +5,11 @@ import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class JwtRefreshTokenStore implements RefreshTokenStore {
 
@@ -15,6 +17,8 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
     private final Map<String, TokenInfo> blacklist = new ConcurrentHashMap<>();
     private final TokenParser tokenParser;
     private final AuthContextProperties props;
+
+    private final Map<String, LinkedHashMap<String, Instant>> userDevices = new ConcurrentHashMap<>();
 
     public JwtRefreshTokenStore(TokenParser tokenParser, AuthContextProperties props) {
         this.tokenParser = tokenParser;
@@ -34,27 +38,29 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
         String tokenKey = key(username, deviceId);
 
         if (!props.isAllowMultipleLogins()) {
-            TokenInfo old = store.get(tokenKey);
-            if (old != null) {
-                blacklist.put(tokenKey, new TokenInfo(username, Instant.now(), "Duplicate login"));
-            }
+            // 싱글 로그인: 기존 모든 토큰 제거 및 블랙리스트 처리
+            store.keySet().stream()
+                    .filter(k -> k.startsWith(username + ":"))
+                    .forEach(k -> {
+                        store.remove(k);
+                        blacklist.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
+                    });
         } else {
-            int max = props.getMaxConcurrentLogins();
-            userDevices.putIfAbsent(username, new LinkedHashMap<>());
-            LinkedHashMap<String, Instant> devices = userDevices.get(username);
+            // 멀티 로그인: 허용 개수 초과 시 가장 오래된 토큰 제거
+            Map<String, TokenInfo> devices = store.entrySet().stream()
+                    .filter(e -> e.getKey().startsWith(username + ":"))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            if (!devices.containsKey(deviceId) && devices.size() >= max) {
-                // 가장 오래된 device 제거
-                Iterator<String> iter = devices.keySet().iterator();
-                if (iter.hasNext()) {
-                    String oldestDeviceId = iter.next();
-                    iter.remove();
-                    String oldKey = key(username, oldestDeviceId);
-                    store.remove(oldKey);
-                    blacklist.put(oldKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
+            if (devices.size() >= props.getMaxConcurrentLogins()) {
+                String oldestKey = devices.entrySet().stream()
+                        .min(Comparator.comparing(e -> e.getValue().getExpiration()))
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+                if (oldestKey != null) {
+                    store.remove(oldestKey);
+                    blacklist.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
                 }
             }
-            devices.put(deviceId, Instant.now());
         }
 
         store.put(tokenKey, new TokenInfo(username, expiry));
@@ -105,8 +111,11 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId();
             store.remove(key(subject, deviceId));
-        } catch (Exception e) {
-            e.printStackTrace();
+            LinkedHashMap<String, Instant> devices = userDevices.get(subject);
+            if (devices != null) {
+                devices.remove(deviceId);
+            }
+        } catch (Exception ignored) {
         }
     }
 }

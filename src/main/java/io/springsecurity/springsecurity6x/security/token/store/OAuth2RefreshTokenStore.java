@@ -18,6 +18,16 @@ public class OAuth2RefreshTokenStore implements RefreshTokenStore {
     }
 
     @Override
+    public void blacklist(String token, String username) {
+
+    }
+
+    @Override
+    public boolean isBlacklisted(String token) {
+        return false;
+    }
+
+    @Override
     public void remove(String refreshToken) {
         throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token 삭제를 지원하지 않습니다.");
     }

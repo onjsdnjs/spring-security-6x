@@ -82,6 +82,11 @@ public class OAuth2TokenService implements TokenService {
     public AuthContextProperties properties() {
         return props;
     }
+
+    @Override
+    public void blacklist(String refreshToken, String username) {
+
+    }
 }
 
 

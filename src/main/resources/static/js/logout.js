@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     const logoutLink = document.getElementById("logoutLink");
     const loginLink  = document.getElementById("loginLink");
+    const registerLink  = document.getElementById("registerLink");
     if (!logoutLink) return;
 
     const authMode = localStorage.getItem("authMode");
@@ -42,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (authMode === "header" || authMode === "header_cookie") {
             if (logoutLink) logoutLink.style.display = "none";
             if (loginLink)  loginLink.style.display = "inline-block";
+            if (registerLink)  registerLink.style.display = "inline-block";
         }
 
         window.location.href = "/loginForm";

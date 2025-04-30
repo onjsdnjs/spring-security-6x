@@ -22,6 +22,7 @@
 
     function updateLoginUi() {
         const loginLink  = document.getElementById("loginLink");
+        const registerLink = document.getElementById("registerLink");
         const logoutLink = document.getElementById("logoutLink");
 
         if (authMode === "header" || authMode === "header_cookie") {
@@ -29,6 +30,7 @@
             const isLoggedIn = !!access?.trim();
 
             if (loginLink)  loginLink.style.display  = isLoggedIn ? "none" : "inline-block";
+            if (registerLink)  registerLink.style.display  = isLoggedIn ? "none" : "inline-block";
             if (logoutLink) logoutLink.style.display = isLoggedIn ? "inline-block" : "none";
         }
     }

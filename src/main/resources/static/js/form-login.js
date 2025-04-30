@@ -19,7 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = {
             username: form.username.value,
-            password: form.password.value
+            password: form.password.value,
+            deviceId: getDeviceId() // 예시: UUID 또는 고정값
         };
 
         const headers = {
@@ -62,4 +63,12 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("로그인 중 오류가 발생했습니다.");
         }
     });
+    function getDeviceId() {
+        let id = localStorage.getItem("deviceId");
+        if (!id) {
+            id = crypto.randomUUID();
+            localStorage.setItem("deviceId", id);
+        }
+        return id;
+    }
 });

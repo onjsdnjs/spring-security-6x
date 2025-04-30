@@ -7,7 +7,7 @@ package io.springsecurity.springsecurity6x.security.token.store;
 public class OAuth2RefreshTokenStore implements RefreshTokenStore {
 
     @Override
-    public void store(String refreshToken, String username) {
+    public void save(String refreshToken, String username) {
         throw new UnsupportedOperationException("OAuth2 Client Credentials Flow에서는 refresh token 저장을 지원하지 않습니다.");
     }
 

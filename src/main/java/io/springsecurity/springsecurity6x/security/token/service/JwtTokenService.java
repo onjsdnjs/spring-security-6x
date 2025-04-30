@@ -41,7 +41,7 @@ public class JwtTokenService implements TokenService {
     @Override
     public String createRefreshToken(Authentication authentication) {
         String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity());
-        tokenStore.store(token, authentication.getName());
+        tokenStore.save(token, authentication.getName());
         return token;
     }
 
@@ -77,7 +77,7 @@ public class JwtTokenService implements TokenService {
         if (rotateEnabled && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
             tokenStore.remove(refreshToken);
             newRefreshToken = createRefreshToken(auth);
-            tokenStore.store(newRefreshToken, auth.getName());
+            tokenStore.save(newRefreshToken, auth.getName());
         }
         return new RefreshResult(newAccessToken, newRefreshToken);
     }

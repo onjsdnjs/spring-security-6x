@@ -23,6 +23,7 @@ public class JwtTokenCreator implements TokenCreator {
                 .setSubject(req.getUsername())
                 .claim("roles", req.getRoles())
                 .claim("token_type", req.getTokenType())
+                .claim("deviceId", req.getDeviceId())
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusMillis(req.getValidity())))
                 .signWith(secretKey, SignatureAlgorithm.HS256)

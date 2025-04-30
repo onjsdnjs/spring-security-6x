@@ -13,4 +13,5 @@ public class TokenRequest {
     private long validity;
     private List<String> roles;
     private Map<String,Object> claims;
+    private String deviceId;
 }

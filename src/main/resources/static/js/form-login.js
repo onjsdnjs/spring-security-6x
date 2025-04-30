@@ -45,7 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await res.json();
             console.log("로그인 성공:", result);
 
-            if (authMode === "header" || authMode === "header_cookie") {
+            if (authMode === "header") {
+                localStorage.setItem("accessToken", result.accessToken);
+                localStorage.setItem("refreshToken", result.refreshToken);
+
+            } else if (authMode === "header_cookie") {
                 localStorage.setItem("accessToken", result.accessToken);
             }
 

@@ -83,8 +83,8 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
-    public void blacklist(String refreshToken, String username) {
-        tokenStore.blacklist(refreshToken, username);
+    public void blacklistRefreshToken(String refreshToken, String username, String reason) {
+        tokenStore.blacklist(refreshToken, username, reason);
     }
 
     @Override

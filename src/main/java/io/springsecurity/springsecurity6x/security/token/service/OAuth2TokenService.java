@@ -84,7 +84,7 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
-    public void blacklist(String refreshToken, String username) {
+    public void blacklistRefreshToken(String refreshToken, String username, String reason) {
 
     }
 }

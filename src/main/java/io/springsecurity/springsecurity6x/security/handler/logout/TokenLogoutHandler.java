@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.handler.logout;
 
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.token.store.TokenInfo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -24,10 +25,9 @@ public class TokenLogoutHandler implements LogoutHandler {
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         String refreshToken = tokenService.resolveRefreshToken(request);
-        if (refreshToken != null) {
+        if (refreshToken != null && authentication != null) {
             tokenService.invalidateRefreshToken(refreshToken);
-            String username = (authentication != null) ? authentication.getName() : "unknown";
-            tokenService.blacklist(refreshToken, username);
+            tokenService.blacklistRefreshToken(refreshToken, authentication.getName(), TokenInfo.REASON_LOGOUT);
         }
         tokenService.clearTokens(response);
         SecurityContextHolder.clearContext();

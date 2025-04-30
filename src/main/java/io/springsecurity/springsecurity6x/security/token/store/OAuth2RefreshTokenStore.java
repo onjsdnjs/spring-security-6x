@@ -18,7 +18,7 @@ public class OAuth2RefreshTokenStore implements RefreshTokenStore {
     }
 
     @Override
-    public void blacklist(String token, String username) {
+    public void blacklist(String token, String username, String reason) {
 
     }
 

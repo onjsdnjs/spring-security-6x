@@ -13,7 +13,7 @@ public interface TokenService extends TokenProvider, TokenValidator, TokenTransp
     String BEARER_PREFIX        = "Bearer ";
 
     AuthContextProperties properties();
-    void blacklist(String refreshToken, String username);
+    void blacklistRefreshToken(String refreshToken, String username, String reason);
     record RefreshResult(String accessToken, String refreshToken) {}
 }
 

@@ -33,19 +33,19 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
 
             TokenInfo info = store.get(jti);
             if (info == null) return null;
-            if (Instant.now().isAfter(info.expiry())) {
+            if (Instant.now().isAfter(info.getExpiration())) {
                 store.remove(jti);
                 return null;
             }
-            return info.username();
+            return info.getUsername();
         } catch (Exception e) {
             return null;
         }
     }
 
     @Override
-    public void blacklist(String token, String username) {
-        store.put(token, new TokenInfo(username, Instant.now()));
+    public void blacklist(String token, String username, String reason) {
+        store.put(token, new TokenInfo(username, Instant.now(), reason));
     }
 
     @Override

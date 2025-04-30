@@ -2,24 +2,32 @@
     <header class="app-header">
         <h1>Security Auth Platform</h1>
         <div class="header-actions">
-            <a id="home"
-               th:href="@{/}">Home</a>
-            <a id="loginLink"
-               sec:authorize="isAnonymous()"
-               th:href="@{/loginForm}">로그인</a>
-            <a id="registerLink"
-               sec:authorize="isAnonymous()"
-               th:href="@{/register}">회원가입</a>
-            <a id="logoutLink"
-               sec:authorize="isAuthenticated()"
-               href="#">로그아웃</a>
+            <a id="home" th:href="@{/}">Home</a>
+
+            <!-- ✅ 브라우저 쿠키 기반 (서버가 판단) -->
+            <th:block th:if="${authMode == 'cookie'}">
+                <a id="loginLink" sec:authorize="isAnonymous()" th:href="@{/loginForm}">로그인</a>
+                <a id="registerLink" sec:authorize="isAnonymous()" th:href="@{/register}">회원가입</a>
+                <a id="logoutLink" sec:authorize="isAuthenticated()" href="#">로그아웃</a>
+            </th:block>
+
+            <!-- ✅ JS 기반 인증(header, header_cookie) -->
+            <th:block th:if="${authMode != 'cookie'}">
+                <a id="loginLink" th:href="@{/loginForm}" style="display:none">로그인</a>
+                <a id="registerLink" th:href="@{/register}" style="display:none">회원가입</a>
+                <a id="logoutLink" href="#" style="display:none">로그아웃</a>
+            </th:block>
         </div>
+
         <meta charset="UTF-8" />
+
         <!-- CSRF 메타 태그 -->
         <th:block th:if="${_csrf != null}">
             <meta name="_csrf" th:content="${_csrf.token}" />
             <meta name="_csrf_header" th:content="${_csrf.headerName}" />
         </th:block>
     </header>
+
     <script th:src="@{/js/logout.js}"></script>
 </div>
+

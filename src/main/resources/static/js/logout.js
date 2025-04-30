@@ -1,29 +1,50 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
-    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
-
     const logoutLink = document.getElementById("logoutLink");
+    const loginLink  = document.getElementById("loginLink");
     if (!logoutLink) return;
+
+    const authMode = localStorage.getItem("authMode");
+    let csrfToken = null;
+    let csrfHeader = null;
+
+    const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
+    const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+
+    if (csrfTokenMeta && csrfHeaderMeta) {
+        csrfToken = csrfTokenMeta.getAttribute("content");
+        csrfHeader = csrfHeaderMeta.getAttribute("content");
+    }
 
     logoutLink.addEventListener("click", async (e) => {
         e.preventDefault();
 
-        const response = await fetch("/logout", {
-            method:      "POST",
-            credentials: "same-origin",             // 쿠키 전송
-            headers: {
-                [csrfHeader]: csrfToken,            // CSRF 헤더
-                "Accept": "application/json"        // JSON 응답 명시(Optional)
-            }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            alert(data.message);
-            window.location.href = "/loginForm";
-        } else {
-            console.error("로그아웃 실패:", response.status);
-            alert("로그아웃에 실패했습니다.");
+        const headers = {};
+        if (authMode !== "header" && csrfHeader && csrfToken) {
+            headers[csrfHeader] = csrfToken;
         }
+
+        try {
+            await fetch("/api/auth/logout", {
+                method: "POST",
+                credentials: "same-origin",
+                headers
+            });
+        } catch (err) {
+            console.warn("서버 로그아웃 실패 (무시):", err);
+        }
+
+        TokenMemory.accessToken = null;
+        TokenMemory.refreshToken = null;
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+
+        // JS 기반 인증 UI 갱신
+        if (authMode === "header" || authMode === "header_cookie") {
+            if (logoutLink) logoutLink.style.display = "none";
+            if (loginLink)  loginLink.style.display = "inline-block";
+        }
+
+        window.location.href = "/loginForm";
     });
 });
+

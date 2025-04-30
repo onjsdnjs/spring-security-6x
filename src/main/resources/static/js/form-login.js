@@ -2,11 +2,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("loginForm");
     if (!form) return;
 
-    const authMode= localStorage.getItem("authMode");
+    const authMode = localStorage.getItem("authMode");
     let csrfToken = null;
     let csrfHeader = null;
+
     const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+
     if (csrfTokenMeta && csrfHeaderMeta) {
         csrfToken = csrfTokenMeta.getAttribute("content");
         csrfHeader = csrfHeaderMeta.getAttribute("content");
@@ -46,11 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("로그인 성공:", result);
 
             if (authMode === "header") {
-                localStorage.setItem("accessToken", result.accessToken);
-                localStorage.setItem("refreshToken", result.refreshToken);
-
+                // access, refresh 모두 런타임 메모리에 저장
+                TokenMemory.accessToken = result.accessToken;
+                TokenMemory.refreshToken = result.refreshToken;
             } else if (authMode === "header_cookie") {
-                localStorage.setItem("accessToken", result.accessToken);
+                TokenMemory.accessToken = result.accessToken;
             }
 
             window.location.href = "/";
@@ -60,4 +62,4 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("로그인 중 오류가 발생했습니다.");
         }
     });
-})
+});

@@ -2,11 +2,11 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -30,12 +30,15 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         String token = tokenService.resolveRefreshToken(req);
-        try {
-            TokenService.RefreshResult result = tokenService.refresh(token);
-            tokenService.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
-
-        } catch (Exception e) {
-            res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
+        if (StringUtils.hasText(token)) {
+            try {
+                TokenService.RefreshResult result = tokenService.refresh(token);
+                tokenService.writeAccessAndRefreshToken(res, result.accessToken(), result.refreshToken());
+            } catch (Exception e) {
+                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token invalid");
+            }
+        } else {
+            res.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름
         }
     }
 }

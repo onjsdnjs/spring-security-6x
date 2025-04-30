@@ -16,9 +16,6 @@ spring:
       enabled: true
       path: /h2-console
   auth:
-    enabled-auth-types:
-      - FORM
-      - OTT
     accessTokenValidity: 3600000
     refreshTokenValidity: 604800000
     enableRefreshToken: true
@@ -35,6 +32,7 @@ spring:
     auth-state-mode: jwt
     token-transport-type: header_cookie
     allow-multiple-logins: false
+    max-concurrent-logins: 3
 
   mail:
     host: smtp.gmail.com

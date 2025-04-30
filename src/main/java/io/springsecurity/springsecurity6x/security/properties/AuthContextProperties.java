@@ -31,11 +31,6 @@ public class AuthContextProperties {
     private TokenIssuer tokenIssuer = TokenIssuer.INTERNAL;
 
     /**
-     * 허용할 인증 방식 목록 (FORM, OTT, PASSKEY)
-     */
-    private Set<AuthType> enabledAuthTypes = EnumSet.of(AuthType.FORM);
-
-    /**
      * JWT 등 외부 토큰 기반 인증 설정
      */
     @NestedConfigurationProperty
@@ -52,16 +47,13 @@ public class AuthContextProperties {
     private long refreshRotateThreshold = 43200000; // 기본 12시간 (밀리초)
 
     private boolean enableRefreshToken = true;
-    private boolean AllowMultipleLogins = false;
+    private boolean allowMultipleLogins = false;
+    private int maxConcurrentLogins = 3;
 
 
     private String tokenPrefix = "Bearer ";
     private String rolesClaim = "roles";
     private String scopesClaim = "scopes";
-
-    public boolean isAuthEnabled(AuthType type) {
-        return enabledAuthTypes.contains(type);
-    }
 
 }
 

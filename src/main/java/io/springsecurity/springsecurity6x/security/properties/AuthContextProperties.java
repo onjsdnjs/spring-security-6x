@@ -52,6 +52,8 @@ public class AuthContextProperties {
     private long refreshRotateThreshold = 43200000; // 기본 12시간 (밀리초)
 
     private boolean enableRefreshToken = true;
+    private boolean AllowMultipleLogins = false;
+
 
     private String tokenPrefix = "Bearer ";
     private String rolesClaim = "roles";
@@ -62,4 +64,5 @@ public class AuthContextProperties {
     }
 
 }
+
 

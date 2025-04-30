@@ -34,6 +34,7 @@ spring:
     token-issuer: internal
     auth-state-mode: jwt
     token-transport-type: header_cookie
+    allow-multiple-logins: false
 
   mail:
     host: smtp.gmail.com

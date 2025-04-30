@@ -71,7 +71,7 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
 
         TokenParser parser = new JwtTokenParser(key);
         JwtTokenCreator tokenCreator = new JwtTokenCreator(key);
-        RefreshTokenStore store = new JwtRefreshTokenStore(parser);
+        RefreshTokenStore store = new JwtRefreshTokenStore(parser,props);
         TokenValidator validator = new JwtTokenValidator(parser, store, props.getRefreshRotateThreshold());
         TokenService tokenService = new JwtTokenService(validator, tokenCreator, store, transport, props);
         transport.setTokenService(tokenService);

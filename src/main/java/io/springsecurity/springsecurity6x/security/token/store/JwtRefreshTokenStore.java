@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 
@@ -12,9 +13,11 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
     private final Map<String, TokenInfo> blacklist = new ConcurrentHashMap<>();
     private final TokenParser tokenParser;
+    private final AuthContextProperties props;
 
-    public JwtRefreshTokenStore(TokenParser tokenParser) {
+    public JwtRefreshTokenStore(TokenParser tokenParser, AuthContextProperties props) {
         this.tokenParser = tokenParser;
+        this.props = props;
     }
 
     private String key(String username, String deviceId) {
@@ -27,12 +30,13 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
         Instant expiry = parsedJwt.expiration();
         String deviceId = parsedJwt.deviceId();
 
-        // 기존 토큰 블랙리스트 처리
-        TokenInfo old = store.get(key(username, deviceId));
-        if (old != null) {
-            blacklist.put(key(username, deviceId), new TokenInfo(username, Instant.now(), "Duplicate login"));
+        String tokenKey = key(username, deviceId);
+        if (!props.isAllowMultipleLogins()) {
+            TokenInfo old = store.get(tokenKey);
+            if (old != null) {
+                blacklist.put(tokenKey, new TokenInfo(username, Instant.now(), "Duplicate login"));
+            }
         }
-
         store.put(key(username, deviceId), new TokenInfo(username, expiry));
     }
 

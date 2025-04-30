@@ -44,8 +44,19 @@
 
         if (res.ok) {
             if (res.status === 204) {
-                console.log("리프레시 토큰 없음, 복원 생략");
-            } else {
+                console.log("리프레시 토큰 생성 전 상태");
+
+            } else if (res.status === 401) {
+                console.log("리프레시 토큰 만료 및 변조 등의 오류");
+                TokenMemory.accessToken = null;
+                TokenMemory.refreshToken = null;
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem("refreshToken");
+
+                updateLoginUi();
+                window.location.href = "/loginForm";
+                return;
+            }else {
                 const data = await res.json();
                 TokenMemory.accessToken = data.accessToken;
                 if (authMode === "header") {

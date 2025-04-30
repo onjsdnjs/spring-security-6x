@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2TokenProvider;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
@@ -18,6 +19,7 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.validator.OAuth2TokenValidator;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 /**
@@ -98,15 +100,17 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
 
     @Override
     public void configure(HttpSecurity http) throws Exception  {
-        JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(
-                http.getSharedObject(TokenService.class),
-                http.getSharedObject(LogoutHandler.class)
-        );
+
+        TokenService tokenService = http.getSharedObject(TokenService.class);
+        LogoutHandler logoutHandler = http.getSharedObject(LogoutHandler.class);
+        JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(tokenService, logoutHandler);
 
         http.logout(logout -> logout
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
+
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new JwtLogoutFilter(tokenService), LogoutFilter.class);
     }
 }
 

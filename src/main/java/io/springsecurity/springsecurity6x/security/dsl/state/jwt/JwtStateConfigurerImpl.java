@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.dsl.state.jwt;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
+import io.springsecurity.springsecurity6x.security.filter.JwtLogoutFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
@@ -24,6 +25,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
@@ -78,7 +80,9 @@ public class JwtStateConfigurerImpl implements JwtStateConfigurer {
         http.logout(logout -> logout
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
+
         http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, handlers.logoutHandler()), JwtAuthorizationFilter.class);
+        http.addFilterBefore(new JwtLogoutFilter(tokenService), LogoutFilter.class);
     }
 }

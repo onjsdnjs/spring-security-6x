@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,7 +39,8 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
                 TokenService.RefreshResult result = tokenService.refresh(token);
                 tokenService.writeAccessAndRefreshToken(response, result.accessToken(), result.refreshToken());
             } catch (Exception e) {
-                logoutHandler.logout(request, response, null);
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                logoutHandler.logout(request, response, auth);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 로그인 상태가 아님: 정상 흐름
             }
         } else {

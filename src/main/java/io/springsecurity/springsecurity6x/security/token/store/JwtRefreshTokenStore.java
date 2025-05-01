@@ -129,7 +129,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
                 devices.remove(deviceId);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw e;
         }
     }
 }

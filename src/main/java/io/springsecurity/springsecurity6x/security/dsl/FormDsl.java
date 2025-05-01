@@ -1,6 +1,12 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
-import io.springsecurity.springsecurity6x.security.dsl.option.FormOptions;
+public interface FormDsl {
 
-public class FormDsl extends FormOptions {
+    FormDsl matchers(String... patterns);
+
+    FormDsl loginPage(String url);
+
+    IdentityStateDsl useSession();
+
+    IdentityStateDsl useJwt();
 }

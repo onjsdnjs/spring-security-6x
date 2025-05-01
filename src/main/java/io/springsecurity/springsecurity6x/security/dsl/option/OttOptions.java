@@ -1,4 +1,11 @@
 package io.springsecurity.springsecurity6x.security.dsl.option;
 
-public class OttOptions extends DslOptions {
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+public class OttOptions {
+    private String loginProcessingUrl;
+    private List<String> matchers;
 }

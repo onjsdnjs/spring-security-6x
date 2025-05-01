@@ -2,9 +2,11 @@ package io.springsecurity.springsecurity6x.security.builder;
 
 import io.springsecurity.springsecurity6x.security.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.config.IdentityConfig;
-import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.dsl.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.Customizer;
@@ -42,21 +44,25 @@ public class PlatformSecurityChainBuilder {
     private SecurityFilterChain buildChain(AuthenticationConfig config) throws Exception {
         HttpSecurity http = httpSecurityProvider.getObject();
 
-        Object matcher = config.options.getValues().get("matchers");
-        if (matcher instanceof List<?> matchers) {
-            http.securityMatcher(matchers.toArray(String[]::new));
+        List<String> matchers = null;
+        switch (config.type) {
+            case "form" -> matchers = ((FormOptions) config.options).getMatchers();
+            case "rest" -> matchers = ((RestOptions) config.options).getMatchers();
+            case "passkey" -> matchers = ((PasskeyOptions) config.options).getMatchers();
+            case "ott" -> matchers = ((OttOptions) config.options).getMatchers();
+        }
+
+        if (matchers != null && !matchers.isEmpty()) {
+            http.securityMatcher(matchers.toArray(new String[0]));
         } else {
             switch (config.type) {
                 case "rest" -> http.securityMatcher("/api/**");
-                case "form" -> http.securityMatcher("/**");
-                case "passkey" -> http.securityMatcher("/**");
-                case "ott" -> http.securityMatcher("/**");
+                case "form", "passkey", "ott" -> http.securityMatcher("/**");
             }
         }
 
         if ("jwt".equals(config.stateType)) {
             http.with(jwtConfigurer, Customizer.withDefaults());
-
         } else {
             http.with(sessionConfigurer, Customizer.withDefaults());
         }

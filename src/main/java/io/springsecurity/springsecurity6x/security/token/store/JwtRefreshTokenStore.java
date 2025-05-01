@@ -1,8 +1,10 @@
 package io.springsecurity.springsecurity6x.security.token.store;
 
+import io.jsonwebtoken.JwtException;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -11,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
@@ -87,9 +90,19 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void blacklist(String token, String username, String reason) {
-        ParsedJwt parsedJwt = tokenParser.parse(token);
-        String deviceId = parsedJwt.deviceId();
-        blacklist.put(key(username, deviceId), new TokenInfo(username, Instant.now(), reason));
+        String deviceId = "UNKNOWN_DEVICE";
+        String resolvedUsername = username != null ? username : "ANONYMOUS";
+
+        try {
+            ParsedJwt parsedJwt = tokenParser.parse(token);
+            deviceId = parsedJwt.deviceId();
+            resolvedUsername = parsedJwt.subject(); // 토큰에서 username 추출 (가능한 경우)
+        } catch (JwtException e) {
+            log.warn("JWT parse failed for blacklist. Still attempting to block. Raw token: {}", token, e);
+        }
+
+        // 최종적으로 블랙리스트에 등록
+        blacklist.put(key(resolvedUsername, deviceId), new TokenInfo(resolvedUsername, Instant.now(), reason));
     }
 
     @Override
@@ -115,7 +128,8 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             if (devices != null) {
                 devices.remove(deviceId);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

@@ -4,11 +4,12 @@ import io.springsecurity.springsecurity6x.security.handler.authentication.Authen
 import io.springsecurity.springsecurity6x.security.handler.authentication.DefaultAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
 /**
  * Session 기반 인증 상태 전략
  */
-public class SessionStateConfigurerImpl implements SessionStateConfigurer {
+public class SessionStateConfigurerImpl extends AbstractHttpConfigurer<SessionStateConfigurerImpl, HttpSecurity> implements SessionStateConfigurer {
 
     private final AuthContextProperties properties;
     private final AuthenticationHandlers handlers;

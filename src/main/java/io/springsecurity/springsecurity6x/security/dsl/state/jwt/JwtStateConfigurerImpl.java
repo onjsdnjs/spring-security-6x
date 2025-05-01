@@ -30,7 +30,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
-public class JwtStateConfigurerImpl implements JwtStateConfigurer {
+public class JwtStateConfigurerImpl extends AbstractHttpConfigurer<JwtStateConfigurerImpl, HttpSecurity> implements JwtStateConfigurer {
 
     private final SecretKey key;
     private final AuthContextProperties props;

@@ -152,7 +152,7 @@ public class IdentityDslImpl implements IdentityDsl, IdentityStateDsl {
 
     @Override
     public IdentityStateDsl customize(Customizer<HttpSecurity> httpCustomizer) throws Exception {
-        return null;
+        return IdentityDslImpl.this;
     }
 
     public IdentityConfig getConfig() {

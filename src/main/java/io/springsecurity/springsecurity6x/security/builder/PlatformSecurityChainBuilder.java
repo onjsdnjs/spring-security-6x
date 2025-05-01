@@ -41,7 +41,7 @@ public class PlatformSecurityChainBuilder {
         return chains;
     }
 
-    private SecurityFilterChain buildChain(AuthenticationConfig config) throws Exception {
+    public SecurityFilterChain buildChain(AuthenticationConfig config) throws Exception {
         HttpSecurity http = httpSecurityProvider.getObject();
 
         List<String> matchers = null;

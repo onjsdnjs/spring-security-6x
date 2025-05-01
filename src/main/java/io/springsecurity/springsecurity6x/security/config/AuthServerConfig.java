@@ -26,7 +26,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import java.time.Duration;
 import java.util.UUID;
 
-@Configuration
+//@Configuration
 public class AuthServerConfig {
 
 //    @Bean

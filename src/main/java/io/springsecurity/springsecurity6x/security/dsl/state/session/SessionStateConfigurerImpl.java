@@ -28,9 +28,13 @@ public class SessionStateConfigurerImpl extends AbstractHttpConfigurer<SessionSt
     }
 
     @Override
-    public void init(HttpSecurity http) { /* 기본 Spring Security 세션 흐름 그대로 */ }
+    public void init(HttpSecurity http) {
+        System.out.println("SessionStateConfigurerImpl.init()");
+    }
 
     @Override
-    public void configure(HttpSecurity http) { /* 필요 시 추가 세션 설정 */ }
+    public void configure(HttpSecurity http) {
+        System.out.println("SessionStateConfigurerImpl.configure()");
+    }
 
 }

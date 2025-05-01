@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.token.service;
 
 import io.jsonwebtoken.JwtException;
 import io.springsecurity.springsecurity6x.security.enums.TokenType;
-import io.springsecurity.springsecurity6x.security.exception.TokenValidationException;
+import io.springsecurity.springsecurity6x.security.exception.TokenInvalidException;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
@@ -11,11 +11,14 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.stream.Collectors;
 
+@Slf4j
 public class JwtTokenService implements TokenService {
 
     private final TokenCreator tokenCreator;
@@ -41,7 +44,12 @@ public class JwtTokenService implements TokenService {
     @Override
     public String createRefreshToken(Authentication authentication, String deviceId) {
         String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity(), deviceId);
-        tokenStore.save(token, authentication.getName());
+        try {
+            tokenStore.save(token, authentication.getName());
+        } catch (Exception e) {
+            log.error("RefreshToken 저장 실패 - 사용자: {}, token: {}", authentication.getName(), token, e);
+            throw new AuthenticationServiceException("리프레시 토큰 저장 실패", e);
+        }
         return token;
     }
 
@@ -67,7 +75,7 @@ public class JwtTokenService implements TokenService {
         }
 
         if (!validateRefreshToken(refreshToken)) {
-            throw new TokenValidationException("Invalid refresh token");
+            throw new TokenInvalidException("Invalid refresh token");
         }
 
         Authentication auth = getAuthentication(refreshToken);

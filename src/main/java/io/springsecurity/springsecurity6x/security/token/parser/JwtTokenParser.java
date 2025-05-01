@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.token.parser;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -9,6 +11,7 @@ import java.security.Key;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class JwtTokenParser implements TokenParser {
 
     private final Key secretKey;
@@ -56,7 +59,5 @@ public class JwtTokenParser implements TokenParser {
                 .parseClaimsJws(token)
                 .getBody();
     }
-
-
 }
 

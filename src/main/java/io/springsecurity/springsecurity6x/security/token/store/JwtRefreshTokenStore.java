@@ -34,39 +34,41 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void save(String refreshToken, String username) {
-        ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
-        String deviceId = parsedJwt.deviceId();
-        Instant expiry = parsedJwt.expiration();
 
-        String tokenKey = key(username, deviceId);
+        try {
+            ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
+            String deviceId = parsedJwt.deviceId();
+            Instant expiry = parsedJwt.expiration();
+            String tokenKey = key(username, deviceId);
 
-        if (!props.isAllowMultipleLogins()) {
-            // 싱글 로그인: 기존 모든 토큰 제거 및 블랙리스트 처리
-            store.keySet().stream()
-                    .filter(k -> k.startsWith(username + ":"))
-                    .forEach(k -> {
-                        store.remove(k);
-                        blacklist.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
-                    });
-        } else {
-            // 멀티 로그인: 허용 개수 초과 시 가장 오래된 토큰 제거
-            Map<String, TokenInfo> devices = store.entrySet().stream()
-                    .filter(e -> e.getKey().startsWith(username + ":"))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            if (!props.isAllowMultipleLogins()) {
+                store.keySet().stream()
+                        .filter(k -> k.startsWith(username + ":"))
+                        .forEach(k -> {
+                            store.remove(k);
+                            blacklist.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
+                        });
+            } else {
+                Map<String, TokenInfo> devices = store.entrySet().stream()
+                        .filter(e -> e.getKey().startsWith(username + ":"))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            if (devices.size() >= props.getMaxConcurrentLogins()) {
-                String oldestKey = devices.entrySet().stream()
-                        .min(Comparator.comparing(e -> e.getValue().getExpiration()))
-                        .map(Map.Entry::getKey)
-                        .orElse(null);
-                if (oldestKey != null) {
-                    store.remove(oldestKey);
-                    blacklist.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
+                if (devices.size() >= props.getMaxConcurrentLogins()) {
+                    String oldestKey = devices.entrySet().stream()
+                            .min(Comparator.comparing(e -> e.getValue().getExpiration()))
+                            .map(Map.Entry::getKey)
+                            .orElse(null);
+                    if (oldestKey != null) {
+                        store.remove(oldestKey);
+                        blacklist.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
+                    }
                 }
             }
-        }
 
-        store.put(tokenKey, new TokenInfo(username, expiry));
+            store.put(tokenKey, new TokenInfo(username, expiry));
+        } catch (JwtException e) {
+            log.warn("JWT 파싱 실패 - 저장 실패. refreshToken: {}", refreshToken, e);
+        }
     }
 
     @Override
@@ -74,8 +76,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
         try {
             ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String subject = parsedJwt.subject();
-            String deviceId = parsedJwt.deviceId(); // deviceId 추출 메서드 필요
-
+            String deviceId = parsedJwt.deviceId();
             TokenInfo info = store.get(key(subject, deviceId));
             if (info == null) return null;
             if (Instant.now().isAfter(info.getExpiration())) {
@@ -83,7 +84,8 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
                 return null;
             }
             return info.getUsername();
-        } catch (Exception e) {
+        } catch (JwtException e) {
+            log.warn("JWT 파싱 실패 - 사용자 조회 실패. refreshToken: {}", refreshToken, e);
             return null;
         }
     }
@@ -128,8 +130,8 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             if (devices != null) {
                 devices.remove(deviceId);
             }
-        } catch (Exception e) {
-            throw e;
+        } catch (JwtException e) {
+            log.warn("JWT 파싱 실패 - 토큰 제거 실패. refreshToken: {}", refreshToken, e);
         }
     }
 }

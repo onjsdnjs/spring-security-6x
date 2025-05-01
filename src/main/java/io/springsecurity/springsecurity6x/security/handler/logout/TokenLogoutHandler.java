@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.token.store.TokenInfo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
@@ -25,10 +26,17 @@ public class TokenLogoutHandler implements LogoutHandler {
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         String refreshToken = tokenService.resolveRefreshToken(request);
-        if (refreshToken != null && authentication != null) {
-            tokenService.invalidateRefreshToken(refreshToken);
-            tokenService.blacklistRefreshToken(refreshToken, authentication.getName(), TokenInfo.REASON_LOGOUT);
+
+        try {
+            if (refreshToken != null && authentication != null) {
+                tokenService.invalidateRefreshToken(refreshToken); // ← 내부에서 AuthenticationException 던질 수 있음
+                tokenService.blacklistRefreshToken(refreshToken, authentication.getName(), TokenInfo.REASON_LOGOUT);
+            }
+        } catch (AuthenticationException ex) {
+            SecurityContextHolder.clearContext(); // 무조건 context는 비우고
+            throw ex; // 예외 전파 (→ EntryPoint로)
         }
+
         tokenService.clearTokens(response);
         SecurityContextHolder.clearContext();
     }

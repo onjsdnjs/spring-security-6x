@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.builder;
 
 import io.springsecurity.springsecurity6x.security.config.AuthenticationConfig;
-import io.springsecurity.springsecurity6x.security.config.IdentityConfig;
 import io.springsecurity.springsecurity6x.security.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.dsl.option.PasskeyOptions;
@@ -13,7 +12,6 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -31,14 +29,6 @@ public class PlatformSecurityChainBuilder {
         this.httpSecurityProvider = httpSecurityProvider;
         this.jwtConfigurer = jwtConfigurer;
         this.sessionConfigurer = sessionConfigurer;
-    }
-
-    public List<SecurityFilterChain> buildFrom(IdentityConfig config) throws Exception {
-        List<SecurityFilterChain> chains = new ArrayList<>();
-        for (AuthenticationConfig entry : config.authentications) {
-            chains.add(buildChain(entry));
-        }
-        return chains;
     }
 
     public SecurityFilterChain buildChain(AuthenticationConfig config) throws Exception {

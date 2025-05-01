@@ -14,15 +14,15 @@ import javax.crypto.SecretKey;
 @Configuration
 public class AuthConfig {
 
-    @Bean
-    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
-        return new AuthIntegrationPlatformConfigurer(stateDsl);
-    }
+//    @Bean
+//    public AuthIntegrationPlatformConfigurer authIntegrationPlatformConfigurer(AuthenticationStateDsl stateDsl) {
+//        return new AuthIntegrationPlatformConfigurer(stateDsl);
+//    }
 
-    @Bean
-    public AuthenticationStateDsl authenticationStateDsl(AuthContextProperties props) {
-        return new AuthenticationStateDsl(props, secretKey());
-    }
+//    @Bean
+//    public AuthenticationStateDsl authenticationStateDsl(AuthContextProperties props) {
+//        return new AuthenticationStateDsl(props, secretKey());
+//    }
 
     @Bean
     public SecretKey secretKey() {

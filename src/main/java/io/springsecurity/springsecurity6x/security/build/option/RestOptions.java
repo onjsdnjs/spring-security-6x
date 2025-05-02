@@ -11,7 +11,9 @@ import java.util.List;
 public class RestOptions implements AuthConfigurer {
 
     private List<String> matchers;
-    private String loginProcessingUrl;
+    private String loginProcessingUrl = "/api/auth/login";
+    private String defaultSuccessUrl = "/";
+    private String failureUrl = "/login?error";
 
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
@@ -31,6 +33,22 @@ public class RestOptions implements AuthConfigurer {
 
     public void loginProcessingUrl(String loginProcessingUrl) {
         this.loginProcessingUrl = loginProcessingUrl;
+    }
+
+    public String defaultSuccessUrl() {
+        return defaultSuccessUrl;
+    }
+
+    public void defaultSuccessUrl(String defaultSuccessUrl) {
+        this.defaultSuccessUrl = defaultSuccessUrl;
+    }
+
+    public String failureUrl() {
+        return failureUrl;
+    }
+
+    public void failureUrl(String failureUrl) {
+        this.failureUrl = failureUrl;
     }
 
     public AuthenticationSuccessHandler successHandler() {

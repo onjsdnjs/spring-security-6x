@@ -1,60 +1,54 @@
 package io.springsecurity.springsecurity6x.security.build.option;
 
 import io.springsecurity.springsecurity6x.security.init.configurer.AuthConfigurer;
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
+import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 import java.util.List;
 
 public class OttOptions implements AuthConfigurer {
 
     private List<String> matchers;
-    private String loginProcessingUrl;
+    private String loginProcessingUrl = "/login/ott";
+    private String defaultSubmitPageUrl = "/login/ott";
+    private String tokenGeneratingUrl = "/ott/generate";
+    private boolean showDefaultSubmitPage = true;
+    private OneTimeTokenService tokenService = new InMemoryOneTimeTokenService();
+    private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
 
-    private AuthenticationSuccessHandler successHandler;
-    private AuthenticationFailureHandler failureHandler;
-    private SecurityContextRepository securityContextRepository;
-
-    public List<String> matchers() {
-        return matchers;
-    }
-
-    public void matchers(List<String> matchers) {
-        this.matchers = matchers;
-    }
+    public List<String> matchers() {return matchers;}
+    public void matchers(List<String> matchers) {this.matchers = matchers;}
+    public void loginProcessingUrl(String url) { this.loginProcessingUrl = url; }
+    public void defaultSubmitPageUrl(String url) { this.defaultSubmitPageUrl = url; }
+    public void tokenGeneratingUrl(String url) { this.tokenGeneratingUrl = url; }
+    public void showDefaultSubmitPage(boolean show) { this.showDefaultSubmitPage = show; }
+    public void tokenService(OneTimeTokenService s) { this.tokenService = s; }
+    public void tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler h) { this.tokenGenerationSuccessHandler = h; }
 
     public String loginProcessingUrl() {
         return loginProcessingUrl;
     }
 
-    public void loginProcessingUrl(String loginProcessingUrl) {
-        this.loginProcessingUrl = loginProcessingUrl;
+    public String defaultSubmitPageUrl() {
+        return defaultSubmitPageUrl;
     }
 
-    public AuthenticationSuccessHandler successHandler() {
-        return successHandler;
+    public String tokenGeneratingUrl() {
+        return tokenGeneratingUrl;
     }
 
-    public void successHandler(AuthenticationSuccessHandler successHandler) {
-        this.successHandler = successHandler;
+    public boolean showDefaultSubmitPage() {
+        return showDefaultSubmitPage;
     }
 
-    public AuthenticationFailureHandler failureHandler() {
-        return failureHandler;
+    public OneTimeTokenService tokenService() {
+        return tokenService;
     }
 
-    public void failureHandler(AuthenticationFailureHandler failureHandler) {
-        this.failureHandler = failureHandler;
-    }
-
-    public SecurityContextRepository securityContextRepository() {
-        return securityContextRepository;
-    }
-
-    public void securityContextRepository(SecurityContextRepository securityContextRepository) {
-        this.securityContextRepository = securityContextRepository;
+    public OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler() {
+        return tokenGenerationSuccessHandler;
     }
 
     @Override

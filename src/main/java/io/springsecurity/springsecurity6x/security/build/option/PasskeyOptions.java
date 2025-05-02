@@ -11,9 +11,9 @@ import java.util.List;
 public class PasskeyOptions implements AuthConfigurer {
 
     private List<String> matchers;
-    private String rpId;
-    private String rpName;
-    private List<String> allowedOrigins;
+    private String rpName = "SecureApp";
+    private String rpId = "localhost";
+    private String[] allowedOrigins = new String[]{"http://localhost:8080"};
 
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
@@ -43,11 +43,11 @@ public class PasskeyOptions implements AuthConfigurer {
         this.rpName = rpName;
     }
 
-    public List<String> allowedOrigins() {
+    public String[] allowedOrigins() {
         return allowedOrigins;
     }
 
-    public void allowedOrigins(List<String> allowedOrigins) {
+    public void allowedOrigins(String[] allowedOrigins) {
         this.allowedOrigins = allowedOrigins;
     }
 

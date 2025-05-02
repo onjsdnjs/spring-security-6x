@@ -1,8 +1,7 @@
 package io.springsecurity.springsecurity6x.security.build;
 
-import io.springsecurity.springsecurity6x.security.dsl.authentication.single.FormAuthenticationDsl;
-import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.build.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 /**
@@ -19,7 +18,12 @@ public class FormLoginConfigurer implements IdentitySecurityConfigurer {
     public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
         FormOptions options = (FormOptions) config.options();
 
-        FormAuthenticationDsl dsl = new FormAuthenticationDsl()
+        if (options.matchers() != null && !options.matchers().isEmpty()) {
+            http.securityMatcher(options.matchers().toArray(new String[0]));
+        }
+
+        http.formLogin(form -> {
+            form
                 .loginPage(options.loginPage())
                 .loginProcessingUrl(options.loginProcessingUrl())
                 .usernameParameter(options.usernameParameter())
@@ -27,17 +31,21 @@ public class FormLoginConfigurer implements IdentitySecurityConfigurer {
                 .defaultSuccessUrl(options.defaultSuccessUrl(), options.alwaysUseDefaultSuccessUrl())
                 .failureUrl(options.failureUrl());
 
-        if (options.successHandler() != null) {
-            dsl.successHandler(options.successHandler());
-        }
-        if (options.failureHandler() != null) {
-            dsl.failureHandler(options.failureHandler());
-        }
-        if (options.securityContextRepository() != null) {
-            dsl.securityContextRepository(options.securityContextRepository());
-        }
+            if (options.successHandler() != null) {
+                form.successHandler(options.successHandler());
+            } else {
+//                form.successHandler(authenticationHandlers.successHandler());
+            }
+            if (options.failureHandler() != null) {
+                form.failureHandler(options.failureHandler());
+            } else {
+//                form.failureHandler(authenticationHandlers.failureHandler());
+            }
 
-        dsl.configure(http);
+            if (options.securityContextRepository() != null) {
+                form.securityContextRepository(options.securityContextRepository());
+            }
+        });
     }
 
     @Override

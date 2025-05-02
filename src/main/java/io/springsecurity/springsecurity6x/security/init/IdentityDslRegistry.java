@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.init;
 
-import io.springsecurity.springsecurity6x.security.init.option.FormOptions;
-import io.springsecurity.springsecurity6x.security.init.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.init.option.PasskeyOptions;
-import io.springsecurity.springsecurity6x.security.init.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.build.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.build.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.build.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.build.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 
 /**

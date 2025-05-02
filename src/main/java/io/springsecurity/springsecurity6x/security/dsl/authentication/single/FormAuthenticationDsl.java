@@ -41,8 +41,9 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
         return this;
     }
 
-    public FormAuthenticationDsl defaultSuccessUrl(String defaultSuccessUrl) {
+    public FormAuthenticationDsl defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUseDefaultSuccessUrl) {
         this.defaultSuccessUrl = defaultSuccessUrl;
+        this.alwaysUseDefaultSuccessUrl = alwaysUseDefaultSuccessUrl;
         return this;
     }
 
@@ -63,6 +64,11 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
 
     public FormAuthenticationDsl failureHandler(AuthenticationFailureHandler failureHandler) {
         this.failureHandler = failureHandler;
+        return this;
+    }
+
+    public FormAuthenticationDsl securityContextRepository(SecurityContextRepository securityContextRepository) {
+        this.securityContextRepository = securityContextRepository;
         return this;
     }
 

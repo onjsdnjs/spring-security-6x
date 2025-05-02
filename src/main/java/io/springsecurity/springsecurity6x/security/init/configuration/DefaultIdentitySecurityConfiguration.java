@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.init.configuration;
 
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfigFactory;
-import io.springsecurity.springsecurity6x.security.init.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.build.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.init.IdentityConfig;

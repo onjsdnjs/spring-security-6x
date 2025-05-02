@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.oauth2;
 
+import io.springsecurity.springsecurity6x.security.build.IdentitySecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ClientRequest;
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2HttpClient;
 import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ResourceClient;
@@ -10,6 +11,7 @@ import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFi
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
+import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.OAuth2TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.service.OAuth2TokenService;
@@ -25,7 +27,7 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 /**
  * OAuth2 Client 설정을 DSL 방식으로 구성하는 클래스
  */
-public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
+public class OAuth2StateConfigurerImpl implements IdentitySecurityConfigurer {
 
     private final AuthContextProperties properties;
     private String tokenUri;
@@ -72,8 +74,8 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     }
 
     @Override
-    public AuthenticationHandlers authHandlers() {
-        return handlers;
+    public boolean supports(AuthenticationConfig config) {
+        return "oauth2".equalsIgnoreCase(config.stateType());
     }
 
     @Override
@@ -99,8 +101,7 @@ public class OAuth2StateConfigurerImpl implements OAuth2StateConfigurer {
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception  {
-
+    public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
         TokenService tokenService = http.getSharedObject(TokenService.class);
         LogoutHandler logoutHandler = http.getSharedObject(LogoutHandler.class);
         JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(tokenService, logoutHandler);

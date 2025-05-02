@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.session;
 
+import io.springsecurity.springsecurity6x.security.build.IdentitySecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.DefaultAuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -9,7 +11,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 /**
  * Session 기반 인증 상태 전략
  */
-public class SessionStateConfigurerImpl extends AbstractHttpConfigurer<SessionStateConfigurerImpl, HttpSecurity> implements SessionStateConfigurer {
+public class SessionStateConfigurerImpl implements IdentitySecurityConfigurer {
 
     private final AuthContextProperties properties;
     private final AuthenticationHandlers handlers;
@@ -28,11 +30,16 @@ public class SessionStateConfigurerImpl extends AbstractHttpConfigurer<SessionSt
     }
 
     @Override
-    public void init(HttpSecurity http) {
+    public boolean supports(AuthenticationConfig config) {
+        return "session".equalsIgnoreCase(config.stateType());
     }
 
     @Override
-    public void configure(HttpSecurity http) {
+    public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
+
     }
 
+    @Override
+    public void init(HttpSecurity http) {
+    }
 }

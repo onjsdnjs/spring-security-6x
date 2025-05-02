@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.dsl.state;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurer;
@@ -46,3 +47,4 @@ public final class AuthenticationStateDsl {
     }
 }
 
+*/

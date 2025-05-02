@@ -11,7 +11,7 @@ import java.util.*;
 /**
  * IdentitySecurityBuilder는 DSL로부터 수집된 AuthenticationConfig를 기반으로
  * HttpSecurity를 초기화하고, 각 Configurer를 순차 적용하여 SecurityFilterChain을 생성한다.
- * 이 클래스는 POJO로 유지되어 전체 인증 초기화 과정을 명확하게 통제할 수 있다.
+ * 이 클래스는 Spring Security의 AbstractConfiguredSecurityBuilder 철학을 따르도록 리팩토링되었다.
  */
 @Slf4j
 public class IdentitySecurityBuilder {
@@ -20,7 +20,9 @@ public class IdentitySecurityBuilder {
     private final List<AuthenticationConfig> authenticationConfigs;
     private final List<IdentitySecurityConfigurer> configurers;
 
-    private BuildState state = BuildState.INITIALIZING;
+    private final List<HttpSecurity> httpList = new ArrayList<>();
+    private final Map<HttpSecurity, AuthenticationConfig> contextMap = new LinkedHashMap<>();
+    private BuildState buildState = BuildState.INITIALIZING;
 
     public IdentitySecurityBuilder(ObjectProvider<HttpSecurity> httpSecurityProvider,
                                    List<AuthenticationConfig> authenticationConfigs,
@@ -30,22 +32,46 @@ public class IdentitySecurityBuilder {
         this.configurers = configurers;
     }
 
-    /**
-     * SecurityFilterChain 리스트만 반환하며, FilterChainProxy는 Spring 내부에서 관리되도록 위임한다.
-     */
-    public List<SecurityFilterChain> buildSecurityFilterChains() throws Exception {
-        log.info("\n[IdentitySecurityBuilder] SecurityFilterChain 빌드 시작 - 총 {}개의 인증 전략", authenticationConfigs.size());
-        state = BuildState.CONFIGURING;
+    public List<SecurityFilterChain> build() throws Exception {
+        synchronized (this.configurers) {
+            this.buildState = BuildState.INITIALIZING;
+            beforeInit();
+            init();
+            this.buildState = BuildState.CONFIGURING;
+            beforeConfigure();
+            configure();
+            this.buildState = BuildState.BUILDING;
+            List<SecurityFilterChain> result = performBuild();
+            this.buildState = BuildState.BUILT;
+            return result;
+        }
+    }
 
+    protected void beforeInit() {
+        log.debug("[INIT] 초기화 시작 - 인증 전략 수: {}", authenticationConfigs.size());
+    }
+
+    protected void init() throws Exception {
+        int index = 1;
+        for (AuthenticationConfig config : authenticationConfigs) {
+            HttpSecurity http = httpSecurityProvider.getObject();
+            httpList.add(http);
+            contextMap.put(http, config);
+            log.debug("    └─ [{}] HttpSecurity 초기화 완료 - 타입: {}, 상태: {}", index++, config.type(), config.stateType());
+        }
+    }
+
+    protected void beforeConfigure() {
+        log.debug("[CONFIGURE] Configurer 구성 준비 시작");
+    }
+
+    protected void configure() throws Exception {
         configurers.sort(Comparator.comparingInt(IdentitySecurityConfigurer::order));
 
         int index = 1;
-        List<SecurityFilterChain> result = new ArrayList<>();
-
-        for (AuthenticationConfig config : authenticationConfigs) {
-            HttpSecurity http = httpSecurityProvider.getObject();
-            log.info("\n● [{}] 인증 구성 시작: 방식 = {}, 상태전략 = {}", index, config.type(), config.stateType());
-
+        for (HttpSecurity http : httpList) {
+            AuthenticationConfig config = contextMap.get(http);
+            log.debug("\n● [{}] 인증 방식: {}, 상태 전략: {}", index, config.type(), config.stateType());
             Set<Class<?>> applied = new HashSet<>();
 
             for (IdentitySecurityConfigurer configurer : configurers) {
@@ -54,25 +80,29 @@ public class IdentitySecurityBuilder {
                     if (applied.contains(configurerType)) {
                         throw new IllegalStateException("Configurer 중복 적용 감지: " + configurerType.getSimpleName());
                     }
-                    log.info("    ├─ Configurer 적용: {} (order={})", configurerType.getSimpleName(), configurer.order());
+                    log.debug("    ├─ Configurer 적용: {} (order={})", configurerType.getSimpleName(), configurer.order());
                     configurer.configure(http, config);
                     applied.add(configurerType);
                 }
             }
-
-            state = BuildState.BUILDING;
-            SecurityFilterChain chain = http.build();
-            result.add(chain);
-            log.info("    └─ [{}] SecurityFilterChain 생성 완료", index++);
+            index++;
         }
+    }
 
-        state = BuildState.BUILT;
-        log.info("\n[IdentitySecurityBuilder] 모든 SecurityFilterChain 생성 완료\n");
+    protected List<SecurityFilterChain> performBuild() throws Exception {
+        List<SecurityFilterChain> result = new ArrayList<>();
+        int index = 1;
+        for (HttpSecurity http : httpList) {
+            SecurityFilterChain chain = http.build();
+            log.debug("    └─ [{}] SecurityFilterChain 빌드 완료", index++);
+            result.add(chain);
+        }
+        log.info("\n[IdentitySecurityBuilder] 총 {}개의 SecurityFilterChain 빌드 완료\n", result.size());
         return result;
     }
 
     public BuildState state() {
-        return state;
+        return buildState;
     }
 
     public enum BuildState {
@@ -82,3 +112,5 @@ public class IdentitySecurityBuilder {
         BUILT
     }
 }
+
+

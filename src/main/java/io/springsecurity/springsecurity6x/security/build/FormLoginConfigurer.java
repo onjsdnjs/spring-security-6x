@@ -17,7 +17,6 @@ public class FormLoginConfigurer implements IdentitySecurityConfigurer {
     @Override
     public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
         FormOptions options = (FormOptions) config.options();
-
         if (options.matchers() != null && !options.matchers().isEmpty()) {
             http.securityMatcher(options.matchers().toArray(new String[0]));
         }
@@ -46,6 +45,11 @@ public class FormLoginConfigurer implements IdentitySecurityConfigurer {
                 form.securityContextRepository(options.securityContextRepository());
             }
         });
+    }
+
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+
     }
 
     @Override

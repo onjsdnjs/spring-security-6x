@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.dsl;
 
 import io.springsecurity.springsecurity6x.security.dsl.authentication.single.*;
@@ -79,3 +80,4 @@ public class AuthIntegrationPlatformConfigurer extends AbstractHttpConfigurer<Au
         }
     }
 }
+*/

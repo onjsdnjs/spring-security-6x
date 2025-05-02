@@ -23,53 +23,53 @@ public final class FormAuthenticationDsl extends AbstractAuthenticationDsl {
 
     public FormAuthenticationDsl loginPage(String loginPage) {
         this.loginPage = loginPage;
-
+        return this;
     }
 
     public FormAuthenticationDsl loginProcessingUrl(String loginProcessingUrl) {
         this.loginProcessingUrl = loginProcessingUrl;
-
+        return this;
     }
 
     public FormAuthenticationDsl usernameParameter(String usernameParameter) {
         this.usernameParameter = usernameParameter;
-
+        return this;
     }
 
     public FormAuthenticationDsl passwordParameter(String passwordParameter) {
         this.passwordParameter = passwordParameter;
-
+        return this;
     }
 
     public FormAuthenticationDsl defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUseDefaultSuccessUrl) {
         this.defaultSuccessUrl = defaultSuccessUrl;
         this.alwaysUseDefaultSuccessUrl = alwaysUseDefaultSuccessUrl;
-
+        return this;
     }
 
     public FormAuthenticationDsl alwaysUseDefaultSuccessUrl(boolean alwaysUse) {
         this.alwaysUseDefaultSuccessUrl = alwaysUse;
-
+        return this;
     }
 
     public FormAuthenticationDsl failureUrl(String failureUrl) {
         this.failureUrl = failureUrl;
-
+        return this;
     }
 
     public FormAuthenticationDsl successHandler(AuthenticationSuccessHandler successHandler) {
         this.successHandler = successHandler;
-
+        return this;
     }
 
     public FormAuthenticationDsl failureHandler(AuthenticationFailureHandler failureHandler) {
         this.failureHandler = failureHandler;
-
+        return this;
     }
 
     public FormAuthenticationDsl securityContextRepository(SecurityContextRepository securityContextRepository) {
         this.securityContextRepository = securityContextRepository;
-
+        return this;
     }
 
     @Override

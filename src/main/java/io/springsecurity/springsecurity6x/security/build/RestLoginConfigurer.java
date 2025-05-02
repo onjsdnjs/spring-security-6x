@@ -5,7 +5,7 @@ import io.springsecurity.springsecurity6x.security.dsl.authentication.single.Res
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-class RestLoginConfigurer implements IdentitySecurityConfigurer {
+public class RestLoginConfigurer implements IdentitySecurityConfigurer {
     @Override
     public boolean supports(AuthenticationConfig config) {
         return "rest".equals(config.type());
@@ -39,6 +39,11 @@ class RestLoginConfigurer implements IdentitySecurityConfigurer {
                 rest.securityContextRepository(options.securityContextRepository());
             }
         });
+    }
+
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+
     }
 
     @Override

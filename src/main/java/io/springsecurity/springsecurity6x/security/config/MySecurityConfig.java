@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDsl;
-import io.springsecurity.springsecurity6x.security.init.IdentityDslRegistry;
+import io.springsecurity.springsecurity6x.security.build.IdentityDslRegistry;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

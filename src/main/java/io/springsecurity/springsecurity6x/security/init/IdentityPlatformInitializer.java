@@ -1,9 +1,9 @@
+/*
 package io.springsecurity.springsecurity6x.security.init;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.init.configurer.AuthConfigurer;
-import io.springsecurity.springsecurity6x.security.init.configurer.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.init.configurer.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.init.configurer.StateConfigurer;
 import lombok.extern.slf4j.Slf4j;
@@ -91,3 +91,4 @@ public class IdentityPlatformInitializer implements SmartInitializingSingleton {
     }
 }
 
+*/

@@ -37,6 +37,11 @@ public class PasskeyLoginConfigurer implements IdentitySecurityConfigurer {
     }
 
     @Override
+    public void init(HttpSecurity http) throws Exception {
+
+    }
+
+    @Override
     public int order() {
         return 20;
     }

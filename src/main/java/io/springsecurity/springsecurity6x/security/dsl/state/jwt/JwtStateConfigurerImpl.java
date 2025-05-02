@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl.state.jwt;
 
+import io.springsecurity.springsecurity6x.security.build.IdentitySecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
@@ -8,6 +9,7 @@ import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticati
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
+import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtTokenParser;
@@ -30,7 +32,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
-public class JwtStateConfigurerImpl extends AbstractHttpConfigurer<JwtStateConfigurerImpl, HttpSecurity> implements JwtStateConfigurer {
+public class JwtStateConfigurerImpl implements IdentitySecurityConfigurer {
 
     private final SecretKey key;
     private final AuthContextProperties props;
@@ -50,6 +52,11 @@ public class JwtStateConfigurerImpl extends AbstractHttpConfigurer<JwtStateConfi
     }
 
     @Override
+    public boolean supports(AuthenticationConfig config) {
+        return "jwt".equalsIgnoreCase(config.stateType());
+    }
+
+    @Override
     public void init(HttpSecurity http) throws Exception {
 
         if(props.getTokenTransportType() == TokenTransportType.HEADER){
@@ -66,7 +73,7 @@ public class JwtStateConfigurerImpl extends AbstractHttpConfigurer<JwtStateConfi
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception {
+    public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
 
         TokenParser parser = new JwtTokenParser(key);
         JwtTokenCreator tokenCreator = new JwtTokenCreator(key);

@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.init.configurer;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
@@ -17,3 +18,4 @@ public class SessionStateConfigurer implements StateConfigurer {
     }
 }
 
+*/

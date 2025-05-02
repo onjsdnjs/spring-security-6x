@@ -1,10 +1,10 @@
+/*
 package io.springsecurity.springsecurity6x.security.init;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.init.configurer.AuthConfigurer;
-import io.springsecurity.springsecurity6x.security.init.configurer.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.init.configurer.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.init.configurer.StateConfigurer;
 import org.springframework.beans.factory.ObjectProvider;
@@ -17,9 +17,11 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.List;
 
+*/
 /**
  * DSL 기반 인증 설정을 바탕으로 SecurityFilterChain을 Bean 으로 등록하는 최종 빌더.
- */
+ *//*
+
 public class IdentityPlatformBuilder implements BeanDefinitionRegistryPostProcessor {
 
     private final IdentityDslRegistry registry;
@@ -82,3 +84,4 @@ public class IdentityPlatformBuilder implements BeanDefinitionRegistryPostProces
         // 필요 없음
     }
 }
+*/

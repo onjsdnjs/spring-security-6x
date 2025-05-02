@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.build;
 
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
+import javax.crypto.SecretKey;
 import java.util.List;
 
 @Slf4j
@@ -17,18 +19,17 @@ import java.util.List;
 public class IdentitySecurityConfiguration {
 
     private final ObjectProvider<HttpSecurity> httpSecurityProvider;
-    private final List<AuthenticationConfig> authenticationConfigs;
-    private final List<IdentitySecurityConfigurer> configurers;
+    private final IdentityDslRegistry registry;
+    private final SecretKey secretKey;
+    private final AuthContextProperties props;
 
-    /**
-     * Spring Security가 자동 감지할 수 있도록 SecurityFilterChain 목록을 직접 빈으로 노출
-     */
     @Bean
-    public List<SecurityFilterChain> securityFilterChains() {
-        IdentitySecurityBootstrapper bootstrapper = new IdentitySecurityBootstrapper(
-                httpSecurityProvider, authenticationConfigs, configurers
-        );
-        return bootstrapper.initialize(); // 최종 SecurityFilterChain 생성
+    public List<SecurityFilterChain> securityFilterChains() throws Exception {
+        List<AuthenticationConfig> configs = registry.config();
+        List<IdentitySecurityConfigurer> configurers = registry.configurerList();
+        IdentitySecurityBuilder builder = new IdentitySecurityBuilder(httpSecurityProvider, configs, configurers);
+        return builder.build();
     }
 }
+
 

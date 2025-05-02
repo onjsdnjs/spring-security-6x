@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.init.configuration;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
@@ -16,10 +17,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import javax.crypto.SecretKey;
 import java.util.List;
 
+*/
 /**
  * Identity DSL 플랫폼 자동 설정 클래스.
  * DSL 설정 기반의 SecurityFilterChain 등록을 자동으로 활성화한다.
- */
+ *//*
+
 @Configuration
 public class IdentityPlatformAutoConfiguration {
 
@@ -43,3 +46,4 @@ public class IdentityPlatformAutoConfiguration {
         return initializer.filterChains();
     }
 }
+*/

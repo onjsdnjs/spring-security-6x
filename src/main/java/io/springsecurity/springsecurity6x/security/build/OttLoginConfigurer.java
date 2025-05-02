@@ -2,13 +2,9 @@ package io.springsecurity.springsecurity6x.security.build;
 
 import io.springsecurity.springsecurity6x.security.build.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
-import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
-import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 class OttLoginConfigurer implements IdentitySecurityConfigurer {
-
-    private OneTimeTokenService tokenService = new InMemoryOneTimeTokenService();
 
     @Override
     public boolean supports(AuthenticationConfig config) {
@@ -36,6 +32,11 @@ class OttLoginConfigurer implements IdentitySecurityConfigurer {
             }
 
         });
+    }
+
+    @Override
+    public void init(HttpSecurity http) throws Exception {
+
     }
 
     @Override

@@ -16,7 +16,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public class IdentityDslRegistry {
 
     private final IdentityConfig config;
-    private Customizer<HttpSecurity> customizer;
 
     public IdentityDslRegistry() {
         this.config = new IdentityConfig();
@@ -59,14 +58,5 @@ public class IdentityDslRegistry {
 
     public IdentityConfig config() {
         return config;
-    }
-
-    public IdentityDslRegistry customize(Customizer<HttpSecurity> customizer) {
-        this.customizer = customizer;
-        return this;
-    }
-
-    public Customizer<HttpSecurity> customizer() {
-        return customizer;
     }
 }

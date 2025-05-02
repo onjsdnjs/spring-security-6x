@@ -58,6 +58,12 @@ public class IdentitySecurityBuilder {
             httpList.add(http);
             contextMap.put(http, config);
             log.debug("    └─ [{}] HttpSecurity 초기화 완료 - 타입: {}, 상태: {}", index++, config.type(), config.stateType());
+
+            for (IdentitySecurityConfigurer configurer : configurers) {
+                if (configurer.supports(config)) {
+                    configurer.init(http);
+                }
+            }
         }
     }
 

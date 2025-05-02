@@ -13,7 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class MySecurityConfig {
 
     @Bean
-    public IdentityDsl identityDsl() throws Exception {
+    public IdentityDslRegistry identityDsl() throws Exception {
         return new IdentityDslRegistry()
                 .form(form -> form
                         .loginPage("/login")).useSession()

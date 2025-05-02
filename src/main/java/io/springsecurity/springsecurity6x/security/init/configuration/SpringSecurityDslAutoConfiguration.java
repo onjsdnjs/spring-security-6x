@@ -2,8 +2,8 @@ package io.springsecurity.springsecurity6x.security.init.configuration;
 
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.init.DynamicSecurityRegistrar;
 import io.springsecurity.springsecurity6x.security.init.IdentityDslRegistry;
+import io.springsecurity.springsecurity6x.security.init.IdentityPlatformBuilder;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -20,20 +20,15 @@ import javax.crypto.SecretKey;
 public class SpringSecurityDslAutoConfiguration {
 
     @Bean
-    public static DynamicSecurityRegistrar dynamicSecurityRegistrar(
-            IdentityDslRegistry identityDslRegistry,
+    public IdentityPlatformBuilder identityPlatform(
+            IdentityDslRegistry registry,
             ObjectProvider<HttpSecurity> httpSecurityProvider,
-            SecretKey secretKey,
-            AuthContextProperties props) {
+            SecretKey key,
+            AuthContextProperties props) throws Exception {
 
-        JwtStateConfigurerImpl jwtConfigurer = new JwtStateConfigurerImpl(secretKey, props);
+        JwtStateConfigurerImpl jwtConfigurer = new JwtStateConfigurerImpl(key, props);
         SessionStateConfigurerImpl sessionConfigurer = new SessionStateConfigurerImpl(props);
 
-        return new DynamicSecurityRegistrar(
-                identityDslRegistry,
-                httpSecurityProvider,
-                jwtConfigurer,
-                sessionConfigurer
-        );
+        return new IdentityPlatformBuilder(registry, httpSecurityProvider, jwtConfigurer, sessionConfigurer);
     }
 }

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.ott;
+package io.springsecurity.springsecurity6x.security.service.ott;
 
 import org.springframework.security.authentication.ott.OneTimeToken;
 

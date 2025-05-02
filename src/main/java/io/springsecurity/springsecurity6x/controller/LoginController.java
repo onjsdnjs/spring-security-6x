@@ -1,14 +1,12 @@
 package io.springsecurity.springsecurity6x.controller;
 
-import io.springsecurity.springsecurity6x.security.ott.CodeStore;
+import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor

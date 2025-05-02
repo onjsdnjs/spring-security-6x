@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.ott;
+package io.springsecurity.springsecurity6x.security.service.ott;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

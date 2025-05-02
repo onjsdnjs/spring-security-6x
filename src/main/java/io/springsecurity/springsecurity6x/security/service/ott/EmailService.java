@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.ott;
+package io.springsecurity.springsecurity6x.security.service.ott;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;

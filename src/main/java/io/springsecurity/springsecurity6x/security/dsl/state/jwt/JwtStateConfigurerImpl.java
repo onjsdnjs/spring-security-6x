@@ -57,7 +57,6 @@ public class JwtStateConfigurerImpl extends AbstractHttpConfigurer<JwtStateConfi
         }else{
             http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
         }
-
         http
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e

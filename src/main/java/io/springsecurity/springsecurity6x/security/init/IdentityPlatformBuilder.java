@@ -41,8 +41,8 @@ public class IdentityPlatformBuilder implements BeanDefinitionRegistryPostProces
 
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
-        IdentityConfig config = this.registry.config();
 
+        IdentityConfig config = this.registry.config();
         try {
             int count = 1;
             for (AuthenticationConfig auth : config.getAuthentications()) {

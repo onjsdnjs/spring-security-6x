@@ -19,7 +19,7 @@ import java.util.List;
 public class IdentitySecurityConfiguration {
 
     private final ObjectProvider<HttpSecurity> httpSecurityProvider;
-    private final IdentityDslRegistry registry;
+    private final IdentityRegistryDsl registry;
     private final SecretKey secretKey;
     private final AuthContextProperties props;
 

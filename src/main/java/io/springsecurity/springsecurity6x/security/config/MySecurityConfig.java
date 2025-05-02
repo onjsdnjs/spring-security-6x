@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.build.IdentityDslRegistry;
+import io.springsecurity.springsecurity6x.security.build.IdentityRegistryDsl;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,8 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class MySecurityConfig {
 
     @Bean
-    public IdentityDslRegistry identityDsl() throws Exception {
-        return new IdentityDslRegistry()
+    public IdentityRegistryDsl identityDsl() throws Exception {
+
+        return new IdentityRegistryDsl()
                 .form(form -> form
                         .loginPage("/login")).useSession()
 

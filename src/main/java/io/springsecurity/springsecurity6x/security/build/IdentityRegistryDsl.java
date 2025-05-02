@@ -10,7 +10,6 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.config.Customizer;
 
 import javax.crypto.SecretKey;
@@ -20,19 +19,12 @@ import java.util.List;
 /**
  * IdentityDslRegistry는 DSL 기반으로 인증 설정을 수집하고 IdentitySecurityBuilder를 통해 빌드 트리거를 제공한다.
  */
-public class IdentityDslRegistry {
+public class IdentityRegistryDsl {
 
     private final List<AuthenticationConfig> authenticationConfigs = new ArrayList<>();
     private final List<IdentitySecurityConfigurer> configurers = new ArrayList<>();
     private SecretKey secretKey;
     private AuthContextProperties props;
-
-    public void secretKey(SecretKey secretKey) {
-        this.secretKey = secretKey;
-    }
-    public void props(AuthContextProperties props) {
-        this.props = props;
-    }
 
     public IdentityStateDsl form(Customizer<FormOptions> customizer) {
         FormOptions options = new FormOptions();
@@ -94,13 +86,13 @@ public class IdentityDslRegistry {
     }
 
     public interface IdentityStateDsl {
-        IdentityDslRegistry use(StateType state);
+        IdentityRegistryDsl use(StateType state);
 
-        default IdentityDslRegistry useJwt() {
+        default IdentityRegistryDsl useJwt() {
             return use(StateType.JWT);
         }
 
-        default IdentityDslRegistry useSession() {
+        default IdentityRegistryDsl useSession() {
             return use(StateType.SESSION);
         }
     }

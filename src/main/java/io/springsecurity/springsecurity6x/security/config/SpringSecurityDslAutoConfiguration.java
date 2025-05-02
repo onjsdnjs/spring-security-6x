@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.dsl.IdentityDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDsl;
 import io.springsecurity.springsecurity6x.security.postprocesor.DynamicSecurityRegistrar;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.beans.factory.ObjectProvider;

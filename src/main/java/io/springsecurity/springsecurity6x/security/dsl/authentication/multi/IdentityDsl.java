@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.dsl;
+package io.springsecurity.springsecurity6x.security.dsl.authentication.multi;
 
 import io.springsecurity.springsecurity6x.security.config.IdentityConfig;
 import org.springframework.security.config.Customizer;

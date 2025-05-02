@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.config;
 
-import io.springsecurity.springsecurity6x.security.dsl.IdentityDsl;
-import io.springsecurity.springsecurity6x.security.dsl.IdentityDslImpl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDslImpl;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +16,7 @@ public class MySecurityConfig {
     public IdentityDsl identityDsl() throws Exception {
         return new IdentityDslImpl()
                 .form(form -> form
-                        .loginPage("/login")).useJwt().customize(http ->
+                        .loginPage("/login")).useSession().customize(http ->
                 {
                     try {
                         http.authorizeHttpRequests(request -> request.anyRequest().authenticated());

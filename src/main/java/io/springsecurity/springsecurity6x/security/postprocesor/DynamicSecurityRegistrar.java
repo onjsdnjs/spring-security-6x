@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.postprocesor;
 
 import io.springsecurity.springsecurity6x.security.builder.PlatformSecurityChainBuilder;
-import io.springsecurity.springsecurity6x.security.dsl.IdentityDsl;
-import io.springsecurity.springsecurity6x.security.dsl.IdentityDslImpl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDsl;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.multi.IdentityDslImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;

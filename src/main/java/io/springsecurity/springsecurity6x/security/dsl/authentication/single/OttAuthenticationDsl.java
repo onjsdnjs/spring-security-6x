@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.dsl.authentication;
+package io.springsecurity.springsecurity6x.security.dsl.authentication.single;
 
 import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;

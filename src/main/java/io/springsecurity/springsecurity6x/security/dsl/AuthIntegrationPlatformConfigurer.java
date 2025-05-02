@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.dsl;
 
-import io.springsecurity.springsecurity6x.security.dsl.authentication.*;
+import io.springsecurity.springsecurity6x.security.dsl.authentication.single.*;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateConfigurer;
 import io.springsecurity.springsecurity6x.security.dsl.state.AuthenticationStateDsl;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;

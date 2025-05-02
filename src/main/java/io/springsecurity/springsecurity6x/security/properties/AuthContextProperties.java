@@ -1,15 +1,11 @@
 package io.springsecurity.springsecurity6x.security.properties;
 
-import io.springsecurity.springsecurity6x.security.enums.AuthStateMode;
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
-
-import java.util.EnumSet;
-import java.util.Set;
 
 @Data
 @ConfigurationProperties(prefix = "spring.auth")
@@ -18,7 +14,7 @@ public class AuthContextProperties {
     /**
      * 인증 상태 유지 방식 선택 (JWT, SESSION)
      */
-    private AuthStateMode authStateMode = AuthStateMode.JWT;
+    private StateType stateType = StateType.JWT;
 
     /**
      * 인증 상태 유지 방식 선택 (JWT, SESSION)

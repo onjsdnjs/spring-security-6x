@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.dsl.authentication.multi;
 
-import io.springsecurity.springsecurity6x.security.config.IdentityConfig;
+import io.springsecurity.springsecurity6x.security.init.IdentityConfig;
+import io.springsecurity.springsecurity6x.security.init.IdentityStateDsl;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

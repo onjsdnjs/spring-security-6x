@@ -60,6 +60,7 @@ public class IdentitySecurityBuilder {
                 }
             }
 
+            state = BuildState.BUILDING;
             SecurityFilterChain chain = http.build();
             result.add(chain);
             log.info("[{}] SecurityFilterChain 생성 완료", index++);

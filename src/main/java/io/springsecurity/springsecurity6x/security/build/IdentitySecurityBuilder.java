@@ -7,7 +7,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * IdentitySecurityBuilder는 DSL로부터 수집된 AuthenticationConfig를 기반으로
@@ -40,10 +42,17 @@ public class IdentitySecurityBuilder {
             HttpSecurity http = httpSecurityProvider.getObject();
             log.info("[{}] 인증 구성 시작: {} / {}", index, config.type(), config.stateType());
 
+            Set<Class<?>> applied = new HashSet<>();
+
             for (IdentitySecurityConfigurer configurer : configurers) {
                 if (configurer.supports(config)) {
-                    log.info("    |- Configurer 적용: {}", configurer.getClass().getSimpleName());
+                    Class<?> configurerType = configurer.getClass();
+                    if (applied.contains(configurerType)) {
+                        throw new IllegalStateException("Configurer 중복 적용 감지: " + configurerType.getSimpleName());
+                    }
+                    log.info("    |- Configurer 적용: {}", configurerType.getSimpleName());
                     configurer.configure(http, config);
+                    applied.add(configurerType);
                 }
             }
 

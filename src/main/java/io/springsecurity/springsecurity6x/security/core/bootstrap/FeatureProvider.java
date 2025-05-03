@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.feature.SecurityFeature;
 import org.springframework.stereotype.Component;
+
 import java.util.List;
 
 /**

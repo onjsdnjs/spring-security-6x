@@ -17,7 +17,7 @@ public final class FormOptions extends AbstractOptions {
     private final String usernameParameter;
     private final String passwordParameter;
     private final String defaultSuccessUrl;
-    private final boolean alwaysUseDefaultSuccessUrl;
+    private final boolean isAlwaysUseDefaultSuccessUrl;
     private final String failureUrl;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
@@ -31,7 +31,7 @@ public final class FormOptions extends AbstractOptions {
         this.usernameParameter = b.usernameParameter;
         this.passwordParameter = b.passwordParameter;
         this.defaultSuccessUrl = b.defaultSuccessUrl;
-        this.alwaysUseDefaultSuccessUrl = b.alwaysUseDefaultSuccessUrl;
+        this.isAlwaysUseDefaultSuccessUrl = b.isAlwaysUseDefaultSuccessUrl;
         this.failureUrl = b.failureUrl;
         this.successHandler = b.successHandler;
         this.failureHandler = b.failureHandler;
@@ -44,7 +44,7 @@ public final class FormOptions extends AbstractOptions {
     public String getUsernameParameter() { return usernameParameter; }
     public String getPasswordParameter() { return passwordParameter; }
     public String getDefaultSuccessUrl() { return defaultSuccessUrl; }
-    public boolean isAlwaysUseDefaultSuccessUrl() { return alwaysUseDefaultSuccessUrl; }
+    public boolean isAlwaysUseDefaultSuccessUrl() { return isAlwaysUseDefaultSuccessUrl; }
     public String getFailureUrl() { return failureUrl; }
     public AuthenticationSuccessHandler getSuccessHandler() { return successHandler; }
     public AuthenticationFailureHandler getFailureHandler() { return failureHandler; }
@@ -58,66 +58,24 @@ public final class FormOptions extends AbstractOptions {
         private String usernameParameter = "username";
         private String passwordParameter = "password";
         private String defaultSuccessUrl = "/";
-        private boolean alwaysUseDefaultSuccessUrl = false;
+        private boolean isAlwaysUseDefaultSuccessUrl = false;
         private String failureUrl = "/login?error";
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
 
-        @Override
-        protected Builder self() {
-            return this;
-        }
-
-        public Builder matchers(List<String> patterns) {
-            this.matchers = Objects.requireNonNull(patterns, "matchers must not be null");
-            return this;
-        }
-        public Builder loginPage(String url) {
-            this.loginPage = Objects.requireNonNull(url, "loginPage must not be null");
-            return this;
-        }
-        public Builder loginProcessingUrl(String url) {
-            this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
-            return this;
-        }
-        public Builder usernameParameter(String name) {
-            this.usernameParameter = Objects.requireNonNull(name);
-            return this;
-        }
-        public Builder passwordParameter(String name) {
-            this.passwordParameter = Objects.requireNonNull(name);
-            return this;
-        }
-        public Builder defaultSuccessUrl(String url, boolean alwaysUse) {
-            this.defaultSuccessUrl = Objects.requireNonNull(url);
-            this.alwaysUseDefaultSuccessUrl = alwaysUse;
-            return this;
-        }
-        public Builder failureUrl(String url) {
-            this.failureUrl = Objects.requireNonNull(url);
-            return this;
-        }
-        public Builder successHandler(AuthenticationSuccessHandler handler) {
-            this.successHandler = handler;
-            return this;
-        }
-        public Builder failureHandler(AuthenticationFailureHandler handler) {
-            this.failureHandler = handler;
-            return this;
-        }
-        public Builder securityContextRepository(SecurityContextRepository repo) {
-            this.securityContextRepository = repo;
-            return this;
-        }
-
-        @Override
-        public FormOptions build() {
-            if (matchers.isEmpty()) {
-                throw new IllegalStateException("At least one matcher is required");
-            }
-            return new FormOptions(this);
-        }
+        @Override protected Builder self() { return this; }
+        public Builder matchers(List<String> m) { this.matchers = Objects.requireNonNull(m); return self(); }
+        public Builder loginPage(String u) { this.loginPage = Objects.requireNonNull(u); return self(); }
+        public Builder loginProcessingUrl(String u) { this.loginProcessingUrl = Objects.requireNonNull(u); return self(); }
+        public Builder usernameParameter(String p) { this.usernameParameter = Objects.requireNonNull(p); return self(); }
+        public Builder passwordParameter(String p) { this.passwordParameter = Objects.requireNonNull(p); return self(); }
+        public Builder defaultSuccessUrl(String u, boolean a) { this.defaultSuccessUrl = Objects.requireNonNull(u); this.isAlwaysUseDefaultSuccessUrl = a; return self(); }
+        public Builder failureUrl(String u) { this.failureUrl = Objects.requireNonNull(u); return self(); }
+        public Builder successHandler(AuthenticationSuccessHandler h) { this.successHandler = h; return self(); }
+        public Builder failureHandler(AuthenticationFailureHandler h) { this.failureHandler = h; return self(); }
+        public Builder securityContextRepository(SecurityContextRepository r) { this.securityContextRepository = r; return self(); }
+        @Override public FormOptions build() { return new FormOptions(this); }
     }
 }
 

@@ -14,8 +14,7 @@ import java.util.List;
 /**
  * 예외 없이 깔끔하게 공통 보안 설정을 적용할 수 있는 DSL 구현체
  */
-public abstract class AbstractDslConfigurer<T extends AbstractDslConfigurer<T>>
-        implements CommonSecurityDsl<T> {
+public abstract class AbstractDslConfigurer<T extends CommonSecurityDsl<T>> implements CommonSecurityDsl<T> {
 
     protected final List<ThrowingConsumer<HttpSecurity>> commonCustomizers = new ArrayList<>();
 

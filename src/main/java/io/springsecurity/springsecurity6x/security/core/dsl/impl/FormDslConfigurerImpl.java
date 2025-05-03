@@ -3,59 +3,96 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.function.ThrowingConsumer;
+
+import java.util.List;
 
 /**
  * Form 로그인 DSL 구현체
  */
 public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormDslConfigurerImpl> implements FormDslConfigurer {
 
-    private String[] matchers;
-    private String loginPage;
-    private String loginProcessingUrl;
+    private final FormOptions.Builder opts = FormOptions.builder();
 
     @Override
-    public FormDslConfigurer matchers(String... patterns) {
-        this.matchers = patterns;
-        return this;
+    public FormDslConfigurerImpl matchers(String... patterns) {
+        opts.matchers(List.of(patterns));
+        return self();
     }
 
     @Override
-    public FormDslConfigurer loginPage(String url) {
-        this.loginPage = url;
-        return this;
+    public FormDslConfigurerImpl loginPage(String url) {
+        opts.loginPage(url);
+        return self();
     }
 
     @Override
-    public FormDslConfigurer loginProcessingUrl(String url) {
-        this.loginProcessingUrl = url;
-        return this;
+    public FormDslConfigurerImpl loginProcessingUrl(String url) {
+        opts.loginProcessingUrl(url);
+        return self();
     }
 
-    /**
-     * 이 플로우를 HttpSecurity에 적용할 ThrowingConsumer를 생성합니다.
-     */
-    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
-        return http -> applyCommonWithMatcher(http, matchers);
+    @Override
+    public FormDslConfigurerImpl usernameParameter(String param) {
+        opts.usernameParameter(param);
+        return self();
     }
 
-    /**
-     * DSL 설정값을 AuthenticationStepConfig로 변환합니다.
-     */
+    @Override
+    public FormDslConfigurerImpl passwordParameter(String param) {
+        opts.passwordParameter(param);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl defaultSuccessUrl(String url, boolean alwaysUse) {
+        opts.defaultSuccessUrl(url, alwaysUse);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl failureUrl(String url) {
+        opts.failureUrl(url);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl successHandler(AuthenticationSuccessHandler h) {
+        opts.successHandler(h);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl failureHandler(AuthenticationFailureHandler h) {
+        opts.failureHandler(h);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl securityContextRepository(SecurityContextRepository repo) {
+        opts.securityContextRepository(repo);
+        return self();
+    }
+
     public AuthenticationStepConfig toConfig() {
+        FormOptions options = opts.build();
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         step.setType("form");
-        if (matchers != null && matchers.length > 0) {
-            step.setMatchers(matchers);
+        if (!options.getMatchers().isEmpty()) {
+            step.setMatchers(options.getMatchers().toArray(new String[0]));
         }
-        if (loginPage != null) {
-            step.getOptions().put("loginPage", loginPage);
-        }
-        if (loginProcessingUrl != null) {
-            step.getOptions().put("loginProcessingUrl", loginProcessingUrl);
-        }
+        // Store options object
+        step.getOptions().put("_options", options);
         return step;
+    }
+
+    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
+        return http -> applyCommon(http);
     }
 }
 

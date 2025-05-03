@@ -80,7 +80,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.MFA.name().toLowerCase(),
                 impl.getAuthConfigs(),
                 null,
-                null
+                http -> {}
         ));
         return new StateSetter(this);
     }

@@ -14,18 +14,25 @@ public class PlatformSecurityConfig {
 
     @Bean
     public PlatformConfig securityPlatform() {
-        return new IdentityDslRegistry()
 
-                // 1) 폼 로그인: /login 페이지, 처리 URL, 세션 상태
-                .form(form -> form
-                        .matchers("/login", "/signin")
-                        .loginPage("/login")
-                        .loginProcessingUrl("/authenticate")
+        IdentityDslRegistry security = new IdentityDslRegistry();
+
+        security.form(form -> form
+                        .formLogin(f -> {
+                            f.loginPage("/login")                          // 로그인 페이지
+                                    .loginProcessingUrl("/authenticate")          // 처리 URL
+                                    .usernameParameter("username")                // 사용자명 파라미터
+                                    .passwordParameter("password")                // 비밀번호 파라미터
+                                    .defaultSuccessUrl("/home", true)             // 성공 시 기본 리다이렉트
+                                    .failureUrl("/login?error");          // 실패 시 URL
+                        })
                 )
-                .session()
+                .session(); // session 상태 지정
+
+                return security.build();
 
                 // 2) REST 로그인: API 로그인 엔드포인트, JWT 상태
-                .rest(rest -> rest
+                /*.rest(rest -> rest
                         .matchers("/api/login")
                         .loginProcessingUrl("/api/authenticate")
                 )
@@ -65,10 +72,8 @@ public class PlatformSecurityConfig {
                                 .allowedOrigins("https://example.com")
                         )
                 )
-                .session()
+                .session()*/
 
-                // 최종 빌드
-                .build();
     }
 
     @Bean

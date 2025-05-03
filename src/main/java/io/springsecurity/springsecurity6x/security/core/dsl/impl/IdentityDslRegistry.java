@@ -28,7 +28,8 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.FORM.name().toLowerCase(),
                 List.of(impl.toConfig()),
                 null,
-                impl.toFlowCustomizer()
+                http -> {}
+//                impl.toFlowCustomizer()
         ));
         return new StateSetter(this);
     }
@@ -41,7 +42,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.REST.name().toLowerCase(),
                 List.of(impl.toConfig()),
                 null,
-                impl.toFlowCustomizer()
+                http -> {}
         ));
         return new StateSetter(this);
     }
@@ -54,7 +55,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.OTT.name().toLowerCase(),
                 List.of(impl.toConfig()),
                 null,
-                impl.toFlowCustomizer()
+                http -> {}
         ));
         return new StateSetter(this);
     }
@@ -67,7 +68,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.PASSKEY.name().toLowerCase(),
                 List.of(impl.toConfig()),
                 null,
-                impl.toFlowCustomizer()
+                http -> {}
         ));
         return new StateSetter(this);
     }

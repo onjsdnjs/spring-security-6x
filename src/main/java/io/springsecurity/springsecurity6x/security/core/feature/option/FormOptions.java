@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.feature.option;
 
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -22,6 +25,7 @@ public final class FormOptions extends AbstractOptions {
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
+    private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
 
     private FormOptions(Builder b) {
         super(b);
@@ -36,6 +40,7 @@ public final class FormOptions extends AbstractOptions {
         this.successHandler = b.successHandler;
         this.failureHandler = b.failureHandler;
         this.securityContextRepository = b.securityContextRepository;
+        this.rawFormLogin = b.rawFormLogin;
     }
 
     public List<String> getMatchers() { return matchers; }
@@ -49,6 +54,7 @@ public final class FormOptions extends AbstractOptions {
     public AuthenticationSuccessHandler getSuccessHandler() { return successHandler; }
     public AuthenticationFailureHandler getFailureHandler() { return failureHandler; }
     public SecurityContextRepository getSecurityContextRepository() { return securityContextRepository; }
+    public Customizer<FormLoginConfigurer<HttpSecurity>> getRawFormLogin() { return rawFormLogin; }
 
     public static Builder builder() { return new Builder(); }
     public static final class Builder extends AbstractOptions.Builder<FormOptions, Builder> {
@@ -63,6 +69,7 @@ public final class FormOptions extends AbstractOptions {
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
+        private Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
 
         @Override protected Builder self() { return this; }
         public Builder matchers(List<String> m) { this.matchers = Objects.requireNonNull(m); return self(); }
@@ -75,6 +82,7 @@ public final class FormOptions extends AbstractOptions {
         public Builder successHandler(AuthenticationSuccessHandler h) { this.successHandler = h; return self(); }
         public Builder failureHandler(AuthenticationFailureHandler h) { this.failureHandler = h; return self(); }
         public Builder securityContextRepository(SecurityContextRepository r) { this.securityContextRepository = r; return self(); }
+        public Builder rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> c) { this.rawFormLogin = c; return self(); }
         @Override public FormOptions build() { return new FormOptions(this); }
     }
 }

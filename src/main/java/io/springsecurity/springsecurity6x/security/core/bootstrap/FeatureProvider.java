@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.SecurityFeature;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
@@ -14,9 +15,9 @@ import java.util.List;
 @Component
 public class FeatureProvider {
 
-    private final List<SecurityFeature> features;
+    private final List<AuthenticationFeature> features;
 
-    public FeatureProvider(List<SecurityFeature> features) {
+    public FeatureProvider(List<AuthenticationFeature> features) {
         this.features = features;
     }
 

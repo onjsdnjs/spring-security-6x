@@ -13,16 +13,17 @@ import org.springframework.context.annotation.Import;
 @Configuration
 @Import(FeatureProvider.class)
 public class PlatformBootstrap implements InitializingBean {
+
     private final SecurityPlatform platform;
-    private final FeatureProvider provider;
     private final PlatformConfig config;
+    private final FeatureProvider provider;
 
     public PlatformBootstrap(SecurityPlatform platform,
-                             FeatureProvider provider,
-                             PlatformConfig config) {
+                             PlatformConfig config,
+                             FeatureProvider provider) {
         this.platform = platform;
-        this.provider = provider;
         this.config = config;
+        this.provider = provider;
     }
 
     @Override

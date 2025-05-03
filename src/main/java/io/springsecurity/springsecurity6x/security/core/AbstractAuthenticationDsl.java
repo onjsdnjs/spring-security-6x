@@ -1,12 +1,14 @@
+/*
 package io.springsecurity.springsecurity6x.security.core;
 
-import io.springsecurity.springsecurity6x.security.dsl.authentication.single.AuthenticationDsl;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+*/
 /**
  * 공통 DSL 추상 클래스
- */
+ *//*
+
 public abstract class AbstractAuthenticationDsl implements AuthenticationDsl {
     protected AuthenticationHandlers authenticationHandlers;
 
@@ -19,3 +21,4 @@ public abstract class AbstractAuthenticationDsl implements AuthenticationDsl {
     public abstract void configure(HttpSecurity http) throws Exception;
 }
 
+*/

@@ -1,82 +1,62 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
-import io.springsecurity.springsecurity6x.security.build.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.context.SecurityContextRepository;
-
-import java.util.Objects;
 
 /**
- * Form 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
- * 주어진 AuthenticationConfig에서 FormOptions를 꺼내어,
- *  - URL 매처(matchers)
- *  - 로그인 페이지
- *  - 로그인 처리 URL
- *  - 파라미터 이름(username/password)
- *  - 성공/실패 핸들러
- *  - 보안 컨텍스트 리포지토리
- * 등을 설정합니다.
+ * Form 기반 로그인 전략을 적용하는 Feature 구현체
  */
 public class FormAuthenticationFeature implements AuthenticationFeature {
-
-    private final AuthenticationHandlers defaultHandlers;
-
-    /**
-     * @param defaultHandlers 기본 성공/실패 핸들러 및 SecurityContextRepository 제공자
-     */
-    public FormAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
-        this.defaultHandlers = defaultHandlers;
-    }
-
     @Override
     public String getId() {
-        return "form";
+        // AuthType enum 기반 식별자 (소문자)
+        return AuthType.FORM.name().toLowerCase();
     }
 
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        // Context에서 현재 AuthenticationConfig를 꺼낸다
+        // 1) DSL 단계에서 저장된 AuthenticationConfig를 꺼내고, 옵션 객체를 가져온다
         AuthenticationConfig config = ctx.getShared(AuthenticationConfig.class);
-        FormOptions opts = (FormOptions) config.options();
+        FormOptions options = (FormOptions) config.options();
 
-        // 1) URL 매처 설정
-        if (opts.matchers() != null && !opts.matchers().isEmpty()) {
-            http.securityMatcher(opts.matchers().toArray(new String[0]));
+        // 2) AbstractOptions에 정의된 공통 보안 설정(CSRF, CORS, Headers, Session, Static 리소스)을 먼저 적용
+        options.applyCommon(http);
+
+        // 3) URL 매처(인증이 적용될 패턴) 설정
+        if (!options.getMatchers().isEmpty()) {
+            http.securityMatcher(options.getMatchers().toArray(new String[0]));
         }
 
-        // 2) Form 로그인 설정
+        // 4) 폼 로그인 설정
         http.formLogin(form -> {
-            form.loginPage(opts.loginPage())
-                    .loginProcessingUrl(opts.loginProcessingUrl())
-                    .usernameParameter(opts.usernameParameter())
-                    .passwordParameter(opts.passwordParameter())
-                    .defaultSuccessUrl(opts.defaultSuccessUrl(), opts.alwaysUseDefaultSuccessUrl())
-                    .failureUrl(opts.failureUrl());
+            form
+                    .loginPage(options.getLoginPage())
+                    .loginProcessingUrl(options.getLoginProcessingUrl())
+                    .usernameParameter(options.getUsernameParameter())
+                    .passwordParameter(options.getPasswordParameter())
+                    .defaultSuccessUrl(
+                            options.getDefaultSuccessUrl(),
+                            options.isAlwaysUseDefaultSuccessUrl()
+                    )
+                    .failureUrl(options.getFailureUrl());
 
-            // 3) 성공/실패 핸들러 설정 (옵션이 없으면 기본 핸들러 사용)
-            AuthenticationSuccessHandler successHandler = Objects.requireNonNullElse(
-                    opts.successHandler(),
-                    defaultHandlers.successHandler()
-            );
-            AuthenticationFailureHandler failureHandler = Objects.requireNonNullElse(
-                    opts.failureHandler(),
-                    defaultHandlers.failureHandler()
-            );
-            form.successHandler(successHandler);
-            form.failureHandler(failureHandler);
+            // 5) 성공/실패 핸들러 (없으면 스프링 기본 사용)
+            if (options.getSuccessHandler() != null) {
+                form.successHandler(options.getSuccessHandler());
+            }
+            if (options.getFailureHandler() != null) {
+                form.failureHandler(options.getFailureHandler());
+            }
 
-            // 4) SecurityContextRepository 설정
-           /* SecurityContextRepository repo = Objects.requireNonNullElse(
-                    opts.securityContextRepository(),
-                    defaultHandlers.securityContextRepository()
-            );
-            form.securityContextRepository(repo);*/
+            // 6) SecurityContextRepository (없으면 스프링 기본 사용)
+            if (options.getSecurityContextRepository() != null) {
+                form.securityContextRepository(options.getSecurityContextRepository());
+            }
         });
     }
 }
+

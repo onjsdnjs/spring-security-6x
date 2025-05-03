@@ -4,8 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-import java.util.function.Consumer;
-
 /**
  * Security Platform DSL의 엔트리 포인트입니다.
  * <p>
@@ -26,42 +24,42 @@ public interface SecurityPlatformDsl {
     /**
      * Form 로그인 플로우를 정의합니다.
      *
-     * @param consumer FormDslConfigurer 설정 람다
+     * @param customizer FormDslConfigurer 설정 람다
      * @return 상태 선택 DSL
      */
-    IdentityStateDsl form(Consumer<FormDslConfigurer> consumer);
+    IdentityStateDsl form(Customizer<FormDslConfigurer> customizer);
 
     /**
      * REST 로그인 플로우를 정의합니다.
      *
-     * @param consumer RestDslConfigurer 설정 람다
+     * @param customizer RestDslConfigurer 설정 람다
      * @return 상태 선택 DSL
      */
-    IdentityStateDsl rest(Consumer<RestDslConfigurer> consumer);
+    IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer);
 
     /**
      * OTT 로그인 플로우를 정의합니다.
      *
-     * @param consumer OttDslConfigurer 설정 람다
+     * @param customizer OttDslConfigurer 설정 람다
      * @return 상태 선택 DSL
      */
-    IdentityStateDsl ott(Consumer<OttDslConfigurer> consumer);
+    IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer);
 
     /**
      * Passkey(WebAuthn) 로그인 플로우를 정의합니다.
      *
-     * @param consumer PasskeyDslConfigurer 설정 람다
+     * @param customizer PasskeyDslConfigurer 설정 람다
      * @return 상태 선택 DSL
      */
-    IdentityStateDsl passkey(Consumer<PasskeyDslConfigurer> consumer);
+    IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
 
     /**
      * 다중 인증(MFA) 플로우를 정의합니다.
      *
-     * @param consumer MfaDslConfigurer 설정 람다
+     * @param customizer MfaDslConfigurer 설정 람다
      * @return 상태 선택 DSL
      */
-    IdentityStateDsl mfa(Consumer<MfaDslConfigurer> consumer);
+    IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);
 
     /**
      * DSL 설정이 모두 끝난 후 호출하여

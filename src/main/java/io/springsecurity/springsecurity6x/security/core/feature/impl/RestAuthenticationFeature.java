@@ -1,15 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
-import io.springsecurity.springsecurity6x.security.build.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
-import io.springsecurity.springsecurity6x.security.dsl.authentication.single.RestAuthenticationConfigurer;
+import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.Objects;
 
@@ -43,23 +42,23 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
         RestOptions opts = (RestOptions) config.options();
 
         // 2) 요청 매처 설정
-        if (opts.matchers() != null && !opts.matchers().isEmpty()) {
-            http.securityMatcher(opts.matchers().toArray(new String[0]));
+        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
+            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         }
 
         // 3) RestAuthenticationConfigurer 적용
         http.with(new RestAuthenticationConfigurer(), rest -> {
-            rest.loginProcessingUrl(opts.loginProcessingUrl())
-                    .defaultSuccessUrl(opts.defaultSuccessUrl())
-                    .failureUrl(opts.failureUrl());
+            rest.loginProcessingUrl(opts.getLoginProcessingUrl())
+                    .defaultSuccessUrl(opts.getDefaultSuccessUrl())
+                    .failureUrl(opts.getFailureUrl());
 
             // 4) 성공/실패 핸들러 설정 (옵션 없으면 기본 사용)
             AuthenticationSuccessHandler successHandler = Objects.requireNonNullElse(
-                    opts.successHandler(),
+                    opts.getSuccessHandler(),
                     defaultHandlers.successHandler()
             );
             AuthenticationFailureHandler failureHandler = Objects.requireNonNullElse(
-                    opts.failureHandler(),
+                    opts.getFailureHandler(),
                     defaultHandlers.failureHandler()
             );
             rest.successHandler(successHandler);

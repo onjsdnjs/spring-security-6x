@@ -4,5 +4,6 @@ public enum AuthType {
     FORM,
     REST,
     PASSKEY,
-    OTT
+    OTT,
+    MFA
 }

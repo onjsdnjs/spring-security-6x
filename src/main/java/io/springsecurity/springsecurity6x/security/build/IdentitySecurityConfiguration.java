@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
@@ -33,3 +34,4 @@ public class IdentitySecurityConfiguration {
 }
 
 
+*/

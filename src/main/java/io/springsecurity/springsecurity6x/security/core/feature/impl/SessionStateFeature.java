@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.state.session.SessionStateConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public class SessionStateFeature implements StateFeature {

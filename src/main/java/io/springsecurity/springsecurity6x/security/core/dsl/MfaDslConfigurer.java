@@ -1,5 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
+import org.springframework.security.config.Customizer;
+
 import java.util.function.Consumer;
 
 /**
@@ -13,33 +15,33 @@ public interface MfaDslConfigurer {
     /**
      * Form 인증 단계를 첫 번째 또는 다음 단계로 추가합니다.
      *
-     * @param consumer FormDslConfigurer 설정 람다
+     * @param customizer FormDslConfigurer 설정 람다
      * @return this
      */
-    MfaDslConfigurer form(Consumer<FormDslConfigurer> consumer);
+    MfaDslConfigurer form(Customizer<FormDslConfigurer> customizer);
 
     /**
      * REST 인증 단계를 추가합니다.
      *
-     * @param consumer RestDslConfigurer 설정 람다
+     * @param customizer RestDslConfigurer 설정 람다
      * @return this
      */
-    MfaDslConfigurer rest(Consumer<RestDslConfigurer> consumer);
+    MfaDslConfigurer rest(Customizer<RestDslConfigurer> customizer);
 
     /**
      * OTT 인증 단계를 추가합니다.
      *
-     * @param consumer OttDslConfigurer 설정 람다
+     * @param customizer OttDslConfigurer 설정 람다
      * @return this
      */
-    MfaDslConfigurer ott(Consumer<OttDslConfigurer> consumer);
+    MfaDslConfigurer ott(Customizer<OttDslConfigurer> customizer);
 
     /**
      * Passkey 인증 단계를 추가합니다.
      *
-     * @param consumer PasskeyDslConfigurer 설정 람다
+     * @param customizer PasskeyDslConfigurer 설정 람다
      * @return this
      */
-    MfaDslConfigurer passkey(Consumer<PasskeyDslConfigurer> consumer);
+    MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> customizer);
 }
 

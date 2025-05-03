@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.token.validator;
 
-import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2IntrospectionResponse;
-import io.springsecurity.springsecurity6x.security.dsl.state.oauth2.client.OAuth2ResourceClient;
+import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2IntrospectionResponse;
+import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ResourceClient;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

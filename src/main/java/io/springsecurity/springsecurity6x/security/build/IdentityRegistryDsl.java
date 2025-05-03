@@ -1,9 +1,10 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
-import io.springsecurity.springsecurity6x.security.build.option.FormOptions;
-import io.springsecurity.springsecurity6x.security.build.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.build.option.PasskeyOptions;
-import io.springsecurity.springsecurity6x.security.build.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.dsl.state.jwt.JwtStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.dsl.state.session.SessionStateConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -16,9 +17,11 @@ import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
 
+*/
 /**
  * IdentityDslRegistry는 DSL 기반으로 인증 설정을 수집하고 IdentitySecurityBuilder를 통해 빌드 트리거를 제공한다.
- */
+ *//*
+
 public class IdentityRegistryDsl {
 
     private final List<AuthenticationConfig> authenticationConfigs = new ArrayList<>();
@@ -97,3 +100,4 @@ public class IdentityRegistryDsl {
         }
     }
 }
+*/

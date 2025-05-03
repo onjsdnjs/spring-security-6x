@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
@@ -8,11 +9,13 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.*;
 
+*/
 /**
  * IdentitySecurityBuilder는 DSL로부터 수집된 AuthenticationConfig를 기반으로
  * HttpSecurity를 초기화하고, 각 Configurer를 순차 적용하여 SecurityFilterChain을 생성한다.
  * 이 클래스는 Spring Security의 AbstractConfiguredSecurityBuilder 철학을 따르도록 리팩토링되었다.
- */
+ *//*
+
 @Slf4j
 public class IdentitySecurityBuilder {
 
@@ -120,3 +123,4 @@ public class IdentitySecurityBuilder {
 }
 
 
+*/

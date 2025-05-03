@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
@@ -13,4 +14,4 @@ public interface IdentitySecurityConfigurer extends AuthenticationHandlers {
     void init(HttpSecurity http) throws Exception;
 
     default int order() { return 0; }
-}
+}*/

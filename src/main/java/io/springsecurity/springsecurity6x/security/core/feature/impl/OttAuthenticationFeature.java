@@ -1,10 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
-import io.springsecurity.springsecurity6x.security.build.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
@@ -45,21 +45,21 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
         OttOptions opts = (OttOptions) config.options();
 
         // 2) 요청 매처 설정
-        if (opts.matchers() != null && !opts.matchers().isEmpty()) {
-            http.securityMatcher(opts.matchers().toArray(new String[0]));
+        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
+            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         }
 
         // 3) one-time-token 로그인 DSL 적용
         http.oneTimeTokenLogin(ott -> {
-            ott.defaultSubmitPageUrl(opts.defaultSubmitPageUrl())
-                    .loginProcessingUrl(opts.loginProcessingUrl())
-                    .showDefaultSubmitPage(opts.showDefaultSubmitPage())
-                    .tokenGeneratingUrl(opts.tokenGeneratingUrl())
-                    .tokenService(opts.tokenService());
+            ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
+                    .loginProcessingUrl(opts.getLoginProcessingUrl())
+                    .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
+                    .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
+                    .tokenService(opts.getTokenService());
 
             // 4) 토큰 생성 성공 핸들러 설정 (없으면 기본 제공)
             OneTimeTokenGenerationSuccessHandler successHandler = (OneTimeTokenGenerationSuccessHandler) Objects.requireNonNullElse(
-                    opts.tokenGenerationSuccessHandler(),
+                    opts.getTokenGenerationSuccessHandler(),
                     defaultHandlers.successHandler()
             );
             ott.tokenGenerationSuccessHandler(successHandler);

@@ -1,16 +1,19 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
-import io.springsecurity.springsecurity6x.security.build.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+*/
 /**
  * Passkey 인증 방식 구성 Configurer.
  * 현재는 기본 securityMatcher 설정만 구성되어 있으며,
  * WebAuthn 인증 필터는 이후 단계에서 통합 구현 필요.
- */
+ *//*
+
 @Slf4j
 public class PasskeyLoginConfigurer implements IdentitySecurityConfigurer {
 
@@ -47,3 +50,4 @@ public class PasskeyLoginConfigurer implements IdentitySecurityConfigurer {
     }
 }
 
+*/

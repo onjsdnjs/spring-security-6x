@@ -1,7 +1,8 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
-import io.springsecurity.springsecurity6x.security.build.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.dsl.authentication.single.RestAuthenticationConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -51,3 +52,4 @@ public class RestLoginConfigurer implements IdentitySecurityConfigurer {
         return 0;
     }
 }
+*/

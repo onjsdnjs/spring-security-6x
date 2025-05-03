@@ -4,11 +4,12 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.*;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 public class IdentityDslRegistry implements SecurityPlatformDsl {
 
@@ -21,42 +22,57 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
     }
 
     @Override
-    public IdentityStateDsl form(Consumer<FormDslConfigurer> consumer) {
-        FormDslConfigurer impl = new FormDslConfigurerImpl();
-        consumer.accept(impl);
-        config.addFlow(new AuthenticationFlowConfig("form", List.of(impl.toConfig()), null));
+    public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) {
+        FormDslConfigurerImpl impl = new FormDslConfigurerImpl();
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.FORM.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null));
         return new StateSetter(this);
     }
 
     @Override
-    public IdentityStateDsl rest(Consumer<RestDslConfigurer> consumer) {
+    public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) {
         RestDslConfigurerImpl impl = new RestDslConfigurerImpl();
-        consumer.accept(impl);
-        config.addFlow(new AuthenticationFlowConfig("rest", List.of(impl.toConfig()), null));
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.REST.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null));
         return new StateSetter(this);
     }
 
     @Override
-    public IdentityStateDsl ott(Consumer<OttDslConfigurer> consumer) {
+    public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
         OttDslConfigurerImpl impl = new OttDslConfigurerImpl();
-        consumer.accept(impl);
-        config.addFlow(new AuthenticationFlowConfig("ott", List.of(impl.toConfig()), null));
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.OTT.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null));
         return new StateSetter(this);
     }
 
     @Override
-    public IdentityStateDsl passkey(Consumer<PasskeyDslConfigurer> consumer) {
+    public IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) {
         PasskeyDslConfigurerImpl impl = new PasskeyDslConfigurerImpl();
-        consumer.accept(impl);
-        config.addFlow(new AuthenticationFlowConfig("passkey", List.of(impl.toConfig()), null));
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.PASSKEY.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null));
         return new StateSetter(this);
     }
 
     @Override
-    public IdentityStateDsl mfa(Consumer<MfaDslConfigurer> consumer) {
+    public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
         MfaDslConfigurerImpl impl = new MfaDslConfigurerImpl();
-        consumer.accept(impl);
-        config.addFlow(new AuthenticationFlowConfig("mfa", impl.getAuthConfigs(), null));
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.MFA.name().toLowerCase(),
+                impl.getAuthConfigs(),
+                null));
         return new StateSetter(this);
     }
 
@@ -74,19 +90,19 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
         @Override
         public SecurityPlatformDsl session() {
-            registry.setLastState("session");
+            registry.setLastState(StateType.SESSION.name().toLowerCase());
             return registry;
         }
 
         @Override
         public SecurityPlatformDsl jwt() {
-            registry.setLastState("jwt");
+            registry.setLastState(StateType.JWT.name().toLowerCase());
             return registry;
         }
 
         @Override
         public SecurityPlatformDsl oauth2() {
-            registry.setLastState("oauth2");
+            registry.setLastState(StateType.OAUTH2.name().toLowerCase());
             return registry;
         }
     }

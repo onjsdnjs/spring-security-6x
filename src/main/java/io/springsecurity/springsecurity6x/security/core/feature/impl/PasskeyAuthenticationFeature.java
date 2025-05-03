@@ -1,9 +1,9 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
-import io.springsecurity.springsecurity6x.security.build.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.feature.option.PasskeyOptions;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 /**
@@ -29,17 +29,17 @@ public class PasskeyAuthenticationFeature implements AuthenticationFeature {
         PasskeyOptions opts = (PasskeyOptions) config.options();
 
         // 2) 요청 매처 설정 (없으면 /** 전체)
-        if (opts.matchers() != null && !opts.matchers().isEmpty()) {
-            http.securityMatcher(opts.matchers().toArray(new String[0]));
+        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
+            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         } else {
             http.securityMatcher("/**");
         }
 
         // 3) WebAuthn DSL 적용
         http.webAuthn(web -> web
-                .rpName(opts.rpName())
-                .rpId(opts.rpId())
-                .allowedOrigins(opts.allowedOrigins())
+                .rpName(opts.getRpName())
+                .rpId(opts.getRpId())
+                .allowedOrigins(opts.getAllowedOrigins())
         );
     }
 }

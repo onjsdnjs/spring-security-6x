@@ -1,6 +1,7 @@
+/*
 package io.springsecurity.springsecurity6x.security.build;
 
-import io.springsecurity.springsecurity6x.security.build.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.init.AuthenticationConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -44,3 +45,4 @@ class OttLoginConfigurer implements IdentitySecurityConfigurer {
         return 0;
     }
 }
+*/

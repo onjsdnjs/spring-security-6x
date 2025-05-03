@@ -37,9 +37,7 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormDslConfigur
      * 이 플로우를 HttpSecurity에 적용할 ThrowingConsumer를 생성합니다.
      */
     public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
-        return http -> {
-            applyCommonWithMatcher(http, matchers);
-        };
+        return http -> applyCommonWithMatcher(http, matchers);
     }
 
     /**

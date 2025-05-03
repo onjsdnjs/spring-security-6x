@@ -33,7 +33,7 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
         }
         // 첫 번째 단계만 처리
         AuthenticationStepConfig step = steps.getFirst();
-        // FormOptions 객체는 별도 공유 컨텍스트에서 가져오거나, step.options에서 복원
+        // FormOptions 객체는 별도 공유 컨텍스트에서 가져오거나, step.options 에서 복원
         FormOptions opts = (FormOptions) step.getOptions().get("_options");
         // 공통 설정 (CSRF, CORS 등) 이미 적용됨
 

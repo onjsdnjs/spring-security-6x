@@ -2,11 +2,14 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.util.function.ThrowingConsumer;
 
 /**
  * REST 로그인 DSL 구현체
  */
-public class RestDslConfigurerImpl implements RestDslConfigurer {
+public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestDslConfigurerImpl> implements RestDslConfigurer {
 
     private String[] matchers;
     private String loginProcessingUrl;
@@ -21,6 +24,10 @@ public class RestDslConfigurerImpl implements RestDslConfigurer {
     public RestDslConfigurer loginProcessingUrl(String url) {
         this.loginProcessingUrl = url;
         return this;
+    }
+
+    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
+        return http -> applyCommonWithMatcher(http, matchers);
     }
 
     /**

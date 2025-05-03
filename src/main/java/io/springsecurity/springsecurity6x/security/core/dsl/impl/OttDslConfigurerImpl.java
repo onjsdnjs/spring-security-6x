@@ -2,11 +2,14 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.util.function.ThrowingConsumer;
 
 /**
  * OTT(One-Time Token) 로그인 DSL 구현체
  */
-public class OttDslConfigurerImpl implements OttDslConfigurer {
+public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttDslConfigurerImpl> implements OttDslConfigurer {
 
     private String[] matchers;
     private String loginProcessingUrl;
@@ -23,6 +26,9 @@ public class OttDslConfigurerImpl implements OttDslConfigurer {
         return this;
     }
 
+    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
+        return http -> applyCommonWithMatcher(http, matchers);
+    }
     /**
      * DSL 설정값을 AuthenticationStepConfig로 변환합니다.
      */

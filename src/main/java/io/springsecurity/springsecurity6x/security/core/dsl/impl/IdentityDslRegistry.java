@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import java.util.List;
 
 public class IdentityDslRegistry implements SecurityPlatformDsl {
-
     private final PlatformConfig config = new PlatformConfig();
 
     @Override
@@ -28,7 +27,9 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.FORM.name().toLowerCase(),
                 List.of(impl.toConfig()),
-                null));
+                null,
+                impl.toFlowCustomizer()
+        ));
         return new StateSetter(this);
     }
 
@@ -39,7 +40,9 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.REST.name().toLowerCase(),
                 List.of(impl.toConfig()),
-                null));
+                null,
+                impl.toFlowCustomizer()
+        ));
         return new StateSetter(this);
     }
 
@@ -50,7 +53,9 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.OTT.name().toLowerCase(),
                 List.of(impl.toConfig()),
-                null));
+                null,
+                impl.toFlowCustomizer()
+        ));
         return new StateSetter(this);
     }
 
@@ -61,7 +66,9 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.PASSKEY.name().toLowerCase(),
                 List.of(impl.toConfig()),
-                null));
+                null,
+                impl.toFlowCustomizer()
+        ));
         return new StateSetter(this);
     }
 
@@ -72,7 +79,9 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.MFA.name().toLowerCase(),
                 impl.getAuthConfigs(),
-                null));
+                null,
+                null
+        ));
         return new StateSetter(this);
     }
 

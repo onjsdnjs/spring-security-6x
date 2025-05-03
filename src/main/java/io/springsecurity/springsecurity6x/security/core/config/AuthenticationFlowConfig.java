@@ -11,18 +11,39 @@ import java.util.List;
 public class AuthenticationFlowConfig {
     private final String type;
     private final List<AuthenticationStepConfig> steps;
-    private final StateConfig state;
+    private StateConfig state;
     private final ThrowingConsumer<HttpSecurity> customizer;
 
-    public AuthenticationFlowConfig(String type, List<AuthenticationStepConfig> steps, StateConfig state, ThrowingConsumer<HttpSecurity> customizer) {
+    public AuthenticationFlowConfig(
+            String type,
+            List<AuthenticationStepConfig> steps,
+            StateConfig state,
+            ThrowingConsumer<HttpSecurity> customizer
+    ) {
         this.type = type;
         this.steps = steps;
         this.state = state;
         this.customizer = customizer;
     }
 
-    public String getType() { return type; }
-    public List<AuthenticationStepConfig> getSteps() { return steps; }
-    public StateConfig getState() { return state; }
-    public ThrowingConsumer<HttpSecurity> getCustomizer() { return customizer; }
+    public String getType() {
+        return type;
+    }
+
+    public List<AuthenticationStepConfig> getSteps() {
+        return steps;
+    }
+
+    public StateConfig getState() {
+        return state;
+    }
+
+    public void setState(StateConfig state) {
+        this.state = state;
+    }
+
+    public ThrowingConsumer<HttpSecurity> getCustomizer() {
+        return customizer;
+    }
 }
+

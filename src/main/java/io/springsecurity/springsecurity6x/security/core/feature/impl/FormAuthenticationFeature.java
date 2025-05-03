@@ -17,6 +17,8 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
         return AuthType.FORM.name().toLowerCase();
     }
 
+    @Override public int getOrder() { return 100; }
+
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
         // 1) DSL 단계에서 저장된 AuthenticationConfig를 꺼내고, 옵션 객체를 가져온다

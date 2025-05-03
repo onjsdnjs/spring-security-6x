@@ -20,6 +20,8 @@ public interface AuthenticationFeature {
      */
     String getId();
 
+    int getOrder();
+
     /**
      * 주어진 HttpSecurity 및 PlatformContext를 사용하여
      * 자신의 인증 단계 설정을 적용합니다.

@@ -72,9 +72,9 @@ public class OAuth2StateConfigurerImpl {
         return this;
     }
 
-    public boolean supports(AuthenticationConfig config) {
+ /*   public boolean supports(AuthenticationConfig config) {
         return "oauth2".equalsIgnoreCase(config.stateType());
-    }
+    }*/
 
     public void init(HttpSecurity http){
 

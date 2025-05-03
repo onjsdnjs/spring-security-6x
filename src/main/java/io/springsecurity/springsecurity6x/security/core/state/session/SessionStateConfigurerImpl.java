@@ -27,9 +27,9 @@ public class SessionStateConfigurerImpl {
         return handlers;
     }
 
-    public boolean supports(AuthenticationConfig config) {
+   /* public boolean supports(AuthenticationConfig config) {
         return "session".equalsIgnoreCase(config.stateType());
-    }
+    }*/
 
     public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
 

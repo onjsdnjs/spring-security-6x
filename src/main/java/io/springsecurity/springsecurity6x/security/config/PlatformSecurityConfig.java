@@ -18,7 +18,7 @@ public class PlatformSecurityConfig {
         IdentityDslRegistry security = new IdentityDslRegistry();
 
         security.form(form -> form
-                        .formLogin(f -> {
+                        .login(f -> {
                             f.loginPage("/login")                          // 로그인 페이지
                                     .loginProcessingUrl("/authenticate")          // 처리 URL
                                     .usernameParameter("username")                // 사용자명 파라미터
@@ -76,7 +76,7 @@ public class PlatformSecurityConfig {
 
     }
 
-    @Bean
+    /*@Bean
     public WebSecurityCustomizer webSecurityCustomizer(){
         return (web) -> web.ignoring()
                 .requestMatchers(PathRequest.toStaticResources().atCommonLocations());
@@ -85,6 +85,6 @@ public class PlatformSecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
+    }*/
 
 }

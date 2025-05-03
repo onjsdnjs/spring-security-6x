@@ -27,37 +27,41 @@ import java.util.stream.Collectors;
  * - Ordered.HIGHEST_PRECEDENCE를 사용해 스프링 시큐리티의 기본 체인 등록 전에 실행됩니다.
  */
 @Component
-public class FeatureRegistrar implements BeanDefinitionRegistryPostProcessor, Ordered {
-    private final ListableBeanFactory factory;
+public class FeatureRegistrar implements BeanDefinitionRegistryPostProcessor, Ordered, org.springframework.beans.factory.BeanFactoryAware {
+    private org.springframework.beans.factory.BeanFactory factory;
 
-    public FeatureRegistrar(ListableBeanFactory factory) {
-        this.factory = factory;
+    public FeatureRegistrar() {
     }
 
-    /**
-     * PlatformConfig 빈으로부터 인증·상태 플로우 리스트를 가져와
-     * 각 플로우에 대해 CompositeSecurityFeature 빈을 동적으로 정의합니다.
-     *
-     * @param registry 스프링의 BeanDefinitionRegistry
-     */
+    @Override
+    public void setBeanFactory(org.springframework.beans.factory.BeanFactory beanFactory) throws org.springframework.beans.BeansException {
+        this.factory = beanFactory;
+    }
+
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
         PlatformConfig cfg = factory.getBean(PlatformConfig.class);
         Customizer<HttpSecurity> global = cfg.getGlobal();
         for (AuthenticationFlowConfig flow : cfg.getFlows()) {
+            // 순서에 맞게 인자 배치: id, globalCustomizer, stateFeature, steps
             List<AuthenticationFeature> steps = flow.getSteps().stream()
                     .map(stepCfg -> factory.getBean(AuthenticationFeature.class, stepCfg.getType()))
                     .collect(Collectors.toList());
-            StateFeature state = factory.getBean(StateFeature.class, flow.getState().getId());
-            String beanName = "chain_" + flow.getFlowId();
+            StateFeature state = factory.getBean(StateFeature.class, flow.getState().getState());
+            String beanName = "chain_" + flow.getType();
             BeanDefinitionBuilder bd = BeanDefinitionBuilder
                     .genericBeanDefinition(CompositeSecurityFeature.class)
-                    .addConstructorArgValue(flow.getFlowId())
-                    .addConstructorArgValue(steps)
+                    .addConstructorArgValue(flow.getType())
+                    .addConstructorArgValue(global)
                     .addConstructorArgValue(state)
-                    .addConstructorArgValue(global);
+                    .addConstructorArgValue(steps);
             registry.registerBeanDefinition(beanName, bd.getBeanDefinition());
         }
+    }
+
+    @Override
+    public void postProcessBeanFactory(org.springframework.beans.factory.config.ConfigurableListableBeanFactory beanFactory) {
+        // do nothing
     }
 
     @Override
@@ -65,3 +69,4 @@ public class FeatureRegistrar implements BeanDefinitionRegistryPostProcessor, Or
         return Ordered.HIGHEST_PRECEDENCE;
     }
 }
+

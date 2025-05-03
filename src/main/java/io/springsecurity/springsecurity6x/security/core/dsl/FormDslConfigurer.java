@@ -12,13 +12,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 
 /**
- * Form 로그인 DSL: 스프링 FormLoginConfigurer API를
- * 있는 그대로 Consumer<…> 형태로 캡처합니다.
+ * Form 로그인 DSL: 실제 HttpSecurity.formLogin() 은 하지 않고,
+ * Customizer<FormLoginConfigurer<HttpSecurity>> 만 저장합니다.
  */
 public interface FormDslConfigurer {
     /**
-     * FormLoginConfigurer<HttpSecurity>의 모든 메서드를
-     * 프록시를 통해 그대로 호출·캡처합니다.
+     * FormLoginConfigurer<HttpSecurity>에 적용할 설정을 람다로 받습니다.
+     * @param customizer f.loginPage(...), f.failureUrl(...) 등
+     * @return this
      */
-    FormDslConfigurer formLogin(Customizer<FormLoginConfigurer<HttpSecurity>> customizer);
+    FormDslConfigurer login(Customizer<FormLoginConfigurer<HttpSecurity>> customizer);
 }

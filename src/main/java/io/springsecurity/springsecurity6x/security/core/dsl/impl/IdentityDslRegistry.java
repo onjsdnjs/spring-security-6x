@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.*;
@@ -22,15 +23,21 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     @Override
     public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) {
+        // 1) DSL 구현체 인스턴스 생성 및 사용자 정의 로직 실행
         FormDslConfigurerImpl impl = new FormDslConfigurerImpl();
         customizer.customize(impl);
+
+        // 2) toConfig()로 캡처된 Consumer<FormLoginConfigurer>가 담긴 AuthenticationStepConfig 생성
+        AuthenticationStepConfig step = impl.toConfig();
+
+        // 3) No-op customizer로 Flow 등록
         config.addFlow(new AuthenticationFlowConfig(
-                AuthType.FORM.name().toLowerCase(),
-                List.of(impl.toConfig()),
-                null,
-                http -> {}
-//                impl.toFlowCustomizer()
+                AuthType.FORM.name().toLowerCase(),  // flow type
+                List.of(step),                       // step configs
+                null,                                // state (session/jwt 등은 StateSetter로)
+                http -> {}                           // flow-level customizer는 사용하지 않음
         ));
+
         return new StateSetter(this);
     }
 

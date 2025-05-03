@@ -50,9 +50,9 @@ public class JwtStateConfigurerImpl  {
         return handlers;
     }
 
-    public boolean supports(AuthenticationConfig config) {
+   /* public boolean supports(AuthenticationConfig config) {
         return "jwt".equalsIgnoreCase(config.stateType());
-    }
+    }*/
 
     public void init(HttpSecurity http) throws Exception {
 

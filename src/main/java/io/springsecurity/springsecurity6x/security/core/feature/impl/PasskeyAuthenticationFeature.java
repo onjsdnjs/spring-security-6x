@@ -1,10 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.option.PasskeyOptions;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import java.util.List;
 
 /**
  * Passkey(WebAuthn) 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
@@ -23,19 +27,31 @@ public class PasskeyAuthenticationFeature implements AuthenticationFeature {
     }
 
     @Override
-    public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        // 1) 현재 AuthenticationConfig와 PasskeyOptions 꺼내오기
-        AuthenticationConfig config = ctx.getShared(AuthenticationConfig.class);
-        PasskeyOptions opts = (PasskeyOptions) config.options();
+    public int getOrder() {
+        return 400;
+    }
 
-        // 2) 요청 매처 설정 (없으면 /** 전체)
+    @Override
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
+        // 단계 설정이 없으면 종료
+        if (steps == null || steps.isEmpty()) {
+            return;
+        }
+        AuthenticationStepConfig step = steps.getFirst();
+
+        // 옵션 객체 추출
+        Object optsObj = step.getOptions().get("_options");
+        if (!(optsObj instanceof PasskeyOptions)) {
+            throw new IllegalStateException("Expected PasskeyOptions in step options");
+        }
+        PasskeyOptions opts = (PasskeyOptions) optsObj;
+
+        // URL 매처 설정 (없으면 기본 매처 유지)
         if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
             http.securityMatcher(opts.getMatchers().toArray(new String[0]));
-        } else {
-            http.securityMatcher("/**");
         }
 
-        // 3) WebAuthn DSL 적용
+        // WebAuthn DSL 적용
         http.webAuthn(web -> web
                 .rpName(opts.getRpName())
                 .rpId(opts.getRpId())
@@ -43,3 +59,4 @@ public class PasskeyAuthenticationFeature implements AuthenticationFeature {
         );
     }
 }
+

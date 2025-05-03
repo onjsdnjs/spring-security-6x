@@ -1,7 +1,11 @@
 package io.springsecurity.springsecurity6x.security.core.feature;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import java.util.List;
 
 /**
  * 개별 인증 단계(예: Form 로그인, REST 로그인, Passkey, OTT 등)의
@@ -13,23 +17,24 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public interface AuthenticationFeature {
 
     /**
-     * 이 인증 기능의 고유 식별자(ID)를 반환합니다.
-     * 보통 DSL 에서 지정한 타입("form", "rest", "passkey", "ott", "mfa")과 매핑됩니다.
-     *
-     * @return 인증 기능 ID
+     * 인증 기능의 고유 식별자(ID)를 반환합니다 (예: "form", "rest", etc.)
      */
     String getId();
 
+    /**
+     * 인증 기능 실행 순서를 지정합니다.
+     */
     int getOrder();
 
     /**
-     * 주어진 HttpSecurity 및 PlatformContext를 사용하여
-     * 자신의 인증 단계 설정을 적용합니다.
+     * 주어진 HttpSecurity, 인증 단계 설정(steps), 최종 상태(state)를 기반으로
+     * 자신만의 인증 로직을 구성합니다.
      *
-     * @param http  HttpSecurity 빌더
-     * @param ctx   PlatformContext (공유 객체 접근, 체인 등록 지원 등)
+     * @param http   HttpSecurity 인스턴스
+     * @param steps  DSL로 정의된 인증 단계 설정 리스트
+     * @param state  최종 인증 상태 설정
      * @throws Exception 구성 중 오류 발생 시
      */
-    void apply(HttpSecurity http, PlatformContext ctx) throws Exception;
+    void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception;
 }
 

@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
@@ -10,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -24,7 +27,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
     private final AuthenticationHandlers defaultHandlers;
 
     /**
-     * @param defaultHandlers 기본 Success/Failure 핸들러 및 SecurityContextRepository 제공자
+     * @param defaultHandlers 기본 성공/실패 핸들러 제공자
      */
     public RestAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
         this.defaultHandlers = defaultHandlers;
@@ -36,23 +39,32 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
     }
 
     @Override
-    public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        // 1) PlatformContext에서 현재 AuthenticationConfig를 꺼냅니다.
-        AuthenticationConfig config = ctx.getShared(AuthenticationConfig.class);
-        RestOptions opts = (RestOptions) config.options();
+    public int getOrder() {
+        return 200;
+    }
 
-        // 2) 요청 매처 설정
+    @Override
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
+        if (steps == null || steps.isEmpty()) {
+            return;
+        }
+        AuthenticationStepConfig step = steps.getFirst();
+
+        Object optsObj = step.getOptions().get("_options");
+        if (!(optsObj instanceof RestOptions)) {
+            throw new IllegalStateException("Expected RestOptions in step options");
+        }
+        RestOptions opts = (RestOptions) optsObj;
+
         if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
             http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         }
 
-        // 3) RestAuthenticationConfigurer 적용
         http.with(new RestAuthenticationConfigurer(), rest -> {
             rest.loginProcessingUrl(opts.getLoginProcessingUrl())
                     .defaultSuccessUrl(opts.getDefaultSuccessUrl())
                     .failureUrl(opts.getFailureUrl());
 
-            // 4) 성공/실패 핸들러 설정 (옵션 없으면 기본 사용)
             AuthenticationSuccessHandler successHandler = Objects.requireNonNullElse(
                     opts.getSuccessHandler(),
                     defaultHandlers.successHandler()

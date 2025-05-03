@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
@@ -8,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.handler.authentication.Authen
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -24,32 +27,34 @@ import java.util.Objects;
  */
 public class OttAuthenticationFeature implements AuthenticationFeature {
 
-    private final AuthenticationHandlers defaultHandlers;
-
-    /**
-     * @param defaultHandlers 기본 성공 핸들러 제공자
-     */
-    public OttAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
-        this.defaultHandlers = defaultHandlers;
-    }
-
     @Override
     public String getId() {
         return "ott";
     }
 
     @Override
-    public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        // 1) 현재 AuthenticationConfig와 OttOptions 꺼내오기
-        AuthenticationConfig config = ctx.getShared(AuthenticationConfig.class);
-        OttOptions opts = (OttOptions) config.options();
+    public int getOrder() {
+        return 300;
+    }
 
-        // 2) 요청 매처 설정
+    @Override
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
+        if (steps == null || steps.isEmpty()) {
+            return;
+        }
+        AuthenticationStepConfig step = steps.getFirst();
+        Object optsObj = step.getOptions().get("_options");
+        if (!(optsObj instanceof OttOptions)) {
+            throw new IllegalStateException("Expected OttOptions in step options");
+        }
+        OttOptions opts = (OttOptions) optsObj;
+
+        // URL 매처 설정
         if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
             http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         }
 
-        // 3) one-time-token 로그인 DSL 적용
+        // one-time-token 로그인 DSL 적용
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
                     .loginProcessingUrl(opts.getLoginProcessingUrl())
@@ -57,12 +62,9 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
                     .tokenService(opts.getTokenService());
 
-            // 4) 토큰 생성 성공 핸들러 설정 (없으면 기본 제공)
-            OneTimeTokenGenerationSuccessHandler successHandler = (OneTimeTokenGenerationSuccessHandler) Objects.requireNonNullElse(
-                    opts.getTokenGenerationSuccessHandler(),
-                    defaultHandlers.successHandler()
-            );
-            ott.tokenGenerationSuccessHandler(successHandler);
+            if (opts.getTokenGenerationSuccessHandler() != null) {
+                ott.tokenGenerationSuccessHandler(opts.getTokenGenerationSuccessHandler());
+            }
         });
     }
 }

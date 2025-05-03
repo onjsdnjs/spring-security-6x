@@ -1,0 +1,45 @@
+package io.springsecurity.springsecurity6x.security.core.dsl;
+
+import java.util.function.Consumer;
+
+/**
+ * MFA(다중 인증) 플로우 설정 DSL을 정의하는 인터페이스입니다.
+ * <p>
+ * 사용자는 이 DSL을 통해 여러 인증 단계를 순차적으로 구성할 수 있으며,
+ * 플랫폼은 지정된 순서대로 각 인증 단계를 실행합니다.
+ */
+public interface MfaDslConfigurer {
+
+    /**
+     * Form 인증 단계를 첫 번째 또는 다음 단계로 추가합니다.
+     *
+     * @param consumer FormDslConfigurer 설정 람다
+     * @return this
+     */
+    MfaDslConfigurer form(Consumer<FormDslConfigurer> consumer);
+
+    /**
+     * REST 인증 단계를 추가합니다.
+     *
+     * @param consumer RestDslConfigurer 설정 람다
+     * @return this
+     */
+    MfaDslConfigurer rest(Consumer<RestDslConfigurer> consumer);
+
+    /**
+     * OTT 인증 단계를 추가합니다.
+     *
+     * @param consumer OttDslConfigurer 설정 람다
+     * @return this
+     */
+    MfaDslConfigurer ott(Consumer<OttDslConfigurer> consumer);
+
+    /**
+     * Passkey 인증 단계를 추가합니다.
+     *
+     * @param consumer PasskeyDslConfigurer 설정 람다
+     * @return this
+     */
+    MfaDslConfigurer passkey(Consumer<PasskeyDslConfigurer> consumer);
+}
+

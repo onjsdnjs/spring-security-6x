@@ -2,14 +2,17 @@ package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.impl.IdentityDslRegistry;
-import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+
+import java.io.IOException;
 
 @Configuration
 public class PlatformSecurityConfig {
@@ -27,21 +30,23 @@ public class PlatformSecurityConfig {
                 })
 
                 .form(form -> form
-                        .matchers("/login/**")
                         .loginPage("/login")
                         .usernameParameter("user")
                         .passwordParameter("pass")
-                        .rawLogin(f -> f.successForwardUrl("/success"))
+                        .rawLogin(f -> f.successHandler(new AuthenticationSuccessHandler() {
+                            @Override
+                            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+                                System.out.println("request = " + request);
+                            }
+                        }))
                         .raw(http -> {
                             http.authorizeHttpRequests(a -> a
-                                    .requestMatchers("/public/**").permitAll()
-                                    .anyRequest().authenticated()
-                            );
-                        })
-                        .raw(http -> {
-                            http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
-                        })
-                )
+                                            .requestMatchers("/public/**").permitAll()
+//                                            .anyRequest().authenticated()
+                                    )
+                                    .headers(headers -> headers
+                                            .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+                        }))
                 .jwt()
                 .build();
     }

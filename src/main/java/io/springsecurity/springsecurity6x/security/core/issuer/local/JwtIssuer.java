@@ -1,10 +1,13 @@
 package io.springsecurity.springsecurity6x.security.core.issuer.local;
 
+import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
+import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
@@ -18,11 +21,13 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
@@ -30,23 +35,24 @@ import javax.crypto.SecretKey;
 /**
  * JWT 상태 전략을 HttpSecurity에 적용하는 설정자
  */
-public class JwtConfigurer {
+public class JwtIssuer extends AbstractHttpConfigurer<JwtIssuer, HttpSecurity> {
 
     private final SecretKey key;
     private final AuthContextProperties props;
     private final TokenTransportStrategy transport;
 
-    public JwtConfigurer(SecretKey key,
-                         AuthContextProperties props,
-                         TokenTransportStrategy transport) {
+    public JwtIssuer(SecretKey key,
+                     AuthContextProperties props,
+                     TokenTransportStrategy transport) {
         this.key = key;
         this.props = props;
         this.transport = transport;
     }
 
     /** JWT에 필요한 공통 HTTP 설정 (CSRF, 세션 관리, 예외 처리 등) */
+    @Override
     public void init(HttpSecurity http) throws Exception {
-        if (props.getTokenTransportType() == TokenTransportType.HEADER) {
+        /*if (props.getTokenTransportType() == TokenTransportType.HEADER) {
             http.csrf(AbstractHttpConfigurer::disable);
         } else {
             http.csrf(csrf -> csrf
@@ -58,10 +64,11 @@ public class JwtConfigurer {
                         .authenticationEntryPoint((req, res, ex) ->
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                         .accessDeniedHandler((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
+                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));*/
     }
 
     /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */
+    @Override
     public void configure(HttpSecurity http) throws Exception {
         // 파서·토큰 생성기·저장소·서비스·핸들러 생성
         TokenParser parser = new JwtTokenParser(key);
@@ -71,7 +78,7 @@ public class JwtConfigurer {
         TokenService service = new JwtTokenService(
                 validator, creator, store, transport, props);
         transport.setTokenService(service);
-        AuthenticationHandlers handlers = new io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers(service);
+        AuthenticationHandlers handlers = new JwtAuthenticationHandlers(service);
 
         // 로그아웃 설정
         http.logout(logout -> logout
@@ -80,7 +87,7 @@ public class JwtConfigurer {
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
 
         // 필터 체인: 권한 검사, 리프레시, 사전 인증 순서
-        http.addFilterAfter(new JwtAuthorizationFilter(service, handlers.logoutHandler()), CsrfFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(service, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, handlers.logoutHandler()), JwtAuthorizationFilter.class);
         http.addFilterBefore(new JwtPreAuthenticationFilter(service), LogoutFilter.class);
     }

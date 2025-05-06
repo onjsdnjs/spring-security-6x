@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.option;
+package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;

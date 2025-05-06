@@ -2,11 +2,10 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
-import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
@@ -14,8 +13,6 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.function.ThrowingConsumer;
-
-import java.util.Arrays;
 
 
 /**
@@ -25,13 +22,6 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
 
     public FormDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
         super(stepConfig, FormOptions.builder());
-    }
-
-
-    @Override
-    public FormDslConfigurer matchers(String... patterns) {
-        options.matchers(Arrays.asList(patterns));
-        return this;
     }
 
     @Override
@@ -171,7 +161,6 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
         FormOptions optsBuilt = options.build();
         AuthenticationStepConfig step = getStepConfig();
         step.type("form");
-        step.matchers(optsBuilt.getMatchers().toArray(new String[0]));
         step.options().put("_options", optsBuilt);
         return step;
     }

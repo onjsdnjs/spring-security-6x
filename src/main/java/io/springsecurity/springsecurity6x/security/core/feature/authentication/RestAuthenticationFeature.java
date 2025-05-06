@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

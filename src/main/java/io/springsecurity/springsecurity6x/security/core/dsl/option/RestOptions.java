@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.option;
+package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -6,46 +6,45 @@ import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
- * Passkey(WebAuthn) 인증 옵션을 immutable으로 제공하는 클래스.
+ * REST API 로그인 인증 옵션을 immutable으로 제공하는 클래스.
  */
-public final class PasskeyOptions extends AbstractOptions {
+public final class RestOptions extends AbstractOptions {
 
     private final List<String> matchers;
-    private final String rpName;
-    private final String rpId;
-    private final Set<String> allowedOrigins;
+    private final String loginProcessingUrl;
+    private final String defaultSuccessUrl;
+    private final String failureUrl;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
 
-    private PasskeyOptions(Builder builder) {
-        super(builder);
-        this.matchers = List.copyOf(builder.matchers);
-        this.rpName = Objects.requireNonNull(builder.rpName);
-        this.rpId = Objects.requireNonNull(builder.rpId);
-        this.allowedOrigins = Set.copyOf(builder.allowedOrigins);
-        this.successHandler = builder.successHandler;
-        this.failureHandler = builder.failureHandler;
-        this.securityContextRepository = builder.securityContextRepository;
+    private RestOptions(Builder b) {
+        super(b);
+        this.matchers = List.copyOf(b.matchers);
+        this.loginProcessingUrl = b.loginProcessingUrl;
+        this.defaultSuccessUrl = b.defaultSuccessUrl;
+        this.failureUrl = b.failureUrl;
+        this.successHandler = b.successHandler;
+        this.failureHandler = b.failureHandler;
+        this.securityContextRepository = b.securityContextRepository;
     }
 
     public List<String> getMatchers() {
         return matchers;
     }
 
-    public String getRpName() {
-        return rpName;
+    public String getLoginProcessingUrl() {
+        return loginProcessingUrl;
     }
 
-    public String getRpId() {
-        return rpId;
+    public String getDefaultSuccessUrl() {
+        return defaultSuccessUrl;
     }
 
-    public Set<String> getAllowedOrigins() {
-        return allowedOrigins;
+    public String getFailureUrl() {
+        return failureUrl;
     }
 
     public AuthenticationSuccessHandler getSuccessHandler() {
@@ -64,11 +63,11 @@ public final class PasskeyOptions extends AbstractOptions {
         return new Builder();
     }
 
-    public static class Builder extends AbstractOptions.Builder<PasskeyOptions, Builder> {
+    public static final class Builder extends AbstractOptions.Builder<RestOptions, Builder> {
         private List<String> matchers = List.of("/**");
-        private String rpName = "SecureApp";
-        private String rpId = "localhost";
-        private List<String> allowedOrigins = List.of("http://localhost:8080");
+        private String loginProcessingUrl = "/api/auth/login";
+        private String defaultSuccessUrl = "/";
+        private String failureUrl = "/login?error";
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
@@ -83,18 +82,18 @@ public final class PasskeyOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder rpName(String rpName) {
-            this.rpName = Objects.requireNonNull(rpName, "rpName must not be null");
+        public Builder loginProcessingUrl(String url) {
+            this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
             return this;
         }
 
-        public Builder rpId(String rpId) {
-            this.rpId = Objects.requireNonNull(rpId, "rpId must not be null");
+        public Builder defaultSuccessUrl(String url) {
+            this.defaultSuccessUrl = Objects.requireNonNull(url, "defaultSuccessUrl must not be null");
             return this;
         }
 
-        public Builder allowedOrigins(List<String> origins) {
-            this.allowedOrigins = List.copyOf(Objects.requireNonNull(origins, "allowedOrigins must not be null"));
+        public Builder failureUrl(String url) {
+            this.failureUrl = Objects.requireNonNull(url, "failureUrl must not be null");
             return this;
         }
 
@@ -114,13 +113,12 @@ public final class PasskeyOptions extends AbstractOptions {
         }
 
         @Override
-        public PasskeyOptions build() {
-            if (matchers == null || matchers.isEmpty()) {
+        public RestOptions build() {
+            if (matchers.isEmpty()) {
                 throw new IllegalStateException("At least one matcher is required");
             }
-            return new PasskeyOptions(this);
+            return new RestOptions(this);
         }
     }
 }
-
 

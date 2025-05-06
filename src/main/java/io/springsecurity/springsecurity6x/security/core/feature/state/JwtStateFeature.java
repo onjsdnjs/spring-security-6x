@@ -2,12 +2,13 @@ package io.springsecurity.springsecurity6x.security.core.feature.state;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.issuer.local.JwtConfigurer;
+import io.springsecurity.springsecurity6x.security.core.issuer.local.JwtIssuer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import javax.crypto.SecretKey;
@@ -18,7 +19,7 @@ public class JwtStateFeature implements StateFeature {
     private AuthContextProperties props;
     private TokenTransportStrategy transport;
     private AuthenticationHandlers handlers;
-    private JwtConfigurer configurer;
+    private JwtIssuer configurer;
 
     @Override
     public String getId() {
@@ -36,8 +37,9 @@ public class JwtStateFeature implements StateFeature {
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(transportType);
 
         // 3) JwtConfigurer를 런타임에 생성하여 초기화·설정 수행
-        JwtConfigurer configurer = new JwtConfigurer(key, props, transport);
-        configurer.init(http);
-        configurer.configure(http);
+        JwtIssuer configurer = new JwtIssuer(key, props, transport);
+        http.with(configurer, Customizer.withDefaults());
+//        configurer.init(http);
+//        configurer.configure(http);
     }
 }

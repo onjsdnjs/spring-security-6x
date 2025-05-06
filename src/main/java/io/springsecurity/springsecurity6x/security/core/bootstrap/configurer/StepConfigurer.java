@@ -23,9 +23,6 @@ public class StepConfigurer implements SecurityConfigurer {
         for (AuthenticationFlowConfig flow : flows) {
             HttpSecurity http = ctx.http();
             for (AuthenticationStepConfig step : flow.stepConfigs()) {
-                if (step.matchers() != null) {
-                    http = http.securityMatcher(step.matchers());
-                }
                 AuthenticationFeature f = registry.getAuthFeature(step.type());
                 if (f == null) {
                     throw new IllegalStateException("No feature for step type: " + step.type());

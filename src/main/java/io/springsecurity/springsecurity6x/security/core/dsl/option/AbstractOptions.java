@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.option;
+package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.option;
+package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,7 +14,6 @@ import java.util.Objects;
  * Form 인증 방식 전용 옵션 (AbstractOptions 상속)
  */
 public final class FormOptions extends AbstractOptions {
-    private final List<String> matchers;
     private final String loginPage;
     private final String loginProcessingUrl;
     private final String usernameParameter;
@@ -30,7 +29,6 @@ public final class FormOptions extends AbstractOptions {
 
     private FormOptions(Builder b) {
         super(b);
-        this.matchers = List.copyOf(b.matchers);
         this.loginPage = b.loginPage;
         this.loginProcessingUrl = b.loginProcessingUrl;
         this.usernameParameter = b.usernameParameter;
@@ -43,10 +41,6 @@ public final class FormOptions extends AbstractOptions {
         this.failureHandler = b.failureHandler;
         this.securityContextRepository = b.securityContextRepository;
         this.rawFormLogin = b.rawFormLogin;
-    }
-
-    public List<String> getMatchers() {
-        return matchers;
     }
 
     public String getLoginPage() {
@@ -105,7 +99,6 @@ public final class FormOptions extends AbstractOptions {
     }
 
     public static final class Builder extends AbstractOptions.Builder<FormOptions, Builder> {
-        private List<String> matchers = List.of("/**");
         private String loginPage = "/login";
         private String loginProcessingUrl = "/login";
         private String usernameParameter = "username";
@@ -124,8 +117,7 @@ public final class FormOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder matchers(List<String> m) {
-            this.matchers = Objects.requireNonNull(m, "matchers must not be null");
+        public Builder securityMatchers(List<String> m) {
             return self();
         }
 

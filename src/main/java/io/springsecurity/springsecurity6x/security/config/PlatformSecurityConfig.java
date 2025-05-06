@@ -23,7 +23,8 @@ public class PlatformSecurityConfig {
         return new IdentityDslRegistry()
                 .global(http -> {
                         http.csrf(AbstractHttpConfigurer::disable);
-                        http.authorizeHttpRequests(authReq -> authReq
+                        http.securityMatcher("/api/**")
+                                .authorizeHttpRequests(authReq -> authReq
                                 .requestMatchers("/api/register").permitAll()
                                 .requestMatchers("/api/**").authenticated()
                                 .anyRequest().permitAll());

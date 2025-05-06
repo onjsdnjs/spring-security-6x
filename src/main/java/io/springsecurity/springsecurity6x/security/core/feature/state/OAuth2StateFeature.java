@@ -1,9 +1,8 @@
-package io.springsecurity.springsecurity6x.security.core.feature.impl;
+package io.springsecurity.springsecurity6x.security.core.feature.state;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.server.authserver.OAuth2Configurer;
-import io.springsecurity.springsecurity6x.security.core.server.jwt.JwtConfigurer;
+import io.springsecurity.springsecurity6x.security.core.issuer.oauth2.OAuth2Configurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public class OAuth2StateFeature implements StateFeature {

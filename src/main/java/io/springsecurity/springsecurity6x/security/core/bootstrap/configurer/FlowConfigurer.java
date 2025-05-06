@@ -14,9 +14,9 @@ public class FlowConfigurer implements SecurityConfigurer {
     @Override
     public void configure(PlatformContext ctx, List<AuthenticationFlowConfig> flows) {
         for (AuthenticationFlowConfig flow : flows) {
-            Consumer<HttpSecurity> flowCustomizer = flow.getCustomizer();
+            Consumer<HttpSecurity> flowCustomizer = flow.customizer();
             if (flowCustomizer != null) {
-                flowCustomizer.accept(ctx.getHttp());
+                flowCustomizer.accept(ctx.http());
             }
         }
     }

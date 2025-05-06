@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.context;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -63,7 +62,7 @@ public class PlatformContext {
     /**
      * 스프링이 주입한 HttpSecurity 인스턴스를 반환합니다.
      */
-    public HttpSecurity getHttp() {
+    public HttpSecurity http() {
         return http;
     }
 

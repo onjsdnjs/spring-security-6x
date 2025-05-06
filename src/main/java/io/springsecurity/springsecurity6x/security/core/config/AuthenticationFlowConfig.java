@@ -25,23 +25,23 @@ public class AuthenticationFlowConfig {
         this.customizer = customizer;
     }
 
-    public String getTypeName() {
+    public String typeName() {
         return typeName;
     }
 
-    public List<AuthenticationStepConfig> getStepConfigs() {
+    public List<AuthenticationStepConfig> stepConfigs() {
         return stepConfigs;
     }
 
-    public StateConfig getStateConfig() {
+    public StateConfig stateConfig() {
         return stateConfig;
     }
 
-    public void setStateConfig(StateConfig stateConfig) {
+    public void stateConfig(StateConfig stateConfig) {
         this.stateConfig = stateConfig;
     }
 
-    public ThrowingConsumer<HttpSecurity> getCustomizer() {
+    public ThrowingConsumer<HttpSecurity> customizer() {
         return customizer;
     }
 }

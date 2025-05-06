@@ -1,17 +1,12 @@
-package io.springsecurity.springsecurity6x.security.core.feature.impl;
+package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * OTT(One-Time Token) 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
@@ -43,7 +38,7 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
             return;
         }
         AuthenticationStepConfig step = steps.getFirst();
-        Object optsObj = step.getOptions().get("_options");
+        Object optsObj = step.options().get("_options");
         if (!(optsObj instanceof OttOptions)) {
             throw new IllegalStateException("Expected OttOptions in step options");
         }

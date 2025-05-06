@@ -21,16 +21,16 @@ public class StepConfigurer implements SecurityConfigurer {
     @Override
     public void configure(PlatformContext ctx, List<AuthenticationFlowConfig> flows) throws Exception {
         for (AuthenticationFlowConfig flow : flows) {
-            HttpSecurity http = ctx.getHttp();
-            for (AuthenticationStepConfig step : flow.getStepConfigs()) {
-                if (step.getMatchers() != null) {
-                    http = http.securityMatcher(step.getMatchers());
+            HttpSecurity http = ctx.http();
+            for (AuthenticationStepConfig step : flow.stepConfigs()) {
+                if (step.matchers() != null) {
+                    http = http.securityMatcher(step.matchers());
                 }
-                AuthenticationFeature f = registry.getAuthFeature(step.getType());
+                AuthenticationFeature f = registry.getAuthFeature(step.type());
                 if (f == null) {
-                    throw new IllegalStateException("No feature for step type: " + step.getType());
+                    throw new IllegalStateException("No feature for step type: " + step.type());
                 }
-                f.apply(http, List.of(step), flow.getStateConfig());
+                f.apply(http, List.of(step), flow.stateConfig());
             }
         }
     }

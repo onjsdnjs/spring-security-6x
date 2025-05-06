@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.state.session;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.DefaultAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -31,9 +30,9 @@ public class SessionStateConfigurerImpl {
         return "session".equalsIgnoreCase(config.stateType());
     }*/
 
-    public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
+    /*public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
 
-    }
+    }*/
 
     public void init(HttpSecurity http) {
     }

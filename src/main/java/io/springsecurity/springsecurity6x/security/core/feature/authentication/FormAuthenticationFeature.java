@@ -1,14 +1,16 @@
-package io.springsecurity.springsecurity6x.security.core.feature.impl;
+package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.stereotype.Component;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Form 기반 로그인 전략을 적용하는 Feature 구현체
@@ -30,7 +32,7 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
 
         if (steps == null || steps.isEmpty()) return;
         AuthenticationStepConfig step = steps.getFirst();
-        Object optsObj = step.getOptions().get("_options");
+        Object optsObj = step.options().get("_options");
         if (!(optsObj instanceof FormOptions opts)) {
             throw new IllegalStateException("Expected FormOptions");
         }
@@ -43,17 +45,25 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
                     .passwordParameter(opts.getPasswordParameter())
                     .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
                     .failureUrl(opts.getFailureUrl())
-                    .permitAll(opts.permitAll());
+                    .permitAll(opts.isPermitAll());
 
             if (opts.getSuccessHandler() != null) form.successHandler(opts.getSuccessHandler());
             if (opts.getFailureHandler() != null) form.failureHandler(opts.getFailureHandler());
             if (opts.getSecurityContextRepository() != null) form.securityContextRepository(opts.getSecurityContextRepository());
 
-            // apply raw customizations
-            if (opts.getRaw() != null) {
-                opts.getRaw().customize(form);
+            // raw FormLoginConfigurer 커스터마이저
+            Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = opts.getRawFormLogin();
+            if (rawLogin != null) {
+                rawLogin.customize(form);
             }
         });
+        // raw HttpSecurity 커스터마이저들 적용
+        List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();
+        if (httpCustomizers != null) {
+            for (Customizer<HttpSecurity> customizer : httpCustomizers) {
+                Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
+            }
+        }
     }
 }
 

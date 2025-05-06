@@ -17,7 +17,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     @Override
     public SecurityPlatformDsl global(Customizer<HttpSecurity> customizer) {
-        config.setGlobal(customizer);
+        config.global(customizer);
         return this;
     }
 
@@ -123,7 +123,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
     }
 
     private void setLastState(String stateId) {
-        var flow = config.getFlows().get(config.getFlows().size() - 1);
-        flow.setStateConfig(new StateConfig(stateId));
+        var flow = config.flows().get(config.flows().size() - 1);
+        flow.stateConfig(new StateConfig(stateId));
     }
 }

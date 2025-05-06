@@ -11,9 +11,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public class GlobalConfigurer implements SecurityConfigurer {
     @Override
     public void init(PlatformContext ctx, PlatformConfig cfg) {
-        Customizer<HttpSecurity> customizer = cfg.getGlobal();
+        Customizer<HttpSecurity> customizer = cfg.global();
         if (customizer != null) {
-            customizer.customize(ctx.getHttp());
+            customizer.customize(ctx.http());
         }
     }
 }

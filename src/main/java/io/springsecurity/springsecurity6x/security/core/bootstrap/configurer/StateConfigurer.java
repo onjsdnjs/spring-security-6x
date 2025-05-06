@@ -20,8 +20,8 @@ public class StateConfigurer implements SecurityConfigurer {
     @Override
     public void configure(PlatformContext ctx, List<AuthenticationFlowConfig> flows) throws Exception {
         for (AuthenticationFlowConfig flow : flows) {
-            HttpSecurity http = ctx.getHttp();
-            StateFeature sf = registry.getStateFeature(flow.getStateConfig().getState());
+            HttpSecurity http = ctx.http();
+            StateFeature sf = registry.getStateFeature(flow.stateConfig().state());
             if (sf != null) {
                 sf.apply(http, ctx);
             }

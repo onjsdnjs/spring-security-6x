@@ -1,3 +1,3 @@
-io.springsecurity.springsecurity6x.security.core.feature.impl.FormAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.impl.RestAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.impl.OttAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.authentication.FormAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.authentication.RestAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.authentication.OttAuthenticationFeature

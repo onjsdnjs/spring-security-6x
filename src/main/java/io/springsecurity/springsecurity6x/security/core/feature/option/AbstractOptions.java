@@ -7,7 +7,9 @@ import org.springframework.security.config.annotation.web.configurers.CorsConfig
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * CSRF, CORS, Header, Session, Static 리소스 허용 등 공통 보안 옵션을 추상화한 불변 객체
@@ -18,6 +20,7 @@ public abstract class AbstractOptions {
     private final Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
     private final Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
     private final List<String> staticMatchers;
+    private final List<Customizer<HttpSecurity>> rawHttpCustomizers;
 
     protected AbstractOptions(Builder<?, ?> b) {
         this.csrfDisabled = b.csrfDisabled;
@@ -25,7 +28,13 @@ public abstract class AbstractOptions {
         this.headersCustomizer = b.headersCustomizer;
         this.sessionManagementCustomizer = b.sessionManagementCustomizer;
         this.staticMatchers = List.copyOf(b.staticMatchers);
+        this.rawHttpCustomizers = List.copyOf(b.rawHttpCustomizers);
     }
+
+    public List<Customizer<HttpSecurity>> rawHttpCustomizers() {
+        return rawHttpCustomizers;
+    }
+
 
     /** 공통 옵션을 HttpSecurity에 적용 */
     public void applyCommon(HttpSecurity http) throws Exception {
@@ -44,6 +53,9 @@ public abstract class AbstractOptions {
         if (!staticMatchers.isEmpty()) {
             http.authorizeHttpRequests(a -> a.requestMatchers(staticMatchers.toArray(new String[0])).permitAll());
         }
+        for (Customizer<HttpSecurity> raw : rawHttpCustomizers) {
+            raw.customize(http);
+        }
     }
 
     /**
@@ -55,6 +67,7 @@ public abstract class AbstractOptions {
         private Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
         private Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
         private List<String> staticMatchers = List.of();
+        private List<Customizer<HttpSecurity>> rawHttpCustomizers = new ArrayList<>();
 
         protected abstract B self();
 
@@ -80,6 +93,12 @@ public abstract class AbstractOptions {
 
         public B authorizeStatic(List<String> patterns) {
             this.staticMatchers = List.copyOf(patterns);
+            return self();
+        }
+
+        public B rawHttp(Customizer<HttpSecurity> customizer) {
+            Objects.requireNonNull(customizer, "rawHttp customizer must not be null");
+            this.rawHttpCustomizers.add(customizer);
             return self();
         }
 

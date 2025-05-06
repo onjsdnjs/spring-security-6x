@@ -4,9 +4,11 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.util.List;
 
 /**
@@ -21,17 +23,23 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     private final PlatformContext context;
     private final FeatureRegistry registry;
     private final List<SecurityConfigurer> configurers;
+    private final SecretKey secretKey;
+    private final AuthContextProperties properties;
     private PlatformConfig config;
 
-    public SecurityPlatformImpl(PlatformContext context, FeatureRegistry registry) {
+    public SecurityPlatformImpl(PlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
         this.context = context;
         this.registry = registry;
+        this.secretKey = secretKey;
+        this.properties = properties;
         this.configurers = List.of(
                 new GlobalConfigurer(),
                 new FlowConfigurer(),
                 new StateConfigurer(registry),
                 new StepConfigurer(registry)
         );
+        context.share(SecretKey.class, this.secretKey);
+        context.share(AuthContextProperties.class, this.properties);
     }
 
     @Override
@@ -44,12 +52,12 @@ public class SecurityPlatformImpl implements SecurityPlatform {
         // init & configure
         for (SecurityConfigurer cfg : configurers) {
             cfg.init(context, config);
-            cfg.configure(context, config.getFlows());
+            cfg.configure(context, config.flows());
         }
         // performBuild
-        for (AuthenticationFlowConfig flow : config.getFlows()) {
-            SecurityFilterChain chain = context.getHttp().build();
-            context.registerChain(flow.getTypeName(), chain);
+        for (AuthenticationFlowConfig flow : config.flows()) {
+            SecurityFilterChain chain = context.http().build();
+            context.registerChain(flow.typeName(), chain);
         }
     }
 }

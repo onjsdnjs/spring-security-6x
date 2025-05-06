@@ -1,20 +1,23 @@
-package io.springsecurity.springsecurity6x.security.core.feature.impl;
+package io.springsecurity.springsecurity6x.security.core.feature.state;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.server.authserver.OAuth2Configurer;
+import io.springsecurity.springsecurity6x.security.core.state.session.SessionStateConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-public class JwtAuthServerStateFeature implements StateFeature {
-    private final OAuth2Configurer configurer;
+public class SessionStateFeature implements StateFeature {
 
-    public JwtAuthServerStateFeature(OAuth2Configurer configurer) {
+    private SessionStateConfigurer configurer;
+
+    public SessionStateFeature(){}
+
+    public SessionStateFeature(SessionStateConfigurer configurer) {
         this.configurer = configurer;
     }
 
     @Override
     public String getId() {
-        return "oauth2";
+        return "session";
     }
 
     @Override

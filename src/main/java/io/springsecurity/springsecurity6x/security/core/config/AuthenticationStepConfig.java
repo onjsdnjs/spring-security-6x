@@ -11,11 +11,11 @@ public class AuthenticationStepConfig {
     private String[] matchers;
     private final Map<String, Object> options = new HashMap<>();
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public String type() { return type; }
+    public void type(String type) { this.type = type; }
 
-    public String[] getMatchers() { return matchers; }
-    public void setMatchers(String[] matchers) { this.matchers = matchers; }
+    public String[] matchers() { return matchers; }
+    public void matchers(String[] matchers) { this.matchers = matchers; }
 
-    public Map<String, Object> getOptions() { return options; }
+    public Map<String, Object> options() { return options; }
 }

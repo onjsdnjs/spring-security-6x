@@ -26,7 +26,7 @@ public class FeatureRegistry {
     /** 인증 플로우에 사용된 인증 기능 매핑 */
     public List<AuthenticationFeature> getAuthFeaturesFor(List<AuthenticationFlowConfig> flows) {
         Set<String> ids = flows.stream()
-                .map(AuthenticationFlowConfig::getTypeName)
+                .map(AuthenticationFlowConfig::typeName)
                 .collect(Collectors.toSet());
         return ids.stream()
                 .map(authFeatures::get)
@@ -37,7 +37,7 @@ public class FeatureRegistry {
     /** 플로우에 사용된 상태 기능 가지고 오기 */
     public List<StateFeature> getStateFeaturesFor(List<AuthenticationFlowConfig> flows) {
         Set<String> ids = flows.stream()
-                .map(f -> f.getStateConfig().getState())
+                .map(f -> f.stateConfig().state())
                 .collect(Collectors.toSet());
         return ids.stream()
                 .map(stateFeatures::get)

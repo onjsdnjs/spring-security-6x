@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.state.oauth2;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ClientRequest;
 import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2HttpClient;
 import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ResourceClient;
@@ -97,7 +96,7 @@ public class OAuth2StateConfigurerImpl {
         http.setSharedObject(LogoutHandler.class, handlers.logoutHandler());
     }
 
-    public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
+    /*public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
         TokenService tokenService = http.getSharedObject(TokenService.class);
         LogoutHandler logoutHandler = http.getSharedObject(LogoutHandler.class);
         JwtAuthorizationFilter oauth2Filter = new JwtAuthorizationFilter(tokenService, logoutHandler);
@@ -109,7 +108,7 @@ public class OAuth2StateConfigurerImpl {
 
         http.addFilterBefore(oauth2Filter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(new JwtPreAuthenticationFilter(tokenService), LogoutFilter.class);
-    }
+    }*/
 }
 
 

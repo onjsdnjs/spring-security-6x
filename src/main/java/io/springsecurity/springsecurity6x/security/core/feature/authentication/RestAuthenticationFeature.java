@@ -1,12 +1,9 @@
-package io.springsecurity.springsecurity6x.security.core.feature.impl;
+package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -50,7 +47,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
         }
         AuthenticationStepConfig step = steps.getFirst();
 
-        Object optsObj = step.getOptions().get("_options");
+        Object optsObj = step.options().get("_options");
         if (!(optsObj instanceof RestOptions)) {
             throw new IllegalStateException("Expected RestOptions in step options");
         }

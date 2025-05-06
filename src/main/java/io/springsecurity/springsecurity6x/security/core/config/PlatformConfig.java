@@ -13,16 +13,16 @@ public class PlatformConfig {
     private Customizer<HttpSecurity> global;
     private final List<AuthenticationFlowConfig> flows = new ArrayList<>();
 
-    public void setGlobal(Customizer<HttpSecurity> global) {
+    public void global(Customizer<HttpSecurity> global) {
         this.global = global;
     }
-    public Customizer<HttpSecurity> getGlobal() {
+    public Customizer<HttpSecurity> global() {
         return global;
     }
     public void addFlow(AuthenticationFlowConfig flow) {
         this.flows.add(flow);
     }
-    public List<AuthenticationFlowConfig> getFlows() {
+    public List<AuthenticationFlowConfig> flows() {
         return List.copyOf(flows);
     }
 }

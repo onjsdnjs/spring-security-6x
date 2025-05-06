@@ -68,7 +68,7 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
 
     @Override
     public FormDslConfigurer permitAll() {
-        options.permitAll();
+        options.isPermitAll();
         return this;
     }
 
@@ -91,9 +91,26 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
     }
 
     @Override
-    public FormDslConfigurer raw(Customizer<FormLoginConfigurer<HttpSecurity>> customizer) {
-        options.raw(customizer);
+    public FormDslConfigurer raw(Customizer<HttpSecurity> customizer) {
+        options.rawHttp(customizer);
         return this;
+    }
+
+    /**
+     * DSL 설정을 HttpSecurity에 적용하는 Consumer를 반환
+     */
+    @Override
+    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
+        return http -> {
+            FormOptions optsBuilt = options.build();
+            optsBuilt.applyCommon(http);
+            http.formLogin(form -> {
+                Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = optsBuilt.getRawFormLogin();
+                if (rawLogin != null) {
+                    rawLogin.customize(form);
+                }
+            });
+        };
     }
 
     /**
@@ -102,9 +119,9 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
     public AuthenticationStepConfig toConfig() {
         FormOptions optsBuilt = options.build();
         AuthenticationStepConfig step = getStepConfig();
-        step.setType("form");
-        step.setMatchers(optsBuilt.getMatchers().toArray(new String[0]));
-        step.getOptions().put("_options", optsBuilt);
+        step.type("form");
+        step.matchers(optsBuilt.getMatchers().toArray(new String[0]));
+        step.options().put("_options", optsBuilt);
         return step;
     }
 }

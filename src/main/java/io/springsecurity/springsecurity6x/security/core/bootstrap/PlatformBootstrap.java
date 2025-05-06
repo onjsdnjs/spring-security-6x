@@ -30,7 +30,7 @@ public class PlatformBootstrap implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        List<AuthenticationFlowConfig> flows = config.getFlows();
+        List<AuthenticationFlowConfig> flows = config.flows();
         // Registry를 통해 필요한 인증 기능 리스트 획득
         List<AuthenticationFeature> features = registry.getAuthFeaturesFor(flows);
         // Global 준비

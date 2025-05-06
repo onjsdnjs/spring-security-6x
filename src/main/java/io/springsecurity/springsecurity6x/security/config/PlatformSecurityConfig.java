@@ -41,12 +41,13 @@ public class PlatformSecurityConfig {
                             }
                         }))
                         .raw(http -> {
-                            http.authorizeHttpRequests(a -> a
+                            http
+                                /*.authorizeHttpRequests(a -> a
                                             .requestMatchers("/public/**").permitAll()
 //                                            .anyRequest().authenticated()
-                                    )
-                                    .headers(headers -> headers
-                                            .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+                                )*/
+                                .headers(headers -> headers
+                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
                 .jwt()
                 .build();

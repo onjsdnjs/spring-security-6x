@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.converter;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,3 +30,4 @@ public class SpringAuthenticationConverter implements AuthenticationConverter {
     }
 
 }
+*/

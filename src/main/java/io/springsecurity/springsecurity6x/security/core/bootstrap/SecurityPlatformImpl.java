@@ -5,6 +5,9 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Component;
 
@@ -54,10 +57,11 @@ public class SecurityPlatformImpl implements SecurityPlatform {
             cfg.init(context, config);
             cfg.configure(context, config.flows());
         }
-        // performBuild
         for (AuthenticationFlowConfig flow : config.flows()) {
             SecurityFilterChain chain = context.http().build();
-            context.registerChain(flow.typeName(), chain);
+            String beanName = flow.typeName() + "SecurityFilterChain";
+            context.registerChain(beanName, chain);
+            context.registerAsBean(beanName, chain);
         }
     }
 }

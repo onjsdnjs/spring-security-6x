@@ -59,10 +59,8 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
         });
         // raw HttpSecurity 커스터마이저들 적용
         List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();
-        if (httpCustomizers != null) {
-            for (Customizer<HttpSecurity> customizer : httpCustomizers) {
-                Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
-            }
+        for (Customizer<HttpSecurity> customizer : httpCustomizers) {
+            Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }
 }

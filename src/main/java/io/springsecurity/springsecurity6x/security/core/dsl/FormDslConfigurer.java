@@ -8,6 +8,11 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
  */
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -28,6 +33,8 @@ public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurer> 
     FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler);
     FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler);
     FormDslConfigurer securityContextRepository(SecurityContextRepository repository);
+    public FormDslConfigurer raw(SafeHttpCustomizer customizer);
+    public FormDslConfigurer rawLogin(SafeHttpFormLoginCustomizer customizer);
 
 
 }

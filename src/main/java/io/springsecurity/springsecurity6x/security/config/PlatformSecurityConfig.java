@@ -31,6 +31,7 @@ public class PlatformSecurityConfig {
                         .loginPage("/login")
                         .usernameParameter("user")
                         .passwordParameter("pass")
+                        .rawLogin(f -> f.successForwardUrl("/success"))
                         .raw(http -> {
                             http.authorizeHttpRequests(a -> a
                                     .requestMatchers("/public/**").permitAll()

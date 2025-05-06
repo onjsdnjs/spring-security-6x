@@ -1,19 +1,29 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
-import io.springsecurity.springsecurity6x.security.core.dsl.impl.FormDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.impl.OttDslConfigurerImpl;
 
+*/
 /**
  * OTT(One-Time Token) 로그인 관련 DSL 설정을 정의하는 인터페이스입니다.
- * <p>
- * 사용자는 이 DSL을 통해 OTT 로그인 처리 엔드포인트와 매처를 설정하고,
- * 이를 기반으로 플랫폼이 HttpSecurity에 OTT 인증 필터를 적용합니다.
- */
-public interface OttDslConfigurer extends CommonSecurityDsl<OttDslConfigurerImpl> {
+ *//*
+
+public interface OttDslConfigurer extends CommonSecurityDsl<OttDslConfigurer> {
 
     OttDslConfigurer matchers(String... patterns);
 
     OttDslConfigurer loginProcessingUrl(String url);
+
+    // 추가된 DSL 메서드들
+    OttDslConfigurer defaultSubmitPageUrl(String url);
+
+    OttDslConfigurer tokenGeneratingUrl(String url);
+
+    OttDslConfigurer showDefaultSubmitPage(boolean show);
+
+    OttDslConfigurer tokenService(org.springframework.security.authentication.ott.OneTimeTokenService service);
+
+    OttDslConfigurer tokenGenerationSuccessHandler(org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler handler);
 }
 
+*/

@@ -2,19 +2,23 @@ package io.springsecurity.springsecurity6x.security.core.feature.impl;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.server.jwt.JwtLibraryConfigurer;
+import io.springsecurity.springsecurity6x.security.core.server.authserver.OAuth2Configurer;
+import io.springsecurity.springsecurity6x.security.core.server.jwt.JwtConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-public class JwtLibraryStateFeature implements StateFeature {
-    private final JwtLibraryConfigurer configurer;
+public class OAuth2StateFeature implements StateFeature {
 
-    public JwtLibraryStateFeature(JwtLibraryConfigurer configurer) {
+    private OAuth2Configurer configurer;
+
+    public OAuth2StateFeature(){}
+
+    public OAuth2StateFeature(OAuth2Configurer configurer) {
         this.configurer = configurer;
     }
 
     @Override
     public String getId() {
-        return "jwt";
+        return "oauth2";
     }
 
     @Override

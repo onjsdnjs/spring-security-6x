@@ -6,7 +6,10 @@ import io.springsecurity.springsecurity6x.security.core.state.session.SessionSta
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 public class SessionStateFeature implements StateFeature {
-    private final SessionStateConfigurer configurer;
+
+    private SessionStateConfigurer configurer;
+
+    public SessionStateFeature(){}
 
     public SessionStateFeature(SessionStateConfigurer configurer) {
         this.configurer = configurer;

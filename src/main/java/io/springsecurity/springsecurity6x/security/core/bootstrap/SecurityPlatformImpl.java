@@ -1,59 +1,55 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+/**
+ * SecurityPlatform 구현체: Global 설정 후, 각 Flow별로
+ * HttpSecurity를 구성하고 SecurityFilterChain을 생성하여 등록합니다.
+ */
+/**
+ * 분리된 Configurer들을 이용해 보안 체인을 구성합니다.
+ */
 @Component
 public class SecurityPlatformImpl implements SecurityPlatform {
+    private final PlatformContext context;
+    private final FeatureRegistry registry;
+    private final List<SecurityConfigurer> configurers;
+    private PlatformConfig config;
 
-    private final ApplicationContext context;
-    private PlatformConfig platformConfig;
-    private List<AuthenticationFeature> features;
-
-    @Autowired
-    public SecurityPlatformImpl(ApplicationContext context) {
+    public SecurityPlatformImpl(PlatformContext context, FeatureRegistry registry) {
         this.context = context;
+        this.registry = registry;
+        this.configurers = List.of(
+                new GlobalConfigurer(),
+                new FlowConfigurer(),
+                new StateConfigurer(registry),
+                new StepConfigurer(registry)
+        );
     }
 
     @Override
-    public void prepareGlobal(PlatformConfig config, List<AuthenticationFeature> features) {
-        this.platformConfig = config;
-        this.features = features;
+    public void prepareGlobal(PlatformConfig config, List<?> features) {
+        this.config = config;
     }
 
     @Override
     public void initialize() throws Exception {
-        // Create HttpSecurity and SecurityFilterChain bean via builder
-        HttpSecurity http = context.getBean(HttpSecurity.class);
-
-        // 1) global 설정
-        if (platformConfig.getGlobal() != null) {
-            platformConfig.getGlobal().customize(http);
+        // init & configure
+        for (SecurityConfigurer cfg : configurers) {
+            cfg.init(context, config);
+            cfg.configure(context, config.getFlows());
         }
-
-        // 2) flows
-        for (AuthenticationFlowConfig flow : platformConfig.getFlows()) {
-            flow.getCustomizer().accept(http);
-            Map<String, AuthenticationFeature> featureMap = features.stream()
-                    .collect(Collectors.toMap(AuthenticationFeature::getId, f -> f));
-            AuthenticationFeature feature = featureMap.get(flow.getType());
-            feature.apply(http, flow.getSteps(), flow.getState());
+        // performBuild
+        for (AuthenticationFlowConfig flow : config.getFlows()) {
+            SecurityFilterChain chain = context.getHttp().build();
+            context.registerChain(flow.getTypeName(), chain);
         }
-
-        // register SecurityFilterChain
-        SecurityFilterChain chain = http.build();
-        // register chain in context (requires manual registration in BeanFactory)
-        // skipped for brevity
     }
 }

@@ -1,9 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.feature;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
@@ -36,11 +34,11 @@ public class AuthenticationFeatureRegistry {
         // 각 Flow 처리
         for (AuthenticationFlowConfig flow : config.getFlows()) {
             flow.getCustomizer().accept(http);
-            AuthenticationFeature feature = featuresMap.get(flow.getType());
+            AuthenticationFeature feature = featuresMap.get(flow.getTypeName());
             if (feature == null) {
-                throw new IllegalStateException("No AuthenticationFeature for type: " + flow.getType());
+                throw new IllegalStateException("No AuthenticationFeature for type: " + flow.getTypeName());
             }
-            feature.apply(http, flow.getSteps(), flow.getState());
+            feature.apply(http, flow.getStepConfigs(), flow.getStateConfig());
         }
     }
 }

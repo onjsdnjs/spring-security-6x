@@ -1,0 +1,3 @@
+io.springsecurity.springsecurity6x.security.core.feature.impl.SessionStateFeature
+io.springsecurity.springsecurity6x.security.core.feature.impl.JwtStateFeature
+io.springsecurity.springsecurity6x.security.core.feature.impl.OAuth2StateFeature

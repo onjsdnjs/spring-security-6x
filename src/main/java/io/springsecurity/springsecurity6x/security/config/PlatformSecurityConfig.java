@@ -18,7 +18,7 @@ public class PlatformSecurityConfig {
         IdentityDslRegistry security = new IdentityDslRegistry();
 
         security.form(form -> form.loginPage("/login"))
-                .session(); // session 상태 지정
+                .jwt(); // session 상태 지정
 
                 return security.build();
 

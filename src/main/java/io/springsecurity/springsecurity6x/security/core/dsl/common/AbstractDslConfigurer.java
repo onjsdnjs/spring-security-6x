@@ -1,75 +1,51 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.util.function.ThrowingConsumer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Objects;
 
 /**
- * 예외 없이 깔끔하게 공통 보안 설정을 적용할 수 있는 DSL 구현체
+ * 추상 DSL Configurer의 기본 동작을 제공하는 베이스 클래스
+ *
+ * @param <O> 옵션 객체 타입
+ * @param <D> DSL 구현 타입
  */
-public abstract class AbstractDslConfigurer<T extends CommonSecurityDsl<T>> implements CommonSecurityDsl<T> {
+public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> implements CommonSecurityDsl<D> {
 
-    protected final List<ThrowingConsumer<HttpSecurity>> commonCustomizers = new ArrayList<>();
+    protected final AuthenticationStepConfig stepConfig;
+    protected final O options;
 
-    protected T self() {
-        return (T) this;
-    }
-
-    @Override
-    public T disableCsrf() {
-        commonCustomizers.add(http -> http.csrf(AbstractHttpConfigurer::disable));
-        return self();
-    }
-
-    @Override
-    public T cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
-        commonCustomizers.add(http -> http.cors(customizer));
-        return self();
-    }
-
-    @Override
-    public T headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
-        commonCustomizers.add(http -> http.headers(customizer));
-        return self();
-    }
-
-    @Override
-    public T sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
-        commonCustomizers.add(http -> http.sessionManagement(customizer));
-        return self();
-    }
-
-    @Override
-    public T authorizeStatic(String... patterns) {
-        commonCustomizers.add(http ->
-                http.authorizeHttpRequests(a -> a.requestMatchers(patterns).permitAll())
-        );
-        return self();
+    protected AbstractDslConfigurer(AuthenticationStepConfig stepConfig, O options) {
+        this.stepConfig = Objects.requireNonNull(stepConfig, "stepConfig must not be null");
+        this.options = Objects.requireNonNull(options, "options must not be null");
     }
 
     /**
-     * 공통 설정들을 HttpSecurity에 실제 적용합니다.
+     * 생성된 stepConfig를 반환
      */
-    protected void applyCommon(HttpSecurity http) throws Exception {
-        for (var c : commonCustomizers) {
-            c.accept(http);
-        }
+    public AuthenticationStepConfig getStepConfig() {
+        return stepConfig;
     }
 
-    /**
-     * 공통 설정 후에 securityMatcher 까지 적용할 때 사용합니다.
-     */
-    protected void applyCommonWithMatcher(HttpSecurity http, String... patterns) throws Exception {
-        applyCommon(http);
-        if (patterns != null && patterns.length > 0) {
-            http.securityMatcher(patterns);
-        }
-    }
+    // 공통 DSL 메서드 stub 구현
+    @Override
+    public D disableCsrf() { return (D) this; }
+
+    @Override
+    public D cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) { return (D) this; }
+
+    @Override
+    public D headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) { return (D) this; }
+
+    @Override
+    public D sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) { return (D) this; }
+
+    @Override
+    public D authorizeStatic(String... patterns) { return (D) this; }
 }

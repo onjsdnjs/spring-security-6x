@@ -24,14 +24,14 @@ import java.util.Objects;
  */
 public class RestAuthenticationFeature implements AuthenticationFeature {
 
-    private final AuthenticationHandlers defaultHandlers;
+//    private final AuthenticationHandlers defaultHandlers;
 
     /**
      * @param defaultHandlers 기본 성공/실패 핸들러 제공자
      */
-    public RestAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
+    /*public RestAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
         this.defaultHandlers = defaultHandlers;
-    }
+    }*/
 
     @Override
     public String getId() {
@@ -66,12 +66,12 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
                     .failureUrl(opts.getFailureUrl());
 
             AuthenticationSuccessHandler successHandler = Objects.requireNonNullElse(
-                    opts.getSuccessHandler(),
-                    defaultHandlers.successHandler()
+                    opts.getSuccessHandler(), null
+//                    defaultHandlers.successHandler()
             );
             AuthenticationFailureHandler failureHandler = Objects.requireNonNullElse(
-                    opts.getFailureHandler(),
-                    defaultHandlers.failureHandler()
+                    opts.getFailureHandler(), null
+//                    defaultHandlers.failureHandler()
             );
             rest.successHandler(successHandler);
             rest.failureHandler(failureHandler);

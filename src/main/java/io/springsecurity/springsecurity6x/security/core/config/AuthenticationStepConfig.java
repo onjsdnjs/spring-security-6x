@@ -13,7 +13,9 @@ public class AuthenticationStepConfig {
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+
     public String[] getMatchers() { return matchers; }
     public void setMatchers(String[] matchers) { this.matchers = matchers; }
+
     public Map<String, Object> getOptions() { return options; }
 }

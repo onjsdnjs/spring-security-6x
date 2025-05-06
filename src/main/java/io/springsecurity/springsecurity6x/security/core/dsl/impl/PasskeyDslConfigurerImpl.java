@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.PasskeyDslConfigurer;
@@ -6,9 +7,11 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslCo
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.function.ThrowingConsumer;
 
+*/
 /**
  * Passkey(WebAuthn) 로그인 DSL 구현체
- */
+ *//*
+
 public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyDslConfigurerImpl> implements PasskeyDslConfigurer {
 
     private String[] matchers;
@@ -44,9 +47,11 @@ public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyDslCo
         return http -> applyCommonWithMatcher(http, matchers);
     }
 
-    /**
+    */
+/**
      * DSL 설정값을 AuthenticationStepConfig로 변환합니다.
-     */
+     *//*
+
     public AuthenticationStepConfig toConfig() {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         step.setType("passkey");
@@ -65,3 +70,4 @@ public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyDslCo
         return step;
     }
 }
+*/

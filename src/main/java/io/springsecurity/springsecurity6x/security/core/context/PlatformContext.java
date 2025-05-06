@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationCon
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import java.util.Map;
  * 스프링이 주입한 HttpSecurity 인스턴스를 보관하며,
  * AuthenticationFeature 및 SecurityFeature 구현체에게 공유합니다.
  */
+@Component
 public class PlatformContext {
 
     private final HttpSecurity http;

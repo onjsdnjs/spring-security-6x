@@ -29,38 +29,38 @@ public interface SecurityPlatformDsl {
      */
     IdentityStateDsl form(Customizer<FormDslConfigurer> customizer);
 
-    /**
+  /*  *//**
      * REST 로그인 플로우를 정의합니다.
      *
      * @param customizer RestDslConfigurer 설정 람다
      * @return 상태 선택 DSL
-     */
+     *//*
     IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer);
 
-    /**
+    *//**
      * OTT 로그인 플로우를 정의합니다.
      *
      * @param customizer OttDslConfigurer 설정 람다
      * @return 상태 선택 DSL
-     */
+     *//*
     IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer);
 
-    /**
+    *//**
      * Passkey(WebAuthn) 로그인 플로우를 정의합니다.
      *
      * @param customizer PasskeyDslConfigurer 설정 람다
      * @return 상태 선택 DSL
-     */
+     *//*
     IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
 
-    /**
+    *//**
      * 다중 인증(MFA) 플로우를 정의합니다.
      *
      * @param customizer MfaDslConfigurer 설정 람다
      * @return 상태 선택 DSL
-     */
+     *//*
     IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);
-
+*/
     /**
      * DSL 설정이 모두 끝난 후 호출하여
      * 내부에 누적된 PlatformConfig를 생성합니다.

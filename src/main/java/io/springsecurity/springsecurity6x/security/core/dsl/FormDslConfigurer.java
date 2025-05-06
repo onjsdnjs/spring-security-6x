@@ -8,10 +8,6 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
  */
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
-import io.springsecurity.springsecurity6x.security.core.dsl.impl.FormDslConfigurerImpl;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -19,7 +15,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 /**
  * Form 기반 인증 DSL 인터페이스
  */
-public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurerImpl> {
+public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurer> {
 
     FormDslConfigurer matchers(String... patterns);
     FormDslConfigurer loginPage(String loginPageUrl);
@@ -28,12 +24,11 @@ public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurerIm
     FormDslConfigurer passwordParameter(String passwordParameter);
     FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse);
     FormDslConfigurer failureUrl(String failureUrl);
+    FormDslConfigurer permitAll();
     FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler);
     FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler);
     FormDslConfigurer securityContextRepository(SecurityContextRepository repository);
 
-    /**
-     * Advanced: raw FormLoginConfigurer access for full API coverage
-     */
-    FormDslConfigurer raw(Customizer<FormLoginConfigurer<HttpSecurity>> customizer);
+
 }
+

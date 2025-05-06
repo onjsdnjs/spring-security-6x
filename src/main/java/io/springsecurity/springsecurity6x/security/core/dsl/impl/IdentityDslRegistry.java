@@ -23,14 +23,12 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     @Override
     public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) {
-        // 1) DSL 구현체 인스턴스 생성 및 사용자 정의 로직 실행
-        FormDslConfigurerImpl impl = new FormDslConfigurerImpl();
-        customizer.customize(impl);
 
-        // 2) toConfig()로 캡처된 Consumer<FormLoginConfigurer>가 담긴 AuthenticationStepConfig 생성
+        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
+        FormDslConfigurerImpl impl = new FormDslConfigurerImpl(stepConfig);
+        customizer.customize(impl);
         AuthenticationStepConfig step = impl.toConfig();
 
-        // 3) No-op customizer로 Flow 등록
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.FORM.name().toLowerCase(),  // flow type
                 List.of(step),                       // step configs
@@ -41,7 +39,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         return new StateSetter(this);
     }
 
-    @Override
+    /*@Override
     public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) {
         RestDslConfigurerImpl impl = new RestDslConfigurerImpl();
         customizer.customize(impl);
@@ -91,7 +89,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 http -> {}
         ));
         return new StateSetter(this);
-    }
+    }*/
 
     @Override
     public PlatformConfig build() {
@@ -126,6 +124,6 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     private void setLastState(String stateId) {
         var flow = config.getFlows().get(config.getFlows().size() - 1);
-        flow.setState(new StateConfig(stateId));
+        flow.setStateConfig(new StateConfig(stateId));
     }
 }

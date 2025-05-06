@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.option.FormOptions;
 import org.springframework.security.config.Customizer;
@@ -12,45 +12,99 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.function.ThrowingConsumer;
 
-import java.util.List;
+import java.util.Arrays;
+
 
 /**
  * Form 로그인 DSL 구현체
  */
-public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormDslConfigurerImpl> implements FormDslConfigurer {
+public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Builder, FormDslConfigurer> implements FormDslConfigurer {
 
-    private final FormOptions.Builder opts = FormOptions.builder();
+    public FormDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
+        super(stepConfig, FormOptions.builder());
+    }
 
-    @Override public FormDslConfigurerImpl matchers(String... patterns) { opts.matchers(List.of(patterns)); return self(); }
-    @Override public FormDslConfigurerImpl loginPage(String url) { opts.loginPage(url); return self(); }
-    @Override public FormDslConfigurerImpl loginProcessingUrl(String url) { opts.loginProcessingUrl(url); return self(); }
-    @Override public FormDslConfigurerImpl usernameParameter(String param) { opts.usernameParameter(param); return self(); }
-    @Override public FormDslConfigurerImpl passwordParameter(String param) { opts.passwordParameter(param); return self(); }
-    @Override public FormDslConfigurerImpl defaultSuccessUrl(String url, boolean alwaysUse) { opts.defaultSuccessUrl(url, alwaysUse); return self(); }
-    @Override public FormDslConfigurerImpl failureUrl(String url) { opts.failureUrl(url); return self(); }
-    @Override public FormDslConfigurerImpl successHandler(AuthenticationSuccessHandler h) { opts.successHandler(h); return self(); }
-    @Override public FormDslConfigurerImpl failureHandler(AuthenticationFailureHandler h) { opts.failureHandler(h); return self(); }
-    @Override public FormDslConfigurerImpl securityContextRepository(SecurityContextRepository repo) { opts.securityContextRepository(repo); return self(); }
+    @Override
+    public FormDslConfigurer matchers(String... patterns) {
+        options.matchers(Arrays.asList(patterns));
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer loginPage(String loginPageUrl) {
+        options.loginPage(loginPageUrl);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer loginProcessingUrl(String loginProcessingUrl) {
+        options.loginProcessingUrl(loginProcessingUrl);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer usernameParameter(String usernameParameter) {
+        options.usernameParameter(usernameParameter);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer passwordParameter(String passwordParameter) {
+        options.passwordParameter(passwordParameter);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
+        options.defaultSuccessUrl(defaultSuccessUrl, alwaysUse);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer failureUrl(String failureUrl) {
+        options.failureUrl(failureUrl);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer permitAll() {
+        options.permitAll();
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler) {
+        options.successHandler(successHandler);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler) {
+        options.failureHandler(failureHandler);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer securityContextRepository(SecurityContextRepository repo) {
+        options.securityContextRepository(repo);
+        return this;
+    }
 
     @Override
     public FormDslConfigurer raw(Customizer<FormLoginConfigurer<HttpSecurity>> customizer) {
-        return null;
+        options.raw(customizer);
+        return this;
     }
 
+    /**
+     * AuthenticationStepConfig 생성 및 옵션 저장
+     */
     public AuthenticationStepConfig toConfig() {
-        FormOptions options = opts.build();
-        AuthenticationStepConfig step = new AuthenticationStepConfig();
+        FormOptions optsBuilt = options.build();
+        AuthenticationStepConfig step = getStepConfig();
         step.setType("form");
-        if (!options.getMatchers().isEmpty()) {
-            step.setMatchers(options.getMatchers().toArray(new String[0]));
-        }
-        // Store options object
-        step.getOptions().put("_options", options);
+        step.setMatchers(optsBuilt.getMatchers().toArray(new String[0]));
+        step.getOptions().put("_options", optsBuilt);
         return step;
     }
-
-    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
-        return http -> applyCommon(http);
-    }
 }
-

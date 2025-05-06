@@ -9,37 +9,36 @@ import java.util.List;
  * 각 인증 플로우에 대한 DSL 설정 결과를 담는 모델
  */
 public class AuthenticationFlowConfig {
-    private final String type;
-    private final List<AuthenticationStepConfig> steps;
-    private StateConfig state;
+    private final String typeName;
+    private final List<AuthenticationStepConfig> stepConfigs;
+    private StateConfig stateConfig;
     private final ThrowingConsumer<HttpSecurity> customizer;
 
     public AuthenticationFlowConfig(
-            String type,
-            List<AuthenticationStepConfig> steps,
-            StateConfig state,
-            ThrowingConsumer<HttpSecurity> customizer
-    ) {
-        this.type = type;
-        this.steps = steps;
-        this.state = state;
+            String typeName,
+            List<AuthenticationStepConfig> stepConfigs,
+            StateConfig stateConfig,
+            ThrowingConsumer<HttpSecurity> customizer) {
+        this.typeName = typeName;
+        this.stepConfigs = stepConfigs;
+        this.stateConfig = stateConfig;
         this.customizer = customizer;
     }
 
-    public String getType() {
-        return type;
+    public String getTypeName() {
+        return typeName;
     }
 
-    public List<AuthenticationStepConfig> getSteps() {
-        return steps;
+    public List<AuthenticationStepConfig> getStepConfigs() {
+        return stepConfigs;
     }
 
-    public StateConfig getState() {
-        return state;
+    public StateConfig getStateConfig() {
+        return stateConfig;
     }
 
-    public void setState(StateConfig state) {
-        this.state = state;
+    public void setStateConfig(StateConfig stateConfig) {
+        this.stateConfig = stateConfig;
     }
 
     public ThrowingConsumer<HttpSecurity> getCustomizer() {

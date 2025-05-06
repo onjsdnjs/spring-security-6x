@@ -1,9 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+
+import java.util.List;
 
 /**
  * Auto-bootstrap for security platform:
@@ -11,24 +14,27 @@ import org.springframework.context.annotation.Import;
  * 이 클래스에서 SecurityPlatform에 전달되어 초기화됩니다.
  */
 @Configuration
-@Import(FeatureProvider.class)
 public class PlatformBootstrap implements InitializingBean {
 
     private final SecurityPlatform platform;
     private final PlatformConfig config;
-    private final FeatureProvider provider;
+    private final FeatureRegistry registry;
 
     public PlatformBootstrap(SecurityPlatform platform,
                              PlatformConfig config,
-                             FeatureProvider provider) {
+                             FeatureRegistry featureRegistry) {
         this.platform = platform;
         this.config = config;
-        this.provider = provider;
+        this.registry = featureRegistry;
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        platform.prepareGlobal(config, provider.getFeatures());
+        List<AuthenticationFlowConfig> flows = config.getFlows();
+        // Registry를 통해 필요한 인증 기능 리스트 획득
+        List<AuthenticationFeature> features = registry.getAuthFeaturesFor(flows);
+        // Global 준비
+        platform.prepareGlobal(config, features);
         platform.initialize();
     }
 }

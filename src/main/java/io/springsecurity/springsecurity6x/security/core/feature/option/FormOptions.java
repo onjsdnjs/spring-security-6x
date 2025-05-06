@@ -22,10 +22,11 @@ public final class FormOptions extends AbstractOptions {
     private final String defaultSuccessUrl;
     private final boolean isAlwaysUseDefaultSuccessUrl;
     private final String failureUrl;
+    private final boolean permitAll;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
-    private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
+    private final Customizer<FormLoginConfigurer<HttpSecurity>> raw;
 
     private FormOptions(Builder b) {
         super(b);
@@ -37,10 +38,11 @@ public final class FormOptions extends AbstractOptions {
         this.defaultSuccessUrl = b.defaultSuccessUrl;
         this.isAlwaysUseDefaultSuccessUrl = b.isAlwaysUseDefaultSuccessUrl;
         this.failureUrl = b.failureUrl;
+        this.permitAll = b.permitAll;
         this.successHandler = b.successHandler;
         this.failureHandler = b.failureHandler;
         this.securityContextRepository = b.securityContextRepository;
-        this.rawFormLogin = b.rawFormLogin;
+        this.raw = b.raw;
     }
 
     public List<String> getMatchers() { return matchers; }
@@ -51,12 +53,14 @@ public final class FormOptions extends AbstractOptions {
     public String getDefaultSuccessUrl() { return defaultSuccessUrl; }
     public boolean isAlwaysUseDefaultSuccessUrl() { return isAlwaysUseDefaultSuccessUrl; }
     public String getFailureUrl() { return failureUrl; }
+    public boolean permitAll() { return permitAll; }
     public AuthenticationSuccessHandler getSuccessHandler() { return successHandler; }
     public AuthenticationFailureHandler getFailureHandler() { return failureHandler; }
     public SecurityContextRepository getSecurityContextRepository() { return securityContextRepository; }
-    public Customizer<FormLoginConfigurer<HttpSecurity>> getRawFormLogin() { return rawFormLogin; }
+    public Customizer<FormLoginConfigurer<HttpSecurity>> getRaw() { return raw; }
 
     public static Builder builder() { return new Builder(); }
+
     public static final class Builder extends AbstractOptions.Builder<FormOptions, Builder> {
         private List<String> matchers = List.of("/**");
         private String loginPage = "/login";
@@ -66,10 +70,11 @@ public final class FormOptions extends AbstractOptions {
         private String defaultSuccessUrl = "/";
         private boolean isAlwaysUseDefaultSuccessUrl = false;
         private String failureUrl = "/login?error";
+        private boolean permitAll = false;
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
-        private Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
+        private Customizer<FormLoginConfigurer<HttpSecurity>> raw;
 
         @Override protected Builder self() { return this; }
         public Builder matchers(List<String> m) { this.matchers = Objects.requireNonNull(m); return self(); }
@@ -80,9 +85,10 @@ public final class FormOptions extends AbstractOptions {
         public Builder defaultSuccessUrl(String u, boolean a) { this.defaultSuccessUrl = Objects.requireNonNull(u); this.isAlwaysUseDefaultSuccessUrl = a; return self(); }
         public Builder failureUrl(String u) { this.failureUrl = Objects.requireNonNull(u); return self(); }
         public Builder successHandler(AuthenticationSuccessHandler h) { this.successHandler = h; return self(); }
+        public Builder permitAll() { this.permitAll = true; return self(); }
         public Builder failureHandler(AuthenticationFailureHandler h) { this.failureHandler = h; return self(); }
         public Builder securityContextRepository(SecurityContextRepository r) { this.securityContextRepository = r; return self(); }
-        public Builder rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> c) { this.rawFormLogin = c; return self(); }
+        public Builder raw(Customizer<FormLoginConfigurer<HttpSecurity>> c) { this.raw = c; return self(); }
         @Override public FormOptions build() { return new FormOptions(this); }
     }
 }

@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.feature.SecurityFeature;
 
 import java.util.List;
 
@@ -19,7 +18,7 @@ public interface SecurityPlatform {
      * @param config   DSL 빌드 결과 PlatformConfig
      * @param features 등록된 AuthenticationFeature 구현체 리스트
      */
-    void prepareGlobal(PlatformConfig config, List<AuthenticationFeature> features);
+    void prepareGlobal(PlatformConfig config, List<?> features);
 
     /**
      * 등록된 모든 AuthenticationFeature를 사용하여

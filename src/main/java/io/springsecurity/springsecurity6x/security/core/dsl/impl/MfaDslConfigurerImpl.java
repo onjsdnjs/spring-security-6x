@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
@@ -8,9 +9,11 @@ import org.springframework.security.config.Customizer;
 import java.util.ArrayList;
 import java.util.List;
 
+*/
 /**
  * MFA(다중 인증) 플로우 설정 DSL 구현체
- */
+ *//*
+
 public class MfaDslConfigurerImpl extends AbstractDslConfigurer<MfaDslConfigurerImpl> implements MfaDslConfigurer {
 
     private final List<AuthenticationStepConfig> authConfigs = new ArrayList<>();
@@ -46,11 +49,13 @@ public class MfaDslConfigurerImpl extends AbstractDslConfigurer<MfaDslConfigurer
         authConfigs.add(impl.toConfig());
         return this;
     }
-    /**
+    */
+/**
      * 구성된 인증 단계 리스트를 반환합니다.
      * @return 인증 단계 구성 리스트
-     */
+     *//*
+
     public List<AuthenticationStepConfig> getAuthConfigs() {
         return authConfigs;
     }
-}
+}*/

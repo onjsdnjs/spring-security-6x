@@ -22,7 +22,9 @@ public class SessionStateFeature implements StateFeature {
 
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        configurer.init(http);
-        configurer.configure(http);
+        if(configurer != null){
+            configurer.init(http);
+            configurer.configure(http);
+        }
     }
 }

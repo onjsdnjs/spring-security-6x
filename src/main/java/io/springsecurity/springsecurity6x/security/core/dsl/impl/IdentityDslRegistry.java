@@ -4,7 +4,10 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.*;
+import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.IdentityStateDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
@@ -16,9 +19,24 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
     private final PlatformConfig config = new PlatformConfig();
 
     @Override
-    public SecurityPlatformDsl global(Customizer<HttpSecurity> customizer) {
+    public SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer){
         config.global(customizer);
         return this;
+    }
+
+    public SecurityPlatformDsl global(SafeHttpCustomizer customizer) {
+        return originGlobal(wrapSafe(customizer));
+    }
+
+    private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
+        return http -> {
+            try {
+                safe.customize(http);
+            } catch (Exception e) {
+                // 내부 로그 또는 무시
+                System.err.println("Global customizer exception: " + e.getMessage());
+            }
+        };
     }
 
     @Override

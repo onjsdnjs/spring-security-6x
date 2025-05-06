@@ -19,7 +19,7 @@ public interface SecurityPlatformDsl {
      * @param customizer HttpSecurity 커스터마이저
      * @return this
      */
-    SecurityPlatformDsl global(Customizer<HttpSecurity> customizer);
+    SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer);
 
     /**
      * Form 로그인 플로우를 정의합니다.

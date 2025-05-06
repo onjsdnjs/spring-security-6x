@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -18,8 +19,11 @@ public class PlatformSecurityConfig {
 
         return new IdentityDslRegistry()
                 .global(http -> {
-                    http.csrf(AbstractHttpConfigurer::disable);
-                    http.authorizeHttpRequests(a -> a.anyRequest().permitAll());
+                        http.csrf(AbstractHttpConfigurer::disable);
+                        http.authorizeHttpRequests(authReq -> authReq
+                                .requestMatchers("/api/register").permitAll()
+                                .requestMatchers("/api/**").authenticated()
+                                .anyRequest().permitAll());
                 })
 
                 .form(form -> form
@@ -34,10 +38,10 @@ public class PlatformSecurityConfig {
                             );
                         })
                         .raw(http -> {
-                            http.headers(headers -> headers.frameOptions().disable());
+                            http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         })
                 )
-                .session()
+                .jwt()
                 .build();
     }
 

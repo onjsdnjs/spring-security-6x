@@ -15,4 +15,9 @@ public class HomeController {
     public String authMode() {
         return "auth-mode";
     }
+
+    @GetMapping("/admin")
+    public String admin() {
+        return "admin";
+    }
 }

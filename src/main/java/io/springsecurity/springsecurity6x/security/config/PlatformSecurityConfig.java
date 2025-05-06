@@ -17,16 +17,7 @@ public class PlatformSecurityConfig {
 
         IdentityDslRegistry security = new IdentityDslRegistry();
 
-        security.form(form -> form
-                        .login(f -> {
-                            f.loginPage("/login")                          // 로그인 페이지
-                                    .loginProcessingUrl("/authenticate")          // 처리 URL
-                                    .usernameParameter("username")                // 사용자명 파라미터
-                                    .passwordParameter("password")                // 비밀번호 파라미터
-                                    .defaultSuccessUrl("/home", true)             // 성공 시 기본 리다이렉트
-                                    .failureUrl("/login?error");          // 실패 시 URL
-                        })
-                )
+        security.form(form -> form.loginPage("/login"))
                 .session(); // session 상태 지정
 
                 return security.build();

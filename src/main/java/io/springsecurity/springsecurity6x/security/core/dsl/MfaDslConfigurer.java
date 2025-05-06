@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
+import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.impl.FormDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.impl.MfaDslConfigurerImpl;
 import org.springframework.security.config.Customizer;
 
 import java.util.function.Consumer;
@@ -10,7 +13,7 @@ import java.util.function.Consumer;
  * 사용자는 이 DSL을 통해 여러 인증 단계를 순차적으로 구성할 수 있으며,
  * 플랫폼은 지정된 순서대로 각 인증 단계를 실행합니다.
  */
-public interface MfaDslConfigurer {
+public interface MfaDslConfigurer extends CommonSecurityDsl<MfaDslConfigurerImpl> {
 
     /**
      * Form 인증 단계를 첫 번째 또는 다음 단계로 추가합니다.

@@ -9,25 +9,19 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * REST API 로그인 인증 옵션을 immutable으로 제공하는 클래스.
+ * REST API 로그인 인증 옵션을 immutable 으로 제공하는 클래스.
  */
 @Getter
 public final class RestOptions extends AbstractOptions {
 
-    private final String loginPage;
     private final String loginProcessingUrl;
-    private final String defaultSuccessUrl;
-    private final String failureUrl;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
 
     private RestOptions(Builder b) {
         super(b);
-        this.loginPage = b.loginPage;
         this.loginProcessingUrl = b.loginProcessingUrl;
-        this.defaultSuccessUrl = b.defaultSuccessUrl;
-        this.failureUrl = b.failureUrl;
         this.successHandler = b.successHandler;
         this.failureHandler = b.failureHandler;
         this.securityContextRepository = b.securityContextRepository;
@@ -38,10 +32,7 @@ public final class RestOptions extends AbstractOptions {
     }
 
     public static final class Builder extends AbstractOptions.Builder<RestOptions, Builder> {
-        private String loginPage = "/login";
         private String loginProcessingUrl = "/api/auth/login";
-        private String defaultSuccessUrl = "/";
-        private String failureUrl = "/login?error";
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
@@ -51,23 +42,8 @@ public final class RestOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder loginPage(String u) {
-            this.loginPage = Objects.requireNonNull(u, "loginPage must not be null");
-            return self();
-        }
-
         public Builder loginProcessingUrl(String url) {
             this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
-            return this;
-        }
-
-        public Builder defaultSuccessUrl(String url) {
-            this.defaultSuccessUrl = Objects.requireNonNull(url, "defaultSuccessUrl must not be null");
-            return this;
-        }
-
-        public Builder failureUrl(String url) {
-            this.failureUrl = Objects.requireNonNull(url, "failureUrl must not be null");
             return this;
         }
 

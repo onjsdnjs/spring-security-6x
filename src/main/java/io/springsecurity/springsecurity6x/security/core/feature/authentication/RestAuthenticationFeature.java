@@ -45,10 +45,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
 
         http.with(new RestAuthenticationConfigurer(), rest -> {
             rest
-                .loginPage(opts.getLoginPage())
-                .loginProcessingUrl(opts.getLoginProcessingUrl())
-                .defaultSuccessUrl(opts.getDefaultSuccessUrl())
-                .failureUrl(opts.getFailureUrl());
+                .loginProcessingUrl(opts.getLoginProcessingUrl());
 
             if (opts.getSuccessHandler() != null)
                 rest.successHandler(opts.getSuccessHandler());

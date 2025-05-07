@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.ott.OneTim
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -26,11 +27,11 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     private AuthenticationFailureHandler failureHandler;
     private SecurityContextRepository securityContextRepository;
 
-    public RestAuthenticationConfigurer() {
-    }
+    public RestAuthenticationConfigurer() {}
 
     @Override
     public void configure(H http) throws Exception {
+
         AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
         Assert.notNull(authenticationManager, "AuthenticationManager is required");
 
@@ -50,7 +51,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         }
         restFilter.setSecurityContextHolderStrategy(SecurityContextHolder.getContextHolderStrategy());
 
-        http.addFilter(postProcess(restFilter));
+        http.addFilterBefore(postProcess(restFilter), UsernamePasswordAuthenticationFilter.class);
     }
 
     public RestAuthenticationConfigurer<H> loginProcessingUrl(String loginProcessingUrl) {

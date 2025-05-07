@@ -19,26 +19,8 @@ public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Bui
     }
 
     @Override
-    public RestDslConfigurer loginPage(String loginPage) {
-        options.loginPage(loginPage);
-        return this;
-    }
-
-    @Override
     public RestDslConfigurer loginProcessingUrl(String loginProcessingUrl) {
         options.loginProcessingUrl(loginProcessingUrl);
-        return this;
-    }
-
-    @Override
-    public RestDslConfigurer defaultSuccessUrl(String url) {
-        options.defaultSuccessUrl(url);
-        return this;
-    }
-
-    @Override
-    public RestDslConfigurer failureUrl(String url) {
-        options.failureUrl(url);
         return this;
     }
 

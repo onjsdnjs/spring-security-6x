@@ -44,10 +44,10 @@ public class PlatformSecurityConfig {
                         }))
                         .raw(http -> {
                             http
-                                .authorizeHttpRequests(a -> a
-                                            .requestMatchers("/public/**").permitAll()
+//                                .authorizeHttpRequests(a -> a
+//                                            .requestMatchers("/public/**").permitAll()
 //                                            .anyRequest().authenticated()
-                                )
+//                                )
                                 .headers(headers -> headers
                                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))

@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
-import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,12 +14,12 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
 import javax.crypto.SecretKey;
 import java.util.List;
 
 @EnableConfigurationProperties(AuthContextProperties.class)
 @Configuration
-@RequiredArgsConstructor
 public class SecurityPlatformConfiguration {
 
     @Bean
@@ -40,7 +39,8 @@ public class SecurityPlatformConfiguration {
 
     @Bean
     public List<SecurityConfigurer> securityConfigurers(FeatureRegistry registry) {
-        return List.of(new GlobalConfigurer(), new FlowConfigurer(), new StateConfigurer(registry), new StepConfigurer(registry));
+        return List.of(new GlobalConfigurer(), new FlowConfigurer(),
+                new StateConfigurer(registry), new StepConfigurer(registry));
     }
 
     @Bean
@@ -54,10 +54,8 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public PlatformBootstrap platformBootstrap(
-            SecurityPlatform securityPlatform,
-            PlatformConfig platformConfig,
-            FeatureRegistry registry) {
+    public PlatformBootstrap platformBootstrap(SecurityPlatform securityPlatform,
+                                               PlatformConfig platformConfig, FeatureRegistry registry) {
         return new PlatformBootstrap(securityPlatform, platformConfig, registry);
     }
 

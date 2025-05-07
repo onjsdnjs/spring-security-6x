@@ -19,7 +19,7 @@ import java.io.IOException;
 public class PlatformSecurityConfig {
 
     @Bean
-    public PlatformConfig securityPlatform() {
+    public PlatformConfig securityPlatformDsl() {
 
         return new IdentityDslRegistry()
                 .global(http -> {

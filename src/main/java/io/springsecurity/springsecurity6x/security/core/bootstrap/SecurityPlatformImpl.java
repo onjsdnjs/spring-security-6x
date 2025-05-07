@@ -19,35 +19,27 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * SecurityPlatform 구현체: Global 설정 후, 각 Flow별로
+ * SecurityPlatform 구현체: Global 설정 후, 각 Flow 별로
  * HttpSecurity를 구성하고 SecurityFilterChain을 생성하여 등록합니다.
- */
-/**
- * 분리된 Configurer들을 이용해 보안 체인을 구성합니다.
  */
 @Component
 public class SecurityPlatformImpl implements SecurityPlatform {
     private final PlatformContext context;
-    private final FeatureRegistry registry;
     private final List<SecurityConfigurer> configurers;
-    private final SecretKey secretKey;
-    private final AuthContextProperties properties;
     private PlatformConfig config;
-    private AtomicInteger atomicInteger = new AtomicInteger(1);
+    private final AtomicInteger atomicInteger = new AtomicInteger(1);
 
-    public SecurityPlatformImpl(DefaultPlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
+    public SecurityPlatformImpl(DefaultPlatformContext context, FeatureRegistry registry,
+                                SecretKey secretKey, AuthContextProperties properties) {
         this.context = context;
-        this.registry = registry;
-        this.secretKey = secretKey;
-        this.properties = properties;
         this.configurers = List.of(
                 new GlobalConfigurer(),
                 new FlowConfigurer(),
                 new StateConfigurer(registry),
                 new StepConfigurer(registry)
         );
-        context.share(SecretKey.class, this.secretKey);
-        context.share(AuthContextProperties.class, this.properties);
+        context.share(SecretKey.class, secretKey);
+        context.share(AuthContextProperties.class, properties);
     }
 
     @Override

@@ -33,7 +33,6 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
             try {
                 safe.customize(http);
             } catch (Exception e) {
-                // 내부 로그 또는 무시
                 System.err.println("Global customizer exception: " + e.getMessage());
             }
         };

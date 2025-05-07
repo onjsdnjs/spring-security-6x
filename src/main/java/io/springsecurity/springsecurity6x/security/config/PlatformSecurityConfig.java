@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.Authentication;
@@ -23,11 +24,12 @@ public class PlatformSecurityConfig {
         return new IdentityDslRegistry()
                 .global(http -> {
                         http.csrf(AbstractHttpConfigurer::disable);
-                        http.securityMatcher("/api/**")
-                                .authorizeHttpRequests(authReq -> authReq
-                                .requestMatchers("/api/register").permitAll()
-                                .requestMatchers("/api/**").authenticated()
-                                .anyRequest().permitAll());
+                        http
+//                            .securityMatcher("/api/**")
+                            .authorizeHttpRequests(authReq -> authReq
+                            .requestMatchers("/api/register").permitAll()
+                            .requestMatchers("/api/**").authenticated()
+                            .anyRequest().permitAll());
                 })
 
                 .form(form -> form
@@ -42,15 +44,15 @@ public class PlatformSecurityConfig {
                         }))
                         .raw(http -> {
                             http
-                                /*.authorizeHttpRequests(a -> a
+                                .authorizeHttpRequests(a -> a
                                             .requestMatchers("/public/**").permitAll()
 //                                            .anyRequest().authenticated()
-                                )*/
+                                )
                                 .headers(headers -> headers
                                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
                 .jwt()
+                .form(form -> Customizer.withDefaults()).session()
                 .build();
     }
-
 }

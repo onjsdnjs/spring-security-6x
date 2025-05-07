@@ -3,16 +3,20 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.Ordered;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * SecurityPlatform 구현체: Global 설정 후, 각 Flow별로
@@ -29,6 +33,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     private final SecretKey secretKey;
     private final AuthContextProperties properties;
     private PlatformConfig config;
+    private AtomicInteger atomicInteger = new AtomicInteger(1);
 
     public SecurityPlatformImpl(PlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
         this.context = context;
@@ -58,10 +63,12 @@ public class SecurityPlatformImpl implements SecurityPlatform {
             cfg.configure(context, config.flows());
         }
         for (AuthenticationFlowConfig flow : config.flows()) {
-            SecurityFilterChain chain = context.http().build();
-            String beanName = flow.typeName() + "SecurityFilterChain";
-            context.registerChain(beanName, chain);
-            context.registerAsBean(beanName, chain);
+            DefaultSecurityFilterChain chain = (DefaultSecurityFilterChain)context.http().build();
+            OrderedSecurityFilterChain orderedFilterChain =
+                    new OrderedSecurityFilterChain(Ordered.HIGHEST_PRECEDENCE, chain.getRequestMatcher(), chain.getFilters());
+            String beanName = flow.typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();
+            context.registerChain(beanName, orderedFilterChain);
+            context.registerAsBean(beanName, orderedFilterChain);
         }
     }
 }

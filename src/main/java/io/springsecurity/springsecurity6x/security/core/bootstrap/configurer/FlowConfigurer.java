@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

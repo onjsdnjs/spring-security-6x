@@ -2,7 +2,9 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
 
@@ -14,4 +16,8 @@ public interface SecurityConfigurer {
     default void init(PlatformContext ctx, PlatformConfig cfg) {}
     /** 인증 흐름 및 단계를 적용하는 단계 */
     default void configure(PlatformContext ctx, List<AuthenticationFlowConfig> flows) throws Exception {}
+    /**
+     * 특정 AuthenticationFlow 에 대해 HttpSecurity 를 설정하는 확장 지점.
+     */
+    default void configureHttp(HttpSecurity http, AuthenticationFlowConfig flow) throws Exception {}
 }

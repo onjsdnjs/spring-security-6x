@@ -148,7 +148,7 @@ public final class FormOptions extends AbstractOptions {
         }
 
         public Builder isPermitAll() {
-            this.isAlwaysUseDefaultSuccessUrl = true;
+            this.isPermitAll = true;
             return self();
         }
 

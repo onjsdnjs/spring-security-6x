@@ -4,14 +4,12 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
+import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -35,7 +33,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     private PlatformConfig config;
     private AtomicInteger atomicInteger = new AtomicInteger(1);
 
-    public SecurityPlatformImpl(PlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
+    public SecurityPlatformImpl(DefaultPlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
         this.context = context;
         this.registry = registry;
         this.secretKey = secretKey;
@@ -57,13 +55,18 @@ public class SecurityPlatformImpl implements SecurityPlatform {
 
     @Override
     public void initialize() throws Exception {
-        // init & configure
         for (SecurityConfigurer cfg : configurers) {
             cfg.init(context, config);
             cfg.configure(context, config.flows());
         }
         for (AuthenticationFlowConfig flow : config.flows()) {
-            DefaultSecurityFilterChain chain = (DefaultSecurityFilterChain)context.http().build();
+
+            HttpSecurity http = context.newHttp(); // 각 Flow 마다 새로운 HttpSecurity
+            for (SecurityConfigurer cfg : configurers) {
+                cfg.configureHttp(http, flow); // flow별 DSL 설정
+            }
+
+            DefaultSecurityFilterChain chain = context.newHttp().build();
             OrderedSecurityFilterChain orderedFilterChain =
                     new OrderedSecurityFilterChain(Ordered.HIGHEST_PRECEDENCE, chain.getRequestMatcher(), chain.getFilters());
             String beanName = flow.typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.oauth2;
+package io.springsecurity.springsecurity6x.security.core.feature.oauth2;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;

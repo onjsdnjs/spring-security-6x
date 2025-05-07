@@ -1,7 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.state.jwt;
+package io.springsecurity.springsecurity6x.security.core.feature.jwt;
 
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
-import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
@@ -17,7 +16,6 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.JwtRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,61 +28,64 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
-public class JwtStateConfigurerImpl  {
+/**
+ * JWT 상태 전략을 HttpSecurity에 적용하는 설정자
+ */
+public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigurer, HttpSecurity> {
 
     private final SecretKey key;
     private final AuthContextProperties props;
     private final TokenTransportStrategy transport;
-    private AuthenticationHandlers handlers;
 
-    public JwtStateConfigurerImpl(SecretKey key, AuthContextProperties props) {
+    public JwtStateConfigurer(SecretKey key,
+                              AuthContextProperties props,
+                              TokenTransportStrategy transport) {
         this.key = key;
         this.props = props;
-
-        TokenTransportType transportType = props.getTokenTransportType();
-        this.transport = TokenTransportStrategyFactory.create(transportType);
+        this.transport = transport;
     }
 
-    public AuthenticationHandlers authHandlers() {
-        return handlers;
-    }
-
-   /* public boolean supports(AuthenticationConfig config) {
-        return "jwt".equalsIgnoreCase(config.stateType());
-    }*/
-
+    /** JWT에 필요한 공통 HTTP 설정 (CSRF, 세션 관리, 예외 처리 등) */
+    @Override
     public void init(HttpSecurity http) throws Exception {
-
-        if(props.getTokenTransportType() == TokenTransportType.HEADER){
+        if (props.getTokenTransportType() == TokenTransportType.HEADER) {
             http.csrf(AbstractHttpConfigurer::disable);
-        }else{
-            http.csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
+        } else {
+            http.csrf(csrf -> csrf
+                    .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
         }
         http
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(e -> e
-                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint())
-                    .accessDeniedHandler((request, response, exception) ->
-                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) ->
+                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .accessDeniedHandler((req, res, ex) ->
+                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
     }
 
-    /*public void configure(HttpSecurity http, AuthenticationConfig config) throws Exception {
-
+    /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        // 파서·토큰 생성기·저장소·서비스·핸들러 생성
         TokenParser parser = new JwtTokenParser(key);
-        JwtTokenCreator tokenCreator = new JwtTokenCreator(key);
-        RefreshTokenStore store = new JwtRefreshTokenStore(parser,props);
+        JwtTokenCreator creator = new JwtTokenCreator(key);
+        RefreshTokenStore store = new JwtRefreshTokenStore(parser, props);
         TokenValidator validator = new JwtTokenValidator(parser, store, props.getRefreshRotateThreshold());
-        TokenService tokenService = new JwtTokenService(validator, tokenCreator, store, transport, props);
-        transport.setTokenService(tokenService);
-        handlers  = new JwtAuthenticationHandlers(tokenService);
+        TokenService service = new JwtTokenService(
+                validator, creator, store, transport, props);
+        transport.setTokenService(service);
+        AuthenticationHandlers handlers = new JwtAuthenticationHandlers(service);
 
+        // 로그아웃 설정
         http.logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
 
-        http.addFilterAfter(new JwtAuthorizationFilter(tokenService, handlers.logoutHandler()), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(tokenService, handlers.logoutHandler()), JwtAuthorizationFilter.class);
-        http.addFilterBefore(new JwtPreAuthenticationFilter(tokenService), LogoutFilter.class);
-    }*/
+        // 필터 체인: 권한 검사, 리프레시, 사전 인증 순서
+        http.addFilterAfter(new JwtAuthorizationFilter(service, handlers.logoutHandler()), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, handlers.logoutHandler()), JwtAuthorizationFilter.class);
+        http.addFilterBefore(new JwtPreAuthenticationFilter(service), LogoutFilter.class);
+    }
 }
+

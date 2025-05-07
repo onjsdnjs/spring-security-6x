@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
+package io.springsecurity.springsecurity6x.security.core.feature.jwt;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;

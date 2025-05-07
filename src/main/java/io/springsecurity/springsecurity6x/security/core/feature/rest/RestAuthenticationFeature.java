@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.authentication;
+package io.springsecurity.springsecurity6x.security.core.feature.rest;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
@@ -6,11 +6,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.RestAuthenticationCo
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * REST 기반 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.

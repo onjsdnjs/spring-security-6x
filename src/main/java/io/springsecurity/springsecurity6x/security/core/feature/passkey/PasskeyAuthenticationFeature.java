@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.authentication;
+package io.springsecurity.springsecurity6x.security.core.feature.passkey;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;

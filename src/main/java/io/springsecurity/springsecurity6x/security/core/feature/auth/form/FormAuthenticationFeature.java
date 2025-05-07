@@ -5,9 +5,12 @@ import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 
 import java.util.List;
 import java.util.Objects;
@@ -32,11 +35,22 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
 
         if (steps == null || steps.isEmpty()) return;
 
-        AuthenticationStepConfig step = steps.getFirst();
-        Object optsObj = step.options().get("_options");
-        if (!(optsObj instanceof FormOptions opts)) {
-            throw new IllegalStateException("Expected FormOptions");
-        }
+        AuthenticationStepConfig myStep = steps.stream()
+                .filter(s -> AuthType.FORM.name().equalsIgnoreCase(s.type()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Form step config missing"));
+
+        FormOptions opts = (FormOptions) myStep.options().get("_options");
+        AuthenticationSuccessHandler origSuccess = opts.getSuccessHandler() != null
+                ? opts.getSuccessHandler()
+                : new SimpleUrlAuthenticationSuccessHandler(opts.getDefaultSuccessUrl());
+
+        boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
+
+        // 4) 마지막 스텝일 때만 토큰 발급용 데코레이터를 적용
+        AuthenticationSuccessHandler successHandler = isLastStep
+                ? new TokenIssuingSuccessHandler(null, origSuccess)
+                : origSuccess;
 
         http.formLogin(form -> {
             // apply basic options

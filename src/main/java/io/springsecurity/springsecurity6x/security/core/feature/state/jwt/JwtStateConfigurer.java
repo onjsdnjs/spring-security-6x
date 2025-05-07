@@ -1,13 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
-import io.springsecurity.springsecurity6x.security.core.config.LoginProcessingUrlProvider;
-import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.filter.JwtTokenIssuerFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
@@ -27,10 +24,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.crypto.SecretKey;
 
@@ -79,8 +74,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
         JwtTokenCreator creator = new JwtTokenCreator(key);
         RefreshTokenStore store = new JwtRefreshTokenStore(parser, props);
         TokenValidator validator = new JwtTokenValidator(parser, store, props.getRefreshRotateThreshold());
-        TokenService service = new JwtTokenService(
-                validator, creator, store, transport, props);
+        TokenService service = new JwtTokenService(validator, creator, store, transport, props);
         transport.setTokenService(service);
         AuthenticationHandlers handlers = new JwtAuthenticationHandlers(service);
 
@@ -90,15 +84,6 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
                 .addLogoutHandler(handlers.logoutHandler())
                 .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
 
-        FlowContext fc = ctx.getShared(FlowContext.class);
-        var steps = fc.flow().stepConfigs();
-        var last  = steps.getLast();
-        var opts  = (LoginProcessingUrlProvider) last.options().get("_options");
-
-        String loginUrl = opts.getLoginProcessingUrl();
-        RequestMatcher matcher = new AntPathRequestMatcher(loginUrl, "POST");
-
-        http.addFilterAfter(new JwtTokenIssuerFilter(service, matcher), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtAuthorizationFilter(service, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, handlers.logoutHandler()), JwtAuthorizationFilter.class);
         http.addFilterBefore(new JwtPreAuthenticationFilter(service), LogoutFilter.class);

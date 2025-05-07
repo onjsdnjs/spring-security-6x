@@ -125,19 +125,19 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         }
 
         @Override
-        public SecurityPlatformDsl session() {
+        public SecurityPlatformDsl session(Customizer<FormDslConfigurer> customizer) {
             registry.setLastState(StateType.SESSION.name().toLowerCase());
             return registry;
         }
 
         @Override
-        public SecurityPlatformDsl jwt() {
+        public SecurityPlatformDsl jwt(Customizer<FormDslConfigurer> customizer) {
             registry.setLastState(StateType.JWT.name().toLowerCase());
             return registry;
         }
 
         @Override
-        public SecurityPlatformDsl oauth2() {
+        public SecurityPlatformDsl oauth2(Customizer<FormDslConfigurer> customizer) {
             registry.setLastState(StateType.OAUTH2.name().toLowerCase());
             return registry;
         }

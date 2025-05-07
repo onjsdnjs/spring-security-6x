@@ -49,8 +49,8 @@ public class PlatformSecurityConfig {
                                 .headers(headers -> headers
                                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
-                .session()
-                .rest(rest -> rest.loginProcessingUrl("/api/auth/login")).jwt()
+                .session(session -> Customizer.withDefaults())
+                .rest(rest -> rest.loginProcessingUrl("/api/auth/login")).jwt(jwt -> Customizer.withDefaults())
                 .build();
     }
 }

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import lombok.Getter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -10,9 +11,10 @@ import java.util.Objects;
 /**
  * REST API 로그인 인증 옵션을 immutable으로 제공하는 클래스.
  */
+@Getter
 public final class RestOptions extends AbstractOptions {
 
-    private final List<String> matchers;
+    private final String loginPage;
     private final String loginProcessingUrl;
     private final String defaultSuccessUrl;
     private final String failureUrl;
@@ -22,7 +24,7 @@ public final class RestOptions extends AbstractOptions {
 
     private RestOptions(Builder b) {
         super(b);
-        this.matchers = List.copyOf(b.matchers);
+        this.loginPage = b.loginPage;
         this.loginProcessingUrl = b.loginProcessingUrl;
         this.defaultSuccessUrl = b.defaultSuccessUrl;
         this.failureUrl = b.failureUrl;
@@ -31,40 +33,12 @@ public final class RestOptions extends AbstractOptions {
         this.securityContextRepository = b.securityContextRepository;
     }
 
-    public List<String> getMatchers() {
-        return matchers;
-    }
-
-    public String getLoginProcessingUrl() {
-        return loginProcessingUrl;
-    }
-
-    public String getDefaultSuccessUrl() {
-        return defaultSuccessUrl;
-    }
-
-    public String getFailureUrl() {
-        return failureUrl;
-    }
-
-    public AuthenticationSuccessHandler getSuccessHandler() {
-        return successHandler;
-    }
-
-    public AuthenticationFailureHandler getFailureHandler() {
-        return failureHandler;
-    }
-
-    public SecurityContextRepository getSecurityContextRepository() {
-        return securityContextRepository;
-    }
-
     public static Builder builder() {
         return new Builder();
     }
 
     public static final class Builder extends AbstractOptions.Builder<RestOptions, Builder> {
-        private List<String> matchers = List.of("/**");
+        private String loginPage = "/login";
         private String loginProcessingUrl = "/api/auth/login";
         private String defaultSuccessUrl = "/";
         private String failureUrl = "/login?error";
@@ -77,9 +51,9 @@ public final class RestOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder matchers(List<String> patterns) {
-            this.matchers = Objects.requireNonNull(patterns, "matchers must not be null");
-            return this;
+        public Builder loginPage(String u) {
+            this.loginPage = Objects.requireNonNull(u, "loginPage must not be null");
+            return self();
         }
 
         public Builder loginProcessingUrl(String url) {
@@ -114,9 +88,6 @@ public final class RestOptions extends AbstractOptions {
 
         @Override
         public RestOptions build() {
-            if (matchers.isEmpty()) {
-                throw new IllegalStateException("At least one matcher is required");
-            }
             return new RestOptions(this);
         }
     }

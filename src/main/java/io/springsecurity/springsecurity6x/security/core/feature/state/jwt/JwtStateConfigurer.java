@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
+import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
@@ -17,10 +18,13 @@ import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
@@ -44,7 +48,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
     /** JWT에 필요한 공통 HTTP 설정 (CSRF, 세션 관리, 예외 처리 등) */
     @Override
     public void init(HttpSecurity http) throws Exception {
-        /*if (props.getTokenTransportType() == TokenTransportType.HEADER) {
+        if (props.getTokenTransportType() == TokenTransportType.HEADER) {
             http.csrf(AbstractHttpConfigurer::disable);
         } else {
             http.csrf(csrf -> csrf
@@ -56,7 +60,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
                         .authenticationEntryPoint((req, res, ex) ->
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                         .accessDeniedHandler((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));*/
+                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
     }
 
     /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */

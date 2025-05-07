@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core;
+package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;

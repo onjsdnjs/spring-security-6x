@@ -15,15 +15,13 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public class GlobalConfigurer implements SecurityConfigurer {
 
     @Override
-    public void init(PlatformContext ctx, PlatformConfig cfg) {
-        Customizer<HttpSecurity> customizer = cfg.global();
+    public void configure(FlowContext ctx) throws Exception {
+        Customizer<HttpSecurity> customizer = ctx.config().global();
         if (customizer != null) {
-            for (AuthenticationFlowConfig flow : cfg.flows()) {
-                try {
-                    customizer.customize(ctx.http(flow));
-                } catch (Exception ex) {
-                    log.warn("Global customizer failed for flow: {}", flow.typeName(), ex);
-                }
+            try {
+                customizer.customize(ctx.http());
+            } catch (Exception ex) {
+                log.warn("Global customizer failed for flow: {}", ctx.flow().typeName(), ex);
             }
         }
     }

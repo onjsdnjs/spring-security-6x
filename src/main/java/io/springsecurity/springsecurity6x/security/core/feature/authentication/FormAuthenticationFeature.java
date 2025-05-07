@@ -31,6 +31,7 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
     public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
 
         if (steps == null || steps.isEmpty()) return;
+
         AuthenticationStepConfig step = steps.getFirst();
         Object optsObj = step.options().get("_options");
         if (!(optsObj instanceof FormOptions opts)) {

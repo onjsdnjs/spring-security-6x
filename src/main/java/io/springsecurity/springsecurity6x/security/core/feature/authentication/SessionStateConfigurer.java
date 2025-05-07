@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state;
+package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -7,9 +7,11 @@ public class SessionStateConfigurer extends AbstractHttpConfigurer<SessionStateC
 
     @Override
     public void init(HttpSecurity http) {
+        System.out.println( "SessionStateConfigurer.init()");
     }
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
+        System.out.println( "SessionStateConfigurer.configure()");
     }
 }

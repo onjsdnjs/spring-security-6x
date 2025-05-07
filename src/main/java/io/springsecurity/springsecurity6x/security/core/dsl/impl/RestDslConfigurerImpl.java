@@ -1,54 +1,103 @@
-/*
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.function.ThrowingConsumer;
 
-*/
-/**
- * REST 로그인 DSL 구현체
- *//*
+public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Builder, RestDslConfigurer> implements RestDslConfigurer {
 
-public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestDslConfigurerImpl> implements RestDslConfigurer {
-
-    private String[] matchers;
-    private String loginProcessingUrl;
+    public RestDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
+        super(stepConfig, RestOptions.builder());
+    }
 
     @Override
-    public RestDslConfigurer matchers(String... patterns) {
-        this.matchers = patterns;
+    public RestDslConfigurer loginPage(String loginPage) {
+        options.loginPage(loginPage);
         return this;
     }
 
     @Override
-    public RestDslConfigurer loginProcessingUrl(String url) {
-        this.loginProcessingUrl = url;
+    public RestDslConfigurer loginProcessingUrl(String loginProcessingUrl) {
+        options.loginProcessingUrl(loginProcessingUrl);
         return this;
     }
 
+    @Override
+    public RestDslConfigurer defaultSuccessUrl(String url) {
+        options.defaultSuccessUrl(url);
+        return this;
+    }
+
+    @Override
+    public RestDslConfigurer failureUrl(String url) {
+        options.failureUrl(url);
+        return this;
+    }
+
+    @Override
+    public RestDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
+        options.successHandler(handler);
+        return this;
+    }
+
+    @Override
+    public RestDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
+        options.failureHandler(handler);
+        return this;
+    }
+
+    @Override
+    public RestDslConfigurer securityContextRepository(SecurityContextRepository repository) {
+        options.securityContextRepository(repository);
+        return this;
+    }
+
+    @Override
+    public RestDslConfigurer raw(SafeHttpCustomizer customizer) {
+        return originRaw(wrapSafe(customizer));
+    }
+
+    public RestDslConfigurer originRaw(Customizer<HttpSecurity> customizer) {
+        options.rawHttp(customizer);
+        return this;
+    }
+
+    private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
+        return http -> {
+            try {
+                safe.customize(http);
+            } catch (Exception e) {
+                System.err.println("Rest customizer exception: " + e.getMessage());
+            }
+        };
+    }
+
+    @Override
     public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
-        return http -> applyCommonWithMatcher(http, matchers);
+        return http -> {
+            RestOptions optsBuilt = options.build();
+            try {
+                optsBuilt.applyCommon(http);
+            } catch (Exception e) {
+                // 예외는 내부에서 처리, 로그를 남기거나 무시
+            }
+        };
     }
-
-    */
-/**
-     * DSL 설정값을 AuthenticationStepConfig로 변환합니다.
-     *//*
 
     public AuthenticationStepConfig toConfig() {
-        AuthenticationStepConfig step = new AuthenticationStepConfig();
-        step.setType("rest");
-        if (matchers != null && matchers.length > 0) {
-            step.setMatchers(matchers);
-        }
-        if (loginProcessingUrl != null) {
-            step.getOptions().put("loginProcessingUrl", loginProcessingUrl);
-        }
+        RestOptions optsBuilt = options.build();
+        AuthenticationStepConfig step = getStepConfig();
+        step.type("rest");
+        step.options().put("_options", optsBuilt);
         return step;
     }
 }
 
-*/

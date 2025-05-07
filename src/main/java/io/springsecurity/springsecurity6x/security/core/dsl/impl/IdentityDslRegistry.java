@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.IdentityStateDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -16,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import java.util.List;
 
 public class IdentityDslRegistry implements SecurityPlatformDsl {
+
     private final PlatformConfig config = new PlatformConfig();
 
     @Override
@@ -56,19 +58,21 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         return new StateSetter(this);
     }
 
-    /*@Override
+    @Override
     public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) {
-        RestDslConfigurerImpl impl = new RestDslConfigurerImpl();
+        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
+        RestDslConfigurerImpl impl = new RestDslConfigurerImpl(stepConfig);
         customizer.customize(impl);
+        AuthenticationStepConfig step = impl.toConfig();
         config.addFlow(new AuthenticationFlowConfig(
                 AuthType.REST.name().toLowerCase(),
-                List.of(impl.toConfig()),
+                List.of(step),
                 null,
                 http -> {}
         ));
         return new StateSetter(this);
     }
-
+    /*
     @Override
     public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
         OttDslConfigurerImpl impl = new OttDslConfigurerImpl();

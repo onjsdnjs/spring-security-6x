@@ -2,9 +2,9 @@ package io.springsecurity.springsecurity6x.security.core.feature.authentication;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -20,15 +20,6 @@ import java.util.Objects;
  * - 성공/실패 핸들러와 SecurityContextRepository는 옵션이 없으면 기본 핸들러(provider를 통해 주입된)를 사용합니다.
  */
 public class RestAuthenticationFeature implements AuthenticationFeature {
-
-//    private final AuthenticationHandlers defaultHandlers;
-
-    /**
-     * @param defaultHandlers 기본 성공/실패 핸들러 제공자
-     */
-    /*public RestAuthenticationFeature(AuthenticationHandlers defaultHandlers) {
-        this.defaultHandlers = defaultHandlers;
-    }*/
 
     @Override
     public String getId() {
@@ -48,37 +39,23 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
         AuthenticationStepConfig step = steps.getFirst();
 
         Object optsObj = step.options().get("_options");
-        if (!(optsObj instanceof RestOptions)) {
+        if (!(optsObj instanceof RestOptions opts)) {
             throw new IllegalStateException("Expected RestOptions in step options");
-        }
-        RestOptions opts = (RestOptions) optsObj;
-
-        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
-            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
         }
 
         http.with(new RestAuthenticationConfigurer(), rest -> {
-            rest.loginProcessingUrl(opts.getLoginProcessingUrl())
-                    .defaultSuccessUrl(opts.getDefaultSuccessUrl())
-                    .failureUrl(opts.getFailureUrl());
+            rest
+                .loginPage(opts.getLoginPage())
+                .loginProcessingUrl(opts.getLoginProcessingUrl())
+                .defaultSuccessUrl(opts.getDefaultSuccessUrl())
+                .failureUrl(opts.getFailureUrl());
 
-            AuthenticationSuccessHandler successHandler = Objects.requireNonNullElse(
-                    opts.getSuccessHandler(), null
-//                    defaultHandlers.successHandler()
-            );
-            AuthenticationFailureHandler failureHandler = Objects.requireNonNullElse(
-                    opts.getFailureHandler(), null
-//                    defaultHandlers.failureHandler()
-            );
-            rest.successHandler(successHandler);
-            rest.failureHandler(failureHandler);
-
-            // 5) SecurityContextRepository 설정
-            /*SecurityContextRepository repo = Objects.requireNonNullElse(
-                    opts.securityContextRepository(),
-                    defaultHandlers.securityContextRepository()
-            );
-            rest.securityContextRepository(repo);*/
+            if (opts.getSuccessHandler() != null)
+                rest.successHandler(opts.getSuccessHandler());
+            if (opts.getFailureHandler() != null)
+                rest.failureHandler(opts.getFailureHandler());
+            if (opts.getSecurityContextRepository() != null)
+                rest.securityContextRepository(opts.getSecurityContextRepository());
         });
     }
 }

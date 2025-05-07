@@ -27,7 +27,7 @@ public class PlatformSecurityConfig {
                         http
 //                            .securityMatcher("/api/**")
                             .authorizeHttpRequests(authReq -> authReq
-                            .requestMatchers("/api/register").permitAll()
+                            .requestMatchers("/api/register", "/api/auth/login").permitAll()
                             .requestMatchers("/api/**").authenticated()
                             .anyRequest().permitAll())
                         ;
@@ -43,14 +43,14 @@ public class PlatformSecurityConfig {
                         .raw(http -> {
                             http
 //                                .authorizeHttpRequests(a -> a
-//                                            .requestMatchers("/public/**").permitAll()
-//                                            .anyRequest().authenticated()
+//                                            .requestMatchers("/api/auth/login").permitAll()
+//                                            .anyRequest().permitAll()
 //                                )
                                 .headers(headers -> headers
                                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
-                .jwt()
-                .form(form -> Customizer.withDefaults()).session()
+                .session()
+                .rest(rest -> rest.loginProcessingUrl("/api/auth/login")).jwt()
                 .build();
     }
 }

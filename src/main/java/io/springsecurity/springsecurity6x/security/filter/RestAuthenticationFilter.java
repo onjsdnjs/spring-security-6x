@@ -6,61 +6,117 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.authentication.*;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.util.Assert;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Map;
 
-public class RestAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+public class RestAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final AntPathRequestMatcher DEFAULT_ANT_PATH_REQUEST_MATCHER =
-            new AntPathRequestMatcher("/api/auth/login", "POST");
+    private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
+    private RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/login", "POST");
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    public RestAuthenticationFilter() {
-        setRequiresAuthenticationRequestMatcher(DEFAULT_ANT_PATH_REQUEST_MATCHER);
+    private AuthenticationSuccessHandler successHandler = new SavedRequestAwareAuthenticationSuccessHandler();
+    private AuthenticationFailureHandler failureHandler = new AuthenticationEntryPointFailureHandler(
+            new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+    private SecurityContextRepository securityContextRepository = new RequestAttributeSecurityContextRepository();
+
+    private final AuthenticationManager authenticationManager;
+
+    public RestAuthenticationFilter(AuthenticationManager authenticationManager) {
+        Assert.notNull(authenticationManager, "authenticationManager cannot be null");
+        this.authenticationManager = authenticationManager;
+    }
+
+    public void setRequestMatcher(RequestMatcher requestMatcher) {
+        Assert.notNull(requestMatcher, "requestMatcher cannot be null");
+        this.requestMatcher = requestMatcher;
+    }
+
+    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
+        Assert.notNull(successHandler, "successHandler cannot be null");
+        this.successHandler = successHandler;
+    }
+
+    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
+        Assert.notNull(failureHandler, "failureHandler cannot be null");
+        this.failureHandler = failureHandler;
+    }
+
+    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
+        Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
+        this.securityContextRepository = securityContextRepository;
+    }
+
+    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+        Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
+        this.securityContextHolderStrategy = securityContextHolderStrategy;
     }
 
     @Override
-    public Authentication attemptAuthentication(HttpServletRequest request,
-                                                HttpServletResponse response) throws AuthenticationException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        if (!requestMatcher.matches(request)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
-            ObjectMapper mapper = new ObjectMapper();
+            Authentication authResult = attemptAuthentication(request, response);
+            if (authResult == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
-            LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
-            String username = login.username();
-            String password = login.password();
+            successfulAuthentication(request, response, filterChain, authResult);
 
-            UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(username, password);
-            return this.getAuthenticationManager().authenticate(authRequest);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (AuthenticationException ex) {
+            unsuccessfulAuthentication(request, response, ex);
         }
     }
 
-    @Override
-    protected void successfulAuthentication(HttpServletRequest request,
-                                            HttpServletResponse response,
-                                            FilterChain chain,
-                                            Authentication authResult) throws IOException, ServletException {
-
-        getSuccessHandler().onAuthenticationSuccess(request, response, authResult);
+    private Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+            throws AuthenticationException {
+        try {
+            LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
+            UsernamePasswordAuthenticationToken authRequest =
+                    new UsernamePasswordAuthenticationToken(login.username(), login.password());
+            return authenticationManager.authenticate(authRequest);
+        } catch (IOException e) {
+            throw new RuntimeException("Authentication request body read failed", e);
+        }
     }
 
-    @Override
-    protected void unsuccessfulAuthentication(HttpServletRequest request,
-                                              HttpServletResponse response,
-                                              AuthenticationException failed) throws IOException, ServletException {
+    private void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+                                          Authentication authentication) throws IOException, ServletException {
+        SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+        context.setAuthentication(authentication);
+        securityContextHolderStrategy.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
+        successHandler.onAuthenticationSuccess(request, response, chain, authentication);
+    }
 
-        getFailureHandler().onAuthenticationFailure(request, response, failed);
-
+    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                            AuthenticationException failed) throws IOException, ServletException {
+        securityContextHolderStrategy.clearContext();
+        failureHandler.onAuthenticationFailure(request, response, failed);
     }
 }
 

@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityF
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * HttpSecurity를 구성하고 SecurityFilterChain을 생성하여 등록합니다.
  */
 @Component
+@Slf4j
 public class SecurityPlatformImpl implements SecurityPlatform {
     private final PlatformContext context;
     private final List<SecurityConfigurer> configurers;
@@ -55,7 +57,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
         for (AuthenticationFlowConfig flow : config.flows()) {
             HttpSecurity http = context.newHttp();
             context.registerHttp(flow, http);
-            flowContexts.add(new FlowContext(flow, http, context));
+            flowContexts.add(new FlowContext(flow, http, context, config));
         }
 
         for (SecurityConfigurer cfg : configurers) {

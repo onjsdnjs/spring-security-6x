@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,8 +12,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
  */
 @Slf4j
 public class GlobalConfigurer implements SecurityConfigurer {
+
     @Override
-    public void init(DefaultPlatformContext ctx, PlatformConfig cfg) {
+    public void init(PlatformContext ctx, PlatformConfig cfg) {
         Customizer<HttpSecurity> customizer = cfg.global();
         if (customizer != null) {
             try {

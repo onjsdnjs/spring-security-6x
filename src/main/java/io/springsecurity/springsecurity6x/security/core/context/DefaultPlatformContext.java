@@ -24,15 +24,14 @@ import java.util.Map;
 @Component
 public class DefaultPlatformContext implements PlatformContext{
 
-    private final HttpSecurity http;
+    private HttpSecurity http;
     private final ApplicationContext applicationContext;
     private final ObjectProvider<HttpSecurity> httpProvider;
     private final List<AuthenticationStepConfig> authConfigs = new ArrayList<>();
     private final Map<Class<?>, Object> shared = new HashMap<>();
     private final Map<String, SecurityFilterChain> chains = new HashMap<>();
 
-    public DefaultPlatformContext(HttpSecurity http, ApplicationContext applicationContext, ObjectProvider<HttpSecurity> httpProvider) {
-        this.http = http;
+    public DefaultPlatformContext(ApplicationContext applicationContext, ObjectProvider<HttpSecurity> httpProvider) {
         this.applicationContext = applicationContext;
         this.httpProvider = httpProvider;
     }
@@ -63,7 +62,8 @@ public class DefaultPlatformContext implements PlatformContext{
 
     @Override
     public HttpSecurity newHttp() throws Exception {
-        return httpProvider.getObject();
+        http = httpProvider.getObject();
+        return http;
     }
 
     @Override

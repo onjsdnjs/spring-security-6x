@@ -55,23 +55,21 @@ public class SecurityPlatformImpl implements SecurityPlatform {
 
     @Override
     public void initialize() throws Exception {
-        for (SecurityConfigurer cfg : configurers) {
-            cfg.init(context, config);
-            cfg.configure(context, config.flows());
-        }
+
         for (AuthenticationFlowConfig flow : config.flows()) {
 
             HttpSecurity http = context.newHttp(); // 각 Flow 마다 새로운 HttpSecurity
-            for (SecurityConfigurer cfg : configurers) {
-                cfg.configureHttp(http, flow); // flow별 DSL 설정
-            }
-
-            DefaultSecurityFilterChain chain = context.newHttp().build();
+            DefaultSecurityFilterChain chain = http.build();
             OrderedSecurityFilterChain orderedFilterChain =
                     new OrderedSecurityFilterChain(Ordered.HIGHEST_PRECEDENCE, chain.getRequestMatcher(), chain.getFilters());
             String beanName = flow.typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();
             context.registerChain(beanName, orderedFilterChain);
             context.registerAsBean(beanName, orderedFilterChain);
+        }
+
+        for (SecurityConfigurer cfg : configurers) {
+            cfg.init(context, config);
+            cfg.configure(context, config.flows());
         }
     }
 }

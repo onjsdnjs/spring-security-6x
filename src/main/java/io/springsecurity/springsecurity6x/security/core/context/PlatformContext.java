@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.context;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
@@ -45,7 +46,8 @@ public interface PlatformContext {
     /**
      * 스프링이 주입한 HttpSecurity 인스턴스를 반환합니다.
      */
-    HttpSecurity http();
+    void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http);
+    HttpSecurity http(AuthenticationFlowConfig flow);
 
     /**
      * 새로운 HttpSecurity 인스턴스를 반환합니다.

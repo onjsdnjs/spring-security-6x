@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
@@ -14,13 +16,15 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 public class GlobalConfigurer implements SecurityConfigurer {
 
     @Override
-    public void init(PlatformContext ctx, PlatformConfig cfg) {
+    public void init(FlowContext ctx, PlatformConfig cfg) {
         Customizer<HttpSecurity> customizer = cfg.global();
         if (customizer != null) {
-            try {
-                customizer.customize(ctx.http());
-            } catch (Exception ex) {
-                log.warn("Global customizer failed, ignored", ex);
+            for (AuthenticationFlowConfig flow : cfg.flows()) {
+                try {
+                    customizer.customize(ctx.context().http(flow));
+                } catch (Exception ex) {
+                    log.warn("Global customizer failed for flow: {}", flow.typeName(), ex);
+                }
             }
         }
     }

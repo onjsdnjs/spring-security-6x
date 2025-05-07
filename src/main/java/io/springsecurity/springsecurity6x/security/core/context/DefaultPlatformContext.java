@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.context;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -30,6 +31,7 @@ public class DefaultPlatformContext implements PlatformContext{
     private final List<AuthenticationStepConfig> authConfigs = new ArrayList<>();
     private final Map<Class<?>, Object> shared = new HashMap<>();
     private final Map<String, SecurityFilterChain> chains = new HashMap<>();
+    private final Map<AuthenticationFlowConfig, HttpSecurity> flowHttpMap = new HashMap<>();
 
     public DefaultPlatformContext(ApplicationContext applicationContext, ObjectProvider<HttpSecurity> httpProvider) {
         this.applicationContext = applicationContext;
@@ -56,8 +58,14 @@ public class DefaultPlatformContext implements PlatformContext{
         return (T) shared.get(clz);
     }
 
-    public HttpSecurity http() {
-        return http;
+    @Override
+    public void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http) {
+        flowHttpMap.put(flow, http);
+    }
+
+    @Override
+    public HttpSecurity http(AuthenticationFlowConfig flow) {
+        return flowHttpMap.get(flow);
     }
 
     @Override

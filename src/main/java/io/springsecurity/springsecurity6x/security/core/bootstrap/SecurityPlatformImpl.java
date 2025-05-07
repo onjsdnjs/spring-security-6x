@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Component
 public class SecurityPlatformImpl implements SecurityPlatform {
-    private final PlatformContext platformContext;
+    private final PlatformContext context;
     private final FeatureRegistry registry;
     private final List<SecurityConfigurer> configurers;
     private final SecretKey secretKey;
@@ -35,8 +35,8 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     private PlatformConfig config;
     private AtomicInteger atomicInteger = new AtomicInteger(1);
 
-    public SecurityPlatformImpl(DefaultPlatformContext platformContext, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
-        this.platformContext = platformContext;
+    public SecurityPlatformImpl(DefaultPlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
+        this.context = context;
         this.registry = registry;
         this.secretKey = secretKey;
         this.properties = properties;
@@ -46,8 +46,8 @@ public class SecurityPlatformImpl implements SecurityPlatform {
                 new StateConfigurer(registry),
                 new StepConfigurer(registry)
         );
-        platformContext.share(SecretKey.class, this.secretKey);
-        platformContext.share(AuthContextProperties.class, this.properties);
+        context.share(SecretKey.class, this.secretKey);
+        context.share(AuthContextProperties.class, this.properties);
     }
 
     @Override
@@ -61,27 +61,25 @@ public class SecurityPlatformImpl implements SecurityPlatform {
         List<FlowContext> flowContexts = new ArrayList<>();
 
         for (AuthenticationFlowConfig flow : config.flows()) {
-            HttpSecurity http = platformContext.newHttp();
-            flowContexts.add(new FlowContext(flow, http));
+            HttpSecurity http = context.newHttp();
+            context.registerHttp(flow, http);
+            flowContexts.add(new FlowContext(flow, http, context));
         }
 
         for (FlowContext fc : flowContexts) {
             for (SecurityConfigurer cfg : configurers) {
+                cfg.init(fc, config);
                 cfg.configure(fc);
             }
         }
+
         for (FlowContext fc : flowContexts) {
             DefaultSecurityFilterChain chain = fc.http().build();
             OrderedSecurityFilterChain orderedFilterChain =
                     new OrderedSecurityFilterChain(Ordered.HIGHEST_PRECEDENCE, chain.getRequestMatcher(), chain.getFilters());
             String beanName = fc.flow().typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();
-            platformContext.registerChain(beanName, orderedFilterChain);
-            platformContext.registerAsBean(beanName, orderedFilterChain);
-        }
-
-        for (SecurityConfigurer cfg : configurers) {
-            cfg.init(platformContext, config);
-            cfg.configure(platformContext, config.flows());
+            context.registerChain(beanName, orderedFilterChain);
+            context.registerAsBean(beanName, orderedFilterChain);
         }
     }
 }

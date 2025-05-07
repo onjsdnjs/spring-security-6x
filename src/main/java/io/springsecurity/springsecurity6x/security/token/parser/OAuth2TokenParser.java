@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.parser;
 
-import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ResourceClient;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2ResourceClient;
 
 import java.time.Instant;
 import java.util.Arrays;

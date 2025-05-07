@@ -1,11 +1,8 @@
-package io.springsecurity.springsecurity6x.security.core.issuer.local;
+package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
-import io.springsecurity.springsecurity6x.security.core.RestAuthenticationConfigurer;
-import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
@@ -20,30 +17,25 @@ import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
 /**
  * JWT 상태 전략을 HttpSecurity에 적용하는 설정자
  */
-public class JwtIssuer extends AbstractHttpConfigurer<JwtIssuer, HttpSecurity> {
+public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigurer, HttpSecurity> {
 
     private final SecretKey key;
     private final AuthContextProperties props;
     private final TokenTransportStrategy transport;
 
-    public JwtIssuer(SecretKey key,
-                     AuthContextProperties props,
-                     TokenTransportStrategy transport) {
+    public JwtStateConfigurer(SecretKey key,
+                              AuthContextProperties props,
+                              TokenTransportStrategy transport) {
         this.key = key;
         this.props = props;
         this.transport = transport;

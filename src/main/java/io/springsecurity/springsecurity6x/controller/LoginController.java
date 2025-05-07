@@ -7,12 +7,19 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
 @RequiredArgsConstructor
 public class LoginController {
 
     private final CodeStore codeStore;
+
+    @GetMapping("/login")
+    @ResponseBody
+    public String login() {
+        return "login";
+    }
 
     @GetMapping("/loginForm")
     public String loginForm() {

@@ -1,15 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.state.oauth2;
 
-import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ClientRequest;
-import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2HttpClient;
-import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2ResourceClient;
-import io.springsecurity.springsecurity6x.security.core.state.oauth2.client.OAuth2TokenProvider;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2ClientRequest;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2HttpClient;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2ResourceClient;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2TokenProvider;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
-import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
-import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.OAuth2AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.OAuth2TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.service.OAuth2TokenService;
@@ -18,8 +15,6 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import io.springsecurity.springsecurity6x.security.token.validator.OAuth2TokenValidator;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 /**

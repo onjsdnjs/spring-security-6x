@@ -29,19 +29,17 @@ public class PlatformSecurityConfig {
                             .authorizeHttpRequests(authReq -> authReq
                             .requestMatchers("/api/register").permitAll()
                             .requestMatchers("/api/**").authenticated()
-                            .anyRequest().permitAll());
+                            .anyRequest().permitAll())
+                        ;
                 })
 
                 .form(form -> form
                         .loginPage("/login")
                         .usernameParameter("user")
                         .passwordParameter("pass")
-                        .rawLogin(f -> f.successHandler(new AuthenticationSuccessHandler() {
-                            @Override
-                            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-                                System.out.println("request = " + request);
-                            }
-                        }))
+                        .rawLogin(f -> f.successHandler(
+                                (request, response, authentication) ->
+                                        System.out.println("request = " + request)))
                         .raw(http -> {
                             http
 //                                .authorizeHttpRequests(a -> a

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.state.oauth2.client;
+package io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;

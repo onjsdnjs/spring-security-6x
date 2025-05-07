@@ -1,8 +1,7 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state;
+package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.issuer.local.JwtIssuer;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -19,7 +18,7 @@ public class JwtStateFeature implements StateFeature {
     private AuthContextProperties props;
     private TokenTransportStrategy transport;
     private AuthenticationHandlers handlers;
-    private JwtIssuer configurer;
+    private JwtStateConfigurer configurer;
 
     @Override
     public String getId() {
@@ -28,18 +27,14 @@ public class JwtStateFeature implements StateFeature {
 
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
-        // 1) PlatformContext 에서 빈 꺼내오기
+
         SecretKey key = ctx.getShared(SecretKey.class);
         AuthContextProperties props = ctx.getShared(AuthContextProperties.class);
 
-        // 2) 토큰 전송 전략 생성
         TokenTransportType transportType = props.getTokenTransportType();
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(transportType);
 
-        // 3) JwtConfigurer를 런타임에 생성하여 초기화·설정 수행
-        JwtIssuer configurer = new JwtIssuer(key, props, transport);
+        JwtStateConfigurer configurer = new JwtStateConfigurer(key, props, transport);
         http.with(configurer, Customizer.withDefaults());
-//        configurer.init(http);
-//        configurer.configure(http);
     }
 }

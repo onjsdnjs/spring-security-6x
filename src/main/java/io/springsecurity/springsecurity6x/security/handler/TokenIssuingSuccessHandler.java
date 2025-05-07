@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
@@ -12,40 +11,47 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 /**
- * 원본 AuthenticationSuccessHandler 앞뒤에 토큰 발급 로직을 삽입하는 데코레이터
+ * TokenService를 직접 들고 있지 않고, Supplier로 필요 시점에 가져옵니다.
  */
-@Slf4j
 public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler {
-    private final TokenService tokenService;
+    private final Supplier<TokenService> tokenServiceSupplier;
     private final AuthenticationSuccessHandler delegate;
 
-    public TokenIssuingSuccessHandler(TokenService tokenService,
+    public TokenIssuingSuccessHandler(Supplier<TokenService> tokenServiceSupplier,
                                       AuthenticationSuccessHandler delegate) {
-        this.tokenService = tokenService;
-        this.delegate     = delegate;
+        this.tokenServiceSupplier = tokenServiceSupplier;
+        this.delegate             = delegate;
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+    public void onAuthenticationSuccess(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        Authentication authentication)
             throws IOException, ServletException {
+        // 1) Supplier에서 TokenService 꺼내기
+        TokenService tokenService = tokenServiceSupplier.get();
 
+        // 2) Device ID 검사
         String deviceId = request.getHeader("X-Device-Id");
         if (!StringUtils.hasText(deviceId)) {
             throw new BadCredentialsException("Device ID missing");
         }
+
+        // 3) 토큰 생성·전송
         try {
             String access  = tokenService.createAccessToken(authentication, deviceId);
             String refresh = tokenService.createRefreshToken(authentication, deviceId);
             tokenService.writeAccessAndRefreshToken(response, access, refresh);
         } catch (Exception e) {
-            log.error("Token creation or response writing failed", e);
-            throw new AuthenticationServiceException("토큰 발급 실패", e);
+            throw new AuthenticationServiceException("Token issuance failed", e);
         }
 
-        // 2) 원본 성공 핸들러 호출 (redirect 등)
+        // 4) 원본 성공 핸들러 호출
         delegate.onAuthenticationSuccess(request, response, authentication);
     }
 }
+
 

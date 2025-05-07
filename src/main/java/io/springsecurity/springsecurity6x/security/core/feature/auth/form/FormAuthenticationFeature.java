@@ -2,10 +2,12 @@ package io.springsecurity.springsecurity6x.security.core.feature.auth.form;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
@@ -14,6 +16,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Form 기반 로그인 전략을 적용하는 Feature 구현체
@@ -47,32 +50,39 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
 
         boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
 
-        // 4) 마지막 스텝일 때만 토큰 발급용 데코레이터를 적용
-        AuthenticationSuccessHandler successHandler = isLastStep
-                ? new TokenIssuingSuccessHandler(null, origSuccess)
-                : origSuccess;
+        AuthenticationSuccessHandler successHandler;
+        if (isLastStep) {
+            // Supplier로 TokenService를 PlatformContext 에서 꺼내도록
+            Supplier<TokenService> tokenSvcSupplier = () ->
+                    http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
+
+            successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
+        } else {
+            successHandler = origSuccess;
+        }
 
         http.formLogin(form -> {
             // apply basic options
             form.loginPage(opts.getLoginPage())
-                    .loginProcessingUrl(opts.getLoginProcessingUrl())
-                    .usernameParameter(opts.getUsernameParameter())
-                    .passwordParameter(opts.getPasswordParameter())
-                    .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
-                    .failureUrl(opts.getFailureUrl())
-                    .permitAll(opts.isPermitAll());
+                .loginProcessingUrl(opts.getLoginProcessingUrl())
+                .usernameParameter(opts.getUsernameParameter())
+                .passwordParameter(opts.getPasswordParameter())
+                .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
+                .failureUrl(opts.getFailureUrl())
+                .permitAll(opts.isPermitAll())
+                .successHandler(successHandler)
+                .failureHandler(opts.getFailureHandler());
 
-            if (opts.getSuccessHandler() != null) form.successHandler(opts.getSuccessHandler());
-            if (opts.getFailureHandler() != null) form.failureHandler(opts.getFailureHandler());
-            if (opts.getSecurityContextRepository() != null) form.securityContextRepository(opts.getSecurityContextRepository());
+            if (opts.getSecurityContextRepository() != null) {
+                form.securityContextRepository(opts.getSecurityContextRepository());
+            }
 
-            // raw FormLoginConfigurer 커스터마이저
             Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = opts.getRawFormLogin();
             if (rawLogin != null) {
                 rawLogin.customize(form);
             }
         });
-        // raw HttpSecurity 커스터마이저들 적용
+
         List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();
         for (Customizer<HttpSecurity> customizer : httpCustomizers) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);

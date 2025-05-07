@@ -34,7 +34,7 @@ public class JwtStateFeature implements StateFeature {
         TokenTransportType transportType = props.getTokenTransportType();
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(transportType);
 
-        JwtStateConfigurer configurer = new JwtStateConfigurer(key, props, transport);
+        JwtStateConfigurer configurer = new JwtStateConfigurer(key, props, transport, ctx);
         http.with(configurer, Customizer.withDefaults());
     }
 }

@@ -14,11 +14,8 @@ public class AuthenticationFlowConfig {
     private StateConfig stateConfig;
     private final ThrowingConsumer<HttpSecurity> customizer;
 
-    public AuthenticationFlowConfig(
-            String typeName,
-            List<AuthenticationStepConfig> stepConfigs,
-            StateConfig stateConfig,
-            ThrowingConsumer<HttpSecurity> customizer) {
+    public AuthenticationFlowConfig(String typeName, List<AuthenticationStepConfig> stepConfigs,
+                                    StateConfig stateConfig, ThrowingConsumer<HttpSecurity> customizer) {
         this.typeName = typeName;
         this.stepConfigs = stepConfigs;
         this.stateConfig = stateConfig;

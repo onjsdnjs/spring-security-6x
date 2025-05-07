@@ -26,6 +26,7 @@ public class DefaultPlatformContext implements PlatformContext{
 
     private HttpSecurity http;
     private final ApplicationContext applicationContext;
+    private FlowContext flowContext;
     private final ObjectProvider<HttpSecurity> httpProvider;
     private final List<AuthenticationStepConfig> authConfigs = new ArrayList<>();
     private final Map<Class<?>, Object> shared = new HashMap<>();

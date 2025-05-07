@@ -14,7 +14,6 @@ import org.springframework.security.web.DefaultSecurityFilterChain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * SecurityPlatform 구현체: Global 설정 후, 각 Flow 별로
@@ -61,7 +60,9 @@ public class SecurityPlatformImpl implements SecurityPlatform {
             try {
                 HttpSecurity http = context.newHttp();          // 예외 발생 지점
                 context.registerHttp(flow, http);
-                contexts.add(new FlowContext(flow, http, context, config));
+                FlowContext flowContext = new FlowContext(flow, http, context, config);
+                context.share(FlowContext.class, flowContext);
+                contexts.add(flowContext);
             } catch (Exception ex) {
                 // 예외를 로그에 남기고 해당 플로우는 건너뛸지,
                 // 아니면 런타임 예외로 전환해 호출자에게 던질지 결정

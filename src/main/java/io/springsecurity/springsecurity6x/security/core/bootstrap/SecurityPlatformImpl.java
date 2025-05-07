@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
@@ -13,6 +14,7 @@ import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -25,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Component
 public class SecurityPlatformImpl implements SecurityPlatform {
-    private final PlatformContext context;
+    private final PlatformContext platformContext;
     private final FeatureRegistry registry;
     private final List<SecurityConfigurer> configurers;
     private final SecretKey secretKey;
@@ -33,8 +35,8 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     private PlatformConfig config;
     private AtomicInteger atomicInteger = new AtomicInteger(1);
 
-    public SecurityPlatformImpl(DefaultPlatformContext context, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
-        this.context = context;
+    public SecurityPlatformImpl(DefaultPlatformContext platformContext, FeatureRegistry registry, SecretKey secretKey, AuthContextProperties properties) {
+        this.platformContext = platformContext;
         this.registry = registry;
         this.secretKey = secretKey;
         this.properties = properties;
@@ -44,8 +46,8 @@ public class SecurityPlatformImpl implements SecurityPlatform {
                 new StateConfigurer(registry),
                 new StepConfigurer(registry)
         );
-        context.share(SecretKey.class, this.secretKey);
-        context.share(AuthContextProperties.class, this.properties);
+        platformContext.share(SecretKey.class, this.secretKey);
+        platformContext.share(AuthContextProperties.class, this.properties);
     }
 
     @Override
@@ -56,20 +58,30 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     @Override
     public void initialize() throws Exception {
 
-        for (AuthenticationFlowConfig flow : config.flows()) {
+        List<FlowContext> flowContexts = new ArrayList<>();
 
-            HttpSecurity http = context.newHttp(); // 각 Flow 마다 새로운 HttpSecurity
-            DefaultSecurityFilterChain chain = http.build();
+        for (AuthenticationFlowConfig flow : config.flows()) {
+            HttpSecurity http = platformContext.newHttp();
+            flowContexts.add(new FlowContext(flow, http));
+        }
+
+        for (FlowContext fc : flowContexts) {
+            for (SecurityConfigurer cfg : configurers) {
+                cfg.configure(fc);
+            }
+        }
+        for (FlowContext fc : flowContexts) {
+            DefaultSecurityFilterChain chain = fc.http().build();
             OrderedSecurityFilterChain orderedFilterChain =
                     new OrderedSecurityFilterChain(Ordered.HIGHEST_PRECEDENCE, chain.getRequestMatcher(), chain.getFilters());
-            String beanName = flow.typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();
-            context.registerChain(beanName, orderedFilterChain);
-            context.registerAsBean(beanName, orderedFilterChain);
+            String beanName = fc.flow().typeName() + "SecurityFilterChain" + atomicInteger.getAndIncrement();
+            platformContext.registerChain(beanName, orderedFilterChain);
+            platformContext.registerAsBean(beanName, orderedFilterChain);
         }
 
         for (SecurityConfigurer cfg : configurers) {
-            cfg.init(context, config);
-            cfg.configure(context, config.flows());
+            cfg.init(platformContext, config);
+            cfg.configure(platformContext, config.flows());
         }
     }
 }

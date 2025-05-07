@@ -66,9 +66,12 @@ public class SecurityPlatformImpl implements SecurityPlatform {
             flowContexts.add(new FlowContext(flow, http, context));
         }
 
+        for (SecurityConfigurer cfg : configurers) {
+            cfg.init(context, config);
+        }
+
         for (FlowContext fc : flowContexts) {
             for (SecurityConfigurer cfg : configurers) {
-                cfg.init(fc, config);
                 cfg.configure(fc);
             }
         }

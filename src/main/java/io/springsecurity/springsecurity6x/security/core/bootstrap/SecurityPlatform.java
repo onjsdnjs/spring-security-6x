@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 
 import java.util.List;
 

@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistr
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

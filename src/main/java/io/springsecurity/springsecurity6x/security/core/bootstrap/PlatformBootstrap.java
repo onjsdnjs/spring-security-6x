@@ -13,16 +13,13 @@ import java.util.List;
  * SecurityConfig 에서 정의된 PlatformConfig와 FeatureProvider가
  * 이 클래스에서 SecurityPlatform에 전달되어 초기화됩니다.
  */
-@Configuration
 public class PlatformBootstrap implements InitializingBean {
 
     private final SecurityPlatform platform;
     private final PlatformConfig config;
     private final FeatureRegistry registry;
 
-    public PlatformBootstrap(SecurityPlatform platform,
-                             PlatformConfig config,
-                             FeatureRegistry featureRegistry) {
+    public PlatformBootstrap(SecurityPlatform platform, PlatformConfig config, FeatureRegistry featureRegistry) {
         this.platform = platform;
         this.config = config;
         this.registry = featureRegistry;

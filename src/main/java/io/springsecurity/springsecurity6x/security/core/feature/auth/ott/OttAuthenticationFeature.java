@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.ott;
+package io.springsecurity.springsecurity6x.security.core.feature.auth.ott;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;

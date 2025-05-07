@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.rest;
+package io.springsecurity.springsecurity6x.security.core.feature.auth.rest;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;

@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 /**
  * DSL 플로우에 매핑된 Feature 들을 중앙에서 관리합니다.
  */
-@Component
 public class FeatureRegistry {
     private final Map<String, AuthenticationFeature> authFeatures = new HashMap<>();
     private final Map<String, StateFeature> stateFeatures = new HashMap<>();

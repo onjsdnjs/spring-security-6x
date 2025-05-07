@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.form;
+package io.springsecurity.springsecurity6x.security.core.feature.auth.form;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;

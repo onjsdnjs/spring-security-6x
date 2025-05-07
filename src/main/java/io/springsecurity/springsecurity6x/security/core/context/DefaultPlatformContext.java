@@ -22,7 +22,6 @@ import java.util.Map;
  * 스프링이 주입한 HttpSecurity 인스턴스를 보관하며,
  * AuthenticationFeature 및 SecurityFeature 구현체에게 공유합니다.
  */
-@Component
 public class DefaultPlatformContext implements PlatformContext{
 
     private HttpSecurity http;

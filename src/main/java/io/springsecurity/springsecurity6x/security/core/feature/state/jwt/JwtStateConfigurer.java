@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.jwt;
+package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.session;
+package io.springsecurity.springsecurity6x.security.core.feature.state.session;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;

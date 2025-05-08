@@ -73,7 +73,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
         AuthenticationSuccessHandler successHandler;
         if (isLastStep) {
             Supplier<TokenService> tokenSvcSupplier = () ->
-                    http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
+                    http.getSharedObject(TokenService.class);
 
             successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
         } else {
@@ -85,12 +85,10 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
             rest
                 .loginProcessingUrl(opts.getLoginProcessingUrl());
 
-            if (opts.getSuccessHandler() != null)
-                rest.successHandler(successHandler);
-            if (opts.getFailureHandler() != null)
-                rest.failureHandler(opts.getFailureHandler());
-            if (opts.getSecurityContextRepository() != null)
-                rest.securityContextRepository(opts.getSecurityContextRepository());
+            rest.successHandler(opts.getSuccessHandler() == null ? successHandler : opts.getSuccessHandler());
+            if (opts.getFailureHandler() != null) rest.failureHandler(opts.getFailureHandler());
+            if (opts.getSecurityContextRepository() != null) rest.securityContextRepository(opts.getSecurityContextRepository());
+
         });
 
         List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();

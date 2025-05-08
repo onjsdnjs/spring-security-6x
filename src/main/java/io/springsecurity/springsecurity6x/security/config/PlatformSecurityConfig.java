@@ -27,10 +27,12 @@ public class PlatformSecurityConfig {
 //                    http.csrf(AbstractHttpConfigurer::disable);
                     http
 //                            .securityMatcher("/api/**")
-                            .authorizeHttpRequests(authReq -> authReq
-                                    .requestMatchers("/api/register").permitAll()
-                                    .requestMatchers("/api/**").authenticated()
-                                    .anyRequest().permitAll())
+                        .authorizeHttpRequests(authReq -> authReq
+                                .requestMatchers("/api/register").permitAll()
+                                .requestMatchers("/api/**").authenticated()
+                                .anyRequest().permitAll())
+                        .headers(headers -> headers
+                                .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                     ;
                 })
 
@@ -55,12 +57,10 @@ public class PlatformSecurityConfig {
                         .order(1)
                         .loginProcessingUrl("/api/auth/login")
                         .raw(http -> { http
-                                .securityMatcher("/api/auth/**")
+                                .securityMatcher("/api/auth/**");
 //                                .authorizeHttpRequests(a -> a
 //                                        .requestMatchers("/api/auth/login").permitAll()
 //                                )
-                                .headers(headers -> headers
-                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
                 .jwt(jwt -> Customizer.withDefaults())
                 .build();

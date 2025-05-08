@@ -20,12 +20,14 @@ public class JwtTokenServiceFactory {
         AuthContextProperties props = ctx.getShared(AuthContextProperties.class);
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(props.getTokenTransportType());
 
-        return new JwtTokenService(
+        JwtTokenService tokenService = new JwtTokenService(
                 new JwtTokenValidator(new JwtTokenParser(key), new JwtRefreshTokenStore(new JwtTokenParser(key), props), props.getRefreshRotateThreshold()),
                 new JwtTokenCreator(key),
                 new JwtRefreshTokenStore(new JwtTokenParser(key), props),
                 transport,
                 props
         );
+        transport.setTokenService(tokenService);
+        return tokenService;
     }
 }

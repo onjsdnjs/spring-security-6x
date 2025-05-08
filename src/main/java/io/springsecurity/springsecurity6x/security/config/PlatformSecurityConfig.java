@@ -30,7 +30,7 @@ public class PlatformSecurityConfig {
                     http
 //                            .securityMatcher("/api/**")
                         .authorizeHttpRequests(authReq -> authReq
-                                .requestMatchers("/api/register").permitAll()
+                                .requestMatchers("/api/register", "/api/auth/login", "/api/auth/refresh").permitAll()
                                 .requestMatchers("/api/**").authenticated()
                                 .anyRequest().permitAll())
                         .headers(headers -> headers

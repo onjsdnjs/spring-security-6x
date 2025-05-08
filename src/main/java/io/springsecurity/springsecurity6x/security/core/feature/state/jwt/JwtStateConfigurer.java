@@ -10,8 +10,6 @@ import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
-import java.util.function.Supplier;
-
 /**
  * JWT 상태 전략을 HttpSecurity에 적용하는 설정자
  */

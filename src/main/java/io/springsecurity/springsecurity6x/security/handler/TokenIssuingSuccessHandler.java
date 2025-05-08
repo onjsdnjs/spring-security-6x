@@ -44,7 +44,7 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler 
         }
 
         // 4) 원본 성공 핸들러 호출
-        delegate.onAuthenticationSuccess(request, response, authentication);
+//        delegate.onAuthenticationSuccess(request, response, authentication);
     }
 }
 

@@ -11,6 +11,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -26,12 +28,12 @@ public class JwtStateFeature implements StateFeature {
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
 
         TokenService service = JwtTokenServiceFactory.createService(ctx);
-        JwtLogoutHandler logoutHandler = new JwtLogoutHandler(service);
-        JwtLogoutSuccessHandler successHandler = new JwtLogoutSuccessHandler();
+        LogoutHandler logoutHandler = new JwtLogoutHandler(service);
+        LogoutSuccessHandler successHandler = new JwtLogoutSuccessHandler();
 
         http.setSharedObject(TokenService.class, service);
-        http.setSharedObject(JwtLogoutHandler.class, logoutHandler);
-        http.setSharedObject(JwtLogoutSuccessHandler.class, successHandler);
+        http.setSharedObject(LogoutHandler.class, logoutHandler);
+        http.setSharedObject(LogoutSuccessHandler.class, successHandler);
 
         http
                 .csrf(AbstractHttpConfigurer::disable)

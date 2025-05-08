@@ -20,12 +20,13 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     private final PlatformConfig config = new PlatformConfig();
 
-    @Override
-    public SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer){
+
+    private SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer){
         config.global(customizer);
         return this;
     }
 
+    @Override
     public SecurityPlatformDsl global(SafeHttpCustomizer customizer) {
         return originGlobal(wrapSafe(customizer));
     }
@@ -118,6 +119,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
     }
 
     private static class StateSetter implements IdentityStateDsl {
+
         private final IdentityDslRegistry registry;
 
         StateSetter(IdentityDslRegistry registry) {

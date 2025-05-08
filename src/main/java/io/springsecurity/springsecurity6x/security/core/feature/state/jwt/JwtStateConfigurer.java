@@ -75,6 +75,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
         RefreshTokenStore store = new JwtRefreshTokenStore(parser, props);
         TokenValidator validator = new JwtTokenValidator(parser, store, props.getRefreshRotateThreshold());
         TokenService service = new JwtTokenService(validator, creator, store, transport, props);
+        http.setSharedObject(TokenService.class, service);
         transport.setTokenService(service);
         AuthenticationHandlers handlers = new JwtAuthenticationHandlers(service);
 

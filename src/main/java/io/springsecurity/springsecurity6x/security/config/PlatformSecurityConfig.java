@@ -22,16 +22,6 @@ public class PlatformSecurityConfig {
     public PlatformConfig securityPlatformDsl() {
 
         return new IdentityDslRegistry()
-                .global(http -> {
-                        http.csrf(AbstractHttpConfigurer::disable);
-                        http
-//                            .securityMatcher("/api/**")
-                            .authorizeHttpRequests(authReq -> authReq
-                            .requestMatchers("/api/register", "/api/auth/login").permitAll()
-                            .requestMatchers("/api/**").authenticated()
-                            .anyRequest().permitAll())
-                        ;
-                })
 
                 .form(form -> form
                         .loginPage("/login")
@@ -40,17 +30,39 @@ public class PlatformSecurityConfig {
                         .rawLogin(f -> f.successHandler(
                                 (request, response, authentication) ->
                                         System.out.println("request = " + request)))
-                        .raw(http -> {
-                            http
-//                                .authorizeHttpRequests(a -> a
-//                                            .requestMatchers("/api/auth/login").permitAll()
-//                                            .anyRequest().permitAll()
-//                                )
+                        .raw(http -> { http
+                                .authorizeHttpRequests(a -> a
+                                            .requestMatchers("/api/auth/login").permitAll()
+                                            .anyRequest().permitAll()
+                                )
                                 .headers(headers -> headers
                                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
                         }))
                 .session(session -> Customizer.withDefaults())
-                .rest(rest -> rest.loginProcessingUrl("/api/auth/login")).jwt(jwt -> Customizer.withDefaults())
+
+                .rest(rest -> rest
+                        .loginProcessingUrl("/api/auth/login")
+                        .raw(http -> { http
+                                .securityMatcher("/api/auth/**")
+                                .authorizeHttpRequests(a -> a
+                                        .requestMatchers("/api/auth/login").permitAll()
+                                )
+                                .headers(headers -> headers
+                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+                        }))
+                .jwt(jwt -> Customizer.withDefaults())
+
+                .global(http -> {
+                    http.csrf(AbstractHttpConfigurer::disable);
+                    http
+//                            .securityMatcher("/api/**")
+                            .authorizeHttpRequests(authReq -> authReq
+                                    .requestMatchers("/api/register").permitAll()
+                                    .requestMatchers("/api/**").authenticated()
+                                    .anyRequest().permitAll())
+                    ;
+                })
+
                 .build();
     }
 }

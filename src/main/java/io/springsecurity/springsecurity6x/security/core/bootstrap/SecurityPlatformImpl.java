@@ -7,13 +7,25 @@ import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * SecurityPlatform 구현체: Global 설정 후, 각 Flow 별로
@@ -28,7 +40,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
 
     public SecurityPlatformImpl(PlatformContext context,
                                 List<SecurityConfigurer> configurers) {
-        this.context     = context;
+        this.context = context;
         this.configurers = configurers;
     }
 
@@ -91,22 +103,37 @@ public class SecurityPlatformImpl implements SecurityPlatform {
     }
 
     private void registerSecurityFilterChains(List<FlowContext> flows) {
-        flows.forEach(fc -> {
-            try {
-                DefaultSecurityFilterChain chain = fc.http().build();
-                OrderedSecurityFilterChain osc = new OrderedSecurityFilterChain(
-                        Ordered.HIGHEST_PRECEDENCE,
-                        chain.getRequestMatcher(),
-                        chain.getFilters()
-                );
-                String beanName = fc.flow().typeName() + "SecurityFilterChain" + chainOrder.getAndIncrement();
-                context.registerChain(beanName, osc);
-                context.registerAsBean(beanName, osc);
-            } catch (Exception e) {
-                throw new IllegalStateException("SecurityFilterChain 생성 실패 for flow: "
-                        + fc.flow().typeName(), e);
-            }
-        });
+        ConfigurableApplicationContext cac =
+                (ConfigurableApplicationContext) context.applicationContext();
+        BeanDefinitionRegistry registry =
+                (BeanDefinitionRegistry) cac.getBeanFactory();
+
+        for (FlowContext fc : flows) {
+            String flowName = fc.flow().typeName();
+            String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
+
+            // 3) Supplier 기반으로 BeanDefinition 등록 → Bean 생성 시 build() 호출
+            BeanDefinitionBuilder bldr = BeanDefinitionBuilder
+                    .genericBeanDefinition(SecurityFilterChain.class, () -> {
+                        try {
+                            DefaultSecurityFilterChain built = fc.http().build();
+                            OrderedSecurityFilterChain orderedFilterChain = new OrderedSecurityFilterChain(
+                                    Ordered.HIGHEST_PRECEDENCE,
+                                    built.getRequestMatcher(),
+                                    built.getFilters()
+                            );
+                            context.registerChain(beanName, orderedFilterChain);
+                            return orderedFilterChain;
+
+                        } catch (Exception ex) {
+                            throw new BeanCreationException(
+                                    "SecurityFilterChain 생성 실패 for flow: " + flowName, ex);
+                        }
+                    });
+            bldr.setLazyInit(true);
+            bldr.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+            registry.registerBeanDefinition(beanName, bldr.getBeanDefinition());
+        }
     }
 }
 

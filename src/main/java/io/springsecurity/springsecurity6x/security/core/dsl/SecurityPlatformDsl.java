@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -19,7 +20,7 @@ public interface SecurityPlatformDsl {
      * @param customizer HttpSecurity 커스터마이저
      * @return this
      */
-    SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer);
+    SecurityPlatformDsl global(SafeHttpCustomizer customizer);
 
     /**
      * Form 로그인 플로우를 정의합니다.

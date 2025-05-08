@@ -27,20 +27,14 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler 
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication)
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
             throws IOException, ServletException {
-        // 1) Supplier에서 TokenService 꺼내기
-        TokenService tokenService = tokenServiceSupplier.get();
 
-        // 2) Device ID 검사
+        TokenService tokenService = tokenServiceSupplier.get();
         String deviceId = request.getHeader("X-Device-Id");
         if (!StringUtils.hasText(deviceId)) {
             throw new BadCredentialsException("Device ID missing");
         }
-
-        // 3) 토큰 생성·전송
         try {
             String access  = tokenService.createAccessToken(authentication, deviceId);
             String refresh = tokenService.createRefreshToken(authentication, deviceId);

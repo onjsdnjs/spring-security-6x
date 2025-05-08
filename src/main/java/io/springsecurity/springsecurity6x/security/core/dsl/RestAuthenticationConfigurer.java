@@ -50,7 +50,6 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
             restFilter.setSecurityContextRepository(new RequestAttributeSecurityContextRepository());
         }
         restFilter.setSecurityContextHolderStrategy(SecurityContextHolder.getContextHolderStrategy());
-
         http.addFilterBefore(postProcess(restFilter), UsernamePasswordAuthenticationFilter.class);
     }
 

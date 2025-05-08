@@ -52,7 +52,6 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
 
         AuthenticationSuccessHandler successHandler;
         if (isLastStep) {
-            // Supplier로 TokenService를 PlatformContext 에서 꺼내도록
             Supplier<TokenService> tokenSvcSupplier = () ->
                     http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
 

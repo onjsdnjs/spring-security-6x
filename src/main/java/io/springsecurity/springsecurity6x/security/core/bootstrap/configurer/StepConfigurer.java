@@ -13,6 +13,7 @@ import java.util.List;
  * 각 인증 단계(Step)를 HTTP 보안에 적용합니다.
  */
 public class StepConfigurer implements SecurityConfigurer {
+
     private final FeatureRegistry registry;
     public StepConfigurer(FeatureRegistry registry) {
         this.registry = registry;

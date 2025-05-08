@@ -2,23 +2,14 @@ package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
-import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
+import io.springsecurity.springsecurity6x.security.token.factory.JwtTokenFactory;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-
-import javax.crypto.SecretKey;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 
 public class JwtStateFeature implements StateFeature {
-
-    private SecretKey key;
-    private AuthContextProperties props;
-    private TokenTransportStrategy transport;
-    private AuthenticationHandlers handlers;
-    private JwtStateConfigurer configurer;
 
     @Override
     public String getId() {
@@ -28,13 +19,15 @@ public class JwtStateFeature implements StateFeature {
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
 
-        SecretKey key = ctx.getShared(SecretKey.class);
-        AuthContextProperties props = ctx.getShared(AuthContextProperties.class);
+        TokenService service = JwtTokenFactory.createService(ctx);
+        LogoutHandler logoutHandler = JwtTokenFactory.createLogoutHandler(service);
+        LogoutSuccessHandler successHandler = JwtTokenFactory.createLogoutSuccessHandler();
 
-        TokenTransportType transportType = props.getTokenTransportType();
-        TokenTransportStrategy transport = TokenTransportStrategyFactory.create(transportType);
+        http.setSharedObject(TokenService.class, service);
+        http.setSharedObject(LogoutHandler.class, logoutHandler);
+        http.setSharedObject(LogoutSuccessHandler.class, successHandler);
 
-        JwtStateConfigurer configurer = new JwtStateConfigurer(key, props, transport);
-        http.with(configurer, Customizer.withDefaults());
+        http.with(new JwtStateConfigurer(), Customizer.withDefaults());
+
     }
 }

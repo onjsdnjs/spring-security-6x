@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
+import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
@@ -20,6 +21,7 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.JwtRefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategyFactory;
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,18 +39,8 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 public class JwtConfigurer implements SecurityConfigurer {
 
-    private final SecretKey key;
-    private final AuthContextProperties props;
-    private final TokenTransportStrategy transport;
-
-    public JwtConfigurer(SecretKey key, AuthContextProperties props, TokenTransportStrategy transport) {
-        this.key = key;
-        this.props = props;
-        this.transport = transport;
-    }
-
     @Override
-    public void init(PlatformContext ctx, PlatformConfig config) { }
+    public void init(PlatformContext ctx, PlatformConfig config) {}
 
     @Override
     public void configure(FlowContext fc) throws Exception {
@@ -59,6 +51,12 @@ public class JwtConfigurer implements SecurityConfigurer {
         }
 
         HttpSecurity http = fc.http();
+
+
+        SecretKey key = fc.context().getShared(SecretKey.class);
+        AuthContextProperties props = fc.context().getShared(AuthContextProperties.class);
+        TokenTransportType transportType = props.getTokenTransportType();
+        TokenTransportStrategy transport = TokenTransportStrategyFactory.create(transportType);
 
         TokenParser parser = new JwtTokenParser(key);
         JwtTokenCreator creator = new JwtTokenCreator(key);

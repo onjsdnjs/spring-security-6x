@@ -13,15 +13,16 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final LogoutHandler logoutHandler;
+    private final Supplier<LogoutHandler> logoutHandlerSupplier;
 
-    public JwtAuthorizationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
+    public JwtAuthorizationFilter(TokenService tokenService, Supplier<LogoutHandler> logoutHandlerSupplier) {
         this.tokenService = tokenService;
-        this.logoutHandler = logoutHandler;
+        this.logoutHandlerSupplier = logoutHandlerSupplier;
     }
 
 
@@ -37,6 +38,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             } catch (Exception e) {
+                LogoutHandler logoutHandler = logoutHandlerSupplier.get();
                 logoutHandler.logout(request, response, null);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
                 return;

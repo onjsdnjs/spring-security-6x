@@ -1,9 +1,12 @@
-package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
+package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -20,6 +23,11 @@ public class StepConfigurer implements SecurityConfigurer {
     }
 
     @Override
+    public void init(PlatformContext ctx, PlatformConfig config) throws Exception {
+
+    }
+
+    @Override
     public void configure(FlowContext ctx) throws Exception {
         AuthenticationFlowConfig flow = ctx.flow();
         HttpSecurity http = ctx.http();
@@ -30,5 +38,10 @@ public class StepConfigurer implements SecurityConfigurer {
             }
             f.apply(http, List.of(step), flow.stateConfig());
         }
+    }
+
+    @Override
+    public int getOrder() {
+        return SecurityConfigurer.super.getOrder();
     }
 }

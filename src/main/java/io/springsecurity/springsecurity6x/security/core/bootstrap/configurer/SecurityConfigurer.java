@@ -4,12 +4,29 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 
+import org.springframework.core.Ordered;
+
 /**
- * 보안 체인 구성 단계별 책임을 분리하는 인터페이스
+ * 인증 플랫폼 전체 설정/흐름 구성용 인터페이스
  */
-public interface SecurityConfigurer {
-    /** 전역(Global) 설정 적용 단계 */
-    default void init(PlatformContext ctx, PlatformConfig cfg) {}
-    /** 인증 흐름 및 단계를 적용하는 단계 */
-    default void configure(FlowContext ctx ) throws Exception {}
+public interface SecurityConfigurer extends Ordered {
+    /**
+     * 플랫폼 전역 초기화 (Global) 단계에서 호출
+     */
+    void init(PlatformContext ctx, PlatformConfig config) throws Exception;
+
+    /**
+     * Flow별 configure 단계에서 호출
+     */
+    void configure(FlowContext fc) throws Exception;
+
+    /**
+     * getOrder() 로 실행 우선순위 결정.
+     *   낮을수록 먼저 실행(즉, 내부(default) 설정 → 큰 값을 가진 사용자(Dsl) 설정 순)
+     */
+    @Override
+    default int getOrder() {
+        return Ordered.LOWEST_PRECEDENCE;  // 기본값: 가장 나중에 실행
+    }
 }
+

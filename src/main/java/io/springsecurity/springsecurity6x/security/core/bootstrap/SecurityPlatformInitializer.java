@@ -9,37 +9,32 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * SecurityPlatform 구현체: Global 설정 후, 각 Flow 별로
  * HttpSecurity를 구성하고 SecurityFilterChain을 생성하여 등록합니다.
  */
 @Slf4j
-public class SecurityPlatformImpl implements SecurityPlatform {
+public class SecurityPlatformInitializer implements SecurityPlatform {
     private final PlatformContext context;
     private final List<SecurityConfigurer> configurers;
     private PlatformConfig config;
     private final AtomicInteger chainOrder = new AtomicInteger(1);
 
-    public SecurityPlatformImpl(PlatformContext context,
-                                List<SecurityConfigurer> configurers) {
+    public SecurityPlatformInitializer(PlatformContext context,
+                                       List<SecurityConfigurer> configurers) {
         this.context = context;
         this.configurers = configurers;
     }
@@ -88,13 +83,22 @@ public class SecurityPlatformImpl implements SecurityPlatform {
         return contexts;
     }
 
-    private void initConfigurers() {
-        for (SecurityConfigurer cfg : configurers) {
+    private void initConfigurers() throws Exception {
+        // order 오름차순 정렬: 낮은 숫자(내부) → 높은 숫자(사용자)
+        List<SecurityConfigurer> sorted = new ArrayList<>(configurers);
+        sorted.sort(Comparator.comparingInt(SecurityConfigurer::getOrder));
+
+        for (SecurityConfigurer cfg : sorted) {
             cfg.init(context, config);
         }
     }
 
     private void configureFlows(List<FlowContext> flows) throws Exception {
+
+        List<SecurityConfigurer> sorted = new ArrayList<>(configurers);
+        sorted.sort(Comparator.comparingInt(SecurityConfigurer::getOrder));
+
+
         for (FlowContext fc : flows) {
             for (SecurityConfigurer cfg : configurers) {
                 cfg.configure(fc);

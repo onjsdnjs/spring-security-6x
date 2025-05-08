@@ -3,6 +3,10 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.FlowConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.GlobalConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StepConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
@@ -50,7 +54,7 @@ public class SecurityPlatformConfiguration {
         context.share(SecretKey.class, secretKey);
         context.share(AuthContextProperties.class, props);
 
-        return new SecurityPlatformImpl(context, securityConfigurers);
+        return new SecurityPlatformInitializer(context, securityConfigurers);
     }
 
     @Bean

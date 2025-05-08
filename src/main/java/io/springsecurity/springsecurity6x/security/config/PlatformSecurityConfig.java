@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.io.IOException;
 
@@ -24,7 +25,8 @@ public class PlatformSecurityConfig {
         return new IdentityDslRegistry()
 
                 .global(http -> {
-//                    http.csrf(AbstractHttpConfigurer::disable);
+                    http.csrf(csrf -> csrf
+                            .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
                     http
 //                            .securityMatcher("/api/**")
                         .authorizeHttpRequests(authReq -> authReq

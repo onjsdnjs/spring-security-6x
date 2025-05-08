@@ -20,8 +20,10 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -37,20 +39,19 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
     private final SecretKey key;
     private final AuthContextProperties props;
     private final TokenTransportStrategy transport;
-    private final PlatformContext ctx;
 
     public JwtStateConfigurer(SecretKey key,
                               AuthContextProperties props,
-                              TokenTransportStrategy transport, PlatformContext ctx) {
+                              TokenTransportStrategy transport) {
         this.key = key;
         this.props = props;
         this.transport = transport;
-        this.ctx = ctx;
     }
 
     /** JWT에 필요한 공통 HTTP 설정 (CSRF, 세션 관리, 예외 처리 등) */
     @Override
     public void init(HttpSecurity http) throws Exception {
+
         if (props.getTokenTransportType() == TokenTransportType.HEADER) {
             http.csrf(AbstractHttpConfigurer::disable);
         } else {
@@ -64,6 +65,18 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                         .accessDeniedHandler((req, res, ex) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
+
+        // 2) logout 설정을 init 단계에서 재구성
+        LogoutConfigurer<HttpSecurity> logoutConfigurer =
+                http.getConfigurer(LogoutConfigurer.class);
+        if (logoutConfigurer == null) {
+            logoutConfigurer = new LogoutConfigurer<>();
+            http.with(logoutConfigurer, Customizer.withDefaults());
+        }
+        logoutConfigurer
+                .logoutUrl("/api/auth/logout")
+//                .addLogoutHandler(handlers.logoutHandler())
+                .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler());
     }
 
     /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */

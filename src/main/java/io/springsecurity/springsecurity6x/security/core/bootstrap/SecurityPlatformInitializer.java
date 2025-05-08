@@ -74,11 +74,13 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         List<FlowContext> flows = new ArrayList<>();
         for (AuthenticationFlowConfig flow : config.flows()) {
             try {
+
                 HttpSecurity http = context.newHttp();
                 context.registerHttp(flow, http);
                 FlowContext fc = new FlowContext(flow, http, context, config);
                 context.share(FlowContext.class, fc);
                 flows.add(fc);
+
             } catch (Exception ex) {
                 log.error("FlowContext 생성 실패: {}", flow.typeName(), ex);
             }

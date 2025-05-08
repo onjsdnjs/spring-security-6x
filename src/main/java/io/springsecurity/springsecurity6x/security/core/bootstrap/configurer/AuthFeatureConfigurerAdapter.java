@@ -44,7 +44,6 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
 
     @Override
     public int getOrder() {
-        // StepConfigurer 위치(300)에서 실행
-        return Ordered.HIGHEST_PRECEDENCE + 300;
+        return 300;
     }
 }

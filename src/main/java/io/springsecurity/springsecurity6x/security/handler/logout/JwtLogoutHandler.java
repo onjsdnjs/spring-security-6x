@@ -9,6 +9,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
+import java.util.function.Supplier;
+
 /**
  * JWT (Internal) 기반 TokenLogoutHandler
  * - RefreshToken 무효화
@@ -17,14 +19,15 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
  */
 public class JwtLogoutHandler implements LogoutHandler {
 
-    private final TokenService tokenService;
+    private final Supplier<TokenService> tokenServiceSupplier;
 
-    public JwtLogoutHandler(TokenService tokenService) {
-        this.tokenService = tokenService;
+    public JwtLogoutHandler(Supplier<TokenService> tokenServiceSupplier) {
+        this.tokenServiceSupplier = tokenServiceSupplier;
     }
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+        TokenService tokenService = tokenServiceSupplier.get();
         String refreshToken = tokenService.resolveRefreshToken(request);
 
         try {

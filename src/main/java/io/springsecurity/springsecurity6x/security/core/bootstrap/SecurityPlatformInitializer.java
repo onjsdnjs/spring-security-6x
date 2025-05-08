@@ -38,15 +38,12 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
      * 생성자
      * @param context 플랫폼 컨텍스트
      * @param configurers 플랫폼 기본 Configurer 리스트
-     * @param featureRegistry FeatureRegistry
+     * @param registry FeatureRegistry
      */
-    public SecurityPlatformInitializer(
-            PlatformContext context,
-            List<SecurityConfigurer> configurers,
-            FeatureRegistry featureRegistry) {
+    public SecurityPlatformInitializer(PlatformContext context, List<SecurityConfigurer> configurers, FeatureRegistry registry) {
         this.context = context;
         this.configurers = configurers;
-        this.featureRegistry = featureRegistry;
+        this.featureRegistry = registry;
     }
 
     /**
@@ -61,16 +58,20 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
      * 플랫폼 초기화 실행
      */
     @Override
-    public void initialize() throws Exception {
+    public void initialize() {
+
         // 1) FlowContext 생성·정렬
         List<FlowContext> flows = createAndSortFlowContexts();
+
         // 2) 모든 Configurer 조합
         List<SecurityConfigurer> configurers = buildConfigurers();
 
         // 3) init 단계 실행
         initConfigurers(configurers);
+
         // 4) configure 단계 실행
         configureFlows(configurers, flows);
+
         // 5) SecurityFilterChain 등록
         registerSecurityFilterChains(flows);
     }
@@ -122,7 +123,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     /**
      * init(context, config) 단계 실행
      */
-    private void initConfigurers(List<SecurityConfigurer> configurers) throws Exception {
+    private void initConfigurers(List<SecurityConfigurer> configurers){
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> {
@@ -137,8 +138,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     /**
      * configure(fc) 단계 실행
      */
-    private void configureFlows(List<SecurityConfigurer> configurers,
-                                List<FlowContext> flows) throws Exception {
+    private void configureFlows(List<SecurityConfigurer> configurers, List<FlowContext> flows){
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> flows.forEach(fc -> {

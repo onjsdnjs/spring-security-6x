@@ -3,10 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.common;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.config.annotation.web.configurers.*;
 import org.springframework.util.function.ThrowingConsumer;
 
 /**
@@ -29,7 +26,7 @@ public interface CommonSecurityDsl<T> {
     T sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
 
     /** 정적 리소스 허용 패턴 **/
-    T authorizeStatic(String... patterns);
+    T logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
 
     /**
      * Advanced: raw FormLoginConfigurer access for full API coverage

@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
@@ -88,7 +87,7 @@ public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Bui
 
     public AuthenticationStepConfig toConfig() {
         RestOptions optsBuilt = options.build();
-        AuthenticationStepConfig step = getStepConfig();
+        AuthenticationStepConfig step = stepConfig();
         step.type("rest");
         step.options().put("_options", optsBuilt);
         return step;

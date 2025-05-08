@@ -12,22 +12,19 @@ import java.util.function.Consumer;
  * 각 인증 흐름(Flow) 레벨의 Customizer를 적용합니다.
  */
 public class FlowConfigurer implements SecurityConfigurer {
-
     @Override
-    public void init(PlatformContext ctx, PlatformConfig config) throws Exception {
-
-    }
+    public void init(PlatformContext ctx, PlatformConfig config) { }
 
     @Override
     public void configure(FlowContext ctx) {
         Consumer<HttpSecurity> flowCustomizer = ctx.flow().customizer();
-        if (flowCustomizer != null) {
-            flowCustomizer.accept(ctx.http());
+        if (flowCustomizer == null) {
+            return;
         }
+        flowCustomizer.accept(ctx.http());
     }
 
     @Override
-    public int getOrder() {
-        return SecurityConfigurer.super.getOrder();
-    }
+    public int getOrder() { return 100; }
 }
+

@@ -26,7 +26,7 @@ public interface SecurityConfigurer extends Ordered {
      */
     @Override
     default int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE;  // 기본값: 가장 나중에 실행
+        return 500;  // 기본값: 가장 나중에 실행
     }
 }
 

@@ -1,10 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
@@ -172,7 +170,7 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
      */
     public AuthenticationStepConfig toConfig() {
         FormOptions optsBuilt = options.build();
-        AuthenticationStepConfig step = getStepConfig();
+        AuthenticationStepConfig step = stepConfig();
         step.type("form");
         step.options().put("_options", optsBuilt);
         return step;

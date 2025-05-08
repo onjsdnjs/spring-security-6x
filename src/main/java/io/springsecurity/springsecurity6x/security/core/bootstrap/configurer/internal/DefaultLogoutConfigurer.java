@@ -20,7 +20,6 @@ public class DefaultLogoutConfigurer implements SecurityConfigurer {
 
     @Override
     public void init(PlatformContext ctx, PlatformConfig config) {
-        // Global init 단계에 아무 작업 안 함
     }
 
     @Override

@@ -5,8 +5,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
-import org.springframework.util.function.ThrowingConsumer;
 
 import java.util.Objects;
 
@@ -20,7 +20,7 @@ public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> i
 
     protected final AuthenticationStepConfig stepConfig;
     protected final O options;
-    protected int order;
+    protected int order = 10;
 
     protected AbstractDslConfigurer(AuthenticationStepConfig stepConfig, O options) {
         this.stepConfig = Objects.requireNonNull(stepConfig, "stepConfig must not be null");
@@ -30,7 +30,7 @@ public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> i
     /**
      * 생성된 stepConfig를 반환
      */
-    public AuthenticationStepConfig getStepConfig() {
+    public AuthenticationStepConfig stepConfig() {
         return stepConfig;
     }
 
@@ -48,5 +48,5 @@ public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> i
     public D sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) { return (D) this; }
 
     @Override
-    public D authorizeStatic(String... patterns) { return (D) this; }
+    public D logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) { return (D) this; }
 }

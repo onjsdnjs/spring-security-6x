@@ -50,6 +50,9 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         // 1) FlowContext 준비
         List<FlowContext> flows = createFlowContexts();
 
+        // flows 자체를 order 순으로 정렬
+        flows.sort(Comparator.comparingInt(fc -> fc.flow().order()));
+
         // 2) 전역 초기화(모든 Configurer.init 호출)
         initConfigurers();
 

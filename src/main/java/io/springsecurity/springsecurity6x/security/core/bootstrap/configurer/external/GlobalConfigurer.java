@@ -13,26 +13,23 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
  */
 @Slf4j
 public class GlobalConfigurer implements SecurityConfigurer {
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) { }
 
     @Override
-    public void init(PlatformContext ctx, PlatformConfig config) throws Exception {
-
-    }
-
-    @Override
-    public void configure(FlowContext ctx) throws Exception {
+    public void configure(FlowContext ctx) {
         Customizer<HttpSecurity> customizer = ctx.config().global();
-        if (customizer != null) {
-            try {
-                customizer.customize(ctx.http());
-            } catch (Exception ex) {
-                log.warn("Global customizer failed for flow: {}", ctx.flow().typeName(), ex);
-            }
+        if (customizer == null) {
+            return;
+        }
+        try {
+            customizer.customize(ctx.http());
+        } catch (Exception ex) {
+            log.warn("Global customizer failed for flow: {}", ctx.flow().typeName(), ex);
         }
     }
 
     @Override
-    public int getOrder() {
-        return SecurityConfigurer.super.getOrder();
-    }
+    public int getOrder() { return 200; }
 }
+

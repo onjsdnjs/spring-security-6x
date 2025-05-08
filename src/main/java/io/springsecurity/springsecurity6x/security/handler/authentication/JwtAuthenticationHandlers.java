@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.handler.authentication;
 
-import io.springsecurity.springsecurity6x.security.handler.logout.TokenLogoutHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -50,8 +49,8 @@ public class JwtAuthenticationHandlers implements AuthenticationHandlers {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT Authentication Failed");
     }
 
-    public LogoutHandler logoutHandler(){
-        return new TokenLogoutHandler(tokenService);
-    }
+   /* public LogoutHandler logoutHandler(){
+        return new JwtLogoutHandler(tokenService);
+    }*/
 }
 

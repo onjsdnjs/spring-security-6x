@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.logout.StrategyAwareLogoutSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtTokenParser;
@@ -20,10 +19,8 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -50,34 +47,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
 
     /** JWT에 필요한 공통 HTTP 설정 (CSRF, 세션 관리, 예외 처리 등) */
     @Override
-    public void init(HttpSecurity http) throws Exception {
-
-        if (props.getTokenTransportType() == TokenTransportType.HEADER) {
-            http.csrf(AbstractHttpConfigurer::disable);
-        } else {
-            http.csrf(csrf -> csrf
-                    .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));
-        }
-        http
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(e -> e
-                        .authenticationEntryPoint((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
-                        .accessDeniedHandler((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")));
-
-        // 2) logout 설정을 init 단계에서 재구성
-        LogoutConfigurer<HttpSecurity> logoutConfigurer =
-                http.getConfigurer(LogoutConfigurer.class);
-        if (logoutConfigurer == null) {
-            logoutConfigurer = new LogoutConfigurer<>();
-            http.with(logoutConfigurer, Customizer.withDefaults());
-        }
-        logoutConfigurer
-                .logoutUrl("/api/auth/logout")
-//                .addLogoutHandler(handlers.logoutHandler())
-                .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler());
-    }
+    public void init(HttpSecurity http) throws Exception {}
 
     /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */
     @Override
@@ -91,12 +61,6 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
         http.setSharedObject(TokenService.class, service);
         transport.setTokenService(service);
         AuthenticationHandlers handlers = new JwtAuthenticationHandlers(service);
-
-        // 로그아웃 설정
-        http.logout(logout -> logout
-                .logoutUrl("/api/auth/logout")
-                .addLogoutHandler(handlers.logoutHandler())
-                .logoutSuccessHandler(new StrategyAwareLogoutSuccessHandler()));
 
         http.addFilterAfter(new JwtAuthorizationFilter(service, handlers.logoutHandler()), ExceptionTranslationFilter.class);
         http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, handlers.logoutHandler()), JwtAuthorizationFilter.class);

@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.ext
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.GlobalConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StepConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.internal.DefaultSecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
@@ -44,7 +45,7 @@ public class SecurityPlatformConfiguration {
     @Bean
     public List<SecurityConfigurer> securityConfigurers(FeatureRegistry registry) {
         return List.of(new GlobalConfigurer(), new FlowConfigurer(),
-                new StateConfigurer(registry), new StepConfigurer(registry));
+                new StateConfigurer(registry), new StepConfigurer(registry), new DefaultSecurityConfigurer());
     }
 
     @Bean

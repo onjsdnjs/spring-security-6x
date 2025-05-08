@@ -10,7 +10,7 @@ import org.springframework.security.web.authentication.logout.LogoutSuccessHandl
 import java.io.IOException;
 import java.util.Map;
 
-public class StrategyAwareLogoutSuccessHandler implements LogoutSuccessHandler {
+public class JwtLogoutSuccessHandler implements LogoutSuccessHandler {
 
     private final ObjectMapper mapper = new ObjectMapper();
 

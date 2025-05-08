@@ -87,21 +87,21 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     }
 
     private void initConfigurers() throws Exception {
-        // order 오름차순 정렬: 낮은 숫자(내부) → 높은 숫자(사용자)
-        List<SecurityConfigurer> sorted = new ArrayList<>(configurers);
-        sorted.sort(Comparator.comparingInt(SecurityConfigurer::getOrder));
-
-        for (SecurityConfigurer cfg : sorted) {
-            cfg.init(context, config);
-        }
+        configurers.stream()
+                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
+                .forEach(cfg -> {
+                    try {
+                        cfg.init(context, config);
+                    } catch (Exception e) {
+                        throw new IllegalStateException("init failed: " + cfg, e);
+                    }
+                });
     }
 
     private void configureFlows(List<FlowContext> flows) throws Exception {
 
         List<SecurityConfigurer> sorted = new ArrayList<>(configurers);
         sorted.sort(Comparator.comparingInt(SecurityConfigurer::getOrder));
-
-
         for (FlowContext fc : flows) {
             for (SecurityConfigurer cfg : configurers) {
                 cfg.configure(fc);
@@ -120,7 +120,6 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
             int    orderVal = fc.flow().order();
             String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
 
-            // 3) Supplier 기반으로 BeanDefinition 등록 → Bean 생성 시 build() 호출
             BeanDefinitionBuilder bldr = BeanDefinitionBuilder
                     .genericBeanDefinition(SecurityFilterChain.class, () -> {
                         try {

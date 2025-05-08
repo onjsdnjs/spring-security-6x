@@ -15,11 +15,11 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
  * - AccessToken, RefreshToken 쿠키/헤더 삭제
  * - SecurityContext 초기화
  */
-public class TokenLogoutHandler implements LogoutHandler {
+public class JwtLogoutHandler implements LogoutHandler {
 
-    private final TokenService tokenService;
+    private TokenService tokenService;
 
-    public TokenLogoutHandler(TokenService tokenService) {
+    public void setTokenService(TokenService tokenService) {
         this.tokenService = tokenService;
     }
 

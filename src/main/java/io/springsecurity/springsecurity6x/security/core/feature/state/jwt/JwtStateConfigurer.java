@@ -1,12 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
-import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.handler.authentication.AuthenticationHandlers;
 import io.springsecurity.springsecurity6x.security.handler.authentication.JwtAuthenticationHandlers;
-import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.JwtTokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.JwtTokenParser;
@@ -18,13 +16,10 @@ import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValidator;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.crypto.SecretKey;
 
@@ -52,7 +47,7 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
     /** JWT 인증 필터, 리프레시 토큰 필터 등을 HttpSecurity에 추가 */
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        // 파서·토큰 생성기·저장소·서비스·핸들러 생성
+
         TokenParser parser = new JwtTokenParser(key);
         JwtTokenCreator creator = new JwtTokenCreator(key);
         RefreshTokenStore store = new JwtRefreshTokenStore(parser, props);

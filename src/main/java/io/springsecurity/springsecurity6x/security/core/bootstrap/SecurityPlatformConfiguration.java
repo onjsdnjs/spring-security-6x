@@ -3,11 +3,11 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.FlowConfigurer;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.GlobalConfigurer;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external.StepConfigurer;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.internal.DefaultSecurityConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.FlowConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.GlobalConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StepConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.JwtConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
@@ -45,7 +45,7 @@ public class SecurityPlatformConfiguration {
     @Bean
     public List<SecurityConfigurer> securityConfigurers(FeatureRegistry registry) {
         return List.of(new GlobalConfigurer(), new FlowConfigurer(),
-                new StateConfigurer(registry), new StepConfigurer(registry), new DefaultSecurityConfigurer());
+                new StateConfigurer(registry), new StepConfigurer(registry), new JwtConfigurer());
     }
 
     @Bean

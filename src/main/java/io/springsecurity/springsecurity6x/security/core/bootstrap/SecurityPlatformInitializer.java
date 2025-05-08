@@ -100,13 +100,15 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
 
     private void configureFlows(List<FlowContext> flows) throws Exception {
 
-        List<SecurityConfigurer> sorted = new ArrayList<>(configurers);
-        sorted.sort(Comparator.comparingInt(SecurityConfigurer::getOrder));
-        for (FlowContext fc : flows) {
-            for (SecurityConfigurer cfg : configurers) {
-                cfg.configure(fc);
-            }
-        }
+        configurers.stream()
+                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
+                .forEach(cfg -> flows.forEach(fc -> {
+                    try {
+                        cfg.configure(fc);
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                }));
     }
 
     private void registerSecurityFilterChains(List<FlowContext> flows) {
@@ -117,7 +119,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
 
         for (FlowContext fc : flows) {
             String flowName = fc.flow().typeName();
-            int    orderVal = fc.flow().order();
+            int orderVal = fc.flow().order();
             String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
 
             BeanDefinitionBuilder bldr = BeanDefinitionBuilder

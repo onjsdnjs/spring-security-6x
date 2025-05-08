@@ -17,9 +17,9 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
  */
 public class JwtLogoutHandler implements LogoutHandler {
 
-    private TokenService tokenService;
+    private final TokenService tokenService;
 
-    public void setTokenService(TokenService tokenService) {
+    public JwtLogoutHandler(TokenService tokenService) {
         this.tokenService = tokenService;
     }
 

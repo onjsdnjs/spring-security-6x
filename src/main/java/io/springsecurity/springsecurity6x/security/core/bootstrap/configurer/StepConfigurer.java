@@ -1,7 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.external;
+package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;

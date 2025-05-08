@@ -132,8 +132,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
 
     // FlowContext별 SecurityFilterChain 빌드 및 Bean 등록
     private void registerSecurityFilterChains(List<FlowContext> flows) {
-        ConfigurableApplicationContext cac =
-                (ConfigurableApplicationContext) context.applicationContext();
+        ConfigurableApplicationContext cac = (ConfigurableApplicationContext) context.applicationContext();
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) cac.getBeanFactory();
         for (FlowContext fc : flows) {
             String flowName = fc.flow().typeName();

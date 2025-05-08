@@ -33,7 +33,7 @@ public class CoreSecurityConfigurer implements SecurityConfigurer {
 
         HttpSecurity http = fc.http();
 
-        Supplier<TokenService> logoutSupplier = () -> http.getSharedObject(TokenService.class);
+        /*Supplier<TokenService> logoutSupplier = () -> http.getSharedObject(TokenService.class);
         JwtLogoutHandler logoutHandler = new JwtLogoutHandler(logoutSupplier);
         JwtLogoutSuccessHandler successHandler = new JwtLogoutSuccessHandler();
 
@@ -52,7 +52,7 @@ public class CoreSecurityConfigurer implements SecurityConfigurer {
             .logout(logout -> logout
                     .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/logout"))
                     .addLogoutHandler(logoutHandler)
-                    .logoutSuccessHandler(successHandler));
+                    .logoutSuccessHandler(successHandler));*/
 
     }
 

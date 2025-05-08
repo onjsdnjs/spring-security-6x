@@ -19,15 +19,14 @@ import java.util.function.Supplier;
  */
 public class JwtLogoutHandler implements LogoutHandler {
 
-    private final Supplier<TokenService> tokenServiceSupplier;
+    private final TokenService tokenService;
 
-    public JwtLogoutHandler(Supplier<TokenService> tokenServiceSupplier) {
-        this.tokenServiceSupplier = tokenServiceSupplier;
+    public JwtLogoutHandler(TokenService tokenService) {
+        this.tokenService = tokenService;
     }
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        TokenService tokenService = tokenServiceSupplier.get();
         String refreshToken = tokenService.resolveRefreshToken(request);
 
         try {

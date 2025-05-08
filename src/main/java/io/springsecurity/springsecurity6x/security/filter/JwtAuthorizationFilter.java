@@ -5,24 +5,21 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.AuthenticationTrustResolver;
-import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.function.Supplier;
 
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
-    private final Supplier<LogoutHandler> logoutHandlerSupplier;
+    private final LogoutHandler logoutHandler;
 
-    public JwtAuthorizationFilter(TokenService tokenService, Supplier<LogoutHandler> logoutHandlerSupplier) {
+    public JwtAuthorizationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
         this.tokenService = tokenService;
-        this.logoutHandlerSupplier = logoutHandlerSupplier;
+        this.logoutHandler = logoutHandler;
     }
 
 
@@ -38,7 +35,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             } catch (Exception e) {
-                LogoutHandler logoutHandler = logoutHandlerSupplier.get();
                 logoutHandler.logout(request, response, null);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
                 return;

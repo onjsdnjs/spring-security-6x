@@ -13,8 +13,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import java.util.function.Supplier;
-
 import static org.springframework.security.config.Customizer.withDefaults;
 
 public class JwtStateFeature implements StateFeature {

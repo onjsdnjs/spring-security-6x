@@ -21,11 +21,11 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
     public void configure(HttpSecurity http) throws Exception {
 
         TokenService service = http.getSharedObject(TokenService.class);
-        Supplier<LogoutHandler> logoutSupplier = () -> http.getSharedObject(LogoutHandler.class);
+        LogoutHandler logoutHandler = http.getSharedObject(LogoutHandler.class);
 
         http.addFilterBefore(new JwtPreAuthenticationFilter(service), LogoutFilter.class);
-        http.addFilterAfter(new JwtAuthorizationFilter(service, logoutSupplier), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, logoutSupplier), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtAuthorizationFilter(service, logoutHandler), ExceptionTranslationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, logoutHandler), JwtAuthorizationFilter.class);
     }
 }
 

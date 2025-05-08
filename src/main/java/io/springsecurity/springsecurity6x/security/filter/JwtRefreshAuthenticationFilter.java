@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,18 +12,17 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.function.Supplier;
 
 public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
     private final String refreshUri;
-    private final Supplier<LogoutHandler> logoutHandlerSupplier;
+    private final LogoutHandler logoutHandler;
 
-    public JwtRefreshAuthenticationFilter(TokenService tokenService, Supplier<LogoutHandler> logoutHandlerSupplier) {
+    public JwtRefreshAuthenticationFilter(TokenService tokenService, LogoutHandler logoutHandler) {
         this.tokenService     = tokenService;
         this.refreshUri       = tokenService.properties().getInternal().getRefreshUri();
-        this.logoutHandlerSupplier = logoutHandlerSupplier;
+        this.logoutHandler = logoutHandler;
     }
 
     @Override
@@ -41,7 +39,6 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
                 tokenService.writeAccessAndRefreshToken(response, result.accessToken(), result.refreshToken());
             } catch (Exception e) {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                LogoutHandler logoutHandler = logoutHandlerSupplier.get();
                 logoutHandler.logout(request, response, auth);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 로그인 상태가 아님: 정상 흐름
             }

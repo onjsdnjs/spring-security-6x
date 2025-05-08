@@ -24,6 +24,6 @@ public class FlowConfigurer implements SecurityConfigurer {
     }
 
     @Override
-    public int getOrder() { return 100; }
+    public int getOrder() { return 200; }
 }
 

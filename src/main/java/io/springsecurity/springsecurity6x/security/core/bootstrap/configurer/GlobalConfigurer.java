@@ -29,6 +29,6 @@ public class GlobalConfigurer implements SecurityConfigurer {
     }
 
     @Override
-    public int getOrder() { return 200; }
+    public int getOrder() { return 300; }
 }
 

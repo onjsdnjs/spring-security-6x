@@ -17,7 +17,7 @@ import org.springframework.security.web.authentication.logout.LogoutSuccessHandl
 
 import javax.crypto.SecretKey;
 
-public class JwtTokenFactory {
+public class JwtTokenServiceFactory {
     public static TokenService createService(PlatformContext ctx) {
 
         SecretKey key = ctx.getShared(SecretKey.class);

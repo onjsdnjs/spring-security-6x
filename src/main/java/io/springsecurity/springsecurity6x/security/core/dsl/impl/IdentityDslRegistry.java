@@ -53,7 +53,8 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.FORM.name().toLowerCase(),  // flow type
                 List.of(step),                       // step configs
                 null,                                // state (session/jwt 등은 StateSetter로)
-                http -> {}                           // flow-level customizer는 사용하지 않음
+                http -> {},                         // flow-level customizer는 사용하지 않음
+                impl.order()
         ));
 
         return new StateSetter(this);
@@ -69,7 +70,8 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                 AuthType.REST.name().toLowerCase(),
                 List.of(step),
                 null,
-                http -> {}
+                http -> {},
+                impl.order()
         ));
         return new StateSetter(this);
     }

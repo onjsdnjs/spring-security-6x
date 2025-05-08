@@ -23,37 +23,8 @@ public class PlatformSecurityConfig {
 
         return new IdentityDslRegistry()
 
-                .form(form -> form
-                        .loginPage("/login")
-                        .usernameParameter("user")
-                        .passwordParameter("pass")
-                        .rawLogin(f -> f.successHandler(
-                                (request, response, authentication) ->
-                                        System.out.println("request = " + request)))
-                        .raw(http -> { http
-                                .authorizeHttpRequests(a -> a
-                                            .requestMatchers("/api/auth/login").permitAll()
-                                            .anyRequest().permitAll()
-                                )
-                                .headers(headers -> headers
-                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
-                        }))
-                .session(session -> Customizer.withDefaults())
-
-                .rest(rest -> rest
-                        .loginProcessingUrl("/api/auth/login")
-                        .raw(http -> { http
-                                .securityMatcher("/api/auth/**")
-                                .authorizeHttpRequests(a -> a
-                                        .requestMatchers("/api/auth/login").permitAll()
-                                )
-                                .headers(headers -> headers
-                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
-                        }))
-                .jwt(jwt -> Customizer.withDefaults())
-
                 .global(http -> {
-                    http.csrf(AbstractHttpConfigurer::disable);
+//                    http.csrf(AbstractHttpConfigurer::disable);
                     http
 //                            .securityMatcher("/api/**")
                             .authorizeHttpRequests(authReq -> authReq
@@ -63,6 +34,35 @@ public class PlatformSecurityConfig {
                     ;
                 })
 
+                .form(form -> form
+                        .order(2)
+//                        .loginPage("/login")
+                        .usernameParameter("user")
+                        .passwordParameter("pass")
+                        .rawLogin(f -> f.successHandler(
+                                (request, response, authentication) ->
+                                        System.out.println("request = " + request)))
+                        .raw(http -> { http
+//                                .authorizeHttpRequests(a -> a
+//                                            .requestMatchers("/login").permitAll()
+//                                )
+                                .headers(headers -> headers
+                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+                        }))
+                .session(session -> Customizer.withDefaults())
+
+                .rest(rest -> rest
+                        .order(1)
+                        .loginProcessingUrl("/api/auth/login")
+                        .raw(http -> { http
+                                .securityMatcher("/api/auth/**")
+//                                .authorizeHttpRequests(a -> a
+//                                        .requestMatchers("/api/auth/login").permitAll()
+//                                )
+                                .headers(headers -> headers
+                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
+                        }))
+                .jwt(jwt -> Customizer.withDefaults())
                 .build();
     }
 }

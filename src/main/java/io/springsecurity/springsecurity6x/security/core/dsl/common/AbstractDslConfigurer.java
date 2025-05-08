@@ -20,6 +20,7 @@ public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> i
 
     protected final AuthenticationStepConfig stepConfig;
     protected final O options;
+    protected int order;
 
     protected AbstractDslConfigurer(AuthenticationStepConfig stepConfig, O options) {
         this.stepConfig = Objects.requireNonNull(stepConfig, "stepConfig must not be null");

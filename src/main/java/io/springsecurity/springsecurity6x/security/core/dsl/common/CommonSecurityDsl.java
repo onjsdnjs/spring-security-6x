@@ -34,7 +34,11 @@ public interface CommonSecurityDsl<T> {
     /**
      * Advanced: raw FormLoginConfigurer access for full API coverage
      */
-    CommonSecurityDsl raw(SafeHttpCustomizer customizer);
+    T raw(SafeHttpCustomizer customizer);
 
     ThrowingConsumer<HttpSecurity> toFlowCustomizer();
+
+    T order(int order);
+
+    int order();
 }

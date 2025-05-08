@@ -110,6 +110,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
 
         for (FlowContext fc : flows) {
             String flowName = fc.flow().typeName();
+            int    orderVal = fc.flow().order();
             String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
 
             // 3) Supplier 기반으로 BeanDefinition 등록 → Bean 생성 시 build() 호출
@@ -118,7 +119,7 @@ public class SecurityPlatformImpl implements SecurityPlatform {
                         try {
                             DefaultSecurityFilterChain built = fc.http().build();
                             OrderedSecurityFilterChain orderedFilterChain = new OrderedSecurityFilterChain(
-                                    Ordered.HIGHEST_PRECEDENCE,
+                                    Ordered.HIGHEST_PRECEDENCE + orderVal,
                                     built.getRequestMatcher(),
                                     built.getFilters()
                             );

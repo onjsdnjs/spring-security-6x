@@ -13,13 +13,15 @@ public class AuthenticationFlowConfig {
     private final List<AuthenticationStepConfig> stepConfigs;
     private StateConfig stateConfig;
     private final ThrowingConsumer<HttpSecurity> customizer;
+    private int order;
 
     public AuthenticationFlowConfig(String typeName, List<AuthenticationStepConfig> stepConfigs,
-                                    StateConfig stateConfig, ThrowingConsumer<HttpSecurity> customizer) {
+                                    StateConfig stateConfig, ThrowingConsumer<HttpSecurity> customizer, int order) {
         this.typeName = typeName;
         this.stepConfigs = stepConfigs;
         this.stateConfig = stateConfig;
         this.customizer = customizer;
+        this.order       = order;
     }
 
     public String typeName() {
@@ -40,6 +42,10 @@ public class AuthenticationFlowConfig {
 
     public ThrowingConsumer<HttpSecurity> customizer() {
         return customizer;
+    }
+
+    public int order() {
+        return order;
     }
 }
 

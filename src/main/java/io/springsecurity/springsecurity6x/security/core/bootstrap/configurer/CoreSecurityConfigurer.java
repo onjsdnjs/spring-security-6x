@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
-public class JwtConfigurer implements SecurityConfigurer {
+public class CoreSecurityConfigurer implements SecurityConfigurer {
 
     @Override
     public void init(PlatformContext ctx, PlatformConfig config) { }
@@ -34,22 +34,25 @@ public class JwtConfigurer implements SecurityConfigurer {
         HttpSecurity http = fc.http();
 
         Supplier<TokenService> logoutSupplier = () -> http.getSharedObject(TokenService.class);
-        http.setSharedObject(JwtLogoutHandler.class, new JwtLogoutHandler(logoutSupplier));
-        http.setSharedObject(JwtLogoutSuccessHandler.class, new JwtLogoutSuccessHandler());
+        JwtLogoutHandler logoutHandler = new JwtLogoutHandler(logoutSupplier);
+        JwtLogoutSuccessHandler successHandler = new JwtLogoutSuccessHandler();
+
+        http.setSharedObject(JwtLogoutHandler.class, logoutHandler);
+        http.setSharedObject(JwtLogoutSuccessHandler.class, successHandler);
 
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(e -> e
-                        .authenticationEntryPoint((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
-                        .accessDeniedHandler((req, res, ex) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
-                .headers(withDefaults())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .logout(logout -> logout
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/logout"))
-                        .addLogoutHandler(new JwtLogoutHandler(logoutSupplier))
-                        .logoutSuccessHandler(new JwtLogoutSuccessHandler()));
+            .csrf(AbstractHttpConfigurer::disable)
+            .exceptionHandling(e -> e
+                    .authenticationEntryPoint((req, res, ex) ->
+                            res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                    .accessDeniedHandler((req, res, ex) ->
+                            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
+            .headers(withDefaults())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .logout(logout -> logout
+                    .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/logout"))
+                    .addLogoutHandler(logoutHandler)
+                    .logoutSuccessHandler(successHandler));
 
     }
 

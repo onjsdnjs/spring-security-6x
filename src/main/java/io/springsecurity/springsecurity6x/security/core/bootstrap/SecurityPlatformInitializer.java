@@ -146,6 +146,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                                     built.getRequestMatcher(),
                                     built.getFilters());
                         } catch (Exception ex) {
+                            log.error("SecurityFilterChain 생성 실패 (flow={}): 건너뜁니다.", flowName, ex);
                             throw new BeanCreationException(
                                     "SecurityFilterChain 생성 실패 for flow: " + flowName, ex);
                         }

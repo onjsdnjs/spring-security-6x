@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.common;
+package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.security.config.Customizer;

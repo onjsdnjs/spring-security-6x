@@ -2,8 +2,11 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.impl.FormDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.impl.RestDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.AbstractFlowRegistrar;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

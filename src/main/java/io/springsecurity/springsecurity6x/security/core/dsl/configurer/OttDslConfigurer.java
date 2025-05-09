@@ -1,7 +1,7 @@
 /*
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 
 */
 /**

@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.function.ThrowingConsumer;
 

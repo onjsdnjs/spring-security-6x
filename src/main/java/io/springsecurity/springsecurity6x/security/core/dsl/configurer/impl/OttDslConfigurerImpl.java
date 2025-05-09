@@ -4,7 +4,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.impl;
 import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

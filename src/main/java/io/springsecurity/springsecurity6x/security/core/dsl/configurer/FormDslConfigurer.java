@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.dsl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
 /**
  * Form 로그인 관련 DSL 설정을 정의하는 인터페이스입니다.
@@ -7,7 +7,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
  * 설정할 수 있으며, 이를 기반으로 플랫폼이 HttpSecurity에 FormLoginConfigurer를 적용합니다.
  */
 
-import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;

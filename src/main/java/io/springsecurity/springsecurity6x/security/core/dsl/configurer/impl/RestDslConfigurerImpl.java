@@ -1,8 +1,8 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.impl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import org.springframework.security.config.Customizer;

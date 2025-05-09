@@ -1,9 +1,11 @@
-package io.springsecurity.springsecurity6x.security.core.dsl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.IdentityStateDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
 import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;

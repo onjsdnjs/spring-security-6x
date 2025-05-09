@@ -2,8 +2,9 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 /**
  * Security Platform DSL의 엔트리 포인트입니다.

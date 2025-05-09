@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.common.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;

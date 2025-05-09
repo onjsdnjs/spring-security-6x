@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.common;
+package io.springsecurity.springsecurity6x.security.core.dsl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.*;

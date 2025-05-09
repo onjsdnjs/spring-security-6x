@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -17,14 +18,18 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
 
-public class IdentityDslRegistry implements SecurityPlatformDsl {
+public class IdentityDslRegistry2 implements SecurityPlatformDsl {
 
     private final PlatformConfig.Builder platformBuilder = PlatformConfig.builder();
 
+    private SecurityPlatformDsl originGlobal(Customizer<HttpSecurity> customizer){
+        platformBuilder.global(customizer);
+        return this;
+    }
+
     @Override
     public SecurityPlatformDsl global(SafeHttpCustomizer customizer) {
-        platformBuilder.global(wrapSafe(customizer));
-        return this;
+        return originGlobal(wrapSafe(customizer));
     }
 
     private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
@@ -39,6 +44,7 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
 
     @Override
     public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) {
+
         AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
         FormDslConfigurerImpl impl = new FormDslConfigurerImpl(stepConfig);
         customizer.customize(impl);
@@ -48,17 +54,19 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                         AuthType.FORM.name().toLowerCase()
                 )
                 .stepConfigs(List.of(step))
-                .stateConfig(null)                          // will set in StateSetter
-                .customizer(http -> {})           // no flow-level customizer
+                .stateConfig(null)                    // StateSetter 에서 채움
+                .customizer(http -> {})     // Flow-level customizer 없음
                 .order(impl.order())
                 .build();
 
         platformBuilder.addFlow(flow);
-        return new StateSetter();
+
+        return new StateSetter(this);
     }
 
     @Override
     public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) {
+
         AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
         RestDslConfigurerImpl impl = new RestDslConfigurerImpl(stepConfig);
         customizer.customize(impl);
@@ -68,54 +76,86 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
                         AuthType.REST.name().toLowerCase()
                 )
                 .stepConfigs(List.of(step))
-                .stateConfig(null)
-                .customizer(http -> {})
+                .stateConfig(null)                     // StateSetter 에서 채움
+                .customizer(http -> {})      // Flow-level customizer 없음
                 .order(impl.order())
                 .build();
 
         platformBuilder.addFlow(flow);
-        return new StateSetter();
+
+        return new StateSetter(this);
+    }
+    */
+/*
+    @Override
+    public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
+        OttDslConfigurerImpl impl = new OttDslConfigurerImpl();
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.OTT.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null,
+                http -> {}
+        ));
+        return new StateSetter(this);
     }
 
-    // TODO: implement ott(), passkey(), mfa() similarly
+    @Override
+    public IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) {
+        PasskeyDslConfigurerImpl impl = new PasskeyDslConfigurerImpl();
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.PASSKEY.name().toLowerCase(),
+                List.of(impl.toConfig()),
+                null,
+                http -> {}
+        ));
+        return new StateSetter(this);
+    }
+
+    @Override
+    public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
+        MfaDslConfigurerImpl impl = new MfaDslConfigurerImpl();
+        customizer.customize(impl);
+        config.addFlow(new AuthenticationFlowConfig(
+                AuthType.MFA.name().toLowerCase(),
+                impl.getAuthConfigs(),
+                null,
+                http -> {}
+        ));
+        return new StateSetter(this);
+    }*//*
+
 
     @Override
     public PlatformConfig build() {
         return platformBuilder.build();
     }
 
-    private class StateSetter implements IdentityStateDsl {
-        @Override
-        public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
-            replaceLastState(StateType.SESSION.name().toLowerCase());
-            return IdentityDslRegistry.this;
-        }
+    private record StateSetter(IdentityDslRegistry2 registry) implements IdentityStateDsl {
 
         @Override
-        public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
-            replaceLastState(StateType.JWT.name().toLowerCase());
-            return IdentityDslRegistry.this;
+            public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
+                registry.setLastState(StateType.SESSION.name().toLowerCase());
+                return registry;
+            }
+
+            @Override
+            public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
+                registry.setLastState(StateType.JWT.name().toLowerCase());
+                return registry;
+            }
+
+            @Override
+            public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
+                registry.setLastState(StateType.OAUTH2.name().toLowerCase());
+                return registry;
+            }
         }
 
-        @Override
-        public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
-            replaceLastState(StateType.OAUTH2.name().toLowerCase());
-            return IdentityDslRegistry.this;
-        }
-    }
-
-    /**
-     * 마지막에 추가된 플로우를 주어진 state로 교체
-     */
-    private void replaceLastState(String state) {
-        var flows = platformBuilder.build().flows();
-        var old = flows.getLast();
-        var updated = AuthenticationFlowConfig.builder(old.typeName())
-                .stepConfigs(old.stepConfigs())
-                .stateConfig(new StateConfig(state))
-                .customizer(old.customizer())
-                .order(old.order())
-                .build();
-        platformBuilder.replaceLastFlow(updated);
+    private void setLastState(String stateId) {
+        var flow = config.flows().getLast();
+        flow.stateConfig(new StateConfig(stateId));
     }
 }
+*/

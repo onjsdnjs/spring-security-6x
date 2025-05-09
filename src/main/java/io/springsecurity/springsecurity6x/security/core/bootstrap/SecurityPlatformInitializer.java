@@ -32,7 +32,6 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     private final List<SecurityConfigurer> configurers;  // Flow, Global 등 기본 설정
     private final FeatureRegistry featureRegistry;              // 인증/상태 Feature 레지스트리
     private PlatformConfig config;
-    private final AtomicInteger chainOrder = new AtomicInteger(1);
 
     /**
      * @param context          플랫폼 컨텍스트
@@ -128,38 +127,32 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                 });
     }
 
-    /**
-     * FlowContext별 SecurityFilterChain 빌드 및 Bean 등록
-     * chainOrder를 지역 변수로 사용해 매번 1부터 재시작
-     */
+    // FlowContext별 SecurityFilterChain 빌드 및 Bean 등록
     private void registerSecurityFilterChains(List<FlowContext> flows) {
-
         ConfigurableApplicationContext cac = (ConfigurableApplicationContext) context.applicationContext();
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) cac.getBeanFactory();
-        AtomicInteger localOrder = new AtomicInteger(1);
+        AtomicInteger chainOrder = new AtomicInteger(1);
 
         for (FlowContext fc : flows) {
             String flowName = fc.flow().typeName();
             int orderVal = fc.flow().order();
-            String beanName = flowName + "SecurityFilterChain" + localOrder.getAndIncrement();
-
-            try {
-                // 즉시 빌드 시도: 실패 시 로깅하고 다음 플로우로 계속
-                DefaultSecurityFilterChain built = fc.http().build();
-                OrderedSecurityFilterChain orderedChain = new OrderedSecurityFilterChain(
-                        Ordered.HIGHEST_PRECEDENCE + orderVal,
-                        built.getRequestMatcher(),
-                        built.getFilters());
-
-                // BeanDefinition 등록
-                BeanDefinitionBuilder builder = BeanDefinitionBuilder
-                        .genericBeanDefinition(SecurityFilterChain.class, () -> orderedChain);
-                builder.setLazyInit(false);
-                builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
-                registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
-            } catch (Exception ex) {
-                log.error("SecurityFilterChain 생성 실패 (flow={}): 건너뜁니다.", flowName, ex);
-            }
+            String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
+            BeanDefinitionBuilder builder = BeanDefinitionBuilder
+                    .genericBeanDefinition(SecurityFilterChain.class, () -> {
+                        try {
+                            DefaultSecurityFilterChain built = fc.http().build();
+                            return new OrderedSecurityFilterChain(
+                                    Ordered.HIGHEST_PRECEDENCE + orderVal,
+                                    built.getRequestMatcher(),
+                                    built.getFilters());
+                        } catch (Exception ex) {
+                            throw new BeanCreationException(
+                                    "SecurityFilterChain 생성 실패 for flow: " + flowName, ex);
+                        }
+                    });
+            builder.setLazyInit(true);
+            builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+            registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
         }
     }
 }

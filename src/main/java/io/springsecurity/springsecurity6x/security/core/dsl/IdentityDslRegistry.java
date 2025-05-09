@@ -1,14 +1,15 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.impl;
+package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.IdentityStateDsl;
-import io.springsecurity.springsecurity6x.security.core.dsl.RestDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.impl.FormDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.impl.RestDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
@@ -120,35 +121,29 @@ public class IdentityDslRegistry implements SecurityPlatformDsl {
         return config;
     }
 
-    private static class StateSetter implements IdentityStateDsl {
-
-        private final IdentityDslRegistry registry;
-
-        StateSetter(IdentityDslRegistry registry) {
-            this.registry = registry;
-        }
+    private record StateSetter(IdentityDslRegistry registry) implements IdentityStateDsl {
 
         @Override
-        public SecurityPlatformDsl session(Customizer<FormDslConfigurer> customizer) {
-            registry.setLastState(StateType.SESSION.name().toLowerCase());
-            return registry;
-        }
+            public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
+                registry.setLastState(StateType.SESSION.name().toLowerCase());
+                return registry;
+            }
 
-        @Override
-        public SecurityPlatformDsl jwt(Customizer<FormDslConfigurer> customizer) {
-            registry.setLastState(StateType.JWT.name().toLowerCase());
-            return registry;
-        }
+            @Override
+            public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
+                registry.setLastState(StateType.JWT.name().toLowerCase());
+                return registry;
+            }
 
-        @Override
-        public SecurityPlatformDsl oauth2(Customizer<FormDslConfigurer> customizer) {
-            registry.setLastState(StateType.OAUTH2.name().toLowerCase());
-            return registry;
+            @Override
+            public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
+                registry.setLastState(StateType.OAUTH2.name().toLowerCase());
+                return registry;
+            }
         }
-    }
 
     private void setLastState(String stateId) {
-        var flow = config.flows().get(config.flows().size() - 1);
+        var flow = config.flows().getLast();
         flow.stateConfig(new StateConfig(stateId));
     }
 }

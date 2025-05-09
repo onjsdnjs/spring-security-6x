@@ -19,11 +19,13 @@ public class JwtTokenServiceFactory {
         SecretKey key = ctx.getShared(SecretKey.class);
         AuthContextProperties props = ctx.getShared(AuthContextProperties.class);
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(props.getTokenTransportType());
+        JwtTokenParser jwtTokenParser = new JwtTokenParser(key);
+        JwtRefreshTokenStore jwtRefreshTokenStore = new JwtRefreshTokenStore(new JwtTokenParser(key), props);
 
         JwtTokenService tokenService = new JwtTokenService(
-                new JwtTokenValidator(new JwtTokenParser(key), new JwtRefreshTokenStore(new JwtTokenParser(key), props), props.getRefreshRotateThreshold()),
+                new JwtTokenValidator(jwtTokenParser, jwtRefreshTokenStore, props.getRefreshRotateThreshold()),
                 new JwtTokenCreator(key),
-                new JwtRefreshTokenStore(new JwtTokenParser(key), props),
+                jwtRefreshTokenStore,
                 transport,
                 props
         );

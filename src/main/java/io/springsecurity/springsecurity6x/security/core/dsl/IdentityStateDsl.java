@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
+import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
 import org.springframework.security.config.Customizer;
 
 /**
@@ -13,20 +16,20 @@ public interface IdentityStateDsl {
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl session(Customizer<FormDslConfigurer> customizer);
+    SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer);
 
     /**
      * 외부 JWT 라이브러리 기반 토큰 전략을 사용합니다.
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl jwt(Customizer<FormDslConfigurer> customizer);
+    SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer);
 
     /**
      * Spring AuthorizationServer/ResourceServer(OAuth2) 기반 JWT 전략을 사용합니다.
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl oauth2(Customizer<FormDslConfigurer> customizer);
+    SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer);
 }
 

@@ -1,16 +1,14 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
@@ -27,8 +25,7 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler 
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-            throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
 
         TokenService tokenService = tokenServiceSupplier.get();
         String deviceId = request.getHeader("X-Device-Id");
@@ -42,7 +39,6 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler 
         } catch (Exception e) {
             throw new AuthenticationServiceException("Token issuance failed", e);
         }
-
         // 4) 원본 성공 핸들러 호출
 //        delegate.onAuthenticationSuccess(request, response, authentication);
     }

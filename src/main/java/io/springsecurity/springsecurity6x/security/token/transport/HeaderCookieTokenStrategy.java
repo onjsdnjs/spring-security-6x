@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
 public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
@@ -44,7 +46,12 @@ public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy im
                 tokenService.properties().getAccessTokenValidity(),
                 null
         );
-        writeJson(response, body);
+        try {
+            writeJson(response, body);
+            response.flushBuffer();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

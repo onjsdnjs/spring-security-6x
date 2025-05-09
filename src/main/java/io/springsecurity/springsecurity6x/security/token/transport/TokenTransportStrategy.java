@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.IOException;
+
 public interface TokenTransportStrategy {
 
     String resolveAccessToken(HttpServletRequest request);

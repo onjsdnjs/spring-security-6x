@@ -9,18 +9,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class MySecurityConfig {
-/*
-    @Bean
-    public IdentityRegistryDsl identityDsl() throws Exception {
-
-        return new IdentityRegistryDsl()
-                .form(form -> form
-                        .loginPage("/login")).useSession()
-
-                .rest(rest -> rest
-                        .loginProcessingUrl("/api/login")).useJwt()
-                ;
-    }*/
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer(){

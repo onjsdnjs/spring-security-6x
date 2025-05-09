@@ -36,6 +36,4 @@ public interface CommonSecurityDsl<T> {
     ThrowingConsumer<HttpSecurity> toFlowCustomizer();
 
     T order(int order);
-
-    int order();
 }

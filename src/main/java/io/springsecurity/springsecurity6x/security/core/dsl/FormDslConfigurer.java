@@ -17,7 +17,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 /**
  * Form 기반 인증 DSL 인터페이스
  */
-public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurer> {
+public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurer>, StepDslConfigurer {
 
     FormDslConfigurer loginPage(String loginPageUrl);
     FormDslConfigurer loginProcessingUrl(String loginProcessingUrl);

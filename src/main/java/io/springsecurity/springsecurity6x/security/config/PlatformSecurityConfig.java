@@ -51,7 +51,7 @@ public class PlatformSecurityConfig {
                         .order(1)
                         .loginProcessingUrl("/api/auth/login")
                         .raw(http -> { http
-                                .securityMatcher("/api/auth/**");
+                                .securityMatcher("/api/**");
 //                                .authorizeHttpRequests(a -> a
 //                                        .requestMatchers("/api/auth/login").permitAll()
 //                                )

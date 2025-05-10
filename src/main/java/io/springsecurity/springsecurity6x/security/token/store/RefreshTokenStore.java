@@ -5,5 +5,6 @@ public interface RefreshTokenStore{
     void remove(String token);
     String getUsername(String refreshToken);
     void blacklist(String token, String username, String reason);
+    void blacklistDevice(String token, String username, String reason);
     boolean isBlacklisted(String token);
 }

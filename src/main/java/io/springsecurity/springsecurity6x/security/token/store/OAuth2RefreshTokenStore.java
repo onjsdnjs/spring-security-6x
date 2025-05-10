@@ -23,6 +23,11 @@ public class OAuth2RefreshTokenStore implements RefreshTokenStore {
     }
 
     @Override
+    public void blacklistDevice(String token, String username, String reason) {
+
+    }
+
+    @Override
     public boolean isBlacklisted(String token) {
         return false;
     }

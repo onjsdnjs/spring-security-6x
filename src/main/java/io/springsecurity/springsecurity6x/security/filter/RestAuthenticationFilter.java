@@ -110,7 +110,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         context.setAuthentication(authentication);
         securityContextHolderStrategy.setContext(context);
         securityContextRepository.saveContext(context, request, response);
-        successHandler.onAuthenticationSuccess(request, response, chain, authentication);
+        successHandler.onAuthenticationSuccess(request, response, authentication);
     }
 
     private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,

@@ -86,6 +86,6 @@
             if (registerLink)  registerLink.style.display = "inline-block";
         }
 
-        // window.location.href = "/loginForm";
+        window.location.href = "/loginForm";
     }
 })();

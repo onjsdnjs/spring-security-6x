@@ -17,36 +17,36 @@ import java.util.stream.Collectors;
 public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     private final Map<String, TokenInfo> store = new ConcurrentHashMap<>();
-    private final Map<String, TokenInfo> blacklist = new ConcurrentHashMap<>();
-    private final TokenParser tokenParser;
-    private final AuthContextProperties props;
+    private final Map<String, TokenInfo> blacklistByToken = new ConcurrentHashMap<>();
+    private final Map<String, TokenInfo> blacklistByDevice = new ConcurrentHashMap<>();
 
     private final Map<String, LinkedHashMap<String, Instant>> userDevices = new ConcurrentHashMap<>();
+    private final TokenParser tokenParser;
+    private final AuthContextProperties props;
 
     public JwtRefreshTokenStore(TokenParser tokenParser, AuthContextProperties props) {
         this.tokenParser = tokenParser;
         this.props = props;
     }
 
-    private String key(String username, String deviceId) {
+    private String deviceKey(String username, String deviceId) {
         return username + ":" + deviceId;
     }
 
     @Override
     public void save(String refreshToken, String username) {
-
         try {
             ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String deviceId = parsedJwt.deviceId();
             Instant expiry = parsedJwt.expiration();
-            String tokenKey = key(username, deviceId);
+            String tokenKey = deviceKey(username, deviceId);
 
             if (!props.isAllowMultipleLogins()) {
                 store.keySet().stream()
                         .filter(k -> k.startsWith(username + ":"))
                         .forEach(k -> {
                             store.remove(k);
-                            blacklist.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
+                            blacklistByDevice.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
                         });
             } else {
                 Map<String, TokenInfo> devices = store.entrySet().stream()
@@ -60,7 +60,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
                             .orElse(null);
                     if (oldestKey != null) {
                         store.remove(oldestKey);
-                        blacklist.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
+                        blacklistByDevice.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
                     }
                 }
             }
@@ -77,10 +77,10 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId();
-            TokenInfo info = store.get(key(subject, deviceId));
+            TokenInfo info = store.get(deviceKey(subject, deviceId));
             if (info == null) return null;
             if (Instant.now().isAfter(info.getExpiration())) {
-                store.remove(key(subject, deviceId));
+                store.remove(deviceKey(subject, deviceId));
                 return null;
             }
             return info.getUsername();
@@ -92,29 +92,33 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void blacklist(String token, String username, String reason) {
-        String deviceId = "UNKNOWN_DEVICE";
-        String resolvedUsername = username != null ? username : "ANONYMOUS";
-
         try {
             ParsedJwt parsedJwt = tokenParser.parse(token);
-            deviceId = parsedJwt.deviceId();
-            resolvedUsername = parsedJwt.subject(); // 토큰에서 username 추출 (가능한 경우)
+            String subject = parsedJwt.subject();
+            Instant expiry = parsedJwt.expiration();
+            blacklistByToken.put(token, new TokenInfo(subject, expiry, reason));
         } catch (JwtException e) {
-            log.warn("JWT parse failed for blacklist. Still attempting to block. Raw token: {}", token, e);
+            log.warn("JWT parse failed for token blacklist. Raw token: {}", token, e);
+            blacklistByToken.put(token, new TokenInfo(username != null ? username : "ANONYMOUS", Instant.now(), reason));
         }
+    }
 
-        // 최종적으로 블랙리스트에 등록
-        blacklist.put(key(resolvedUsername, deviceId), new TokenInfo(resolvedUsername, Instant.now(), reason));
+    public void blacklistDevice(String username, String deviceId, String reason) {
+        String key = deviceKey(username, deviceId);
+        blacklistByDevice.put(key, new TokenInfo(username, Instant.now(), reason));
     }
 
     @Override
     public boolean isBlacklisted(String token) {
+        if (blacklistByToken.containsKey(token)) {
+            return true;
+        }
         try {
             ParsedJwt parsedJwt = tokenParser.parse(token);
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId();
-            return blacklist.containsKey(key(subject, deviceId));
-        } catch (Exception e) {
+            return blacklistByDevice.containsKey(deviceKey(subject, deviceId));
+        } catch (JwtException e) {
             return false;
         }
     }
@@ -125,7 +129,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             ParsedJwt parsedJwt = tokenParser.parse(refreshToken);
             String subject = parsedJwt.subject();
             String deviceId = parsedJwt.deviceId();
-            store.remove(key(subject, deviceId));
+            store.remove(deviceKey(subject, deviceId));
             LinkedHashMap<String, Instant> devices = userDevices.get(subject);
             if (devices != null) {
                 devices.remove(deviceId);

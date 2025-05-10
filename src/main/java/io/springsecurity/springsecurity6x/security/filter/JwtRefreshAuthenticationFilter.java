@@ -45,7 +45,6 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
         } else {
             response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 로그인 상태가 아님: 정상 흐름
         }
-        chain.doFilter(request, response);
     }
 }
 

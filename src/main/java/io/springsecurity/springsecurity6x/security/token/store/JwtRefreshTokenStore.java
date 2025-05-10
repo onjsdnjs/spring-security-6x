@@ -42,32 +42,45 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
             String tokenKey = deviceKey(username, deviceId);
 
             if (!props.isAllowMultipleLogins()) {
+                // 모든 사용자 디바이스를 제거 및 블랙리스트
                 store.keySet().stream()
                         .filter(k -> k.startsWith(username + ":"))
-                        .forEach(k -> {
-                            store.remove(k);
-                            blacklistByDevice.put(k, new TokenInfo(username, Instant.now(), "Single login enforced"));
-                        });
+                        .forEach(k -> evictAndBlacklist(k, username, "Single login enforced"));
+
             } else {
-                Map<String, TokenInfo> devices = store.entrySet().stream()
+                // 현재 사용자 디바이스 수 확인
+                Map<String, TokenInfo> userDevices = store.entrySet().stream()
                         .filter(e -> e.getKey().startsWith(username + ":"))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                if (devices.size() >= props.getMaxConcurrentLogins()) {
-                    String oldestKey = devices.entrySet().stream()
+                if (userDevices.size() >= props.getMaxConcurrentLogins()) {
+                    String oldestKey = userDevices.entrySet().stream()
                             .min(Comparator.comparing(e -> e.getValue().getExpiration()))
                             .map(Map.Entry::getKey)
                             .orElse(null);
+
                     if (oldestKey != null) {
-                        store.remove(oldestKey);
-                        blacklistByDevice.put(oldestKey, new TokenInfo(username, Instant.now(), "Max concurrent login exceeded"));
+                        evictAndBlacklist(oldestKey, username, "Max concurrent login exceeded");
                     }
                 }
             }
 
             store.put(tokenKey, new TokenInfo(username, expiry));
+
         } catch (JwtException e) {
             log.warn("JWT 파싱 실패 - 저장 실패. refreshToken: {}", refreshToken, e);
+        }
+    }
+
+    private void evictAndBlacklist(String tokenKey, String username, String reason) {
+        store.remove(tokenKey);
+        String[] parts = tokenKey.split(":");
+        if (parts.length == 2) {
+            String deviceId = parts[1];
+            blacklistDevice(username, deviceId, reason);
+        } else {
+            // fallback (예외 처리 등도 가능)
+            log.warn("Invalid tokenKey format for eviction: {}", tokenKey);
         }
     }
 

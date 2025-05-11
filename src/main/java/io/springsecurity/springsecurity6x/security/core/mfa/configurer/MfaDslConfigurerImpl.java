@@ -21,9 +21,11 @@ import java.util.function.Function;
  * MfaDslConfigurer 구현체
  */
 public class MfaDslConfigurerImpl implements MfaDslConfigurer {
+
     private final AuthenticationFlowConfig.Builder flowBuilder;
     private final List<AuthenticationStepConfig> stepConfigs = new ArrayList<>();
     private int order;
+    private String loginProcessUrl;
     private RetryPolicy retryPolicy;
     private AdaptiveConfig adaptiveConfig;
     private boolean deviceTrust;
@@ -67,6 +69,12 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     @Override
     public MfaDslConfigurer order(int order) {
         this.order = order;
+        return this;
+    }
+
+    @Override
+    public MfaDslConfigurer loginProcessUrl(String url) {
+        this.loginProcessUrl = url;
         return this;
     }
 

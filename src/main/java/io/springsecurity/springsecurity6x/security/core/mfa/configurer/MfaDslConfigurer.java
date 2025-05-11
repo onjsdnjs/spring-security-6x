@@ -23,6 +23,9 @@ public interface MfaDslConfigurer {
     /** 전체 MFA 플로우의 실행 우선순위 지정 */
     MfaDslConfigurer order(int order);
 
+    /** MFA 인증 실행 Url */
+    MfaDslConfigurer loginProcessUrl(String url);
+
     /** 재시도 정책 설정 */
     MfaDslConfigurer retryPolicy(Customizer<RetryPolicyDslConfigurer> c);
     /** Adaptive(조건부) 정책 설정 */

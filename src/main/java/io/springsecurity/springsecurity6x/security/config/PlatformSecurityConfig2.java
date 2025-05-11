@@ -1,4 +1,3 @@
-/*
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
@@ -10,7 +9,7 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
-public class PlatformSecurityConfig {
+public class PlatformSecurityConfig2 {
 
     @Bean
     public PlatformConfig securityPlatformDsl() {
@@ -31,34 +30,28 @@ public class PlatformSecurityConfig {
                     ;
                 })
 
-                .form(form -> form
-                        .order(2)
-//                        .loginPage("/login")
-                        .usernameParameter("user")
-                        .passwordParameter("pass")
-                        .rawLogin(f -> f.successHandler(
-                                (request, response, authentication) ->
-                                        System.out.println("request = " + request)))
-                        .raw(http -> { http
-//                                .authorizeHttpRequests(a -> a
-//                                            .requestMatchers("/login").permitAll()
-//                                )
-                                .headers(headers -> headers
-                                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
-                        }))
-                .session(session -> Customizer.withDefaults())
-
-                .rest(rest -> rest
-                        .order(1)
-                        .loginProcessingUrl("/api/auth/login")
-                        .raw(http -> { http
-                                .securityMatcher("/api/**");
-//                                .authorizeHttpRequests(a -> a
-//                                        .requestMatchers("/api/auth/login").permitAll()
-//                                )
-                        }))
+                .mfa(m -> m
+                        .rest(r -> r.loginProcessingUrl("/api/login"))
+                        .ott(o -> o.loginProcessingUrl("/api/ott"))
+                        .passkey(p -> p.rpName("app"))
+                        .order(5)
+                        .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
+                        .adaptive(ad -> ad.geolocation(true))
+                        .deviceTrust(true)
+                        .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
                 .jwt(jwt -> Customizer.withDefaults())
+
+                .mfa(m -> m
+                        .rest(r -> r.loginProcessingUrl("/api/login"))
+                        .ott(o -> o.loginProcessingUrl("/api/ott"))
+                        .passkey(p -> p.rpName("app"))
+                        .order(6)
+                        .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
+                        .adaptive(ad -> ad.geolocation(true))
+                        .deviceTrust(true)
+                        .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
+                .jwt(jwt -> Customizer.withDefaults())
+
                 .build();
     }
 }
-*/

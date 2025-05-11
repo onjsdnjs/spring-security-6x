@@ -4,8 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistr
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.DefaultRiskEngine;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.*;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.mfa.*;
 import io.springsecurity.springsecurity6x.security.filter.MfaAuthenticationFilter;
 import jakarta.servlet.Filter;
 import org.springframework.security.authentication.AuthenticationManager;

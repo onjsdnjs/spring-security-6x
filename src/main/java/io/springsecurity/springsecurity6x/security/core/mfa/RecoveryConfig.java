@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa;
+package io.springsecurity.springsecurity6x.security.core.mfa;
 
 public class RecoveryConfig {
     private final String emailOtpEndpoint;

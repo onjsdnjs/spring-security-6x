@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
+package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -9,9 +9,9 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.AdaptiveConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RecoveryConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
+import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 
 import java.util.ArrayList;
 import java.util.List;

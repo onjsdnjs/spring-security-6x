@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
+package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
+import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 
 /**
  * RetryPolicy 빌더용 DSL 인터페이스

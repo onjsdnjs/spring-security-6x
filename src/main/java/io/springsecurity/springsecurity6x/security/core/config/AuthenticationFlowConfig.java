@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.AdaptiveConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RecoveryConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
+import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.function.ThrowingConsumer;
 

@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.FactorAuthenticator;
+import io.springsecurity.springsecurity6x.security.core.mfa.FactorAuthenticator;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
 

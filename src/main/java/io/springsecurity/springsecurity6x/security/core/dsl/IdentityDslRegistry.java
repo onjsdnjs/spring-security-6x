@@ -10,13 +10,11 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.Form
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-
-import java.util.function.Consumer;
 
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
@@ -60,7 +58,7 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
         return registerFlow(AuthType.PASSKEY, customizer, PasskeyDslConfigurerImpl::new);
     }
 
-    public IdentityStateDsl mfa(Consumer<MfaDslConfigurer> customizer) {
+    public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
         return registerMultiStepFlow(
                 AuthType.MFA,
                 customizer,

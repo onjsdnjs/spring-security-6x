@@ -5,7 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.StepDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
@@ -16,7 +16,6 @@ import org.springframework.security.config.Customizer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -62,16 +61,15 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
         return stateSetter;
     }
 
-    protected IdentityStateDsl registerMultiStepFlow(AuthType type, Consumer<MfaDslConfigurer> customizer,
+    protected IdentityStateDsl registerMultiStepFlow(AuthType type, Customizer<MfaDslConfigurer> customizer,
             Function<AuthenticationFlowConfig.Builder, MfaDslConfigurer> factory) {
 
         // 1) FlowConfig.Builder 생성
-        AuthenticationFlowConfig.Builder flowBuilder =
-                AuthenticationFlowConfig.builder(type.name().toLowerCase());
+        AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(type.name().toLowerCase());
 
         // 2) MfaDslConfigurerImpl 생성 및 DSL 적용
         MfaDslConfigurer configurer = factory.apply(flowBuilder);
-        customizer.accept(configurer);
+        customizer.customize(configurer);
 
         // 3) 완성된 FlowConfig 생성
         AuthenticationFlowConfig flow = configurer.build();

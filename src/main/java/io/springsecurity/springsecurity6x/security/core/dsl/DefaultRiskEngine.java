@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RiskAssessmentResult;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RiskEngine;
+import io.springsecurity.springsecurity6x.security.core.mfa.RiskAssessmentResult;
+import io.springsecurity.springsecurity6x.security.core.mfa.RiskEngine;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

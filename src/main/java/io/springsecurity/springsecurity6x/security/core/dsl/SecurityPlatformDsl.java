@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurer;
 import org.springframework.security.config.Customizer;
 
 /**
@@ -42,7 +43,7 @@ public interface SecurityPlatformDsl {
     IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
 
 
-//    IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);
+    IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);
     /**
      * DSL 설정이 모두 끝난 후 호출하여
      * 내부에 누적된 PlatformConfig를 생성합니다.

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa;
+package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import lombok.extern.slf4j.Slf4j;
 

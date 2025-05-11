@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.MultiFactorManager;
+import io.springsecurity.springsecurity6x.security.core.mfa.MultiFactorManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;

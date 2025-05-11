@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
+package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.AdaptiveConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
 
 /**
  * Adaptive DSL 구현체: 컨텍스트 기반 조건부 MFA 설정

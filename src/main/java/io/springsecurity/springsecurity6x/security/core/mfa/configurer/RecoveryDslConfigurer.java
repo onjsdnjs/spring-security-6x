@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
+package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RecoveryConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
 
 public interface RecoveryDslConfigurer {
     /**

@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 
 import java.util.function.Consumer;

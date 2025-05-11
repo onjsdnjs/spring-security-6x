@@ -17,9 +17,7 @@ import java.util.List;
 /**
  * DSL 구현체: OTT 인증 스텝 설정
  */
-public class OttDslConfigurerImpl
-        extends AbstractDslConfigurer<OttOptions.Builder, OttDslConfigurer>
-        implements OttDslConfigurer {
+public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Builder, OttDslConfigurer> implements OttDslConfigurer {
 
     private int order = 0;
 

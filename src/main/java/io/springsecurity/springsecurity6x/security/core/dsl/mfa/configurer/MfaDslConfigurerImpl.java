@@ -3,6 +3,12 @@ package io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.AdaptiveConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RecoveryConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
@@ -28,10 +34,28 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer factor(Consumer<FactorDslConfigurer> c) {
+    public MfaDslConfigurer rest(Consumer<RestDslConfigurer> customizer) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
-        FactorDslConfigurerImpl impl = new FactorDslConfigurerImpl(step);
-        c.accept(impl);
+        RestDslConfigurerImpl impl = new RestDslConfigurerImpl(step);
+        customizer.accept(impl);
+        stepConfigs.add(impl.toConfig());
+        return this;
+    }
+
+    @Override
+    public MfaDslConfigurer ott(Consumer<OttDslConfigurer> customizer) {
+        AuthenticationStepConfig step = new AuthenticationStepConfig();
+        OttDslConfigurerImpl impl = new OttDslConfigurerImpl(step);
+        customizer.accept(impl);
+        stepConfigs.add(impl.toConfig());
+        return this;
+    }
+
+    @Override
+    public MfaDslConfigurer passkey(Consumer<PasskeyDslConfigurer> customizer) {
+        AuthenticationStepConfig step = new AuthenticationStepConfig();
+        PasskeyDslConfigurerImpl impl = new PasskeyDslConfigurerImpl(step);
+        customizer.accept(impl);
         stepConfigs.add(impl.toConfig());
         return this;
     }
@@ -74,16 +98,15 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     @Override
     public AuthenticationFlowConfig build() {
-        // 기존 customizer 대신, MFA 설정은 FlowConfig 필드에 직접 담습니다.
         return flowBuilder
                 .stepConfigs(stepConfigs)
                 .stateConfig(null)
                 .order(order)
-                .retryPolicy(retryPolicy)          // 여기에 retryPolicy 담기
-                .adaptiveConfig(adaptiveConfig)    // 여기에 adaptiveConfig 담기
-                .deviceTrust(deviceTrust)          // 여기 deviceTrust 플래그 담기
-                .recoveryConfig(recoveryConfig)    // 여기 recoveryConfig 담기
-                .customizer(http -> {})            // 필요 시 전용 HttpSecurity 커스터마이즈
+                .retryPolicy(retryPolicy)
+                .adaptiveConfig(adaptiveConfig)
+                .deviceTrust(deviceTrust)
+                .recoveryConfig(recoveryConfig)
+                .customizer(http -> {})
                 .build();
     }
 }

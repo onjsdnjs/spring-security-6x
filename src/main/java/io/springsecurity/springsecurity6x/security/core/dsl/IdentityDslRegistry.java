@@ -3,14 +3,18 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import java.util.function.Consumer;
 
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
@@ -44,7 +48,12 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
         return registerFlow(AuthType.REST, customizer, RestDslConfigurerImpl::new);
     }
 
-    public IdentityStateDsl mfa(java.util.function.Consumer<MfaDslConfigurer> customizer) {
+    @Override
+    public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
+        return registerFlow(AuthType.OTT, customizer, OttDslConfigurerImpl::new);
+    }
+
+    public IdentityStateDsl mfa(Consumer<MfaDslConfigurer> customizer) {
         return registerMultiStepFlow(
                 AuthType.MFA,
                 customizer,

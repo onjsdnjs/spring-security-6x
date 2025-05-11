@@ -1,4 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
+
+import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 
 public interface OttDslConfigurer extends CommonSecurityDsl<OttDslConfigurer> {
 

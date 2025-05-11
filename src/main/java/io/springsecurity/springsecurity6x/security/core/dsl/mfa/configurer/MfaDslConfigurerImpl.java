@@ -9,6 +9,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * MfaDslConfigurer 구현체
@@ -27,7 +28,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer factor(java.util.function.Consumer<FactorDslConfigurer> c) {
+    public MfaDslConfigurer factor(Consumer<FactorDslConfigurer> c) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         FactorDslConfigurerImpl impl = new FactorDslConfigurerImpl(step);
         c.accept(impl);
@@ -42,7 +43,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer retryPolicy(java.util.function.Consumer<RetryPolicyDslConfigurer> c) {
+    public MfaDslConfigurer retryPolicy(Consumer<RetryPolicyDslConfigurer> c) {
         RetryPolicyDslConfigurerImpl rpc = new RetryPolicyDslConfigurerImpl();
         c.accept(rpc);
         this.retryPolicy = rpc.build();
@@ -50,7 +51,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer adaptive(java.util.function.Consumer<AdaptiveDslConfigurer> c) {
+    public MfaDslConfigurer adaptive(Consumer<AdaptiveDslConfigurer> c) {
         AdaptiveDslConfigurerImpl adc = new AdaptiveDslConfigurerImpl();
         c.accept(adc);
         this.adaptiveConfig = adc.build();
@@ -64,7 +65,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer recoveryFlow(java.util.function.Consumer<RecoveryDslConfigurer> c) {
+    public MfaDslConfigurer recoveryFlow(Consumer<RecoveryDslConfigurer> c) {
         RecoveryDslConfigurerImpl rc = new RecoveryDslConfigurerImpl();
         c.accept(rc);
         this.recoveryConfig = rc.build();

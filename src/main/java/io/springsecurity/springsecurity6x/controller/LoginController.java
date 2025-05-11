@@ -43,10 +43,10 @@ public class LoginController {
         return "ott-forward";
     }
 
-  /*  @PostMapping("/api/auth/login")
-    public String loginOttClose() {
-        return "redirect:/";
-    }*/
+    @GetMapping("/mfa")
+    public String mfa() {
+        return "login-mfa";
+    }
 
     @GetMapping("/ott/sent")
     public String sentPage(@RequestParam String email, Model model) {

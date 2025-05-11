@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>MFA 로그인</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+
+    <!-- CSRF 메타 -->
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body>
+<div class="app-wrapper">
+    <header class="app-header" th:insert="~{fragments/header :: header}"></header>
+    <aside  class="sidebar"    th:insert="~{fragments/menu   :: menu}"></aside>
+    <main   class="content">
+        <div class="container">
+
+            <!-- 1단계: REST 로그인 -->
+            <form id="restForm" class="mfa-step">
+                <h2>로그인</h2>
+                <div><label>아이디: <input name="username"/></label></div>
+                <div><label>비밀번호: <input type="password" name="password"/></label></div>
+                <button type="submit">로그인</button>
+            </form>
+
+            <!-- 2단계: 이메일(OTT) 인증 -->
+            <form id="ottForm" class="mfa-step" style="display:none;">
+                <h2>이메일 코드 인증</h2>
+                <p>이메일로 발송된 인증 코드를 입력하세요.</p>
+                <div><label>코드: <input name="token"/></label></div>
+                <button type="submit">인증</button>
+            </form>
+
+            <!-- 3단계: Passkey 인증 -->
+            <div id="passkeySection" class="mfa-step" style="display:none;">
+                <h2>Passkey 인증</h2>
+                <p>버튼을 눌러 Passkey(생체인증)를 진행하세요.</p>
+                <button id="webauthnBtn">Passkey 시작</button>
+            </div>
+
+        </div>
+    </main>
+    <footer class="app-footer" th:insert="~{fragments/footer :: footer}"></footer>
+</div>
+
+<!-- 공통 스크립트 -->
+<script src="/js/token-holder.js"></script>
+<script src="/js/init-auth.js"></script>
+<!-- MFA 순차 스크립트 -->
+<script src="/js/mfa-login.js"></script>
+</body>
+</html>
+
+

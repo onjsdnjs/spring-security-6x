@@ -6,9 +6,11 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.Sta
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanCreationException;
@@ -64,12 +66,16 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
      * 4) SecurityFilterChain 등록
      */
     @Override
-    public void initialize() {
-        List<FlowContext> flows = createAndSortFlows();
+    public void initialize() throws Exception {
+        /*List<FlowContext> flows = createAndSortFlows();
         List<SecurityConfigurer> configurers = buildConfigurers();
 
         initConfigurers(configurers);
         configureFlows(configurers, flows);
+        registerSecurityFilterChains(flows);*/
+
+        List<FlowContext> flows = createAndSortFlows();
+        configureFlows(flows);
         registerSecurityFilterChains(flows);
     }
 
@@ -118,13 +124,35 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                 });
     }
 
+    private void configureFlows(List<FlowContext> flows) throws Exception {
+        // FeatureRegistry 에서 MFA 컨테이너, 스텝별, 상태별 Feature 모두 꺼내기
+        List<AuthenticationFeature> features = featureRegistry.getAllFeaturesFor(config.flows());
+        // 각 Feature의 getOrder() 기준으로 정렬
+        features.sort(Comparator.comparingInt(AuthenticationFeature::getOrder));
+
+        // 각 FlowContext 마다 동일한 Feature 순서를 적용
+        for (FlowContext fc : flows) {
+            HttpSecurity http = fc.http();
+            List<AuthenticationStepConfig> steps = fc.flow().stepConfigs();
+            StateConfig state = fc.flow().stateConfig();
+
+            for (AuthenticationFeature feature : features) {
+                // 각 Feature가 자신의 타입(form/rest/ott/passkey/mfa/session/jwt 등)에 맞게
+                // http, steps, state를 보고 필요한 설정을 수행
+                feature.apply(http, steps, state);
+            }
+        }
+    }
+
     // configure 단계: configure(FlowContext) 호출
     private void configureFlows(List<SecurityConfigurer> configurers, List<FlowContext> flows) {
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> {
                     for (FlowContext fc : flows) {
-                        try { cfg.configure(fc); }
+                        try {
+                            cfg.configure(fc);
+                        }
                         catch (Exception e) {
                             throw new IllegalStateException("Configurer configure 실패: " + cfg, e);
                         }
@@ -151,21 +179,16 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                                 String type = step.type();
                                 Filter factorFilter = built.getFilters().stream()
                                         .filter(f -> {
-                                            switch (type) {
-                                                case "form":
-                                                    return f instanceof UsernamePasswordAuthenticationFilter;
-                                                case "rest":
-                                                    return f.getClass().getSimpleName()
-                                                            .equals("RestAuthenticationFilter");
-                                                case "ott":
-                                                    return f.getClass().getSimpleName()
-                                                            .equals("OneTimeTokenAuthenticationFilter");
-                                                case "passkey":
-                                                    return f.getClass().getSimpleName()
-                                                            .equals("WebAuthnAuthenticationFilter");
-                                                default:
-                                                    return false;
-                                            }
+                                            return switch (type) {
+                                                case "form" -> f instanceof UsernamePasswordAuthenticationFilter;
+                                                case "rest" -> f.getClass().getSimpleName()
+                                                        .equals("RestAuthenticationFilter");
+                                                case "ott" -> f.getClass().getSimpleName()
+                                                        .equals("OneTimeTokenAuthenticationFilter");
+                                                case "passkey" -> f.getClass().getSimpleName()
+                                                        .equals("WebAuthnAuthenticationFilter");
+                                                default -> false;
+                                            };
                                         })
                                         .findFirst()
                                         .orElseThrow(() -> new IllegalStateException(

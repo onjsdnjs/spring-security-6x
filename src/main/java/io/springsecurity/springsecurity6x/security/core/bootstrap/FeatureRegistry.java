@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
 import jakarta.servlet.Filter;
@@ -22,6 +23,43 @@ public class FeatureRegistry {
                 .forEach(f -> authFeatures.put(f.getId(), f));
         ServiceLoader.load(StateFeature.class)
                 .forEach(f -> stateFeatures.put(f.getId(), f));
+    }
+
+    public List<AuthenticationFeature> getAllFeaturesFor(List<AuthenticationFlowConfig> flows) {
+        List<AuthenticationFeature> result = new ArrayList<>();
+
+        for (AuthenticationFlowConfig flow : flows) {
+            String flowType = flow.typeName();
+
+            // 1) MFA 컨테이너 Feature (typeName == "mfa") 가 존재하면 무조건 추가
+            if ("mfa".equals(flowType)) {
+                AuthenticationFeature mfaFeature = authFeatures.get("mfa");
+                if (mfaFeature != null && !result.contains(mfaFeature)) {
+                    result.add(mfaFeature);
+                }
+                // 2) 그 다음, MFA 플로우의 stepConfigs 에 정의된 각 스텝 타입별 Feature 추가
+                for (AuthenticationStepConfig step : flow.stepConfigs()) {
+                    String stepType = step.type();
+                    AuthenticationFeature stepFeature = authFeatures.get(stepType);
+                    if (stepFeature != null && !result.contains(stepFeature)) {
+                        result.add(stepFeature);
+                    }
+                }
+            }
+            // 3) 만약 단일 스텝 플로우(form/rest 등)라면,
+            //    flowType 자체가 그대로 Feature ID 와 매핑되므로
+            //    단일 스텝 기능도 추가할 수 있습니다.
+            else {
+                AuthenticationFeature singleFeature = authFeatures.get(flowType);
+                if (singleFeature != null && !result.contains(singleFeature)) {
+                    result.add(singleFeature);
+                }
+            }
+        }
+
+        // 4) getOrder() 기준으로 정렬
+        result.sort(Comparator.comparingInt(AuthenticationFeature::getOrder));
+        return result;
     }
 
     /** 인증 플로우에 사용된 인증 기능 매핑 */

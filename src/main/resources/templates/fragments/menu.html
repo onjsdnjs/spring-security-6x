@@ -1,7 +1,7 @@
 <div th:fragment="menu">
     <nav class="sidebar">
         <div class="menu-section">
-            <div class="menu-title">1단계 인증</div>
+            <div class="menu-title">단일 인증</div>
             <ul>
                 <li><a th:href="@{/loginForm}">Form 로그인</a></li>
                 <li><a th:href="@{/loginOtt}">OTT 로그인</a></li>
@@ -9,10 +9,9 @@
             </ul>
         </div>
         <div class="menu-section">
-            <div class="menu-title">2단계 인증</div>
+            <div class="menu-title">Multi Factor Authentication</div>
             <ul>
-                <li><a th:href="@{/2faChoice(method='otp')}">Form → OTT</a></li>
-                <li><a th:href="@{/2faChoice(method='passkey')}">Form → Passkey</a></li>
+                <li><a th:href="@{/mfa}">Rest → OTT</a></li>
             </ul>
         </div>
         <div class="menu-section">

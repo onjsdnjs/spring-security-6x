@@ -35,7 +35,7 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
     }
 
     /**
-     * FlowContext 에서 stateConfig까지 전달받기 때문에,
+     * FlowContext 에서 stateConfig 까지 전달받기 때문에,
      * 여기에만 MfaAuthenticationFilter 등록 로직을 넣으면 됩니다.
      */
     @Override

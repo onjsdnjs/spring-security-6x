@@ -4,9 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MultiStepDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.StepDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
@@ -14,9 +13,12 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 인증 플로우 등록의 공통 로직을 제공하는 추상 클래스
@@ -100,22 +102,53 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
      * 상태 설정 DSL
      */
     private class StateSetter implements IdentityStateDsl {
+
+        private final Set<String> seenMfaSignatures = new HashSet<>();
+
         @Override
         public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
             replaceLastState(StateType.SESSION.name().toLowerCase());
+            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
         }
 
         @Override
         public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
             replaceLastState(StateType.JWT.name().toLowerCase());
+            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
         }
 
         @Override
         public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
             replaceLastState(StateType.OAUTH2.name().toLowerCase());
+            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
+        }
+
+        /**
+         * 마지막으로 추가된 MFA 플로우의 "스텝순서|state" 시그니처가
+         * 이미 등록된 적이 있는지 검사하고, 중복이면 예외를 던집니다.
+         */
+        private void checkDuplicateMfa() {
+            List<AuthenticationFlowConfig> flows = platformBuilder.build().flows();
+            if (flows.isEmpty()) {
+                return;
+            }
+            AuthenticationFlowConfig last = flows.get(flows.size() - 1);
+            if (!AuthType.MFA.name().toLowerCase().equals(last.typeName())) {
+                return;
+            }
+            String stepsSignature = last.stepConfigs().stream()
+                    .map(AuthenticationStepConfig::type)
+                    .collect(Collectors.joining(">"));
+            String state = last.stateConfig().state();
+            String signature = stepsSignature + "|" + state;
+            if (!seenMfaSignatures.add(signature)) {
+                throw new IllegalStateException(
+                        "중복된 MFA 조합: [" + signature + "] 은(는) 이미 설정되었습니다."
+                );
+            }
         }
     }
 }

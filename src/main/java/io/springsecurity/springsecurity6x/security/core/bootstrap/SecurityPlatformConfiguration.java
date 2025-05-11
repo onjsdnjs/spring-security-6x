@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.FlowConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.GlobalConfigurer;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.CoreSecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
@@ -57,8 +56,7 @@ public class SecurityPlatformConfiguration {
     public List<SecurityConfigurer> staticConfigurers() {
         return List.of(
                 new FlowConfigurer(),
-                new GlobalConfigurer(),
-                new CoreSecurityConfigurer()
+                new GlobalConfigurer()
         );
     }
 

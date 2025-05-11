@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
-import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.*;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.AuthFeatureConfigurerAdapter;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StateFeatureConfigurerAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
@@ -59,7 +61,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
      * 4) SecurityFilterChain 등록
      */
     @Override
-    public void initialize() throws Exception {
+    public void initialize() {
         List<FlowContext> flows = createAndSortFlows();
         List<SecurityConfigurer> configurers = buildConfigurers();
 

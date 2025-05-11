@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.config;
+package io.springsecurity.springsecurity6x;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;

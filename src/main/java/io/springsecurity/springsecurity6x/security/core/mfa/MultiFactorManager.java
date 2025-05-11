@@ -82,7 +82,7 @@ public class MultiFactorManager {
             AuthenticationStepConfig step = steps.get(i);
 
             // 레지스트리에서 step.type()에 해당하는 필터를 꺼냄
-            AbstractAuthenticationProcessingFilter filter = registry.getFactorFilter(step.getType());
+            AbstractAuthenticationProcessingFilter filter = registry.getFactorFilter(step.type());
 
             if (filter == null) {
                 throw new IllegalStateException("No filter registered for MFA factor: " + step.type());

@@ -8,21 +8,21 @@ import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFe
 import io.springsecurity.springsecurity6x.security.core.mfa.*;
 import io.springsecurity.springsecurity6x.security.filter.MfaAuthenticationFilter;
 import jakarta.servlet.Filter;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.List;
 
+/**
+ * MFA 전용 AuthenticationFeature 구현.
+ * - AuthenticationManager, Success/FailureHandler 의존을 제거하고
+ *   SecurityFilterChain 에 등록된 각 인증 필터를 직접 호출하는
+ *   MultiFactorManager 기반으로 작동합니다.
+ */
 public class MfaAuthenticationFeature implements AuthenticationFeature {
     private static final String ID = "mfa";
     private static final String MFA_LOGIN_URL = "/api/auth/mfa";
-
-    private final AuditEventPublisher auditPublisher = new DefaultAuditEventPublisher();
-    private final RiskEngine riskEngine = new DefaultRiskEngine();
-    private final TrustedDeviceService trustedDeviceService = new DefaultTrustedDeviceService();
-    private final RecoveryService recoveryService = new DefaultRecoveryService();
 
     @Override
     public String getId() {
@@ -35,45 +35,36 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
     }
 
     /**
-     * FlowContext 에서 stateConfig 까지 전달받기 때문에,
-     * 여기에만 MfaAuthenticationFilter 등록 로직을 넣으면 됩니다.
+     * HttpSecurity 에 MfaAuthenticationFilter 만 등록합니다.
+     * 실제 개별 인증 필터들은 SecurityPlatformInitializer 에서
+     * SecurityFilterChain 으로 생성·등록되며, FeatureRegistry 에 보관됩니다.
      */
     @Override
     public void apply(HttpSecurity http, List<AuthenticationStepConfig> stepConfigs, StateConfig stateConfig) throws Exception {
 
-        AuthenticationManager authManager =
-                http.getSharedObject(AuthenticationManager.class);
-        var successHandler =
-                http.getSharedObject(org.springframework.security.web.authentication.AuthenticationSuccessHandler.class);
-        var failureHandler =
-                http.getSharedObject(org.springframework.security.web.authentication.AuthenticationFailureHandler.class);
+            FeatureRegistry registry = http.getSharedObject(FeatureRegistry.class);
 
-        // MultiFactorManager 생성
-        MultiFactorManager mfaManager = new MultiFactorManager(
-                // FeatureRegistry 에서는 이 Feature 자체를 관리하므로 registry.getFlow("mfa") 호출 가능
-                http.getSharedObject(FeatureRegistry.class),
-                auditPublisher,
-                authManager,
-                riskEngine,
-                trustedDeviceService,
-                recoveryService
-        );
+            RiskEngine riskEngine = new DefaultRiskEngine();
+            TrustedDeviceService trustedDeviceService = new DefaultTrustedDeviceService();
+            RecoveryService recoveryService = new DefaultRecoveryService();
+            AuditEventPublisher auditPublisher = new DefaultAuditEventPublisher();
 
-        // stateConfig 에 따라 적절한 참조 필터 지정
-        Class<? extends Filter> referenceFilter = switch (stateConfig.state()) {
-            case "session" -> UsernamePasswordAuthenticationFilter.class;
-            case "jwt"     -> ExceptionTranslationFilter.class;
-            default        -> UsernamePasswordAuthenticationFilter.class;
-        };
+            // stateConfig 에 따라 참조 필터 결정
+            Class<? extends Filter> reference = "jwt".equals(stateConfig.state())
+                    ? ExceptionTranslationFilter.class
+                    : UsernamePasswordAuthenticationFilter.class;
 
-        // 마지막으로 MfaAuthenticationFilter 등록
-        MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(
-                MFA_LOGIN_URL,
-                mfaManager,
-                successHandler,
-                failureHandler,
-                authManager
-        );
-        http.addFilterAfter(mfaFilter, referenceFilter);
+            // 올바른 생성자 시그니처에 맞춰 인자 6개 모두 전달
+            MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(
+                    MFA_LOGIN_URL,
+                    registry,
+                    auditPublisher,
+                    riskEngine,
+                    trustedDeviceService,
+                    recoveryService
+            );
+
+            http.addFilterAfter(mfaFilter, reference);
+        }
+
     }
-}

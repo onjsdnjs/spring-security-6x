@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.mfa.FactorAuthenticator;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
+import jakarta.servlet.Filter;
+import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,10 +15,10 @@ import java.util.stream.Collectors;
  * DSL 플로우에 매핑된 Feature 들을 중앙에서 관리합니다.
  */
 public class FeatureRegistry {
-    private final Map<String, AuthenticationFeature> authFeatures = new ConcurrentHashMap<>();
-    private final Map<String, StateFeature> stateFeatures = new ConcurrentHashMap<>();
-    private final Map<String, AuthenticationFlowConfig> flowMap = new ConcurrentHashMap<>();
-    private final Map<String, FactorAuthenticator> authenticators = new ConcurrentHashMap<>();
+    private final Map<String, AuthenticationFeature> authFeatures = new HashMap<>();
+    private final Map<String, StateFeature> stateFeatures = new HashMap<>();
+    private final Map<String, AuthenticationFlowConfig> flowMap = new HashMap<>();
+    private final Map<String, Filter> factorFilters = new HashMap<>();
 
     public FeatureRegistry() {
         ServiceLoader.load(AuthenticationFeature.class)
@@ -57,11 +59,11 @@ public class FeatureRegistry {
         return stateFeatures.get(stateId);
     }
 
-    /**
-     * AuthenticationFlowConfig 등록
-     */
-    public void registerFlow(AuthenticationFlowConfig config) {
-        flowMap.put(config.typeName(), config);
+    public void registerFactorFilter(String factorType, Filter filter) {
+        factorFilters.put(factorType, filter);
+    }
+    public Filter getFactorFilter(String factorType) {
+        return factorFilters.get(factorType);
     }
 
     /**
@@ -73,9 +75,5 @@ public class FeatureRegistry {
             throw new IllegalArgumentException("Unknown flowId: " + flowId);
         }
         return config;
-    }
-
-    public FactorAuthenticator getFactorAuthenticator(String factorType) {
-        return authenticators.get(factorType);
     }
 }

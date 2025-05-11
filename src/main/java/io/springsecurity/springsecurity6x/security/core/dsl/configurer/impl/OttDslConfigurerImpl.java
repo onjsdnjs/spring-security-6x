@@ -139,7 +139,7 @@ public class OttDslConfigurerImpl
     public AuthenticationStepConfig toConfig() {
         OttOptions optsBuilt = options.build();
         AuthenticationStepConfig step = stepConfig();
-        step.type("form");
+        step.type("ott");
         step.options().put("_options", optsBuilt);
         return step;
     }

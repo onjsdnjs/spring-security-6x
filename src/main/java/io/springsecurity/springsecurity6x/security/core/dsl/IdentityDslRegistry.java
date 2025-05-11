@@ -4,9 +4,11 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurerImpl;
@@ -51,6 +53,11 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
     @Override
     public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
         return registerFlow(AuthType.OTT, customizer, OttDslConfigurerImpl::new);
+    }
+
+    @Override
+    public IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) {
+        return registerFlow(AuthType.PASSKEY, customizer, PasskeyDslConfigurerImpl::new);
     }
 
     public IdentityStateDsl mfa(Consumer<MfaDslConfigurer> customizer) {

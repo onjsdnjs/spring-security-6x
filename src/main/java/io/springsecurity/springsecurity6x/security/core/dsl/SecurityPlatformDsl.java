@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import org.springframework.security.config.Customizer;
 
@@ -38,7 +39,7 @@ public interface SecurityPlatformDsl {
     IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer);
 
 
-//    IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
+    IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
 
 
 //    IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);

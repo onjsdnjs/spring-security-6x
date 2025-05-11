@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
-public interface PasskeyDslConfigurer extends CommonSecurityDsl<PasskeyDslConfigurerImpl> {
+import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 
-    PasskeyDslConfigurer matchers(String... patterns);
+public interface PasskeyDslConfigurer extends CommonSecurityDsl<PasskeyDslConfigurer> {
 
     PasskeyDslConfigurer rpName(String name);
 

@@ -1,6 +1,11 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 import java.util.List;
@@ -18,6 +23,7 @@ public final class OttOptions extends AbstractOptions {
     private final boolean showDefaultSubmitPage;
     private final OneTimeTokenService tokenService;
     private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+    private final Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> rawOttLogin;
 
     private OttOptions(Builder b) {
         super(b);
@@ -28,6 +34,7 @@ public final class OttOptions extends AbstractOptions {
         this.showDefaultSubmitPage = b.showDefaultSubmitPage;
         this.tokenService = b.tokenService;
         this.tokenGenerationSuccessHandler = b.tokenGenerationSuccessHandler;
+        this.rawOttLogin = b.rawOttLogin;
     }
 
     public List<String> getMatchers() {
@@ -57,6 +64,9 @@ public final class OttOptions extends AbstractOptions {
     public OneTimeTokenGenerationSuccessHandler getTokenGenerationSuccessHandler() {
         return tokenGenerationSuccessHandler;
     }
+    public Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> getRawOttLogin() {
+        return rawOttLogin;
+    }
 
     public static Builder builder() {
         return new Builder();
@@ -70,6 +80,7 @@ public final class OttOptions extends AbstractOptions {
         private boolean showDefaultSubmitPage = true;
         private OneTimeTokenService tokenService;
         private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+        private Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> rawOttLogin;
 
         @Override
         protected Builder self() {
@@ -111,6 +122,11 @@ public final class OttOptions extends AbstractOptions {
             return this;
         }
 
+        public Builder rawFormLogin(Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> c) {
+            this.rawOttLogin = Objects.requireNonNull(c, "rawFormLogin customizer must not be null");
+            return self();
+        }
+
         @Override
         public OttOptions build() {
             if (matchers.isEmpty()) {
@@ -118,7 +134,7 @@ public final class OttOptions extends AbstractOptions {
             }
             // 기본 tokenService 설정
             if (tokenService == null) {
-                tokenService = new org.springframework.security.authentication.ott.InMemoryOneTimeTokenService();
+                tokenService = new InMemoryOneTimeTokenService();
             }
             return new OttOptions(this);
         }

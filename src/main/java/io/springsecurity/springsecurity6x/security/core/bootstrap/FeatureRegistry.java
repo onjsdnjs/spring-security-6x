@@ -1,19 +1,24 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.FactorAuthenticator;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.MfaFactorHandler;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * DSL 플로우에 매핑된 Feature 들을 중앙에서 관리합니다.
  */
 public class FeatureRegistry {
-    private final Map<String, AuthenticationFeature> authFeatures = new HashMap<>();
-    private final Map<String, StateFeature> stateFeatures = new HashMap<>();
+    private final Map<String, AuthenticationFeature> authFeatures = new ConcurrentHashMap<>();
+    private final Map<String, StateFeature> stateFeatures = new ConcurrentHashMap<>();
+    private final Map<String, AuthenticationFlowConfig> flowMap = new ConcurrentHashMap<>();
+    private final Map<String, FactorAuthenticator> authenticators = new ConcurrentHashMap<>();
 
     public FeatureRegistry() {
         ServiceLoader.load(AuthenticationFeature.class)
@@ -52,5 +57,27 @@ public class FeatureRegistry {
     /** 단일 플로우용 상태 기능 가져오기 */
     public StateFeature getStateFeature(String stateId) {
         return stateFeatures.get(stateId);
+    }
+
+    /**
+     * AuthenticationFlowConfig 등록
+     */
+    public void registerFlow(AuthenticationFlowConfig config) {
+        flowMap.put(config.typeName(), config);
+    }
+
+    /**
+     * 저장된 FlowConfig 반환
+     */
+    public AuthenticationFlowConfig getFlow(String flowId) {
+        AuthenticationFlowConfig config = flowMap.get(flowId);
+        if (config == null) {
+            throw new IllegalArgumentException("Unknown flowId: " + flowId);
+        }
+        return config;
+    }
+
+    public FactorAuthenticator getFactorAuthenticator(String factorType) {
+        return authenticators.get(factorType);
     }
 }

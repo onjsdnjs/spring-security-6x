@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.AdaptiveConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RecoveryConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.RetryPolicy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.function.ThrowingConsumer;
 
@@ -14,6 +17,10 @@ public final class AuthenticationFlowConfig {
     private final StateConfig stateConfig;
     private final ThrowingConsumer<HttpSecurity> customizer;
     private final int order;
+    private RetryPolicy retryPolicy;
+    private AdaptiveConfig adaptiveConfig;
+    private boolean deviceTrust;
+    private RecoveryConfig recoveryConfig;
 
     private AuthenticationFlowConfig(Builder builder) {
         this.typeName     = builder.typeName;
@@ -21,6 +28,10 @@ public final class AuthenticationFlowConfig {
         this.stateConfig  = builder.stateConfig;
         this.customizer   = builder.customizer;
         this.order        = builder.order;
+        this.retryPolicy    = builder.retryPolicy;
+        this.adaptiveConfig = builder.adaptiveConfig;
+        this.deviceTrust    = builder.deviceTrust;
+        this.recoveryConfig = builder.recoveryConfig;
     }
 
     public String typeName() { return typeName; }
@@ -39,6 +50,11 @@ public final class AuthenticationFlowConfig {
         private StateConfig stateConfig;
         private ThrowingConsumer<HttpSecurity> customizer = http -> {};
         private int order = 0;
+        private RetryPolicy retryPolicy;
+        private AdaptiveConfig adaptiveConfig;
+        private boolean deviceTrust;
+        private RecoveryConfig recoveryConfig;
+
 
         public Builder(String typeName) {
             this.typeName = typeName;
@@ -61,6 +77,26 @@ public final class AuthenticationFlowConfig {
 
         public Builder order(int order) {
             this.order = order;
+            return this;
+        }
+
+        public Builder retryPolicy(RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
+            return this;
+        }
+
+        public Builder adaptiveConfig(AdaptiveConfig adaptiveConfig) {
+            this.adaptiveConfig = adaptiveConfig;
+            return this;
+        }
+
+        public Builder deviceTrust(boolean deviceTrust) {
+            this.deviceTrust = deviceTrust;
+            return this;
+        }
+
+        public Builder recoveryConfig(RecoveryConfig recoveryConfig) {
+            this.recoveryConfig = recoveryConfig;
             return this;
         }
 

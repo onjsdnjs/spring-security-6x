@@ -1,11 +1,12 @@
-package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
+package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.IdentityStateDsl;
-import io.springsecurity.springsecurity6x.security.core.dsl.SecurityPlatformDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MfaDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.mfa.configurer.MultiStepDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.StepDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
@@ -14,6 +15,7 @@ import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -49,13 +51,33 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
                         type.name().toLowerCase()
                 )
                 .stepConfigs(List.of(step))
-                .stateConfig(null)           // 이후 StateSetter에서 설정
-                .customizer(http -> {
-                })      // 플로우 레벨 커스터마이저 없음
+                .stateConfig(null)           // 이후 StateSetter 에서 설정
+                .customizer(http -> {})
                 .order(impl.order())
                 .build();
 
         platformBuilder.addFlow(flow);
+        return stateSetter;
+    }
+
+    protected IdentityStateDsl registerMultiStepFlow(AuthType type, Consumer<MfaDslConfigurer> customizer,
+            Function<AuthenticationFlowConfig.Builder, MfaDslConfigurer> factory) {
+
+        // 1) FlowConfig.Builder 생성
+        AuthenticationFlowConfig.Builder flowBuilder =
+                AuthenticationFlowConfig.builder(type.name().toLowerCase());
+
+        // 2) MfaDslConfigurerImpl 생성 및 DSL 적용
+        MfaDslConfigurer configurer = factory.apply(flowBuilder);
+        customizer.accept(configurer);
+
+        // 3) 완성된 FlowConfig 생성
+        AuthenticationFlowConfig flow = configurer.build();
+
+        // 4) Builder에 등록
+        platformBuilder.addFlow(flow);
+
+        // 5) State 설정 DSL 체이닝 포인트 반환
         return stateSetter;
     }
 

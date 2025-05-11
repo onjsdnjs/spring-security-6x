@@ -1,27 +1,41 @@
-/*
-package io.springsecurity.springsecurity6x.security.core.dsl.impl;
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.FormDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.feature.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
+import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.function.ThrowingConsumer;
 
 import java.util.List;
 
-*/
 /**
- * OTT(One-Time Token) 로그인 DSL 구현체
- *//*
+ * DSL 구현체: OTT 인증 스텝 설정
+ */
+public class OttDslConfigurerImpl
+        extends AbstractDslConfigurer<OttOptions.Builder, OttDslConfigurer>
+        implements OttDslConfigurer {
 
-public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Builder, OttDslConfigurer> implements OttDslConfigurer {
+    private int order = 0;
 
     public OttDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
         super(stepConfig, OttOptions.builder());
+    }
+
+    @Override
+    public OttDslConfigurer order(int order) {
+        this.order = order;
+        return this;
+    }
+
+    @Override
+    public int order() {
+        return order;
     }
 
     @Override
@@ -55,36 +69,79 @@ public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Build
     }
 
     @Override
-    public OttDslConfigurer tokenService(org.springframework.security.authentication.ott.OneTimeTokenService service) {
+    public OttDslConfigurer tokenService(OneTimeTokenService service) {
         options.tokenService(service);
         return this;
     }
 
     @Override
-    public OttDslConfigurer tokenGenerationSuccessHandler(org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler handler) {
+    public OttDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
         options.tokenGenerationSuccessHandler(handler);
         return this;
     }
 
-    */
-/**
-     * AuthenticationStepConfig 생성 및 옵션 저장
-     *//*
-
-    public AuthenticationStepConfig toConfig() {
-        OttOptions opts = options.build();
-        AuthenticationStepConfig step = getStepConfig();
-        step.setType("ott");
-        if (!opts.getMatchers().isEmpty()) {
-            step.setMatchers(opts.getMatchers().toArray(new String[0]));
-        }
-        step.getOptions().put("_options", opts);
-        return step;
+    /**
+     * 원시 HttpSecurity 커스터마이저를 안전하게 적용
+     */
+    public OttDslConfigurer originRaw(Customizer<HttpSecurity> customizer) {
+        options.rawHttp(customizer);
+        return this;
     }
 
     @Override
-    public FormDslConfigurer raw(Customizer<FormLoginConfigurer<HttpSecurity>> customizer) {
-        return null;
+    public OttDslConfigurer raw(SafeHttpCustomizer safe) {
+        return originRaw(wrapSafe(safe));
+    }
+
+    private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
+        return http -> {
+            try {
+                safe.customize(http);
+            } catch (Exception e) {
+                // 내부 예외는 로깅 또는 무시
+                System.err.println("OTT raw customizer exception: " + e.getMessage());
+            }
+        };
+    }
+
+    /**
+     * DSL 설정을 HttpSecurity에 적용하는 Consumer 반환
+     */
+    @Override
+    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
+        return http -> {
+            // 1) 공통 옵션 적용 (securityMatcher 등)
+            OttOptions optsBuilt = options.build();
+            try {
+                optsBuilt.applyCommon(http);
+            } catch (Exception e) {
+                // 예외는 무시 또는 로깅
+            }
+
+            // 2) One-Time Token 로그인 설정
+            http.oneTimeTokenLogin(ott -> {
+                // rawOneTimeTokenCustomizer 가 설정되어 있으면 적용
+                Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> rawOtt = optsBuilt.getRawOttLogin();
+                if (rawOtt != null) {
+                    try {
+                        rawOtt.customize(ott);
+                    } catch (Exception ex) {
+                        System.err.println("OTT login customizer exception: " + ex.getMessage());
+                    }
+                }
+            });
+        };
+    }
+
+    /**
+     * AuthenticationStepConfig 생성 및 옵션 저장
+     */
+    public AuthenticationStepConfig toConfig() {
+        OttOptions optsBuilt = options.build();
+        AuthenticationStepConfig step = stepConfig();
+        step.type("form");
+        step.options().put("_options", optsBuilt);
+        return step;
     }
 }
-*/
+

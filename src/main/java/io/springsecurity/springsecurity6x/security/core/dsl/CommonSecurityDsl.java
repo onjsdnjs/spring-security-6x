@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.StepDslConfigurer;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.*;
@@ -11,7 +12,7 @@ import org.springframework.util.function.ThrowingConsumer;
  *
  * @param <T> DSL self type
  */
-public interface CommonSecurityDsl<T> {
+public interface CommonSecurityDsl<T> extends StepDslConfigurer {
 
     /** CSRF 비활성화 **/
     T disableCsrf();

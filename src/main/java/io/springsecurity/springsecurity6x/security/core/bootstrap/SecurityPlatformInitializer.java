@@ -4,10 +4,12 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.Aut
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StateFeatureConfigurerAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -18,6 +20,7 @@ import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -143,6 +146,34 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                     .genericBeanDefinition(SecurityFilterChain.class, () -> {
                         try {
                             DefaultSecurityFilterChain built = fc.http().build();
+
+                            for (AuthenticationStepConfig step : fc.flow().stepConfigs()) {
+                                String type = step.type();
+                                Filter factorFilter = built.getFilters().stream()
+                                        .filter(f -> {
+                                            switch (type) {
+                                                case "form":
+                                                    return f instanceof UsernamePasswordAuthenticationFilter;
+                                                case "rest":
+                                                    return f.getClass().getSimpleName()
+                                                            .equals("RestAuthenticationFilter");
+                                                case "ott":
+                                                    return f.getClass().getSimpleName()
+                                                            .equals("OneTimeTokenAuthenticationFilter");
+                                                case "passkey":
+                                                    return f.getClass().getSimpleName()
+                                                            .equals("WebAuthnAuthenticationFilter");
+                                                default:
+                                                    return false;
+                                            }
+                                        })
+                                        .findFirst()
+                                        .orElseThrow(() -> new IllegalStateException(
+                                                "필터를 찾을 수 없습니다 for MFA 타입: " + type));
+
+                                featureRegistry.registerFactorFilter(type, factorFilter);
+                            }
+
                             return new OrderedSecurityFilterChain(
                                     Ordered.HIGHEST_PRECEDENCE + orderVal,
                                     built.getRequestMatcher(),

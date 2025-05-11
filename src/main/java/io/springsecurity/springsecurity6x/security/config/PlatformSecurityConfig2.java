@@ -42,8 +42,8 @@ public class PlatformSecurityConfig2 {
                 .jwt(jwt -> Customizer.withDefaults())
 
                 .mfa(m -> m
-                        .rest(r -> r.loginProcessingUrl("/api/login"))
-                        .ott(o -> o.loginProcessingUrl("/api/ott"))
+                        .form(f -> f.loginProcessingUrl("/api/login"))
+//                        .ott(o -> o.loginProcessingUrl("/api/ott"))
                         .passkey(p -> p.rpName("app"))
                         .order(6)
                         .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))

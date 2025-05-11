@@ -3,19 +3,22 @@ package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
+import org.springframework.security.config.Customizer;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.Customizer;
 
 /**
  * MfaDslConfigurer 구현체
@@ -34,28 +37,37 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer rest(Consumer<RestDslConfigurer> customizer) {
+    public MfaDslConfigurer form(Customizer<FormDslConfigurer> customizer) {
+        AuthenticationStepConfig step = new AuthenticationStepConfig();
+        FormDslConfigurerImpl impl = new FormDslConfigurerImpl(step);
+        customizer.customize(impl);
+        stepConfigs.add(impl.toConfig());
+        return this;
+    }
+
+    @Override
+    public MfaDslConfigurer rest(Customizer<RestDslConfigurer> customizer) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         RestDslConfigurerImpl impl = new RestDslConfigurerImpl(step);
-        customizer.accept(impl);
+        customizer.customize(impl);
         stepConfigs.add(impl.toConfig());
         return this;
     }
 
     @Override
-    public MfaDslConfigurer ott(Consumer<OttDslConfigurer> customizer) {
+    public MfaDslConfigurer ott(Customizer<OttDslConfigurer> customizer) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         OttDslConfigurerImpl impl = new OttDslConfigurerImpl(step);
-        customizer.accept(impl);
+        customizer.customize(impl);
         stepConfigs.add(impl.toConfig());
         return this;
     }
 
     @Override
-    public MfaDslConfigurer passkey(Consumer<PasskeyDslConfigurer> customizer) {
+    public MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> customizer) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
         PasskeyDslConfigurerImpl impl = new PasskeyDslConfigurerImpl(step);
-        customizer.accept(impl);
+        customizer.customize(impl);
         stepConfigs.add(impl.toConfig());
         return this;
     }
@@ -67,17 +79,17 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer retryPolicy(Consumer<RetryPolicyDslConfigurer> c) {
+    public MfaDslConfigurer retryPolicy(Customizer<RetryPolicyDslConfigurer> c) {
         RetryPolicyDslConfigurerImpl rpc = new RetryPolicyDslConfigurerImpl();
-        c.accept(rpc);
+        c.customize(rpc);
         this.retryPolicy = rpc.build();
         return this;
     }
 
     @Override
-    public MfaDslConfigurer adaptive(Consumer<AdaptiveDslConfigurer> c) {
+    public MfaDslConfigurer adaptive(Customizer<AdaptiveDslConfigurer> c) {
         AdaptiveDslConfigurerImpl adc = new AdaptiveDslConfigurerImpl();
-        c.accept(adc);
+        c.customize(adc);
         this.adaptiveConfig = adc.build();
         return this;
     }
@@ -89,9 +101,9 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer recoveryFlow(Consumer<RecoveryDslConfigurer> c) {
+    public MfaDslConfigurer recoveryFlow(Customizer<RecoveryDslConfigurer> c) {
         RecoveryDslConfigurerImpl rc = new RecoveryDslConfigurerImpl();
-        c.accept(rc);
+        c.customize(rc);
         this.recoveryConfig = rc.build();
         return this;
     }

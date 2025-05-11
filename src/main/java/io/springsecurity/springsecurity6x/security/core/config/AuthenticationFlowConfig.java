@@ -17,10 +17,10 @@ public final class AuthenticationFlowConfig {
     private final StateConfig stateConfig;
     private final ThrowingConsumer<HttpSecurity> customizer;
     private final int order;
-    private RetryPolicy retryPolicy;
-    private AdaptiveConfig adaptiveConfig;
-    private boolean deviceTrust;
-    private RecoveryConfig recoveryConfig;
+    private final RetryPolicy retryPolicy;
+    private final AdaptiveConfig adaptiveConfig;
+    private final boolean deviceTrust;
+    private final RecoveryConfig recoveryConfig;
 
     private AuthenticationFlowConfig(Builder builder) {
         this.typeName     = builder.typeName;

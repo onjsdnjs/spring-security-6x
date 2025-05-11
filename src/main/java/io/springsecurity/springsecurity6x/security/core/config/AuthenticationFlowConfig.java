@@ -40,6 +40,22 @@ public final class AuthenticationFlowConfig {
     public ThrowingConsumer<HttpSecurity> customizer() { return customizer; }
     public int order() { return order; }
 
+    public RetryPolicy retryPolicy() {
+        return retryPolicy;
+    }
+
+    public AdaptiveConfig adaptiveConfig() {
+        return adaptiveConfig;
+    }
+
+    public boolean deviceTrust() {
+        return deviceTrust;
+    }
+
+    public RecoveryConfig recoveryConfig() {
+        return recoveryConfig;
+    }
+
     public static Builder builder(String typeName) {
         return new Builder(typeName);
     }

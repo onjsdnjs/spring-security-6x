@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
@@ -25,7 +26,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     private final AuthenticationFlowConfig.Builder flowBuilder;
     private final List<AuthenticationStepConfig> stepConfigs = new ArrayList<>();
     private int order;
-    private String loginProcessUrl;
+    private String loginProcessingUrl = "/api/auth/mfa";
     private RetryPolicy retryPolicy;
     private AdaptiveConfig adaptiveConfig;
     private boolean deviceTrust;
@@ -74,7 +75,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     @Override
     public MfaDslConfigurer loginProcessUrl(String url) {
-        this.loginProcessUrl = url;
+        this.loginProcessingUrl = url;
         return this;
     }
 
@@ -110,6 +111,12 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     @Override
     public AuthenticationFlowConfig build() {
+
+        for (AuthenticationStepConfig step : stepConfigs) {
+            step.options().put("_mfa_loginUrl", loginProcessingUrl);
+        }
+
+
         return flowBuilder
                 .stepConfigs(stepConfigs)
                 .stateConfig(null)
@@ -118,7 +125,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
                 .adaptiveConfig(adaptiveConfig)
                 .deviceTrust(deviceTrust)
                 .recoveryConfig(recoveryConfig)
-                .customizer(http -> {})
+                .customizer(http -> http.securityMatcher(loginProcessingUrl))
                 .build();
     }
 }

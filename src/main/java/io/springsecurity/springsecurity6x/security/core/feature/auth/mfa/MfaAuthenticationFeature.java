@@ -13,6 +13,7 @@ import org.springframework.security.web.access.ExceptionTranslationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * MFA 전용 AuthenticationFeature 구현.
@@ -22,7 +23,6 @@ import java.util.List;
  */
 public class MfaAuthenticationFeature implements AuthenticationFeature {
     private static final String ID = "mfa";
-    private static final String MFA_LOGIN_URL = "/api/auth/mfa";
 
     @Override
     public String getId() {
@@ -42,7 +42,14 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
     @Override
     public void apply(HttpSecurity http, List<AuthenticationStepConfig> stepConfigs, StateConfig stateConfig) throws Exception {
 
-            FeatureRegistry registry = http.getSharedObject(FeatureRegistry.class);
+        String mfaUrl = stepConfigs.stream()
+                .map(step -> (String) step.options().get("_mfa_loginUrl"))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("/api/auth/mfa");  // 기본값
+
+
+        FeatureRegistry registry = http.getSharedObject(FeatureRegistry.class);
 
             RiskEngine riskEngine = new DefaultRiskEngine();
             TrustedDeviceService trustedDeviceService = new DefaultTrustedDeviceService();
@@ -56,7 +63,7 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
 
             // 올바른 생성자 시그니처에 맞춰 인자 6개 모두 전달
             MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(
-                    MFA_LOGIN_URL,
+                    mfaUrl,
                     registry,
                     auditPublisher,
                     riskEngine,

@@ -3,10 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl;
@@ -18,6 +15,7 @@ import org.springframework.security.config.Customizer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * MfaDslConfigurer 구현체
@@ -35,39 +33,34 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         this.flowBuilder = flowBuilder;
     }
 
-    @Override
-    public MfaDslConfigurer form(Customizer<FormDslConfigurer> customizer) {
+    private <C extends StepDslConfigurer> void addStep(Function<AuthenticationStepConfig, C> factory, Customizer<? super C> customizer) {
         AuthenticationStepConfig step = new AuthenticationStepConfig();
-        FormDslConfigurerImpl impl = new FormDslConfigurerImpl(step);
+        C impl = factory.apply(step);
         customizer.customize(impl);
         stepConfigs.add(impl.toConfig());
+    }
+
+    @Override
+    public MfaDslConfigurer form(Customizer<FormDslConfigurer> customizer) {
+        addStep(FormDslConfigurerImpl::new, customizer);
         return this;
     }
 
     @Override
     public MfaDslConfigurer rest(Customizer<RestDslConfigurer> customizer) {
-        AuthenticationStepConfig step = new AuthenticationStepConfig();
-        RestDslConfigurerImpl impl = new RestDslConfigurerImpl(step);
-        customizer.customize(impl);
-        stepConfigs.add(impl.toConfig());
+        addStep(RestDslConfigurerImpl::new, customizer);
         return this;
     }
 
     @Override
     public MfaDslConfigurer ott(Customizer<OttDslConfigurer> customizer) {
-        AuthenticationStepConfig step = new AuthenticationStepConfig();
-        OttDslConfigurerImpl impl = new OttDslConfigurerImpl(step);
-        customizer.customize(impl);
-        stepConfigs.add(impl.toConfig());
+        addStep(OttDslConfigurerImpl::new, customizer);
         return this;
     }
 
     @Override
     public MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> customizer) {
-        AuthenticationStepConfig step = new AuthenticationStepConfig();
-        PasskeyDslConfigurerImpl impl = new PasskeyDslConfigurerImpl(step);
-        customizer.customize(impl);
-        stepConfigs.add(impl.toConfig());
+        addStep(PasskeyDslConfigurerImpl::new, customizer);
         return this;
     }
 

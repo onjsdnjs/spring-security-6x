@@ -44,6 +44,12 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
 
         try {
             FactorContext ctx = ctxPersistence.loadOrInit(req);
+
+            if (ctx.currentState() == MfaState.TOKEN_ISSUANCE || ctx.currentState() == MfaState.COMPLETED) {
+                chain.doFilter(req, res);
+                return;
+            }
+
             MfaEvent event = deriveEvent(req);
             MfaState next = stateMachine.nextState(ctx.currentState(), event);
             ctx.currentState(next);

@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,16 +40,34 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         }
 
         FactorContext ctx = ctxPersistence.loadOrInit(req);
-        String factor = ctx.currentState().name();
+        MfaState currentState = ctx.currentState();
 
-        Filter delegate = featureRegistry.getFactorFilter(factor);
-        if (delegate != null) {
-            req.setAttribute(ATTR_FACTOR, factor);
-            delegate.doFilter(req, res, chain);
+        // TOKEN_ISSUANCE 또는 COMPLETED 상태에서는 인증 필터 실행 생략
+        if (currentState == MfaState.TOKEN_ISSUANCE || currentState == MfaState.COMPLETED) {
+            chain.doFilter(req, res);
             return;
         }
 
+        // 현재 상태명에서 factorId 추출: 예) REST_CHALLENGE → rest
+        String factorId = extractFactorId(currentState.name());
+        if (factorId != null) {
+            Filter delegate = featureRegistry.getFactorFilter(factorId);
+            if (delegate != null) {
+                req.setAttribute(ATTR_FACTOR, factorId);
+                delegate.doFilter(req, res, chain);
+                return;
+            }
+        }
+
         chain.doFilter(req, res);
+    }
+
+    private String extractFactorId(String stateName) {
+        int underscoreIndex = stateName.indexOf('_');
+        if (underscoreIndex > 0) {
+            return stateName.substring(0, underscoreIndex).toLowerCase(); // "REST_CHALLENGE" → "rest"
+        }
+        return null;
     }
 }
 

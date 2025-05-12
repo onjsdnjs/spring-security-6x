@@ -44,6 +44,13 @@ public class StepTransitionFilter extends OncePerRequestFilter {
 
         FactorContext ctx = ctxPersistence.loadOrInit(request);
         MfaState current = ctx.currentState();
+
+        // TOKEN_ISSUANCE 상태에서는 필터 실행 불필요
+        if (current == MfaState.TOKEN_ISSUANCE || current == MfaState.COMPLETED) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         MfaEvent event = resolveEvent(request);
 
         try {

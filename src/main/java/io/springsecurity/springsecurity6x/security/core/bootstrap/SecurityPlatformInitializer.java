@@ -56,7 +56,8 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
             http.setSharedObject(ContextPersistence.class, new HttpSessionContextPersistence());
             http.setSharedObject(StateMachineManager.class, new StateMachineManager(fc.flow()));
             List<MfaStateHandler> mfaStateHandlers =
-                    List.of(new FormStateHandler(), new OttStateHandler(), new PasskeyStateHandler(),
+                    List.of(new FormStateHandler(), new RestStateHandler(),
+                            new OttStateHandler(), new PasskeyStateHandler(),
                             new RecoveryStateHandler(), new TokenStateHandler());
             http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
             http.setSharedObject(FeatureRegistry.class, featureRegistry);

@@ -35,6 +35,9 @@ public class FactorContext {
     }
 
     public int version() { return version; }
+    public void version(int version) {
+        this.version = version;
+    }
     public void incrementVersion() { this.version++; }
 }
 

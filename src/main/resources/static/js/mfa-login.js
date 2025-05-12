@@ -44,8 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
     restForm.addEventListener("submit", async e => {
         e.preventDefault();
         const payload = {
-            user: restForm.user.value,
-            pass: restForm.pass.value
+            user: restForm.username.value,
+            pass: restForm.password.value
         };
         try {
             const res = await fetch("/api/auth/mfa", {

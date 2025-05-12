@@ -41,11 +41,11 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
         ChallengeRouter      router         = http.getSharedObject(ChallengeRouter.class);
 
         // 1) Orchestration Entry Point Filter
-        MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine, registry, router);
+        MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine, router);
         http.addFilterBefore(mfaFilter, ExceptionTranslationFilter.class);
 
         // 2) State Transition Filter
-        StepTransitionFilter stepFilter = new StepTransitionFilter(ctxPersistence, stateMachine);
+        StepTransitionFilter stepFilter = new StepTransitionFilter(ctxPersistence, registry);
         http.addFilterAfter(stepFilter, MfaOrchestrationFilter.class);
 
         // 3) Step Filter Wrapper (인증 필터 호출)

@@ -6,27 +6,20 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * RequestMatcher 충돌 위험 분석
- * - 동일 패턴, 상위/하위 경로 중복
+ * - 동일 패턴, 상위/하위 경로 중첩 여부 검사
  */
 public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
     @Override
     public ValidationResult validate(List<FlowContext> flows) {
-        List<RequestMatcher> matchers = flows.stream()
-                .map(fc -> {
-                    DefaultSecurityFilterChain dsc = null;
-                    try {
-                        dsc = fc.http().build();
-                        return dsc.getRequestMatcher();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
         ValidationResult result = new ValidationResult();
+        /*List<RequestMatcher> matchers = flows.stream()
+                .map(fc -> fc.flow().getRequestMatcher())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
         for (int i = 0; i < matchers.size(); i++) {
             for (int j = i + 1; j < matchers.size(); j++) {
                 String p1 = matchers.get(i).toString();
@@ -37,7 +30,7 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
                     result.addError("보안 매처 충돌: 경로 중첩 가능성 (" + p1 + ", " + p2 + ")");
                 }
             }
-        }
+        }*/
         return result;
     }
 }

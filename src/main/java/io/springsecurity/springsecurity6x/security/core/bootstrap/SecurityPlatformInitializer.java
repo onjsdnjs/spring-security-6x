@@ -53,18 +53,13 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
 
         for (FlowContext fc : flows) {
             HttpSecurity http = fc.http();
-            // ContextPersistence 인스턴스
             http.setSharedObject(ContextPersistence.class, new HttpSessionContextPersistence());
-            // StateMachineManager 인스턴스
             http.setSharedObject(StateMachineManager.class, new StateMachineManager(fc.flow()));
-            // StateHandlerRegistry 인스턴스
             List<MfaStateHandler> mfaStateHandlers =
                     List.of(new FormStateHandler(), new OttStateHandler(), new PasskeyStateHandler(),
                             new RecoveryStateHandler(), new TokenStateHandler());
             http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
-            // FeatureRegistry 인스턴스
             http.setSharedObject(FeatureRegistry.class, featureRegistry);
-            // ChallengeRouter 인스턴스
             http.setSharedObject(ChallengeRouter.class, new ChallengeRouter(new DefaultChallengeGenerator()));
         }
 

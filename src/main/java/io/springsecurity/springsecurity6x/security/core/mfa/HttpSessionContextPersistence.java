@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -8,17 +9,17 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 public class HttpSessionContextPersistence implements ContextPersistence {
 
-    private static final String ATTR = "MFA_CTX";
+    private static final String MFA_CONTEXT_ATTR = "MFA_FACTOR_CONTEXT";
 
     @Override
-    public FactorContext loadOrInit(HttpServletRequest req) {
-
-        HttpSession session = req.getSession(true);
-        FactorContext ctx = (FactorContext) session.getAttribute(ATTR);
+    public FactorContext loadOrInit(HttpServletRequest request) {
+        HttpSession session = request.getSession(true);
+        FactorContext ctx = (FactorContext) session.getAttribute(MFA_CONTEXT_ATTR);
         if (ctx == null) {
             ctx = new FactorContext();
-            ctx.sessionId(session.getId());
-            session.setAttribute(ATTR, ctx);
+            ctx.currentState(MfaState.INIT);
+            ctx.version(0);
+            session.setAttribute(MFA_CONTEXT_ATTR, ctx);
         }
         return ctx;
     }
@@ -35,7 +36,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
         if (session != null) {
             // 세션에 동일한 키로 다시 저장하여, 분산 캐시나 직렬화 세션 환경에서도
             // 변경된 FactorContext가 외부 저장소에 반영되도록 합니다.
-            session.setAttribute(ATTR, ctx);
+            session.setAttribute(MFA_CONTEXT_ATTR, ctx);
         }
     }
 
@@ -47,7 +48,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
             HttpServletRequest req = attrs.getRequest();
             HttpSession session = req.getSession(false);
             if (session != null) {
-                session.removeAttribute(ATTR);
+                session.removeAttribute(MFA_CONTEXT_ATTR);
             }
         }
     }

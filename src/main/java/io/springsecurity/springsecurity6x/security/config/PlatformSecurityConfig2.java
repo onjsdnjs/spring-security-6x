@@ -22,7 +22,7 @@ public class PlatformSecurityConfig2 {
                     http
 //                            .securityMatcher("/api/**")
                         .authorizeHttpRequests(authReq -> authReq
-                                .requestMatchers("/api/register", "/api/auth/login", "/api/auth/refresh").permitAll()
+                                .requestMatchers("/api/register", "/api/auth/login", "/api/auth/refresh", "/api/auth/mfa").permitAll()
                                 .requestMatchers("/api/**").authenticated()
                                 .anyRequest().permitAll())
                         .headers(headers -> headers
@@ -32,7 +32,11 @@ public class PlatformSecurityConfig2 {
 
                 .mfa(m -> m
                         .loginProcessUrl("/api/auth/mfa")
-                        .rest(r -> r.loginProcessingUrl("/api/auth/login"))
+                        .rest(r -> r
+                                .loginProcessingUrl("/api/auth/login")
+                                .raw(http -> { http
+                                .securityMatcher("/api/auth/mfa");
+                                }))
                         .ott(Customizer.withDefaults())
                         .passkey(Customizer.withDefaults())
                         .order(5)
@@ -42,7 +46,7 @@ public class PlatformSecurityConfig2 {
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
                 .jwt(jwt -> Customizer.withDefaults())
 
-                .mfa(m -> m
+                /*.mfa(m -> m
                         .form(f -> f.loginProcessingUrl("/login"))
 //                        .ott(o -> o.loginProcessingUrl("/api/ott"))
                         .passkey(Customizer.withDefaults())
@@ -51,7 +55,7 @@ public class PlatformSecurityConfig2 {
                         .adaptive(ad -> ad.geolocation(true))
                         .deviceTrust(true)
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
-                .jwt(jwt -> Customizer.withDefaults())
+                .jwt(jwt -> Customizer.withDefaults())*/
 
                 .build();
     }

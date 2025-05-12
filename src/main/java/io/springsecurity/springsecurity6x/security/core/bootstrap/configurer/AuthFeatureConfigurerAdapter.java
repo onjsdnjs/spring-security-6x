@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.mfa.MfaAuthenticationFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 
@@ -34,6 +35,11 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
     @Override
     public void configure(FlowContext fc) throws Exception {
         List<AuthenticationStepConfig> steps = fc.flow().stepConfigs();
+
+        if (feature instanceof MfaAuthenticationFeature) {
+            feature.apply(fc.http(), steps, fc.flow().stateConfig());
+        }
+
         if (steps == null || steps.isEmpty()) return;
         for (AuthenticationStepConfig step : steps) {
             if (feature.getId().equalsIgnoreCase(step.type())) {

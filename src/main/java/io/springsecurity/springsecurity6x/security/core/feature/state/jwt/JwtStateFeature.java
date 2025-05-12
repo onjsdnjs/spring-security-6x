@@ -36,14 +36,14 @@ public class JwtStateFeature implements StateFeature {
         http.setSharedObject(LogoutSuccessHandler.class, successHandler);
 
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                /*.csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) ->
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                         .accessDeniedHandler((req, res, ex) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
                 .headers(withDefaults())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))*/
                 .logout(logout -> logout
                         .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/logout"))
                         .addLogoutHandler(logoutHandler)

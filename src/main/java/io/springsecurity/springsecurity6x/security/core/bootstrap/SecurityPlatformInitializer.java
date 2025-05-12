@@ -22,11 +22,11 @@ import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -36,22 +36,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class SecurityPlatformInitializer implements SecurityPlatform {
     private final PlatformContext context;
-    private final List<SecurityConfigurer> configurers;  // Flow, Global 등 기본 설정
-    private final FeatureRegistry featureRegistry;              // 인증/상태 Feature 레지스트리
+    private final List<SecurityConfigurer> baseConfigurers;
+    private final FeatureRegistry featureRegistry;
     private PlatformConfig config;
+    private final Map<String, Class<? extends Filter>> stepToFilter;
 
-    /**
-     * @param context          플랫폼 컨텍스트
-     * @param configurers 기본 Configurer 리스트 (FlowConfigurer, GlobalConfigurer)
-     * @param featureRegistry   FeatureRegistry
-     */
     public SecurityPlatformInitializer(
             PlatformContext context,
-            List<SecurityConfigurer> configurers,
-            FeatureRegistry featureRegistry) {
+            List<SecurityConfigurer> baseConfigurers,
+            FeatureRegistry featureRegistry,
+            Map<String, Class<? extends Filter>> stepToFilter) {
         this.context = context;
-        this.configurers = configurers;
+        this.baseConfigurers = baseConfigurers;
         this.featureRegistry = featureRegistry;
+        this.stepToFilter = stepToFilter;
     }
 
     @Override
@@ -59,158 +57,126 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         this.config = config;
     }
 
-    /**
-     * 1) FlowContext 생성 및 정렬
-     * 2) Configurer 조합
-     * 3) init/configure 단계 실행
-     * 4) SecurityFilterChain 등록
-     */
     @Override
     public void initialize() throws Exception {
-        /*List<FlowContext> flows = createAndSortFlows();
-        List<SecurityConfigurer> configurers = buildConfigurers();
-
-        initConfigurers(configurers);
-        configureFlows(configurers, flows);
-        registerSecurityFilterChains(flows);*/
-
         List<FlowContext> flows = createAndSortFlows();
-        configureFlows(flows);
+
+        // 1) init(Configurer.init)
+        List<SecurityConfigurer> allConfigurers = buildAllConfigurers();
+        initConfigurers(allConfigurers);
+
+        // 2) configure flows with AuthenticationFeature (including MFA)
+        configureAuthFeatures(flows);
+
+        // 3) configure flows with remaining Configurers
+        configureRemaining(baseConfigurers, flows);
+
+        // 4) register SecurityFilterChains per flow and register FactorFilters
         registerSecurityFilterChains(flows);
     }
 
-    // FlowContext 생성 및 DSL .order() 기준 정렬
-    private List<FlowContext> createAndSortFlows() {
+    private List<FlowContext> createAndSortFlows() throws Exception {
         List<FlowContext> flows = new ArrayList<>();
         for (AuthenticationFlowConfig flow : config.flows()) {
-            try {
-
-                HttpSecurity http = context.newHttp();
-                context.registerHttp(flow, http);
-                FlowContext fc = new FlowContext(flow, http, context, config);
-                context.share(FlowContext.class, fc);
-                flows.add(fc);
-
-            } catch (Exception ex) {
-                log.error("FlowContext 생성 실패: {}", flow.typeName(), ex);
-            }
+            HttpSecurity http = context.newHttp();
+            context.registerHttp(flow, http);
+            FlowContext fc = new FlowContext(flow, http, context, config);
+            context.share(FlowContext.class, fc);
+            flows.add(fc);
         }
         flows.sort(Comparator.comparingInt(fc -> fc.flow().order()));
         return flows;
     }
 
-    private List<SecurityConfigurer> buildConfigurers() {
-
-        List<SecurityConfigurer> list = new ArrayList<>(configurers);
-
-        featureRegistry.getAuthFeaturesFor(config.flows())
-                .forEach(f -> list.add(new AuthFeatureConfigurerAdapter(f)));
-
-        featureRegistry.getStateFeaturesFor(config.flows())
-                .forEach(sf -> list.add(new StateFeatureConfigurerAdapter(sf, context)));
-
+    private List<SecurityConfigurer> buildAllConfigurers() {
+        List<SecurityConfigurer> list = new ArrayList<>(baseConfigurers);
+        // AuthFeatures (form, rest, ott, passkey, mfa)
+        featureRegistry.getAuthFeaturesFor(config.flows()).forEach(f -> list.add(new AuthFeatureConfigurerAdapter(f)));
+        // StateFeatures (session, jwt)
+        featureRegistry.getStateFeaturesFor(config.flows()).forEach(sf -> list.add(new StateFeatureConfigurerAdapter(sf, context)));
         return list;
     }
 
-    // init 단계: init(context, config) 호출
     private void initConfigurers(List<SecurityConfigurer> configurers) {
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> {
                     try { cfg.init(context, config); }
-                    catch (Exception e) {
-                        throw new IllegalStateException("Configurer init 실패: " + cfg, e);
-                    }
+                    catch (Exception e) { throw new IllegalStateException("Configurer init 실패: " + cfg, e); }
                 });
     }
 
-    private void configureFlows(List<FlowContext> flows) throws Exception {
-        // FeatureRegistry 에서 MFA 컨테이너, 스텝별, 상태별 Feature 모두 꺼내기
-        List<AuthenticationFeature> features = featureRegistry.getAllFeaturesFor(config.flows());
-        // 각 Feature의 getOrder() 기준으로 정렬
+    private void configureAuthFeatures(List<FlowContext> flows) throws Exception {
+        List<AuthenticationFeature> features = featureRegistry.getAuthFeaturesFor(config.flows());
         features.sort(Comparator.comparingInt(AuthenticationFeature::getOrder));
 
-        // 각 FlowContext 마다 동일한 Feature 순서를 적용
         for (FlowContext fc : flows) {
             HttpSecurity http = fc.http();
             List<AuthenticationStepConfig> steps = fc.flow().stepConfigs();
             StateConfig state = fc.flow().stateConfig();
 
             for (AuthenticationFeature feature : features) {
-                // 각 Feature가 자신의 타입(form/rest/ott/passkey/mfa/session/jwt 등)에 맞게
-                // http, steps, state를 보고 필요한 설정을 수행
                 feature.apply(http, steps, state);
             }
         }
     }
 
-    // configure 단계: configure(FlowContext) 호출
-    private void configureFlows(List<SecurityConfigurer> configurers, List<FlowContext> flows) {
+    private void configureRemaining(List<SecurityConfigurer> configurers, List<FlowContext> flows) {
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
-                .forEach(cfg -> {
-                    for (FlowContext fc : flows) {
-                        try {
-                            cfg.configure(fc);
-                        }
-                        catch (Exception e) {
-                            throw new IllegalStateException("Configurer configure 실패: " + cfg, e);
-                        }
-                    }
-                });
+                .forEach(cfg -> flows.forEach(fc -> {
+                    try { cfg.configure(fc); }
+                    catch (Exception e) { throw new IllegalStateException("Configurer configure 실패: " + cfg, e); }
+                }));
     }
 
-    // FlowContext별 SecurityFilterChain 빌드 및 Bean 등록
     private void registerSecurityFilterChains(List<FlowContext> flows) {
         ConfigurableApplicationContext cac = (ConfigurableApplicationContext) context.applicationContext();
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) cac.getBeanFactory();
-        AtomicInteger chainOrder = new AtomicInteger(1);
+        AtomicInteger index = new AtomicInteger(0);
 
         for (FlowContext fc : flows) {
-            String flowName = fc.flow().typeName();
+            String name = fc.flow().typeName();
             int orderVal = fc.flow().order();
-            String beanName = flowName + "SecurityFilterChain" + chainOrder.getAndIncrement();
-            BeanDefinitionBuilder builder = BeanDefinitionBuilder
-                    .genericBeanDefinition(SecurityFilterChain.class, () -> {
-                        try {
-                            DefaultSecurityFilterChain built = fc.http().build();
+            String beanName = name + "SecurityFilterChain" + index.incrementAndGet();
 
-                            for (AuthenticationStepConfig step : fc.flow().stepConfigs()) {
-                                String type = step.type();
-                                Filter factorFilter = built.getFilters().stream()
-                                        .filter(f -> {
-                                            return switch (type) {
-                                                case "form" -> f instanceof UsernamePasswordAuthenticationFilter;
-                                                case "rest" -> f.getClass().getSimpleName()
-                                                        .equals("RestAuthenticationFilter");
-                                                case "ott" -> f.getClass().getSimpleName()
-                                                        .equals("OneTimeTokenAuthenticationFilter");
-                                                case "passkey" -> f.getClass().getSimpleName()
-                                                        .equals("WebAuthnAuthenticationFilter");
-                                                default -> false;
-                                            };
-                                        })
-                                        .findFirst()
-                                        .orElseThrow(() -> new IllegalStateException(
-                                                "필터를 찾을 수 없습니다 for MFA 타입: " + type));
-
-                                featureRegistry.registerFactorFilter(type, factorFilter);
-                            }
-
-                            return new OrderedSecurityFilterChain(
-                                    Ordered.HIGHEST_PRECEDENCE + orderVal,
-                                    built.getRequestMatcher(),
-                                    built.getFilters());
-                        } catch (Exception ex) {
-                            log.error("SecurityFilterChain 생성 실패 (flow={}): 건너뜁니다.", flowName, ex);
-                            throw new BeanCreationException(
-                                    "SecurityFilterChain 생성 실패 for flow: " + flowName, ex);
+            BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SecurityFilterChain.class, () -> {
+                DefaultSecurityFilterChain built;
+                try {
+                    built = fc.http().build();
+                    // 각 스텝 필터를 FeatureRegistry에 등록
+                    for (AuthenticationStepConfig step : fc.flow().stepConfigs()) {
+                        String type = step.type();  // "form", "rest", "ott", "passkey"
+                        Class<? extends Filter> filterClass = stepToFilter.get(type);
+                        if (filterClass == null) {
+                            throw new IllegalStateException("알 수 없는 MFA 단계: " + type);
                         }
-                    });
+
+                        Filter f = built.getFilters().stream()
+                                .filter(filterClass::isInstance)
+                                .findFirst()
+                                .orElseThrow(() ->
+                                        new IllegalStateException("필터를 찾을 수 없습니다 for type: " + type)
+                                );
+
+                        featureRegistry.registerFactorFilter(type, f);
+                    }
+                    return new OrderedSecurityFilterChain(
+                            Ordered.HIGHEST_PRECEDENCE + orderVal,
+                            built.getRequestMatcher(),
+                            built.getFilters());
+                } catch (Exception ex) {
+                    log.error("SecurityFilterChain 생성 실패 (flow={}): 건너뜁니다.", fc.flow().typeName(), ex);
+                    throw new BeanCreationException(
+                            "SecurityFilterChain 생성 실패 for flow: " + fc.flow().typeName(), ex);
+                }
+            });
             builder.setLazyInit(true);
             builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
             registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
         }
     }
+
+
 }
 

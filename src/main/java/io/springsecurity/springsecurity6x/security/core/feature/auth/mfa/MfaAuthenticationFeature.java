@@ -62,14 +62,7 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
                     : UsernamePasswordAuthenticationFilter.class;
 
             // 올바른 생성자 시그니처에 맞춰 인자 6개 모두 전달
-            MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter(
-                    mfaUrl,
-                    registry,
-                    auditPublisher,
-                    riskEngine,
-                    trustedDeviceService,
-                    recoveryService
-            );
+            MfaAuthenticationFilter mfaFilter = new MfaAuthenticationFilter();
 
             http.addFilterAfter(mfaFilter, reference);
         }

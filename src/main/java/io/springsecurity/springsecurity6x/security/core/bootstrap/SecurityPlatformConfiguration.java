@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.Sec
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,7 +19,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import javax.crypto.SecretKey;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
+
 import java.util.List;
+import java.util.Map;
 
 @EnableConfigurationProperties(AuthContextProperties.class)
 @Configuration
@@ -76,7 +82,13 @@ public class SecurityPlatformConfiguration {
         return new SecurityPlatformInitializer(
                 context,
                 staticConfigurers,
-                featureRegistry
+                featureRegistry,
+                Map.of(
+                        "form",    UsernamePasswordAuthenticationFilter.class,
+                        "rest",    RestAuthenticationFilter.class,
+                        "ott",     AuthenticationFilter.class,
+                        "passkey", WebAuthnAuthenticationFilter.class
+                )
         );
     }
 

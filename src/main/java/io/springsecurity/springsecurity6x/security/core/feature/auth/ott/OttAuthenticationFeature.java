@@ -1,12 +1,23 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth.ott;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * OTT(One-Time Token) 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
@@ -37,16 +48,34 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
         if (steps == null || steps.isEmpty()) {
             return;
         }
-        AuthenticationStepConfig step = steps.getFirst();
-        Object optsObj = step.options().get("_options");
-        if (!(optsObj instanceof OttOptions)) {
-            throw new IllegalStateException("Expected OttOptions in step options");
-        }
-        OttOptions opts = (OttOptions) optsObj;
+        AuthenticationStepConfig myStep = steps.stream()
+                .filter(s -> AuthType.OTT.name().equalsIgnoreCase(s.type()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Form step config missing"));
 
-        // URL 매처 설정
-        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
-            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
+        OttOptions opts = (OttOptions) myStep.options().get("_options");
+        OneTimeTokenGenerationSuccessHandler origSuccess = opts.getTokenGenerationSuccessHandler() != null
+                ? opts.getTokenGenerationSuccessHandler()
+                : (request, response, oneTimeToken) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+            try {
+                new ObjectMapper().writeValue(response.getWriter(), "인증에 성공 했습니다." + oneTimeToken.getTokenValue());
+            } catch (IOException e) {
+                throw new RuntimeException("JSON 응답 실패", e);
+            }
+        };
+
+        boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
+
+        OneTimeTokenGenerationSuccessHandler successHandler;
+        if (isLastStep) {
+            Supplier<TokenService> tokenSvcSupplier = () ->
+                    http.getSharedObject(TokenService.class);
+
+            successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
+        } else {
+            successHandler = origSuccess;
         }
 
         // one-time-token 로그인 DSL 적용
@@ -55,11 +84,8 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
                     .loginProcessingUrl(opts.getLoginProcessingUrl())
                     .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
-                    .tokenService(opts.getTokenService());
-
-            if (opts.getTokenGenerationSuccessHandler() != null) {
-                ott.tokenGenerationSuccessHandler(opts.getTokenGenerationSuccessHandler());
-            }
+                    .tokenService(opts.getTokenService())
+                    .tokenGenerationSuccessHandler(successHandler);
         });
     }
 }

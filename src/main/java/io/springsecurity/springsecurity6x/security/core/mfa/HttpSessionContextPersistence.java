@@ -12,6 +12,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
 
     @Override
     public FactorContext loadOrInit(HttpServletRequest req) {
+
         HttpSession session = req.getSession(true);
         FactorContext ctx = (FactorContext) session.getAttribute(ATTR);
         if (ctx == null) {
@@ -24,7 +25,18 @@ public class HttpSessionContextPersistence implements ContextPersistence {
 
     @Override
     public void save(FactorContext ctx) {
-        // HttpSession에 이미 저장되어 있으므로 별도 처리 불필요
+        // 현재 쓰레드의 HttpServletRequest를 가져옵니다.
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return;
+        }
+        HttpSession session = attrs.getRequest().getSession(false);
+        if (session != null) {
+            // 세션에 동일한 키로 다시 저장하여, 분산 캐시나 직렬화 세션 환경에서도
+            // 변경된 FactorContext가 외부 저장소에 반영되도록 합니다.
+            session.setAttribute(ATTR, ctx);
+        }
     }
 
     @Override

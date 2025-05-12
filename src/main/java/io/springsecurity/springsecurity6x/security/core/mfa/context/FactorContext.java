@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 
 import java.util.ArrayList;
@@ -12,13 +13,10 @@ public class FactorContext {
     private MfaState currentState = MfaState.INIT;
     private final List<Object> successes = new ArrayList<>();
     private final Map<String,Integer> retryCounts = new HashMap<>();
-
-    // ← 여기에 attributes 필드 추가
     private final Map<String,Object> attributes = new HashMap<>();
 
-    private int version = 0;
-
-    // … 기존 생성자/필드 접근자 …
+    // ↓ 여기에 추가
+    private RecoveryConfig recoveryConfig;
 
     public String getSessionId() { return sessionId; }
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
@@ -28,13 +26,17 @@ public class FactorContext {
 
     public List<Object> getSuccesses() { return successes; }
     public Map<String,Integer> getRetryCounts() { return retryCounts; }
+    public Map<String,Object> getAttributes() { return attributes; }
 
-    // ← attributes getter
-    public Map<String,Object> getAttributes() {
-        return attributes;
+    public RecoveryConfig getRecoveryConfig() {
+        return recoveryConfig;
+    }
+    public void setRecoveryConfig(RecoveryConfig recoveryConfig) {
+        this.recoveryConfig = recoveryConfig;
     }
 
     public int getVersion() { return version; }
     public void incrementVersion() { this.version++; }
 }
+
 

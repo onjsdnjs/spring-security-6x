@@ -11,26 +11,26 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
 
     @Override
     public Map<String, Object> generate(FactorContext ctx) {
-        MfaState state = ctx.getCurrentState();
+        MfaState state = ctx.currentState();
         Map<String,Object> payload = new HashMap<>();
 
         switch (state) {
             case FORM_CHALLENGE:
                 payload.put("mode", "INLINE");
-                payload.put("url", ctx.getAttributes().getOrDefault("loginUrl", "/login"));
+                payload.put("url", ctx.attributes().getOrDefault("loginUrl", "/login"));
                 payload.put("fields", List.of("username", "password"));
                 break;
 
             case OTT_CHALLENGE:
                 payload.put("mode", "INLINE");
-                payload.put("url", ctx.getAttributes().getOrDefault("ottUrl", "/ott/generate"));
+                payload.put("url", ctx.attributes().getOrDefault("ottUrl", "/ott/generate"));
                 payload.put("fields", List.of("ottCode"));
                 break;
 
             case PASSKEY_CHALLENGE:
                 payload.put("mode", "INLINE");
-                payload.put("url", ctx.getAttributes().getOrDefault("passkeyUrl", "/webauthn/challenge"));
-                payload.put("options", ctx.getAttributes().getOrDefault("passkeyOptions", Map.of()));
+                payload.put("url", ctx.attributes().getOrDefault("passkeyUrl", "/webauthn/challenge"));
+                payload.put("options", ctx.attributes().getOrDefault("passkeyOptions", Map.of()));
                 break;
 
             default:

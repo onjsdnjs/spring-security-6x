@@ -13,7 +13,7 @@ public class OttStateHandler implements MfaStateHandler {
     @Override
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
         if (event == MfaEvent.SUBMIT_CREDENTIAL) return MfaState.OTT_SUBMITTED;
-        throw new InvalidTransitionException(ctx.getCurrentState(), event);
+        throw new InvalidTransitionException(ctx.currentState(), event);
     }
 }
 

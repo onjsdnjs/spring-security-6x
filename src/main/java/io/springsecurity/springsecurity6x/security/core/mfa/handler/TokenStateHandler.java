@@ -20,6 +20,6 @@ public class TokenStateHandler implements MfaStateHandler {
             return MfaState.TOKEN_ISSUANCE;
         }
         throw new IllegalStateException(
-                "Unsupported event " + event + " in state " + ctx.getCurrentState());
+                "Unsupported event " + event + " in state " + ctx.currentState());
     }
 }

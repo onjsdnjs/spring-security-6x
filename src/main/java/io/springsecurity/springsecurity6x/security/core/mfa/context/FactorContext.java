@@ -14,28 +14,27 @@ public class FactorContext {
     private final List<Object> successes = new ArrayList<>();
     private final Map<String,Integer> retryCounts = new HashMap<>();
     private final Map<String,Object> attributes = new HashMap<>();
-
-    // ↓ 여기에 추가
     private RecoveryConfig recoveryConfig;
+    private int version = 0;
 
-    public String getSessionId() { return sessionId; }
-    public void setSessionId(String sessionId) { this.sessionId = sessionId; }
+    public String sessionId() { return sessionId; }
+    public void sessionId(String sessionId) { this.sessionId = sessionId; }
 
-    public MfaState getCurrentState() { return currentState; }
-    public void setCurrentState(MfaState state) { this.currentState = state; }
+    public MfaState currentState() { return currentState; }
+    public void currentState(MfaState state) { this.currentState = state; }
 
-    public List<Object> getSuccesses() { return successes; }
-    public Map<String,Integer> getRetryCounts() { return retryCounts; }
-    public Map<String,Object> getAttributes() { return attributes; }
+    public List<Object> successes() { return successes; }
+    public Map<String,Integer> retryCounts() { return retryCounts; }
+    public Map<String,Object> attributes() { return attributes; }
 
-    public RecoveryConfig getRecoveryConfig() {
+    public RecoveryConfig recoveryConfig() {
         return recoveryConfig;
     }
-    public void setRecoveryConfig(RecoveryConfig recoveryConfig) {
+    public void recoveryConfig(RecoveryConfig recoveryConfig) {
         this.recoveryConfig = recoveryConfig;
     }
 
-    public int getVersion() { return version; }
+    public int version() { return version; }
     public void incrementVersion() { this.version++; }
 }
 

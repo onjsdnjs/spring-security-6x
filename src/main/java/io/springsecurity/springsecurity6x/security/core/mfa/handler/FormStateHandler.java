@@ -13,6 +13,6 @@ public class FormStateHandler implements MfaStateHandler {
     @Override
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
         if (event == MfaEvent.SUBMIT_CREDENTIAL) return MfaState.FORM_SUBMITTED;
-        throw new InvalidTransitionException(ctx.getCurrentState(), event);
+        throw new InvalidTransitionException(ctx.currentState(), event);
     }
 }

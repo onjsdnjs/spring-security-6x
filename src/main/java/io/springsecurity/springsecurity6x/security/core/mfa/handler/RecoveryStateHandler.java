@@ -20,6 +20,6 @@ public class RecoveryStateHandler implements MfaStateHandler {
             return MfaState.FORM_CHALLENGE;
         }
         throw new IllegalStateException(
-                "Unsupported event " + event + " in state " + ctx.getCurrentState());
+                "Unsupported event " + event + " in state " + ctx.currentState());
     }
 }

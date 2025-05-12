@@ -4,8 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 public class PasskeyStateHandler implements MfaStateHandler {
 
@@ -15,6 +13,6 @@ public class PasskeyStateHandler implements MfaStateHandler {
     @Override
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
         if (event == MfaEvent.SUBMIT_CREDENTIAL) return MfaState.PASSKEY_SUBMITTED;
-        throw new InvalidTransitionException(ctx.getCurrentState(), event);
+        throw new InvalidTransitionException(ctx.currentState(), event);
     }
 }

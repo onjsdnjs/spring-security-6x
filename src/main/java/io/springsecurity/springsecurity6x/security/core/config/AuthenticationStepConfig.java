@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.enums.StepType;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -16,11 +17,11 @@ public class AuthenticationStepConfig {
     public void type(String type) { this.type = type; }
     public Map<String, Object> options() { return options; }
 
+    /** 상태 전이 매핑 */
     public MfaState getChallengeState() {
-        return MfaState.valueOf(type.toUpperCase() + "_CHALLENGE");
+        return StepType.of(type).challengeState();
     }
     public MfaState getSubmittedState() {
-        return MfaState.valueOf(type.toUpperCase() + "_SUBMITTED");
+        return StepType.of(type).submittedState();
     }
-
 }

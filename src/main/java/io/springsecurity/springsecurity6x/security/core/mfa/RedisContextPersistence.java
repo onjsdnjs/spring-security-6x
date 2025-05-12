@@ -17,18 +17,18 @@ public class RedisContextPersistence implements ContextPersistence {
         }
         return store.computeIfAbsent(sid, k -> {
             FactorContext ctx = new FactorContext();
-            ctx.setSessionId(k);
+            ctx.sessionId(k);
             return ctx;
         });
     }
 
     @Override
     public void save(FactorContext ctx) {
-        store.put(ctx.getSessionId(), ctx);
+        store.put(ctx.sessionId(), ctx);
     }
 
     @Override
     public void delete(FactorContext ctx) {
-        store.remove(ctx.getSessionId());
+        store.remove(ctx.sessionId());
     }
 }

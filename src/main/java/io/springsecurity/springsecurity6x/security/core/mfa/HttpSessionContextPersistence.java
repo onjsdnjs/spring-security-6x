@@ -17,7 +17,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
         FactorContext ctx = (FactorContext) session.getAttribute(ATTR);
         if (ctx == null) {
             ctx = new FactorContext();
-            ctx.setSessionId(session.getId());
+            ctx.sessionId(session.getId());
             session.setAttribute(ATTR, ctx);
         }
         return ctx;

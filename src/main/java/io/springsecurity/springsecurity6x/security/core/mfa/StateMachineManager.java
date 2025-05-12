@@ -42,14 +42,14 @@ public class StateMachineManager {
 
     public void fireEvent(FactorContext ctx, MfaEvent event) {
 
-        MfaState current = ctx.getCurrentState();
+        MfaState current = ctx.currentState();
         Map<MfaEvent, MfaState> map = transitions.get(current);
 
         if (map == null || !map.containsKey(event)) {
             throw new InvalidTransitionException(current, event);
         }
         MfaState next = map.get(event);
-        ctx.setCurrentState(next);
+        ctx.currentState(next);
         ctx.incrementVersion();
     }
 }

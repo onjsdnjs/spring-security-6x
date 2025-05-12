@@ -19,6 +19,7 @@ public class StateMachineManager {
     }
 
     private Map<MfaState, Map<MfaEvent, MfaState>> buildTable(AuthenticationFlowConfig flow) {
+
         Map<MfaState, Map<MfaEvent, MfaState>> table = new EnumMap<>(MfaState.class);
         List<AuthenticationStepConfig> steps = flow.stepConfigs();
         MfaState prev = MfaState.INIT;
@@ -27,8 +28,17 @@ public class StateMachineManager {
             MfaState challengeState = step.getChallengeState();
             MfaState submittedState = step.getSubmittedState();
 
-            table.put(prev, Map.of(MfaEvent.REQUEST_CHALLENGE, challengeState));
-            table.put(challengeState, Map.of(MfaEvent.SUBMIT_CREDENTIAL, submittedState));
+            table.computeIfAbsent(prev, m -> new EnumMap<>(MfaEvent.class))
+                    .put(MfaEvent.REQUEST_CHALLENGE, challengeState);
+
+            table.computeIfAbsent(challengeState, m -> new EnumMap<>(MfaEvent.class))
+                    .put(MfaEvent.SUBMIT_CREDENTIAL, submittedState);
+
+            // ⬇ 추가: INIT → SUBMIT_CREDENTIAL 허용 (Form, Rest 로그인일 경우)
+            if (step.type().equals("form") || step.type().equals("rest")) {
+                table.computeIfAbsent(MfaState.INIT, m -> new EnumMap<>(MfaEvent.class))
+                        .put(MfaEvent.SUBMIT_CREDENTIAL, submittedState);
+            }
 
             prev = submittedState;
         }

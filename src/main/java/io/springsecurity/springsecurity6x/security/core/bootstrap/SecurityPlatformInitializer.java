@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.AuthFeatureConfigurerAdapter;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.DslValidationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StateFeatureConfigurerAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -11,6 +12,8 @@ import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.validator.*;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanCreationException;
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
+import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
@@ -59,19 +63,33 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
 
     @Override
     public void initialize() throws Exception {
+
         List<FlowContext> flows = createAndSortFlows();
+        List<SecurityConfigurer> configurers = buildConfigurers();
 
-        // 1) init(Configurer.init)
-        List<SecurityConfigurer> allConfigurers = buildAllConfigurers();
-        initConfigurers(allConfigurers);
+        // 1) init 단계: PlatformContext, PlatformConfig 전달
+        configurers.stream()
+                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
+                .forEach(cfg -> {
+                    try {
+                        cfg.init(context, config);
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Configurer init 실패: " + cfg, e);
+                    }
+                });
 
-        // 2) configure flows with AuthenticationFeature (including MFA)
-        configureAuthFeatures(flows);
+        // 2) configure 단계: FlowContext 별로 호출
+        configurers.stream()
+                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
+                .forEach(cfg -> flows.forEach(fc -> {
+                    try {
+                        cfg.configure(fc);
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Configurer configure 실패: " + cfg + " on flow: " + fc.flow().typeName(), e);
+                    }
+                }));
 
-        // 3) configure flows with remaining Configurers
-        configureRemaining(baseConfigurers, flows);
-
-        // 4) register SecurityFilterChains per flow and register FactorFilters
+        // 3) 동적 SecurityFilterChain 등록
         registerSecurityFilterChains(flows);
     }
 
@@ -79,7 +97,6 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         List<FlowContext> flows = new ArrayList<>();
         for (AuthenticationFlowConfig flow : config.flows()) {
             HttpSecurity http = context.newHttp();
-            context.registerHttp(flow, http);
             FlowContext fc = new FlowContext(flow, http, context, config);
             context.share(FlowContext.class, fc);
             flows.add(fc);
@@ -88,46 +105,22 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         return flows;
     }
 
-    private List<SecurityConfigurer> buildAllConfigurers() {
-        List<SecurityConfigurer> list = new ArrayList<>(baseConfigurers);
-        // AuthFeatures (form, rest, ott, passkey, mfa)
-        featureRegistry.getAuthFeaturesFor(config.flows()).forEach(f -> list.add(new AuthFeatureConfigurerAdapter(f)));
-        // StateFeatures (session, jwt)
-        featureRegistry.getStateFeaturesFor(config.flows()).forEach(sf -> list.add(new StateFeatureConfigurerAdapter(sf, context)));
-        return list;
-    }
+    private List<SecurityConfigurer> buildConfigurers() {
+        List<SecurityConfigurer> configurers = new ArrayList<>();
+        DslValidator validator = new DslValidator(List.of(
+                new DslSyntaxValidator(),
+                new DslSemanticValidator(),
+                new ConflictRiskAnalyzer()
+        ));
+        configurers.add(new DslValidationConfigurer(validator, new ValidationReportReporter()));
 
-    private void initConfigurers(List<SecurityConfigurer> configurers) {
-        configurers.stream()
-                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
-                .forEach(cfg -> {
-                    try { cfg.init(context, config); }
-                    catch (Exception e) { throw new IllegalStateException("Configurer init 실패: " + cfg, e); }
-                });
-    }
+        featureRegistry.getAuthFeaturesFor(config.flows())
+                .forEach(f -> configurers.add(new AuthFeatureConfigurerAdapter(f)));
 
-    private void configureAuthFeatures(List<FlowContext> flows) throws Exception {
-        List<AuthenticationFeature> features = featureRegistry.getAuthFeaturesFor(config.flows());
-        features.sort(Comparator.comparingInt(AuthenticationFeature::getOrder));
+        featureRegistry.getStateFeaturesFor(config.flows())
+                .forEach(sf -> configurers.add(new StateFeatureConfigurerAdapter(sf, context)));
 
-        for (FlowContext fc : flows) {
-            HttpSecurity http = fc.http();
-            List<AuthenticationStepConfig> steps = fc.flow().stepConfigs();
-            StateConfig state = fc.flow().stateConfig();
-
-            for (AuthenticationFeature feature : features) {
-                feature.apply(http, steps, state);
-            }
-        }
-    }
-
-    private void configureRemaining(List<SecurityConfigurer> configurers, List<FlowContext> flows) {
-        configurers.stream()
-                .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
-                .forEach(cfg -> flows.forEach(fc -> {
-                    try { cfg.configure(fc); }
-                    catch (Exception e) { throw new IllegalStateException("Configurer configure 실패: " + cfg, e); }
-                }));
+        return configurers;
     }
 
     private void registerSecurityFilterChains(List<FlowContext> flows) {
@@ -176,7 +169,5 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
             registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
         }
     }
-
-
 }
 

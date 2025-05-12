@@ -1,28 +1,27 @@
 package io.springsecurity.springsecurity6x.security.core.validator;
 
-import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 
 import java.util.List;
 
 /**
- * 복합 Validator: 여러 Validator를 순차 실행
+ * 통합 DSL Validator
  */
-public class DslValidator implements Validator {
-    private final List<Validator> delegates;
+public class DslValidator implements Validator<List<FlowContext>> {
+    private final List<Validator<List<FlowContext>>> validators;
 
-    public DslValidator(List<Validator> delegates) {
-        this.delegates = delegates;
+    public DslValidator(List<Validator<List<FlowContext>>> validators) {
+        this.validators = validators;
     }
 
     @Override
-    public ValidationResult validate(PlatformConfig config) {
-        ValidationResult result = new ValidationResult();
-        for (Validator v : delegates) {
-            ValidationResult r = v.validate(config);
-            r.getErrors().forEach(result::addError);
-            r.getWarnings().forEach(result::addWarning);
+    public ValidationResult validate(List<FlowContext> flows) throws Exception {
+        ValidationResult finalResult = new ValidationResult();
+        for (Validator<List<FlowContext>> v : validators) {
+            ValidationResult r = v.validate(flows);
+            r.getErrors().forEach(finalResult::addError);
         }
-        return result;
+        return finalResult;
     }
 }
 

@@ -1,41 +1,30 @@
 package io.springsecurity.springsecurity6x.security.core.validator;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * 검증 결과를 담는 객체
+ */
 public class ValidationResult {
-    private final List<String> errors = new ArrayList<>();
-    private final List<String> warnings = new ArrayList<>();
+    private final List<String> errors;
 
-    public void addError(String err) {
-        errors.add(err);
+    public ValidationResult() {
+        this.errors = new ArrayList<>();
     }
 
-    public void addWarning(String w) {
-        warnings.add(w);
+    public void addError(String msg) {
+        errors.add(msg);
     }
 
-    public boolean hasErrors() {
-        return !errors.isEmpty();
-    }
-
-    public boolean hasCritical() {
-        return hasErrors();
+    public boolean isValid() {
+        return errors.isEmpty();
     }
 
     public List<String> getErrors() {
-        return errors;
-    }
-
-    public List<String> getWarnings() {
-        return warnings;
-    }
-
-    public String toJson() {
-        return String.format("{\"errors\":%s,\"warnings\":%s}",
-                errors.stream().map(e -> '"' + e + '"').collect(Collectors.toList()),
-                warnings.stream().map(w -> '"' + w + '"').collect(Collectors.toList()));
+        return Collections.unmodifiableList(errors);
     }
 }
+
 

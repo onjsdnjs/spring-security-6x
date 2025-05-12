@@ -1,21 +1,23 @@
 package io.springsecurity.springsecurity6x.security.core.validator;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
- * DSL 문법(syntax) 오류 검사
+ * DSL 문법 수준 검증
  */
-public class DslSyntaxValidator implements Validator {
+public class DslSyntaxValidator implements Validator<List<FlowContext>> {
     @Override
-    public ValidationResult validate(PlatformConfig config) {
+    public ValidationResult validate(List<FlowContext> flows) {
         ValidationResult result = new ValidationResult();
-
-        // 예: 각 FlowConfig에 스텝이 1개 이상 정의되어야 함
-        for (AuthenticationFlowConfig flow : config.flows()) {
-            if (flow.stepConfigs().isEmpty()) {
-                result.addError(
-                        String.format("Flow '%s'에 인증 스텝이 정의되어 있지 않습니다.", flow.typeName()));
+        Set<String> names = new HashSet<>();
+        for (FlowContext fc : flows) {
+            String name = fc.flow().typeName();
+            if (!names.add(name)) {
+                result.addError("중복된 flow 이름이 있습니다: " + name);
             }
         }
         return result;

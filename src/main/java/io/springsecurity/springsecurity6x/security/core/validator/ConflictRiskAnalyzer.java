@@ -1,37 +1,41 @@
 package io.springsecurity.springsecurity6x.security.core.validator;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Objects;
 
 /**
- * DSL 설정 간 충돌 검사 (예: 중복된 MFA 조합)
+ * RequestMatcher 충돌 위험 분석
+ * - 동일 패턴, 상위/하위 경로 중복
  */
-public class ConflictRiskAnalyzer implements Validator {
+public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
     @Override
-    public ValidationResult validate(PlatformConfig config) {
-
+    public ValidationResult validate(List<FlowContext> flows) {
+        List<RequestMatcher> matchers = flows.stream()
+                .map(fc -> {
+                    DefaultSecurityFilterChain dsc = null;
+                    try {
+                        dsc = fc.http().build();
+                        return dsc.getRequestMatcher();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
         ValidationResult result = new ValidationResult();
-        Set<String> seen = new HashSet<>();
-        for (AuthenticationFlowConfig flow : config.flows()) {
-            if (!"mfa".equalsIgnoreCase(flow.typeName())) {
-                continue;
-            }
-            String stepsSignature = flow.stepConfigs().stream()
-                    .map(AuthenticationStepConfig::type)
-                    .collect(Collectors.joining(">"));
-            String state = flow.stateConfig() != null
-                    ? flow.stateConfig().state()
-                    : "";
-            String signature = stepsSignature + "|" + state;
-            if (!seen.add(signature)) {
-                result.addError(
-                        String.format("중복된 MFA 조합이 탐지되었습니다: [%s]", signature)
-                );
+        for (int i = 0; i < matchers.size(); i++) {
+            for (int j = i + 1; j < matchers.size(); j++) {
+                String p1 = matchers.get(i).toString();
+                String p2 = matchers.get(j).toString();
+                if (p1.equals(p2)) {
+                    result.addError("보안 매처 충돌: 동일 패턴 발견 (" + p1 + ")");
+                } else if (p1.startsWith(p2) || p2.startsWith(p1)) {
+                    result.addError("보안 매처 충돌: 경로 중첩 가능성 (" + p1 + ", " + p2 + ")");
+                }
             }
         }
         return result;

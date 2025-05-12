@@ -106,7 +106,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         return flows;
     }
 
-    private List<SecurityConfigurer> buildConfigurers() {
+    private List<SecurityConfigurer> buildConfigurers() throws Exception {
 
         List<SecurityConfigurer> configurers = new ArrayList<>(baseConfigurers);
         DslValidator validator = new DslValidator(List.of(
@@ -114,7 +114,7 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
                 new DslSemanticValidator(),
                 new ConflictRiskAnalyzer()
         ));
-        configurers.add(new DslValidationConfigurer(validator, new ValidationReportReporter()));
+        configurers.add(new DslValidationConfigurer(validator, createAndSortFlows()));
 
         featureRegistry.getAuthFeaturesFor(config.flows())
                 .forEach(f -> configurers.add(new AuthFeatureConfigurerAdapter(f)));

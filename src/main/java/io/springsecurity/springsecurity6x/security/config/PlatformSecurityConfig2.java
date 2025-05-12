@@ -42,7 +42,7 @@ public class PlatformSecurityConfig2 {
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
                 .jwt(jwt -> Customizer.withDefaults())
 
-                /*.mfa(m -> m
+                .mfa(m -> m
                         .form(f -> f.loginProcessingUrl("/login"))
 //                        .ott(o -> o.loginProcessingUrl("/api/ott"))
                         .passkey(Customizer.withDefaults())
@@ -51,7 +51,7 @@ public class PlatformSecurityConfig2 {
                         .adaptive(ad -> ad.geolocation(true))
                         .deviceTrust(true)
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
-                .jwt(jwt -> Customizer.withDefaults())*/
+                .jwt(jwt -> Customizer.withDefaults())
 
                 .build();
     }

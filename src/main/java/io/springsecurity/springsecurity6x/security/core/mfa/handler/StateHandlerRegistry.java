@@ -1,13 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import jakarta.annotation.PostConstruct;
 
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 상태별 핸들러를 ServiceLoader 기반으로 로드하고 관리하는 POJO Registry

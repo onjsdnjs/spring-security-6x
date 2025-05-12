@@ -34,7 +34,7 @@ public class PlatformSecurityConfig2 {
                         .loginProcessUrl("/api/auth/mfa")
                         .rest(r -> r.loginProcessingUrl("/api/auth/login"))
                         .ott(Customizer.withDefaults())
-//                        .passkey(Customizer.withDefaults())
+                        .passkey(Customizer.withDefaults())
                         .order(5)
                         .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
                         .adaptive(ad -> ad.geolocation(true))

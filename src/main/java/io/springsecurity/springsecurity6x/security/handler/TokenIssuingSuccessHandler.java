@@ -64,8 +64,6 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler,
             throw new AuthenticationServiceException("Token issuance failed", e);
         }
     }
-
-
 }
 
 

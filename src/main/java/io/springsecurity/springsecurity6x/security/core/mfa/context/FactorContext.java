@@ -1,18 +1,40 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import org.springframework.security.core.Authentication;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 
-// 인증 컨텍스트: 현재 단계 인덱스, 마지막 Authentication 저장
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class FactorContext {
-    private int currentStep;
-    private Authentication lastAuth;
-    // 추가: 실패 카운트, 타임스탬프, 사용자식별자 등
+    private String sessionId;
+    private MfaState currentState = MfaState.INIT;
+    private final List<Object> successes = new ArrayList<>();
+    private final Map<String,Integer> retryCounts = new HashMap<>();
 
-    public int getCurrentStep() { return currentStep; }
-    public void advanceStep() { this.currentStep++; }
-    public void setCurrentStep(int idx) { this.currentStep = idx; }
+    // ← 여기에 attributes 필드 추가
+    private final Map<String,Object> attributes = new HashMap<>();
 
-    public Authentication getLastAuth() { return lastAuth; }
-    public void setLastAuth(Authentication auth) { this.lastAuth = auth; }
+    private int version = 0;
+
+    // … 기존 생성자/필드 접근자 …
+
+    public String getSessionId() { return sessionId; }
+    public void setSessionId(String sessionId) { this.sessionId = sessionId; }
+
+    public MfaState getCurrentState() { return currentState; }
+    public void setCurrentState(MfaState state) { this.currentState = state; }
+
+    public List<Object> getSuccesses() { return successes; }
+    public Map<String,Integer> getRetryCounts() { return retryCounts; }
+
+    // ← attributes getter
+    public Map<String,Object> getAttributes() {
+        return attributes;
+    }
+
+    public int getVersion() { return version; }
+    public void incrementVersion() { this.version++; }
 }
 

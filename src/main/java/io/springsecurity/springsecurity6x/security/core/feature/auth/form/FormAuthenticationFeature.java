@@ -22,6 +22,7 @@ import java.util.function.Supplier;
  * Form 기반 로그인 전략을 적용하는 Feature 구현체
  */
 public class FormAuthenticationFeature implements AuthenticationFeature {
+
     @Override
     public String getId() {
         return AuthType.FORM.name().toLowerCase();

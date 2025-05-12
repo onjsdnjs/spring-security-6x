@@ -8,6 +8,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.mfa.*;
+import io.springsecurity.springsecurity6x.security.core.mfa.handler.*;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -48,6 +50,22 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     public void initialize() throws Exception {
 
         List<FlowContext> flows = createAndSortFlows();
+
+        for (FlowContext fc : flows) {
+            HttpSecurity http = fc.http();
+            // ContextPersistence 인스턴스
+            http.setSharedObject(ContextPersistence.class, new HttpSessionContextPersistence());
+            // StateMachineManager 인스턴스
+            http.setSharedObject(StateMachineManager.class, new StateMachineManager(fc.flow()));
+            // StateHandlerRegistry 인스턴스
+            List<MfaStateHandler> mfaStateHandlers = List.of(new FormStateHandler(), new OttStateHandler(), new PasskeyStateHandler());
+            http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
+            // FeatureRegistry 인스턴스
+            http.setSharedObject(FeatureRegistry.class, featureRegistry);
+            // ChallengeRouter 인스턴스
+            http.setSharedObject(ChallengeRouter.class, new ChallengeRouter(new DefaultChallengeGenerator()));
+        }
+
         List<SecurityConfigurer> configurers = buildConfigurers();
 
         configurers.stream()

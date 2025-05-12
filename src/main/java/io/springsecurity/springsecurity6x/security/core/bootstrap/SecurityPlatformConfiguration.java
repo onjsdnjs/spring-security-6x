@@ -83,12 +83,12 @@ public class SecurityPlatformConfiguration {
                 context,
                 staticConfigurers,
                 featureRegistry,
-                Map.of(
+                new SecurityFilterChainRegistrar(featureRegistry,Map.of(
                         "form",    UsernamePasswordAuthenticationFilter.class,
                         "rest",    RestAuthenticationFilter.class,
                         "ott",     AuthenticationFilter.class,
                         "passkey", WebAuthnAuthenticationFilter.class
-                )
+                ))
         );
     }
 

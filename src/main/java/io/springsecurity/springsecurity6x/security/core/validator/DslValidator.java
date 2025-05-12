@@ -4,16 +4,20 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 
 import java.util.List;
 
-public class DslValidator {
-    private final List<Validator> validators;
+/**
+ * 복합 Validator: 여러 Validator를 순차 실행
+ */
+public class DslValidator implements Validator {
+    private final List<Validator> delegates;
 
-    public DslValidator(List<Validator> validators) {
-        this.validators = validators;
+    public DslValidator(List<Validator> delegates) {
+        this.delegates = delegates;
     }
 
+    @Override
     public ValidationResult validate(PlatformConfig config) {
         ValidationResult result = new ValidationResult();
-        for (Validator v : validators) {
+        for (Validator v : delegates) {
             ValidationResult r = v.validate(config);
             r.getErrors().forEach(result::addError);
             r.getWarnings().forEach(result::addWarning);

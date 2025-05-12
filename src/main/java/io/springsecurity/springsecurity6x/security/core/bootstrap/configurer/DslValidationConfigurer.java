@@ -4,7 +4,6 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.validator.DslValidator;
 import io.springsecurity.springsecurity6x.security.core.validator.ValidationReportReporter;
 import io.springsecurity.springsecurity6x.security.core.validator.ValidationResult;
@@ -21,6 +20,7 @@ public class DslValidationConfigurer implements SecurityConfigurer {
 
     @Override
     public void init(PlatformContext context, PlatformConfig config) throws Exception {
+
         ValidationResult result = validator.validate(config);
         reporter.report(result);
         if (result.hasCritical()) {

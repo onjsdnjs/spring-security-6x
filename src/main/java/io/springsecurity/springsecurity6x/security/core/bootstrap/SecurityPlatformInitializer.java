@@ -58,7 +58,9 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
             // StateMachineManager 인스턴스
             http.setSharedObject(StateMachineManager.class, new StateMachineManager(fc.flow()));
             // StateHandlerRegistry 인스턴스
-            List<MfaStateHandler> mfaStateHandlers = List.of(new FormStateHandler(), new OttStateHandler(), new PasskeyStateHandler());
+            List<MfaStateHandler> mfaStateHandlers =
+                    List.of(new FormStateHandler(), new OttStateHandler(), new PasskeyStateHandler(),
+                            new RecoveryStateHandler(), new TokenStateHandler());
             http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
             // FeatureRegistry 인스턴스
             http.setSharedObject(FeatureRegistry.class, featureRegistry);

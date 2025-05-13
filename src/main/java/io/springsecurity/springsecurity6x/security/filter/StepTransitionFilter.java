@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
 import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
+import io.springsecurity.springsecurity6x.security.utils.WebUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -61,6 +62,12 @@ public class StepTransitionFilter extends OncePerRequestFilter {
             }
 
             MfaState next = handler.handleEvent(event, ctx);
+
+            if (!ctx.tryTransition(currentState, next)) {
+                WebUtil.writeError(response, 409, "INVALID_STEP", "잘못된 상태 전이입니다.");
+                return;
+            }
+
             ctx.currentState(next);
             ctx.incrementVersion();
             ctxPersistence.saveContext(ctx);

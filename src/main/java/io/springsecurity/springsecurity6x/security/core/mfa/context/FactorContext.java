@@ -7,38 +7,72 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FactorContext {
+
     private String sessionId;
-    private MfaState currentState = MfaState.INIT;
-    private final List<Object> successes = new ArrayList<>();
-    private final Map<String,Integer> retryCounts = new HashMap<>();
-    private final Map<String,Object> attributes = new HashMap<>();
+    private final AtomicReference<MfaState> currentState = new AtomicReference<>(MfaState.INIT);
+    private final List<Object> successes = new CopyOnWriteArrayList<>();
+    private final Map<String, Integer> retryCounts = new ConcurrentHashMap<>();;
+    private final Map<String, Object> attributes = new ConcurrentHashMap<>();;
     private RecoveryConfig recoveryConfig;
-    private int version = 0;
+    private final AtomicInteger version = new AtomicInteger(0);
 
-    public String sessionId() { return sessionId; }
-    public void sessionId(String sessionId) { this.sessionId = sessionId; }
+    public String sessionId() {
+        return sessionId;
+    }
 
-    public MfaState currentState() { return currentState; }
-    public void currentState(MfaState state) { this.currentState = state; }
+    public void sessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
 
-    public List<Object> successes() { return successes; }
-    public Map<String,Integer> retryCounts() { return retryCounts; }
-    public Map<String,Object> attributes() { return attributes; }
+    public MfaState currentState() {
+        return currentState.get();
+    }
+
+    public void currentState(MfaState state) {
+        currentState.set(state);
+    }
+
+    public boolean tryTransition(MfaState expected, MfaState next) {
+        return currentState.compareAndSet(expected, next);
+    }
+
+    public List<Object> successes() {
+        return successes;
+    }
+
+    public Map<String, Integer> retryCounts() {
+        return retryCounts;
+    }
+
+    public Map<String, Object> attributes() {
+        return attributes;
+    }
 
     public RecoveryConfig recoveryConfig() {
         return recoveryConfig;
     }
+
     public void recoveryConfig(RecoveryConfig recoveryConfig) {
         this.recoveryConfig = recoveryConfig;
     }
 
-    public int version() { return version; }
-    public void version(int version) {
-        this.version = version;
+    public int version() {
+        return version.get();
     }
-    public void incrementVersion() { this.version++; }
+
+    public void version(int v) {
+        version.set(v);
+    }
+
+    public void incrementVersion() {
+        version.incrementAndGet();
+    }
 }
 
 

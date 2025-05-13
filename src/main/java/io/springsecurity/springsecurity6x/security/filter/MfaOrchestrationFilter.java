@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.ChallengeRouter;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.MfaEventPolicyResolver;
 import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
@@ -52,7 +51,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
             MfaEvent event = MfaEventPolicyResolver.resolve(req, ctx);
             MfaState next = stateMachine.nextState(ctx.currentState(), event);
 
-            if (!ctx.tryTransition(ctx.currentState(), next)) {
+            if (ctx.tryTransition(ctx.currentState(), next)) {
                 WebUtil.writeError(res, 409, "INVALID_STEP", "잘못된 상태 전이입니다.");
                 return;
             }

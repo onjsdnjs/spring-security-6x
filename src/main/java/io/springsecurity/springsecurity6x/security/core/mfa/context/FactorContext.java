@@ -3,8 +3,6 @@ package io.springsecurity.springsecurity6x.security.core.mfa.context;
 import io.springsecurity.springsecurity6x.security.core.mfa.RecoveryConfig;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +37,7 @@ public class FactorContext {
     }
 
     public boolean tryTransition(MfaState expected, MfaState next) {
-        return currentState.compareAndSet(expected, next);
+        return !currentState.compareAndSet(expected, next);
     }
 
     public List<Object> successes() {

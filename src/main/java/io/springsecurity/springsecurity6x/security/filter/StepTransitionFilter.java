@@ -63,7 +63,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
 
             MfaState next = handler.handleEvent(event, ctx);
 
-            if (!ctx.tryTransition(currentState, next)) {
+            if (ctx.tryTransition(currentState, next)) {
                 WebUtil.writeError(response, 409, "INVALID_STEP", "잘못된 상태 전이입니다.");
                 return;
             }

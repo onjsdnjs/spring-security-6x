@@ -59,7 +59,7 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
     }
 
     public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
-        return registerMultiStepFlow(AuthType.MFA, customizer, MfaDslConfigurerImpl::new);
+        return registerMultiStepFlow(customizer, MfaDslConfigurerImpl::new);
     }
 
     @Override

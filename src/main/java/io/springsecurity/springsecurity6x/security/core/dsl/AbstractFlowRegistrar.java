@@ -13,11 +13,8 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import org.springframework.security.config.Customizer;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 인증 플로우 등록의 공통 로직을 제공하는 추상 클래스
@@ -61,11 +58,11 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
         return stateSetter;
     }
 
-    protected IdentityStateDsl registerMultiStepFlow(AuthType type, Customizer<MfaDslConfigurer> customizer,
-            Function<AuthenticationFlowConfig.Builder, MfaDslConfigurer> factory) {
+    protected IdentityStateDsl registerMultiStepFlow(Customizer<MfaDslConfigurer> customizer,
+                                                     Function<AuthenticationFlowConfig.Builder, MfaDslConfigurer> factory) {
 
         // 1) FlowConfig.Builder 생성
-        AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(type.name().toLowerCase());
+        AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(AuthType.MFA.name().toLowerCase());
 
         // 2) MfaDslConfigurerImpl 생성 및 DSL 적용
         MfaDslConfigurer configurer = factory.apply(flowBuilder);

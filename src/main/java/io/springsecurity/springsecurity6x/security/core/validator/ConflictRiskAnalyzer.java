@@ -34,17 +34,14 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
             throw new DslValidationException("No FlowContext provided for validation.");
         }
 
-        // Use shared PlatformConfig from first context
         PlatformConfig config = flows.get(0).config();
 
-        // 1) Check duplicate single authentication paths
         PathMappingRegistry registry = new PathMappingRegistry(config);
         Set<String> single = registry.singleAuthPaths();
         if (single.size() != new LinkedHashSet<>(single).size()) {
             result.addError("Duplicate single authentication paths found: " + single);
         }
 
-        // 2) Validate each MFA flow's targetUrl (skip first step)
         int mfaCount = 0;
         for (AuthenticationFlowConfig flow : config.flows()) {
             if (!"mfa".equalsIgnoreCase(flow.typeName())) continue;
@@ -72,26 +69,21 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
             if (!flowErrors.isEmpty()) {
                 String headerLabel = mfaCount <= ORDINAL_EN.length ? ORDINAL_EN[mfaCount - 1] : mfaCount + "th";
                 String headerText = headerLabel + " MFA";
-                // Calculate box width
                 int boxWidth = headerText.length();
                 for (String err : flowErrors) {
                     if (err.length() > boxWidth) boxWidth = err.length();
                 }
                 String horizontalBorder = "+" + "-".repeat(boxWidth + 2) + "+";
-                // Top border and header
                 result.addError(horizontalBorder);
                 result.addError("| " + headerText + " ".repeat(boxWidth - headerText.length()) + " |");
                 result.addError(horizontalBorder);
-                // Error lines
                 for (String err : flowErrors) {
                     result.addError("| " + err + " ".repeat(boxWidth - err.length()) + " |");
                 }
-                // Bottom border
                 result.addError(horizontalBorder);
             }
         }
 
-        // 3) Final result check
         if (result.hasErrors()) {
             result.getErrors().forEach(log::error);
             throw new DslValidationException(

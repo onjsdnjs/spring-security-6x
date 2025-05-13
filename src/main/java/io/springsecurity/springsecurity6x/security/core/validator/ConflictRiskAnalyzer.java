@@ -31,10 +31,11 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
         ValidationResult result = new ValidationResult();
 
         if (flows == null || flows.isEmpty()) {
-            throw new DslValidationException("No FlowContext provided for validation.");
+            return new ValidationResult();
+//            throw new DslValidationException("No FlowContext provided for validation.");
         }
 
-        PlatformConfig config = flows.get(0).config();
+        PlatformConfig config = flows.getFirst().config();
 
         PathMappingRegistry registry = new PathMappingRegistry(config);
         Set<String> single = registry.singleAuthPaths();

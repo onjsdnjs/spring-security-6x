@@ -125,7 +125,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
                 .adaptiveConfig(adaptiveConfig)
                 .deviceTrust(deviceTrust)
                 .recoveryConfig(recoveryConfig)
-                .customizer(http -> http.securityMatcher(loginProcessingUrl))
+//                .customizer(http -> http.securityMatcher(loginProcessingUrl))
                 .build();
     }
 }

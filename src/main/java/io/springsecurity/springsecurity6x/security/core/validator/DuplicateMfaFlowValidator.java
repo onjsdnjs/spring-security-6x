@@ -30,7 +30,8 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
     public ValidationResult validate(List<FlowContext> flows) throws Exception {
 
         if (flows == null || flows.isEmpty()) {
-            throw new DslValidationException("검증할 FlowContext 목록이 비어 있습니다.");
+            return new ValidationResult();
+//            throw new DslValidationException("검증할 FlowContext 목록이 비어 있습니다.");
         }
 
         ValidationResult result = new ValidationResult();

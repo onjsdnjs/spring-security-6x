@@ -24,7 +24,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final FeatureRegistry featureRegistry;
     private final ContextPersistence ctxPersistence;
-    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/mfa/**");
+    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/**");
 
     public MfaStepFilterWrapper(FeatureRegistry featureRegistry, ContextPersistence ctxPersistence) {
         this.featureRegistry = featureRegistry;

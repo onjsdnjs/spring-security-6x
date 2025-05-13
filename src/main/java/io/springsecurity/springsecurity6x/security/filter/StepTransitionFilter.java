@@ -27,7 +27,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateHandlerRegistry stateHandlerRegistry;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/mfa/**");
+    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/**");
 
     public StepTransitionFilter(ContextPersistence ctxPersistence,
                                 StateHandlerRegistry stateHandlerRegistry) {

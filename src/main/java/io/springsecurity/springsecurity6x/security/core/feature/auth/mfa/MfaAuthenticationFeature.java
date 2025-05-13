@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
 import io.springsecurity.springsecurity6x.security.filter.MfaOrchestrationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
+import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.StepTransitionFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
@@ -41,7 +42,7 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
 
         // 1) Orchestration Entry Point Filter
         MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine);
-        http.addFilterBefore(mfaFilter, ExceptionTranslationFilter.class);
+        http.addFilterBefore(mfaFilter, RestAuthenticationFilter.class);
 
         // 2) State Transition Filter
         StepTransitionFilter stepFilter = new StepTransitionFilter(ctxPersistence, registry);

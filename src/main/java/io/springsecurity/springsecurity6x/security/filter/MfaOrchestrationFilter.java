@@ -23,7 +23,7 @@ import java.io.IOException;
 public class MfaOrchestrationFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateMachineManager stateMachine;
-    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/mfa", "POST");
+    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/**", "POST");
 
     public MfaOrchestrationFilter(ContextPersistence persistence,
                                   StateMachineManager manager) {

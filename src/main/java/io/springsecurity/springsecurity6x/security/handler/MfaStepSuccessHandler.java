@@ -2,6 +2,9 @@ package io.springsecurity.springsecurity6x.security.handler;
 
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
@@ -10,37 +13,60 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * MFA 흐름의 각 스텝별 SuccessHandler를 제공하는 유틸리티
+ * MFA 단계별 성공 핸들러를 제공하는 클래스
+ * - 중간 단계에서는 다음 단계의 targetUrl로 Redirect
+ * - 최종 단계에서는 Token 발급 핸들러 사용
  */
 public class MfaStepSuccessHandler {
+
     /**
-     * 인증 단계 중간(REST, PASSKEY)의 인증 성공 시, 다음 스텝으로 Redirect
+     * REST/Form/Passkey 중간 단계: 다음 스텝의 targetUrl로 Redirect
      */
     public static AuthenticationSuccessHandler forAuthStep(List<AuthenticationStepConfig> steps, int currentIndex) {
-        String nextUrl = steps.get(currentIndex + 1).loginProcessingUrl();
-        return new SimpleRedirectSuccessHandler(nextUrl);
+        AuthenticationStepConfig nextStep = steps.get(currentIndex + 1);
+        Object opts = nextStep.options().get("_options");
+        String targetUrl = extractTargetUrl(opts);
+        return new SimpleRedirectSuccessHandler(targetUrl);
     }
 
     /**
-     * OTT 단계 중간의 OneTimeToken 성공 시, 다음 스텝으로 Redirect
+     * OTT 중간 단계: OneTimeTokenGenerationSuccessHandler로 Redirect
      */
     public static OneTimeTokenGenerationSuccessHandler forOttStep(List<AuthenticationStepConfig> steps, int currentIndex) {
-        String nextUrl = steps.get(currentIndex + 1).loginProcessingUrl();
-        return new OneTimeRedirectSuccessHandler(nextUrl);
+        AuthenticationStepConfig nextStep = steps.get(currentIndex + 1);
+        Object opts = nextStep.options().get("_options");
+        String targetUrl = extractTargetUrl(opts);
+        return new OneTimeRedirectSuccessHandler(targetUrl);
     }
 
     /**
-     * 최종 단계(Authentication): TokenIssuingSuccessHandler를 사용
+     * 최종 인증 단계: TokenIssuingSuccessHandler를 통해 토큰 발급
      */
-    public static AuthenticationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier, AuthenticationSuccessHandler delegate) {
+    public static AuthenticationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
+                                                            AuthenticationSuccessHandler delegate) {
         return new TokenIssuingSuccessHandler(tokenSupplier, delegate);
     }
 
     /**
-     * 최종 단계(OTT): TokenIssuingSuccessHandler를 사용
+     * 최종 OTT 단계: TokenIssuingSuccessHandler를 통해 토큰 발급
      */
     public static OneTimeTokenGenerationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
                                                                     OneTimeTokenGenerationSuccessHandler delegate) {
         return new TokenIssuingSuccessHandler(tokenSupplier, delegate);
     }
+
+    /**
+     * Options 객체에서 targetUrl 추출
+     */
+    private static String extractTargetUrl(Object opts) {
+        if (opts instanceof FormOptions) {
+            return ((FormOptions) opts).getTargetUrl();
+        } else if (opts instanceof OttOptions) {
+            return ((OttOptions) opts).getTargetUrl();
+        } else if (opts instanceof PasskeyOptions) {
+            return ((PasskeyOptions) opts).getTargetUrl();
+        }
+        throw new IllegalStateException("지원되지 않는 스텝 옵션 타입: " + opts);
+    }
 }
+

@@ -31,12 +31,11 @@ public class PlatformSecurityConfig2 {
                 })
 
                 .mfa(m -> m
-                        .loginProcessUrl("/api/auth/mfa")
+//                        .loginProcessUrl("/api/auth/mfa")
                         .rest(r -> r
                                 .loginProcessingUrl("/api/auth/login")
-                                .raw(http -> { http
-                                .securityMatcher("/api/auth/mfa");
-                                }))
+//                                .raw(http -> { http.securityMatcher("/api/auth/mfa");})
+                        )
                         .ott(ott -> ott.targetUrl("/loginOtt"))
                         .passkey(passkey -> passkey.targetUrl("/loginPasskey"))
                         .order(5)

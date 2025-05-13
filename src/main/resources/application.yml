@@ -29,10 +29,10 @@ spring:
       scope: read
 
     token-issuer: internal
-    auth-state-mode: jwt
     token-transport-type: header_cookie
     allow-multiple-logins: true
     max-concurrent-logins: 2
+    state-type: jwt
 
   mail:
     host: smtp.gmail.com

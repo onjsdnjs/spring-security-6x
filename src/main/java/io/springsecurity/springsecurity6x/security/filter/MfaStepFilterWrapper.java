@@ -7,10 +7,7 @@ import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.web.util.matcher.AndRequestMatcher;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.*;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -26,10 +23,10 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final FeatureRegistry featureRegistry;
     private final ContextPersistence ctxPersistence;
-    private final RequestMatcher requestMatcher = new AndRequestMatcher(
-            new AntPathRequestMatcher("/api/auth/**"),
-            new NegatedRequestMatcher(new AntPathRequestMatcher("/api/auth/refresh"))
-    );
+    private final RequestMatcher requestMatcher = new OrRequestMatcher(
+            new AntPathRequestMatcher("/api/auth/login", "POST"),
+            new AntPathRequestMatcher("/login/ott", "POST"),
+            new AntPathRequestMatcher("/login/webauthn", "POST"));
 
     public MfaStepFilterWrapper(FeatureRegistry featureRegistry, ContextPersistence ctxPersistence) {
         this.featureRegistry = featureRegistry;

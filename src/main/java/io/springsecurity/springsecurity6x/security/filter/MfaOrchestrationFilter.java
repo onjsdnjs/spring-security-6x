@@ -2,12 +2,14 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.ChallengeRouter;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.MfaEventPolicyResolver;
 import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
 import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
+import io.springsecurity.springsecurity6x.security.utils.WebUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,15 +24,12 @@ import java.io.IOException;
 public class MfaOrchestrationFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateMachineManager stateMachine;
-    private final ChallengeRouter router;
     private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/mfa", "POST");
 
     public MfaOrchestrationFilter(ContextPersistence persistence,
-                                  StateMachineManager manager,
-                                  ChallengeRouter router) {
+                                  StateMachineManager manager) {
         this.ctxPersistence  = persistence;
         this.stateMachine    = manager;
-        this.router = router;
     }
 
     @Override
@@ -50,34 +49,25 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            MfaEvent event = deriveEvent(req);
+            MfaEvent event = MfaEventPolicyResolver.resolve(req, ctx);
             MfaState next = stateMachine.nextState(ctx.currentState(), event);
             ctx.currentState(next);
             ctx.incrementVersion();
             ctxPersistence.saveContext(ctx);
 
         } catch (InvalidTransitionException e) {
-            router.writeError(res, 409, "INVALID_STEP", e.getMessage());
+            WebUtil.writeError(res, 409, "INVALID_STEP", e.getMessage());
             return;
         } catch (AuthenticationException e) {
-            router.writeError(res, 401, "AUTH_FAILURE", e.getMessage());
+            WebUtil.writeError(res, 401, "AUTH_FAILURE", e.getMessage());
             return;
         } catch (Exception e) {
-            router.writeError(res, 500, "INTERNAL_ERROR", "서버 오류가 발생했습니다.");
+            WebUtil.writeError(res, 500, "INTERNAL_ERROR", "서버 오류가 발생했습니다.");
             return;
         }
 
         chain.doFilter(req, res);
     }
-
-    private MfaEvent deriveEvent(HttpServletRequest req) {
-        String eventParam = req.getParameter("event");
-        if ("ISSUE_TOKEN".equalsIgnoreCase(eventParam)) return MfaEvent.ISSUE_TOKEN;
-        return "GET".equalsIgnoreCase(req.getMethod())
-                ? MfaEvent.REQUEST_CHALLENGE
-                : MfaEvent.SUBMIT_CREDENTIAL;
-    }
-
 }
 
 

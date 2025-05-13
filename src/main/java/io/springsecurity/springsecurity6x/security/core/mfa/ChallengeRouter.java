@@ -40,12 +40,9 @@ public class ChallengeRouter {
     }
 
     /**
-     * 오류 정보를 JSON으로 응답합니다.
+     * 오류 정보를 JSON 으로 응답합니다.
      */
-    public void writeError(HttpServletResponse res,
-                           int status,
-                           String errorCode,
-                           String message) throws IOException {
+    public void writeError(HttpServletResponse res, int status, String errorCode, String message) throws IOException {
         res.setStatus(status);
         res.setContentType("application/json");
 

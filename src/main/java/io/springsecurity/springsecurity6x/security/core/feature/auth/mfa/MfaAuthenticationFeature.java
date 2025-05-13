@@ -38,10 +38,9 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
         StateMachineManager stateMachine   = http.getSharedObject(StateMachineManager.class);
         StateHandlerRegistry registry       = http.getSharedObject(StateHandlerRegistry.class);
         FeatureRegistry      featureRegistry= http.getSharedObject(FeatureRegistry.class);
-        ChallengeRouter      router         = http.getSharedObject(ChallengeRouter.class);
 
         // 1) Orchestration Entry Point Filter
-        MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine, router);
+        MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine);
         http.addFilterBefore(mfaFilter, ExceptionTranslationFilter.class);
 
         // 2) State Transition Filter

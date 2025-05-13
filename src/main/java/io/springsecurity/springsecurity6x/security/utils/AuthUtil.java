@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.utils;
 
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import jakarta.servlet.http.HttpServletRequest;
 
 public class AuthUtil {
 

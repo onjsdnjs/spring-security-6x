@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.MfaEventPolicyResolver;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaStateHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
@@ -44,7 +45,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
 
         FactorContext ctx = ctxPersistence.contextLoad(request);
         MfaState currentState = ctx.currentState();
-        MfaEvent event = resolveEvent(request);
+        MfaEvent event = MfaEventPolicyResolver.resolve(request, ctx);
 
         // TOKEN_ISSUANCE 상태에서는 필터 실행 불필요
         if (AuthUtil.isTerminalState(currentState)) {
@@ -75,12 +76,6 @@ public class StepTransitionFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
-    }
-
-    private MfaEvent resolveEvent(HttpServletRequest request) {
-        return "GET".equalsIgnoreCase(request.getMethod())
-                ? MfaEvent.REQUEST_CHALLENGE
-                : MfaEvent.SUBMIT_CREDENTIAL;
     }
 }
 

@@ -10,7 +10,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,7 +23,6 @@ import java.util.Map;
  */
 public class DefaultPlatformContext implements PlatformContext{
 
-    private HttpSecurity http;
     private final ApplicationContext applicationContext;
     private FlowContext flowContext;
     private final ObjectProvider<HttpSecurity> httpProvider;
@@ -68,10 +66,13 @@ public class DefaultPlatformContext implements PlatformContext{
         return flowHttpMap.get(flow);
     }
 
+    public FlowContext flowContext() {
+        return flowContext;
+    }
+
     @Override
     public HttpSecurity newHttp() throws Exception {
-        http = httpProvider.getObject();
-        return http;
+        return httpProvider.getObject();
     }
 
     @Override

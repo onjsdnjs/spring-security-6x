@@ -50,22 +50,12 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     public void initialize() throws Exception {
 
         List<FlowContext> flows = createAndSortFlows();
-
         for (FlowContext fc : flows) {
             HttpSecurity http = fc.http();
-            http.setSharedObject(ContextPersistence.class, new HttpSessionContextPersistence());
-            http.setSharedObject(StateMachineManager.class, new StateMachineManager(fc.flow()));
-            List<MfaStateHandler> mfaStateHandlers =
-                    List.of(new FormStateHandler(), new RestStateHandler(),
-                            new OttStateHandler(), new PasskeyStateHandler(),
-                            new RecoveryStateHandler(), new TokenStateHandler());
-            http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
             http.setSharedObject(FeatureRegistry.class, featureRegistry);
-            http.setSharedObject(ChallengeRouter.class, new ChallengeRouter(new DefaultChallengeGenerator()));
         }
 
         List<SecurityConfigurer> configurers = buildConfigurers();
-
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> {

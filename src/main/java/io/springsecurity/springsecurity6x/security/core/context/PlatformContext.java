@@ -49,6 +49,8 @@ public interface PlatformContext {
     void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http);
     HttpSecurity http(AuthenticationFlowConfig flow);
 
+    FlowContext flowContext();
+
     /**
      * 새로운 HttpSecurity 인스턴스를 반환합니다.
      * 인증 방식/흐름별로 SecurityFilterChain을 분리하기 위해 사용합니다.

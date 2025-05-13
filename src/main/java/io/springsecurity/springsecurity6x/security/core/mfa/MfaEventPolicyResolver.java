@@ -2,11 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
 
 import static io.springsecurity.springsecurity6x.security.enums.MfaEvent.*;
 

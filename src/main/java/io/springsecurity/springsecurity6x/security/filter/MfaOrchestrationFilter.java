@@ -14,7 +14,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,7 +25,10 @@ import java.io.IOException;
 public class MfaOrchestrationFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateMachineManager stateMachine;
-    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/**", "POST");
+    private final RequestMatcher requestMatcher = new AndRequestMatcher(
+            new AntPathRequestMatcher("/api/auth/**"),
+            new NegatedRequestMatcher(new AntPathRequestMatcher("/api/auth/refresh"))
+    );
 
     public MfaOrchestrationFilter(ContextPersistence persistence,
                                   StateMachineManager manager) {

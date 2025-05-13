@@ -15,7 +15,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -27,7 +29,10 @@ public class StepTransitionFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateHandlerRegistry stateHandlerRegistry;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/**");
+    private final RequestMatcher requestMatcher = new AndRequestMatcher(
+            new AntPathRequestMatcher("/api/auth/**"),
+            new NegatedRequestMatcher(new AntPathRequestMatcher("/api/auth/refresh"))
+    );
 
     public StepTransitionFilter(ContextPersistence ctxPersistence,
                                 StateHandlerRegistry stateHandlerRegistry) {

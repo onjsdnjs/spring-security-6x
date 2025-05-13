@@ -10,10 +10,10 @@ import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
 import io.springsecurity.springsecurity6x.security.filter.MfaOrchestrationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
-import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.StepTransitionFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.access.ExceptionTranslationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 
 import java.util.List;
 
@@ -42,15 +42,15 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
 
         // 1) Orchestration Entry Point Filter
         MfaOrchestrationFilter mfaFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine);
-        http.addFilterBefore(mfaFilter, RestAuthenticationFilter.class);
+        http.addFilterBefore(mfaFilter, LogoutFilter.class);
 
         // 2) State Transition Filter
         StepTransitionFilter stepFilter = new StepTransitionFilter(ctxPersistence, registry);
-        http.addFilterAfter(stepFilter, MfaOrchestrationFilter.class);
+        http.addFilterBefore(stepFilter, LogoutFilter.class);
 
         // 3) Step Filter Wrapper (인증 필터 호출)
         MfaStepFilterWrapper wrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence);
-        http.addFilterAfter(wrapper, StepTransitionFilter.class);
+        http.addFilterBefore(wrapper, LogoutFilter.class);
     }
 }
 

@@ -3,6 +3,9 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -11,8 +14,9 @@ import java.util.Set;
 
 public class PathMappingRegistry {
     private final Set<String> singleAuthPaths = new HashSet<>();
-    private final Set<String> mfaEntryPaths    = new HashSet<>();
-    private final Map<String,String> mfaStepPaths = new LinkedHashMap<>(); // path -> stepId
+    private final Set<String> mfaEntryPaths = new HashSet<>();
+    private final Map<String, String> mfaStepPaths = new LinkedHashMap<>(); // loginUrl -> stepType
+    private final Map<String, String> mfaStepTargetUrls = new LinkedHashMap<>(); // stepType -> targetUrl
 
     /**
      * DSL 설정의 AuthenticationFlowConfig를 기반으로
@@ -22,13 +26,26 @@ public class PathMappingRegistry {
     public PathMappingRegistry(PlatformConfig config) {
         for (AuthenticationFlowConfig flow : config.flows()) {
             String type = flow.typeName().toLowerCase();
-            String entry = flow.loginProcessingUrl();
+            String entryUrl = flow.loginProcessingUrl();
             if ("mfa".equals(type)) {
                 // MFA 진입점 수집
-                mfaEntryPaths.add(entry);
-                // MFA 단계별 경로 수집
+                mfaEntryPaths.add(entryUrl);
+                // MFA 단계별 경로 및 targetUrl 수집
                 for (AuthenticationStepConfig step : flow.stepConfigs()) {
-                    mfaStepPaths.put(step.loginProcessingUrl(), step.type());
+                    String stepType = step.type();
+                    String loginUrl = step.loginProcessingUrl();
+                    mfaStepPaths.put(loginUrl, stepType);
+                    // 옵션에서 targetUrl 추출
+                    Object opts = step.options().get("_options");
+                    String targetUrl = null;
+                    if (opts instanceof FormOptions) {
+                        targetUrl = ((FormOptions) opts).getTargetUrl();
+                    } else if (opts instanceof OttOptions) {
+                        targetUrl = ((OttOptions) opts).getTargetUrl();
+                    } else if (opts instanceof PasskeyOptions) {
+                        targetUrl = ((PasskeyOptions) opts).getTargetUrl();
+                    }
+                    mfaStepTargetUrls.put(stepType, targetUrl);
                 }
             } else {
                 // 단일 인증 경로 수집
@@ -49,5 +66,8 @@ public class PathMappingRegistry {
 
     public Map<String, String> mfaStepPaths() {
         return mfaStepPaths;
+    }
+    public Map<String, String> mfaStepTargetUrls() {
+        return mfaStepTargetUrls;
     }
 }

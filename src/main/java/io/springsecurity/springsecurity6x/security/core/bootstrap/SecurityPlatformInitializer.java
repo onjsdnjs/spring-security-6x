@@ -8,10 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.validator.ConflictRiskAnalyzer;
-import io.springsecurity.springsecurity6x.security.core.validator.DslSemanticValidator;
-import io.springsecurity.springsecurity6x.security.core.validator.DslSyntaxValidator;
-import io.springsecurity.springsecurity6x.security.core.validator.DslValidator;
+import io.springsecurity.springsecurity6x.security.core.validator.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -99,7 +96,8 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
         DslValidator validator = new DslValidator(List.of(
                 new DslSyntaxValidator(),
                 new DslSemanticValidator(),
-                new ConflictRiskAnalyzer()
+                new ConflictRiskAnalyzer(),
+                new DuplicateMfaFlowValidator()
         ));
         configurers.add(new DslValidationConfigurer(validator, createAndSortFlows()));
 

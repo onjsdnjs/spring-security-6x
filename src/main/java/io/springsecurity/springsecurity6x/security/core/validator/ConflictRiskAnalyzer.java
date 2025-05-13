@@ -47,6 +47,16 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
             result.addError("MFA 단계별 경로에 중복이 있습니다: " + steps.keySet());
         }
 
+        // 3.1) MFA 단계별 targetUrl 설정 검사
+        Map<String, String> targetUrls = registry.mfaStepTargetUrls();
+        for (Map.Entry<String, String> entry : targetUrls.entrySet()) {
+            String type = entry.getKey();
+            String url = entry.getValue();
+            if (url == null || url.isBlank()) {
+                result.addError("MFA 스텝 '" + type + "'에 targetUrl이 설정되지 않았습니다.");
+            }
+        }
+
         // 4) 단일 vs MFA 경로 충돌
         for (String p : single) {
             if (entries.contains(p) || steps.containsKey(p)) {

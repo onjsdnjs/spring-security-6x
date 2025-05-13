@@ -101,52 +101,22 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
      */
     private class StateSetter implements IdentityStateDsl {
 
-        private final Set<String> seenMfaSignatures = new HashSet<>();
-
         @Override
         public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
             replaceLastState(StateType.SESSION.name().toLowerCase());
-            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
         }
 
         @Override
         public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
             replaceLastState(StateType.JWT.name().toLowerCase());
-            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
         }
 
         @Override
         public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
             replaceLastState(StateType.OAUTH2.name().toLowerCase());
-            checkDuplicateMfa();
             return AbstractFlowRegistrar.this;
-        }
-
-        /**
-         * 마지막으로 추가된 MFA 플로우의 "스텝순서|state" 시그니처가
-         * 이미 등록된 적이 있는지 검사하고, 중복이면 예외를 던집니다.
-         */
-        private void checkDuplicateMfa() {
-            List<AuthenticationFlowConfig> flows = platformBuilder.build().flows();
-            if (flows.isEmpty()) {
-                return;
-            }
-            AuthenticationFlowConfig last = flows.get(flows.size() - 1);
-            if (!AuthType.MFA.name().toLowerCase().equals(last.typeName())) {
-                return;
-            }
-            String stepsSignature = last.stepConfigs().stream()
-                    .map(AuthenticationStepConfig::type)
-                    .collect(Collectors.joining(">"));
-            String state = last.stateConfig().state();
-            String signature = stepsSignature + "|" + state;
-            if (!seenMfaSignatures.add(signature)) {
-                throw new IllegalStateException(
-                        "중복된 MFA 조합: [" + signature + "] 은(는) 이미 설정되었습니다."
-                );
-            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
@@ -13,9 +14,11 @@ import java.util.Objects;
 /**
  * Form 인증 방식 전용 옵션 (AbstractOptions 상속)
  */
+@Getter
 public final class FormOptions extends AbstractOptions {
     private final String loginPage;
     private final String loginProcessingUrl;
+    private final String targetUrl;
     private final String usernameParameter;
     private final String passwordParameter;
     private final String defaultSuccessUrl;
@@ -25,12 +28,18 @@ public final class FormOptions extends AbstractOptions {
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
+    /**
+     * -- GETTER --
+     *  raw FormLoginConfigurer 커스터마이저를 반환합니다.
+     */
     private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
+
 
     private FormOptions(Builder b) {
         super(b);
         this.loginPage = b.loginPage;
         this.loginProcessingUrl = b.loginProcessingUrl;
+        this.targetUrl = b.targetUrl;
         this.usernameParameter = b.usernameParameter;
         this.passwordParameter = b.passwordParameter;
         this.defaultSuccessUrl = b.defaultSuccessUrl;
@@ -43,57 +52,6 @@ public final class FormOptions extends AbstractOptions {
         this.rawFormLogin = b.rawFormLogin;
     }
 
-    public String getLoginPage() {
-        return loginPage;
-    }
-
-    public String getLoginProcessingUrl() {
-        return loginProcessingUrl;
-    }
-
-    public String getUsernameParameter() {
-        return usernameParameter;
-    }
-
-    public String getPasswordParameter() {
-        return passwordParameter;
-    }
-
-    public String getDefaultSuccessUrl() {
-        return defaultSuccessUrl;
-    }
-
-    public boolean isAlwaysUseDefaultSuccessUrl() {
-        return isAlwaysUseDefaultSuccessUrl;
-    }
-
-    public boolean isPermitAll() {
-        return isPermitAll;
-    }
-
-    public String getFailureUrl() {
-        return failureUrl;
-    }
-
-    public AuthenticationSuccessHandler getSuccessHandler() {
-        return successHandler;
-    }
-
-    public AuthenticationFailureHandler getFailureHandler() {
-        return failureHandler;
-    }
-
-    public SecurityContextRepository getSecurityContextRepository() {
-        return securityContextRepository;
-    }
-
-    /**
-     * raw FormLoginConfigurer 커스터마이저를 반환합니다.
-     */
-    public Customizer<FormLoginConfigurer<HttpSecurity>> getRawFormLogin() {
-        return rawFormLogin;
-    }
-
     public static Builder builder() {
         return new Builder();
     }
@@ -101,6 +59,7 @@ public final class FormOptions extends AbstractOptions {
     public static final class Builder extends AbstractOptions.Builder<FormOptions, Builder> {
         private String loginPage = "/login";
         private String loginProcessingUrl = "/login";
+        private String targetUrl = "";
         private String usernameParameter = "username";
         private String passwordParameter = "password";
         private String defaultSuccessUrl = "/";
@@ -128,6 +87,11 @@ public final class FormOptions extends AbstractOptions {
 
         public Builder loginProcessingUrl(String u) {
             this.loginProcessingUrl = Objects.requireNonNull(u, "loginProcessingUrl must not be null");
+            return self();
+        }
+
+        public Builder targetUrl(String u) {
+            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
             return self();
         }
 

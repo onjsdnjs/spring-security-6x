@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import lombok.Builder;
 import lombok.Getter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -15,6 +16,7 @@ import java.util.Objects;
 public final class RestOptions extends AbstractOptions {
 
     private final String loginProcessingUrl;
+    private final String targetUrl;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
@@ -22,6 +24,7 @@ public final class RestOptions extends AbstractOptions {
     private RestOptions(Builder b) {
         super(b);
         this.loginProcessingUrl = b.loginProcessingUrl;
+        this.targetUrl = b.targetUrl;
         this.successHandler = b.successHandler;
         this.failureHandler = b.failureHandler;
         this.securityContextRepository = b.securityContextRepository;
@@ -33,6 +36,7 @@ public final class RestOptions extends AbstractOptions {
 
     public static final class Builder extends AbstractOptions.Builder<RestOptions, Builder> {
         private String loginProcessingUrl = "/api/auth/login";
+        private String targetUrl = "";
         private AuthenticationSuccessHandler successHandler;
         private AuthenticationFailureHandler failureHandler;
         private SecurityContextRepository securityContextRepository;
@@ -45,6 +49,11 @@ public final class RestOptions extends AbstractOptions {
         public Builder loginProcessingUrl(String url) {
             this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
             return this;
+        }
+
+        public Builder targetUrl(String u) {
+            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
+            return self();
         }
 
         public Builder successHandler(AuthenticationSuccessHandler handler) {

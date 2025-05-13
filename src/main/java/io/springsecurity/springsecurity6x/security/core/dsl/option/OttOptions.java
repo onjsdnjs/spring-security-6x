@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import lombok.Getter;
 import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
@@ -14,10 +15,12 @@ import java.util.Objects;
 /**
  * OTT(One-Time Token) 인증 옵션을 불변(immutable)으로 제공하는 클래스.
  */
+@Getter
 public final class OttOptions extends AbstractOptions {
 
     private final List<String> matchers;
     private final String loginProcessingUrl;
+    private final String targetUrl;
     private final String defaultSubmitPageUrl;
     private final String tokenGeneratingUrl;
     private final boolean showDefaultSubmitPage;
@@ -29,43 +32,13 @@ public final class OttOptions extends AbstractOptions {
         super(b);
         this.matchers = List.copyOf(b.matchers);
         this.loginProcessingUrl = b.loginProcessingUrl;
+        this.targetUrl = b.targetUrl;
         this.defaultSubmitPageUrl = b.defaultSubmitPageUrl;
         this.tokenGeneratingUrl = b.tokenGeneratingUrl;
         this.showDefaultSubmitPage = b.showDefaultSubmitPage;
         this.tokenService = b.tokenService;
         this.tokenGenerationSuccessHandler = b.tokenGenerationSuccessHandler;
         this.rawOttLogin = b.rawOttLogin;
-    }
-
-    public List<String> getMatchers() {
-        return matchers;
-    }
-
-    public String getLoginProcessingUrl() {
-        return loginProcessingUrl;
-    }
-
-    public String getDefaultSubmitPageUrl() {
-        return defaultSubmitPageUrl;
-    }
-
-    public String getTokenGeneratingUrl() {
-        return tokenGeneratingUrl;
-    }
-
-    public boolean isShowDefaultSubmitPage() {
-        return showDefaultSubmitPage;
-    }
-
-    public OneTimeTokenService getTokenService() {
-        return tokenService;
-    }
-
-    public OneTimeTokenGenerationSuccessHandler getTokenGenerationSuccessHandler() {
-        return tokenGenerationSuccessHandler;
-    }
-    public Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> getRawOttLogin() {
-        return rawOttLogin;
     }
 
     public static Builder builder() {
@@ -75,6 +48,7 @@ public final class OttOptions extends AbstractOptions {
     public static final class Builder extends AbstractOptions.Builder<OttOptions, Builder> {
         private List<String> matchers = List.of("/**");
         private String loginProcessingUrl = "/login/ott";
+        private String targetUrl = "";
         private String defaultSubmitPageUrl = "/login/ott";
         private String tokenGeneratingUrl = "/ott/generate";
         private boolean showDefaultSubmitPage = true;
@@ -87,14 +61,14 @@ public final class OttOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder matchers(List<String> patterns) {
-            this.matchers = Objects.requireNonNull(patterns, "matchers must not be null");
-            return this;
-        }
-
         public Builder loginProcessingUrl(String url) {
             this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
             return this;
+        }
+
+        public Builder targetUrl(String u) {
+            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
+            return self();
         }
 
         public Builder defaultSubmitPageUrl(String url) {
@@ -120,11 +94,6 @@ public final class OttOptions extends AbstractOptions {
         public Builder tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
             this.tokenGenerationSuccessHandler = Objects.requireNonNull(handler, "tokenGenerationSuccessHandler must not be null");
             return this;
-        }
-
-        public Builder rawFormLogin(Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> c) {
-            this.rawOttLogin = Objects.requireNonNull(c, "rawFormLogin customizer must not be null");
-            return self();
         }
 
         @Override

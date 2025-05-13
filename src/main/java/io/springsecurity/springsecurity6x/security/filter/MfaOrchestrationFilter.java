@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
+import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,7 +45,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
         try {
             FactorContext ctx = ctxPersistence.contextLoad(req);
 
-            if (ctx.currentState() == MfaState.TOKEN_ISSUANCE || ctx.currentState() == MfaState.COMPLETED) {
+            if (AuthUtil.isTerminalState(ctx.currentState())) {
                 chain.doFilter(req, res);
                 return;
             }

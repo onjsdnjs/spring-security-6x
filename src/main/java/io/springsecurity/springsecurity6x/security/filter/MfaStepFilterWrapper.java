@@ -3,6 +3,7 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistr
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,7 +44,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         MfaState currentState = ctx.currentState();
 
         // TOKEN_ISSUANCE 또는 COMPLETED 상태에서는 인증 필터 실행 생략
-        if (currentState == MfaState.TOKEN_ISSUANCE || currentState == MfaState.COMPLETED) {
+        if (AuthUtil.isTerminalState(currentState)) {
             chain.doFilter(req, res);
             return;
         }

@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandler
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
+import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,17 +43,17 @@ public class StepTransitionFilter extends OncePerRequestFilter {
         }
 
         FactorContext ctx = ctxPersistence.contextLoad(request);
-        MfaState current = ctx.currentState();
+        MfaState currentState = ctx.currentState();
         MfaEvent event = resolveEvent(request);
 
         // TOKEN_ISSUANCE 상태에서는 필터 실행 불필요
-        if (current == MfaState.TOKEN_ISSUANCE || current == MfaState.COMPLETED) {
+        if (AuthUtil.isTerminalState(currentState)) {
             chain.doFilter(request, response);
             return;
         }
 
         try {
-            MfaStateHandler handler = stateHandlerRegistry.get(current);
+            MfaStateHandler handler = stateHandlerRegistry.get(currentState);
             if (handler == null) {
                 response.sendError(409, "현재 상태에 대한 핸들러가 존재하지 않습니다.");
                 return;

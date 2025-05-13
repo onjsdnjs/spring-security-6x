@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }).then(r => r.json());
 
             const assertion = await navigator.credentials.get({ publicKey: options });
-            const res       = await fetch("/login/passkey", {
+            const res       = await fetch("/login/webauthn", {
                 method:      "POST",
                 credentials: "same-origin",
                 headers: {

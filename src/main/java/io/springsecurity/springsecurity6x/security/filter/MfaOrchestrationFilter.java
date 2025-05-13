@@ -26,9 +26,9 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
     private final ContextPersistence ctxPersistence;
     private final StateMachineManager stateMachine;
     private final RequestMatcher requestMatcher = new AndRequestMatcher(
-            new AntPathRequestMatcher("/api/auth/**"),
-            new NegatedRequestMatcher(new AntPathRequestMatcher("/api/auth/refresh"))
-    );
+            new AntPathRequestMatcher("/api/auth/login"),
+            new AntPathRequestMatcher("/login/ott"),
+            new AntPathRequestMatcher("/login/webauthn"));
 
     public MfaOrchestrationFilter(ContextPersistence persistence,
                                   StateMachineManager manager) {

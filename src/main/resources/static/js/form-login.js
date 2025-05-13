@@ -48,15 +48,19 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await res.json();
             console.log("로그인 성공:", result);
 
-            if (authMode === "header") {
+            if (result.redirect) {
+                window.location.href = result.redirect;
+            }
+
+           /* if (authMode === "header") {
                 // access, refresh 모두 런타임 메모리에 저장
                 TokenMemory.accessToken = result.accessToken;
                 TokenMemory.refreshToken = result.refreshToken;
             } else if (authMode === "header_cookie") {
                 TokenMemory.accessToken = result.accessToken;
-            }
+            }*/
 
-            window.location.href = "/";
+            // window.location.href = "/";
 
         } catch (err) {
             console.error("로그인 요청 오류:", err);

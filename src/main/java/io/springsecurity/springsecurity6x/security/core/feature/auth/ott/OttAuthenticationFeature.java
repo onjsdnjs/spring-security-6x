@@ -3,20 +3,26 @@ package io.springsecurity.springsecurity6x.security.core.feature.auth.ott;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -51,32 +57,33 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
         AuthenticationStepConfig myStep = steps.stream()
                 .filter(s -> AuthType.OTT.name().equalsIgnoreCase(s.type()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Form step config missing"));
+                .orElseThrow(() -> new IllegalStateException("OTT step config missing"));
 
         OttOptions opts = (OttOptions) myStep.options().get("_options");
-        OneTimeTokenGenerationSuccessHandler origSuccess = opts.getTokenGenerationSuccessHandler() != null
+        int idx = steps.indexOf(myStep);
+        boolean last = idx == steps.size() - 1;
+        Supplier<TokenService> tokenSupplier = () ->
+                http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
+
+        OneTimeTokenGenerationSuccessHandler origHandler = opts.getTokenGenerationSuccessHandler() != null
                 ? opts.getTokenGenerationSuccessHandler()
                 : (request, response, oneTimeToken) -> {
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-            try {
-                new ObjectMapper().writeValue(response.getWriter(), "인증에 성공 했습니다." + oneTimeToken.getTokenValue());
-            } catch (IOException e) {
-                throw new RuntimeException("JSON 응답 실패", e);
-            }
-        };
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
+                    try {
+                        new ObjectMapper().writeValue(response.getWriter(), Map.of(
+                                "message", "인증 성공",
+                                "token", oneTimeToken.getTokenValue()
+                        ));
+                    } catch (IOException e) {
+                        throw new RuntimeException("JSON 응답 실패", e);
+                    }
+                };
 
-        boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
 
-        OneTimeTokenGenerationSuccessHandler successHandler;
-        if (isLastStep) {
-            Supplier<TokenService> tokenSvcSupplier = () ->
-                    http.getSharedObject(TokenService.class);
-
-            successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
-        } else {
-            successHandler = origSuccess;
-        }
+        OneTimeTokenGenerationSuccessHandler successHandler = last
+                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, origHandler)
+                : MfaStepSuccessHandler.forOttStep(steps, idx);
 
         // one-time-token 로그인 DSL 적용
         http.oneTimeTokenLogin(ott -> {

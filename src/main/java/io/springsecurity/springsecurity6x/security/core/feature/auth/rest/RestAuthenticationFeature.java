@@ -80,8 +80,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
 
         });
 
-        List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();
-        for (Customizer<HttpSecurity> customizer : httpCustomizers) {
+        for (Customizer<HttpSecurity> customizer : opts.rawHttpCustomizers()) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }

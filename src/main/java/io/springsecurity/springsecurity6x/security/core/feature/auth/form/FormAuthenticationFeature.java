@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
@@ -45,21 +46,19 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
                 .orElseThrow(() -> new IllegalStateException("Form step config missing"));
 
         FormOptions opts = (FormOptions) myStep.options().get("_options");
-        AuthenticationSuccessHandler origSuccess = opts.getSuccessHandler() != null
+        int idx = steps.indexOf(myStep);
+        boolean last = idx == steps.size() - 1;
+        Supplier<TokenService> tokenSupplier = () ->
+                http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
+
+        AuthenticationSuccessHandler orig = opts.getSuccessHandler() != null
                 ? opts.getSuccessHandler()
                 : new SimpleUrlAuthenticationSuccessHandler(opts.getDefaultSuccessUrl());
 
-        boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
+        AuthenticationSuccessHandler successHandler = last
+                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, orig)
+                : MfaStepSuccessHandler.forAuthStep(steps, idx);
 
-        AuthenticationSuccessHandler successHandler;
-        if (isLastStep) {
-            Supplier<TokenService> tokenSvcSupplier = () ->
-                    http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
-
-            successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
-        } else {
-            successHandler = origSuccess;
-        }
 
         http.formLogin(form -> {
             // apply basic options

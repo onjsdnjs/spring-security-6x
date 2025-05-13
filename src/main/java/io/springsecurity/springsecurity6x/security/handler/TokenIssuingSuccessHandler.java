@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -13,7 +12,6 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
@@ -39,9 +37,7 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler,
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-            throws IOException, ServletException {
-
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         issueTokens(request, response, authentication);
 //        if (successHandler != null) {
 //            successHandler.onAuthenticationSuccess(request, response, authentication);
@@ -49,10 +45,8 @@ public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler,
     }
 
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken oneTimeToken)
-            throws IOException, ServletException {
+    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken oneTimeToken) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
         issueTokens(request, response, auth);
 //        if (ottSuccessHandler != null) {
 //            ottSuccessHandler.handle(request, response, oneTimeToken);

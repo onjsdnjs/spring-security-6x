@@ -2,11 +2,18 @@ package io.springsecurity.springsecurity6x.security.core.feature.auth.passkey;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Passkey(WebAuthn) 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
@@ -35,19 +42,27 @@ public class PasskeyAuthenticationFeature implements AuthenticationFeature {
         if (steps == null || steps.isEmpty()) {
             return;
         }
-        AuthenticationStepConfig step = steps.getFirst();
 
-        // 옵션 객체 추출
-        Object optsObj = step.options().get("_options");
-        if (!(optsObj instanceof PasskeyOptions)) {
-            throw new IllegalStateException("Expected PasskeyOptions in step options");
-        }
-        PasskeyOptions opts = (PasskeyOptions) optsObj;
+        AuthenticationStepConfig myStep = steps.stream()
+                .filter(s -> AuthType.PASSKEY.name().equalsIgnoreCase(s.type()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Passkey step config missing"));
 
-        // URL 매처 설정 (없으면 기본 매처 유지)
-        if (opts.getMatchers() != null && !opts.getMatchers().isEmpty()) {
-            http.securityMatcher(opts.getMatchers().toArray(new String[0]));
-        }
+        PasskeyOptions opts = (PasskeyOptions) myStep.options().get("_options");
+        int idx = steps.indexOf(myStep);
+        boolean last = idx == steps.size() - 1;
+        Supplier<TokenService> tokenSupplier = () ->
+                http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
+
+        AuthenticationSuccessHandler orig = opts.getSuccessHandler() != null
+                ? opts.getSuccessHandler()
+                : http.getSharedObject(AuthenticationSuccessHandler.class);
+        AuthenticationFailureHandler failure = opts.getFailureHandler();
+
+        AuthenticationSuccessHandler handler = last
+                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, orig)
+                : MfaStepSuccessHandler.forAuthStep(steps, idx);
+
 
         // WebAuthn DSL 적용
         http.webAuthn(web -> web

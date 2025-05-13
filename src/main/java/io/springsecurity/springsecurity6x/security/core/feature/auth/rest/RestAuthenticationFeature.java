@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.Rest
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +18,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -50,38 +52,31 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
                 .orElseThrow(() -> new IllegalStateException("Form step config missing"));
 
         RestOptions opts = (RestOptions) myStep.options().get("_options");
-        AuthenticationSuccessHandler origSuccess = opts.getSuccessHandler() != null
+        int idx = steps.indexOf(myStep);
+        boolean last = idx == steps.size() - 1;
+        Supplier<TokenService> tokenSupplier = () -> http.getSharedObject(TokenService.class);
+
+        // 기존 핸들러
+        AuthenticationSuccessHandler orig = opts.getSuccessHandler() != null
                 ? opts.getSuccessHandler()
-                : (request, response, authentication) -> {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-                    try {
-                        new ObjectMapper().writeValue(response.getWriter(), "인증에 성공 했습니다.");
-                    } catch (IOException e) {
-                        throw new RuntimeException("JSON 응답 실패", e);
-                    }
-                };
+                : (req,res,auth) -> {
+            res.setStatus(200);
+            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            new ObjectMapper().writeValue(res.getWriter(), Map.of("message","인증 성공"));
+        };
 
-        boolean isLastStep = steps.indexOf(myStep) == steps.size() - 1;
-
-        AuthenticationSuccessHandler successHandler;
-        if (isLastStep) {
-            Supplier<TokenService> tokenSvcSupplier = () ->
-                    http.getSharedObject(TokenService.class);
-
-            successHandler = new TokenIssuingSuccessHandler(tokenSvcSupplier, origSuccess);
-        } else {
-            successHandler = origSuccess;
-        }
+        // 단계별 핸들러
+        AuthenticationSuccessHandler handler = last
+                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, orig)
+                : MfaStepSuccessHandler.forAuthStep(steps, idx);
 
 
         http.with(new RestAuthenticationConfigurer(), rest -> {
-            rest
-                .loginProcessingUrl(opts.getLoginProcessingUrl());
-
-            rest.successHandler(opts.getSuccessHandler() == null ? successHandler : opts.getSuccessHandler());
+            rest.loginProcessingUrl(opts.getLoginProcessingUrl())
+                .successHandler(handler);
             if (opts.getFailureHandler() != null) rest.failureHandler(opts.getFailureHandler());
-            if (opts.getSecurityContextRepository() != null) rest.securityContextRepository(opts.getSecurityContextRepository());
+            if (opts.getSecurityContextRepository() != null)
+                rest.securityContextRepository(opts.getSecurityContextRepository());
 
         });
 

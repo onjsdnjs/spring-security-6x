@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class InMemoryCodeStore implements CodeStore {
+
     private final ConcurrentMap<String, OneTimeToken> store = new ConcurrentHashMap<>();
 
     @Override

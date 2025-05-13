@@ -32,8 +32,9 @@ public class LoginController {
         return "login-ott";
     }
 
-    @GetMapping("/login/ott")
+    /*@GetMapping("/login/ott")
     public String loginOttByCode(@RequestParam String code, Model model) {
+
         OneTimeToken ott = codeStore.consume(code);
         if (ott == null) {
             throw new IllegalArgumentException("Invalid or expired code");
@@ -41,6 +42,19 @@ public class LoginController {
         model.addAttribute("username", ott.getUsername());
         model.addAttribute("token", ott.getTokenValue());
         return "ott-forward";
+    }*/
+
+    @GetMapping("/login/ott")
+    public String loginOttByCode(@RequestParam String code, Model model) {
+
+        OneTimeToken ott = codeStore.consume(code);
+        if (ott == null) {
+            throw new IllegalArgumentException("Invalid or expired code");
+        }
+        model.addAttribute("username", ott.getUsername());
+        model.addAttribute("token", ott.getTokenValue());
+
+        return "login-mfa";
     }
 
     @GetMapping("/mfa")

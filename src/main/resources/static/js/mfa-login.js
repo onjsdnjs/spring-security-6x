@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
             pass: restForm.password.value
         };
         try {
-            const res = await fetch("/api/auth/mfa", {
+            const res = await fetch("/api/auth/login", {
                 method: "POST",
                 credentials: "same-origin",
                 headers: makeHeaders(),
@@ -68,13 +68,21 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         const payload = { token: ottForm.token.value };
         try {
-            const res = await fetch("/api/auth/mfa", {
-                method: "POST",
+            const res = await fetch("/ott/generate", {
+                method:      "POST",
                 credentials: "same-origin",
-                headers: makeHeaders(),
-                body: JSON.stringify(payload)
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    [csrfHeader]:    csrfToken
+                },
+                body: new URLSearchParams({ username: email }) // 'username' 키로 전달
             });
-            if (!res.ok) throw await res.json();
+            if (res.ok) {
+                // 성공 시 발송 완료 페이지로 이동
+                window.location.href = `/ott/sent?email=${encodeURIComponent(email)}`;
+            } else {
+                throw new Error();
+            }
             // 다음 Passkey 단계 이동
             showStep(2);
         } catch (err) {

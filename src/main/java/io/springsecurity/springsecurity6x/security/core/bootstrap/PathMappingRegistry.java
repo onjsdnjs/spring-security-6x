@@ -3,9 +3,11 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.exception.DslValidationException;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 public class PathMappingRegistry {
     private final Set<String> singleAuthPaths = new HashSet<>();
@@ -15,7 +17,7 @@ public class PathMappingRegistry {
     /**
      * DSL 설정의 AuthenticationFlowConfig를 기반으로
      * 단일 인증 경로와 MFA 진입점 및 단계별 경로를 수집합니다.
-     * 충돌 검증은 ConflictRiskAnalyzer에서 수행합니다.
+     * 충돌 검증은 ConflictRiskAnalyzer 에서 수행합니다.
      */
     public PathMappingRegistry(PlatformConfig config) {
         for (AuthenticationFlowConfig flow : config.flows()) {

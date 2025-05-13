@@ -8,7 +8,6 @@ import org.springframework.security.authentication.AuthenticationServiceExceptio
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
@@ -22,40 +21,52 @@ import java.util.function.Supplier;
  */
 public class TokenIssuingSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler {
     private final Supplier<TokenService> tokenServiceSupplier;
-    private AuthenticationSuccessHandler successHandler;
-    private OneTimeTokenGenerationSuccessHandler ottSuccessHandler;
+    private final AuthenticationSuccessHandler successHandler;
+    private final OneTimeTokenGenerationSuccessHandler ottSuccessHandler;
 
     public TokenIssuingSuccessHandler(Supplier<TokenService> tokenServiceSupplier,
                                       AuthenticationSuccessHandler successHandler) {
         this.tokenServiceSupplier = tokenServiceSupplier;
-        this.successHandler             = successHandler;
+        this.successHandler = successHandler;
+        this.ottSuccessHandler = null;
     }
 
     public TokenIssuingSuccessHandler(Supplier<TokenService> tokenServiceSupplier,
                                       OneTimeTokenGenerationSuccessHandler ottSuccessHandler) {
         this.tokenServiceSupplier = tokenServiceSupplier;
-        this.ottSuccessHandler             = ottSuccessHandler;
+        this.successHandler = null;
+        this.ottSuccessHandler = ottSuccessHandler;
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        tokenService(request, response, authentication);
-        // 4) 원본 성공 핸들러 호출
-//        delegate.onAuthenticationSuccess(request, response, authentication);
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException, ServletException {
+
+        issueTokens(request, response, authentication);
+//        if (successHandler != null) {
+//            successHandler.onAuthenticationSuccess(request, response, authentication);
+//        }
     }
 
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken oneTimeToken) throws IOException, ServletException {
-        SecurityContext context = SecurityContextHolder.getContextHolderStrategy().getContext();
-        tokenService(request, response, context.getAuthentication());
+    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken oneTimeToken)
+            throws IOException, ServletException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        issueTokens(request, response, auth);
+//        if (ottSuccessHandler != null) {
+//            ottSuccessHandler.handle(request, response, oneTimeToken);
+//        }
     }
 
-    private void tokenService(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+    private void issueTokens(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+
         TokenService tokenService = tokenServiceSupplier.get();
         String deviceId = request.getHeader("X-Device-Id");
         if (!StringUtils.hasText(deviceId)) {
             throw new BadCredentialsException("Device ID missing");
         }
+
         try {
             String access  = tokenService.createAccessToken(authentication, deviceId);
             String refresh = tokenService.createRefreshToken(authentication, deviceId);

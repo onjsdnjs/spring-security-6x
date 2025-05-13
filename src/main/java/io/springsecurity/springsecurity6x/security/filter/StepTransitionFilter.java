@@ -48,7 +48,6 @@ public class StepTransitionFilter extends OncePerRequestFilter {
         MfaState currentState = ctx.currentState();
         MfaEvent event = MfaEventPolicyResolver.resolve(request, ctx);
 
-        // TOKEN_ISSUANCE 상태에서는 필터 실행 불필요
         if (AuthUtil.isTerminalState(currentState)) {
             chain.doFilter(request, response);
             return;

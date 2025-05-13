@@ -25,6 +25,10 @@ public class ValidationResult {
     public List<String> getErrors() {
         return Collections.unmodifiableList(errors);
     }
+
+    public boolean hasErrors() {
+        return !errors.isEmpty();
+    }
 }
 
 

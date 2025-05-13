@@ -21,6 +21,7 @@ public final class AuthenticationFlowConfig {
     private final AdaptiveConfig adaptiveConfig;
     private final boolean deviceTrust;
     private final RecoveryConfig recoveryConfig;
+    private final String loginProcessingUrl;
 
     private AuthenticationFlowConfig(Builder builder) {
         this.typeName     = builder.typeName;
@@ -32,6 +33,7 @@ public final class AuthenticationFlowConfig {
         this.adaptiveConfig = builder.adaptiveConfig;
         this.deviceTrust    = builder.deviceTrust;
         this.recoveryConfig = builder.recoveryConfig;
+        this.loginProcessingUrl = builder.loginProcessingUrl;
     }
 
     public String typeName() { return typeName; }
@@ -39,6 +41,7 @@ public final class AuthenticationFlowConfig {
     public StateConfig stateConfig() { return stateConfig; }
     public ThrowingConsumer<HttpSecurity> customizer() { return customizer; }
     public int order() { return order; }
+    public String loginProcessingUrl() { return loginProcessingUrl; }
 
     public RetryPolicy retryPolicy() {
         return retryPolicy;
@@ -70,6 +73,7 @@ public final class AuthenticationFlowConfig {
         private AdaptiveConfig adaptiveConfig;
         private boolean deviceTrust;
         private RecoveryConfig recoveryConfig;
+        private String loginProcessingUrl;
 
 
         public Builder(String typeName) {
@@ -93,6 +97,11 @@ public final class AuthenticationFlowConfig {
 
         public Builder order(int order) {
             this.order = order;
+            return this;
+        }
+
+        public Builder loginProcessingUrl(String loginProcessingUrl) {
+            this.loginProcessingUrl = loginProcessingUrl;
             return this;
         }
 

@@ -12,6 +12,7 @@ import java.util.HashMap;
 public class AuthenticationStepConfig {
     private String type;
     private final Map<String, Object> options = new HashMap<>();
+    private String loginProcessingUrl;
 
     public String type() { return type; }
     public void type(String type) { this.type = type; }
@@ -23,5 +24,13 @@ public class AuthenticationStepConfig {
     }
     public MfaState getSubmittedState() {
         return StepType.of(type).submittedState();
+    }
+
+    public String loginProcessingUrl() {
+        return loginProcessingUrl;
+    }
+
+    public void loginProcessingUrl(String loginProcessingUrl) {
+        this.loginProcessingUrl = loginProcessingUrl;
     }
 }

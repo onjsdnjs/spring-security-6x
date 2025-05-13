@@ -10,7 +10,7 @@ public class RedisContextPersistence implements ContextPersistence {
     private final Map<String, FactorContext> store = new ConcurrentHashMap<>();
 
     @Override
-    public FactorContext loadOrInit(HttpServletRequest req) {
+    public FactorContext contextLoad(HttpServletRequest req) {
         String sid = req.getHeader("X-MFA-Session");
         if (sid == null) {
             sid = java.util.UUID.randomUUID().toString();
@@ -23,7 +23,7 @@ public class RedisContextPersistence implements ContextPersistence {
     }
 
     @Override
-    public void save(FactorContext ctx) {
+    public void saveContext(FactorContext ctx) {
         store.put(ctx.sessionId(), ctx);
     }
 

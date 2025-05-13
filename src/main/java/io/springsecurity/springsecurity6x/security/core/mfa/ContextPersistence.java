@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface ContextPersistence {
-    FactorContext loadOrInit(HttpServletRequest req);
-    void save(FactorContext ctx);
+    FactorContext contextLoad(HttpServletRequest req);
+    void saveContext(FactorContext ctx);
     void delete(FactorContext ctx);
 }

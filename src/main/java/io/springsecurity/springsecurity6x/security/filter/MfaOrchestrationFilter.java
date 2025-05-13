@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.ChallengeRouter;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
@@ -43,7 +42,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
         }
 
         try {
-            FactorContext ctx = ctxPersistence.loadOrInit(req);
+            FactorContext ctx = ctxPersistence.contextLoad(req);
 
             if (ctx.currentState() == MfaState.TOKEN_ISSUANCE || ctx.currentState() == MfaState.COMPLETED) {
                 chain.doFilter(req, res);
@@ -54,7 +53,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
             MfaState next = stateMachine.nextState(ctx.currentState(), event);
             ctx.currentState(next);
             ctx.incrementVersion();
-            ctxPersistence.save(ctx);
+            ctxPersistence.saveContext(ctx);
 
         } catch (InvalidTransitionException e) {
             router.writeError(res, 409, "INVALID_STEP", e.getMessage());
@@ -71,10 +70,13 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
     }
 
     private MfaEvent deriveEvent(HttpServletRequest req) {
+        String eventParam = req.getParameter("event");
+        if ("ISSUE_TOKEN".equalsIgnoreCase(eventParam)) return MfaEvent.ISSUE_TOKEN;
         return "GET".equalsIgnoreCase(req.getMethod())
                 ? MfaEvent.REQUEST_CHALLENGE
                 : MfaEvent.SUBMIT_CREDENTIAL;
     }
+
 }
 
 

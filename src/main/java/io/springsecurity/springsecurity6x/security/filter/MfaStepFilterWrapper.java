@@ -39,7 +39,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
-        FactorContext ctx = ctxPersistence.loadOrInit(req);
+        FactorContext ctx = ctxPersistence.contextLoad(req);
         MfaState currentState = ctx.currentState();
 
         // TOKEN_ISSUANCE 또는 COMPLETED 상태에서는 인증 필터 실행 생략

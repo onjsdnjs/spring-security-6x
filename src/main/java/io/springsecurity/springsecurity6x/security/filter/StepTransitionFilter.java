@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaStateHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
@@ -34,35 +33,35 @@ public class StepTransitionFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
         if (!requestMatcher.matches(request)) {
-            filterChain.doFilter(request, response);
+            chain.doFilter(request, response);
             return;
         }
 
-        FactorContext ctx = ctxPersistence.loadOrInit(request);
+        FactorContext ctx = ctxPersistence.contextLoad(request);
         MfaState current = ctx.currentState();
+        MfaEvent event = resolveEvent(request);
 
         // TOKEN_ISSUANCE 상태에서는 필터 실행 불필요
         if (current == MfaState.TOKEN_ISSUANCE || current == MfaState.COMPLETED) {
-            filterChain.doFilter(request, response);
+            chain.doFilter(request, response);
             return;
         }
-
-        MfaEvent event = resolveEvent(request);
 
         try {
             MfaStateHandler handler = stateHandlerRegistry.get(current);
             if (handler == null) {
-                throw new IllegalStateException("Handler not found for state: " + current);
+                response.sendError(409, "현재 상태에 대한 핸들러가 존재하지 않습니다.");
+                return;
             }
 
             MfaState next = handler.handleEvent(event, ctx);
             ctx.currentState(next);
             ctx.incrementVersion();
-            ctxPersistence.save(ctx);
+            ctxPersistence.saveContext(ctx);
 
         } catch (InvalidTransitionException | IllegalStateException e) {
             response.setStatus(HttpServletResponse.SC_CONFLICT);
@@ -74,7 +73,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
             return;
         }
 
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
     }
 
     private MfaEvent resolveEvent(HttpServletRequest request) {

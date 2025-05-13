@@ -12,7 +12,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
     private static final String MFA_CONTEXT_ATTR = "MFA_FACTOR_CONTEXT";
 
     @Override
-    public FactorContext loadOrInit(HttpServletRequest request) {
+    public FactorContext contextLoad(HttpServletRequest request) {
         HttpSession session = request.getSession(true);
         FactorContext ctx = (FactorContext) session.getAttribute(MFA_CONTEXT_ATTR);
         if (ctx == null) {
@@ -25,7 +25,7 @@ public class HttpSessionContextPersistence implements ContextPersistence {
     }
 
     @Override
-    public void save(FactorContext ctx) {
+    public void saveContext(FactorContext ctx) {
         // 현재 쓰레드의 HttpServletRequest를 가져옵니다.
         ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

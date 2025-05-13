@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
 
             // 3-3) 최종 MFA 완료 호출
-            const res = await fetch("/api/auth/mfa", {
+            const res = await fetch("/api/auth/mfa?event=ISSUE_TOKEN", {
                 method: "POST",
                 credentials: "same-origin",
                 headers: makeHeaders(),

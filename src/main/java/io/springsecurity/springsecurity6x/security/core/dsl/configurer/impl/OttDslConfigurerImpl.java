@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
@@ -37,14 +38,14 @@ public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Build
     }
 
     @Override
-    public OttDslConfigurer matchers(String... patterns) {
-        options.matchers(List.of(patterns));
+    public OttDslConfigurer loginProcessingUrl(String url) {
+        options.loginProcessingUrl(url);
         return this;
     }
 
     @Override
-    public OttDslConfigurer loginProcessingUrl(String url) {
-        options.loginProcessingUrl(url);
+    public OttDslConfigurer targetUrl(String targetUrl) {
+        options.targetUrl(targetUrl);
         return this;
     }
 

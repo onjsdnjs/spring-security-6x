@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -44,6 +45,12 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
     @Override
     public FormDslConfigurer loginProcessingUrl(String loginProcessingUrl) {
         options.loginProcessingUrl(loginProcessingUrl);
+        return this;
+    }
+
+    @Override
+    public FormDslConfigurer targetUrl(String targetUrl) {
+        options.targetUrl(targetUrl);
         return this;
     }
 

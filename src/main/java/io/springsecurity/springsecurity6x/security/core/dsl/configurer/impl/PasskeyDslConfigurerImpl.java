@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import org.springframework.security.config.Customizer;
@@ -54,6 +55,12 @@ public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyOptio
      */
     public PasskeyDslConfigurer originRaw(Customizer<HttpSecurity> customizer) {
         options.rawHttp(customizer);
+        return this;
+    }
+
+    @Override
+    public PasskeyDslConfigurer targetUrl(String targetUrl) {
+        options.targetUrl(targetUrl);
         return this;
     }
 

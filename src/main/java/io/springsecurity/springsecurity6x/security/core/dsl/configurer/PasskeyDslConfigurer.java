@@ -9,5 +9,7 @@ public interface PasskeyDslConfigurer extends CommonSecurityDsl<PasskeyDslConfig
     PasskeyDslConfigurer rpId(String id);
 
     PasskeyDslConfigurer allowedOrigins(String... origins);
+
+    PasskeyDslConfigurer targetUrl(String url);
 }
 

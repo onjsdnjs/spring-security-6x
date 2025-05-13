@@ -36,6 +36,12 @@ public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Bui
     }
 
     @Override
+    public RestDslConfigurer targetUrl(String targetUrl) {
+        options.targetUrl(targetUrl);
+        return this;
+    }
+
+    @Override
     public RestDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
         options.successHandler(handler);
         return this;

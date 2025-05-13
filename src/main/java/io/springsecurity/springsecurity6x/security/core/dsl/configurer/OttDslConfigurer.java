@@ -4,11 +4,10 @@ import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 
 public interface OttDslConfigurer extends CommonSecurityDsl<OttDslConfigurer> {
 
-    OttDslConfigurer matchers(String... patterns);
-
     OttDslConfigurer loginProcessingUrl(String url);
 
-    // 추가된 DSL 메서드들
+    OttDslConfigurer targetUrl(String url);
+
     OttDslConfigurer defaultSubmitPageUrl(String url);
 
     OttDslConfigurer tokenGeneratingUrl(String url);

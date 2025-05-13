@@ -1,9 +1,13 @@
 package io.springsecurity.springsecurity6x.security.core.validator;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.PathMappingRegistry;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.exception.DslValidationException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,63 +20,87 @@ import java.util.*;
 @Slf4j
 public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
 
+    private static final String[] ORDINAL_EN = {
+            "First", "Second", "Third", "Fourth", "Fifth",
+            "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"
+    };
+
     @Override
     public ValidationResult validate(List<FlowContext> flows) {
-
-        log.info("ConflictRiskAnalyzer: DSL 충돌 검사 시작");
+        log.info("ConflictRiskAnalyzer: Starting DSL conflict validation");
         ValidationResult result = new ValidationResult();
 
-        // DSL 전체 PlatformConfig는 FlowContext 에서 공유 객체로 취득
-        PlatformConfig config = flows.getFirst().config();
+        if (flows == null || flows.isEmpty()) {
+            throw new DslValidationException("No FlowContext provided for validation.");
+        }
+
+        // Use shared PlatformConfig from first context
+        PlatformConfig config = flows.get(0).config();
+
+        // 1) Check duplicate single authentication paths
         PathMappingRegistry registry = new PathMappingRegistry(config);
-
-        // 1) 단일 인증 경로 중복 검사
         Set<String> single = registry.singleAuthPaths();
-        if (single.size() != new HashSet<>(single).size()) {
-            result.addError("단일 인증 경로에 중복이 있습니다: " + single);
+        if (single.size() != new LinkedHashSet<>(single).size()) {
+            result.addError("Duplicate single authentication paths found: " + single);
         }
 
-        // 2) MFA 진입점 중복 검사
-        Set<String> entries = registry.mfaEntryPaths();
-        if (entries.isEmpty()) {
-            result.addError("MFA 진입점이 하나도 설정되어 있지 않습니다.");
-        }
-        if (entries.size() > 1) {
-            result.addError("MFA 진입점이 여러 개 설정되어 있습니다: " + entries);
-        }
+        // 2) Validate each MFA flow's targetUrl (skip first step)
+        int mfaCount = 0;
+        for (AuthenticationFlowConfig flow : config.flows()) {
+            if (!"mfa".equalsIgnoreCase(flow.typeName())) continue;
+            mfaCount++;
+            List<AuthenticationStepConfig> steps = flow.stepConfigs();
+            if (steps.size() < 2) continue;
 
-        // 3) MFA 단계별 엔드포인트 중복 검사
-        Map<String,String> steps = registry.mfaStepPaths();
-        if (steps.size() != new LinkedHashSet<>(steps.keySet()).size()) {
-            result.addError("MFA 단계별 경로에 중복이 있습니다: " + steps.keySet());
-        }
-
-        // 3.1) MFA 단계별 targetUrl 설정 검사
-        Map<String, String> targetUrls = registry.mfaStepTargetUrls();
-        for (Map.Entry<String, String> entry : targetUrls.entrySet()) {
-            String type = entry.getKey();
-            String url = entry.getValue();
-            if (url == null || url.isBlank()) {
-                result.addError("MFA 스텝 '" + type + "'에 targetUrl이 설정되지 않았습니다.");
+            List<String> flowErrors = new ArrayList<>();
+            for (int i = 1; i < steps.size(); i++) {
+                AuthenticationStepConfig step = steps.get(i);
+                Object opts = step.options().get("_options");
+                String type = step.type();
+                String url = null;
+                if (opts instanceof FormOptions) {
+                    url = ((FormOptions) opts).getTargetUrl();
+                } else if (opts instanceof OttOptions) {
+                    url = ((OttOptions) opts).getTargetUrl();
+                } else if (opts instanceof PasskeyOptions) {
+                    url = ((PasskeyOptions) opts).getTargetUrl();
+                }
+                if (url == null || url.isBlank()) {
+                    flowErrors.add("MFA step '" + type + "' has no targetUrl set.");
+                }
+            }
+            if (!flowErrors.isEmpty()) {
+                String headerLabel = mfaCount <= ORDINAL_EN.length ? ORDINAL_EN[mfaCount - 1] : mfaCount + "th";
+                String headerText = headerLabel + " MFA";
+                // Calculate box width
+                int boxWidth = headerText.length();
+                for (String err : flowErrors) {
+                    if (err.length() > boxWidth) boxWidth = err.length();
+                }
+                String horizontalBorder = "+" + "-".repeat(boxWidth + 2) + "+";
+                // Top border and header
+                result.addError(horizontalBorder);
+                result.addError("| " + headerText + " ".repeat(boxWidth - headerText.length()) + " |");
+                result.addError(horizontalBorder);
+                // Error lines
+                for (String err : flowErrors) {
+                    result.addError("| " + err + " ".repeat(boxWidth - err.length()) + " |");
+                }
+                // Bottom border
+                result.addError(horizontalBorder);
             }
         }
 
-        // 4) 단일 vs MFA 경로 충돌
-        for (String p : single) {
-            if (entries.contains(p) || steps.containsKey(p)) {
-                result.addError("단일 인증 경로와 MFA 경로 충돌: " + p);
-            }
-        }
-
-        // 결과 확인
+        // 3) Final result check
         if (result.hasErrors()) {
-            for (String err : result.getErrors()) {
-                log.error(err);
-            }
-            throw new DslValidationException("DSL 경로 충돌이 발견되었습니다. 상세 로그를 확인하세요.");
+            result.getErrors().forEach(log::error);
+            throw new DslValidationException(
+                    "DSL path conflicts detected. Error details:\n" +
+                            String.join("\n", result.getErrors())
+            );
         }
 
-        log.info("ConflictRiskAnalyzer: DSL 충돌 검사 통과");
+        log.info("ConflictRiskAnalyzer: DSL conflict validation passed");
         return result;
     }
 }

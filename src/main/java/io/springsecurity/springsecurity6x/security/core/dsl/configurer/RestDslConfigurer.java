@@ -8,6 +8,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 
 public interface RestDslConfigurer extends CommonSecurityDsl<RestDslConfigurer>, StepDslConfigurer {
     RestDslConfigurer loginProcessingUrl(String url);
+    RestDslConfigurer targetUrl(String url);
     RestDslConfigurer successHandler(AuthenticationSuccessHandler handler);
     RestDslConfigurer failureHandler(AuthenticationFailureHandler handler);
     RestDslConfigurer securityContextRepository(SecurityContextRepository repository);

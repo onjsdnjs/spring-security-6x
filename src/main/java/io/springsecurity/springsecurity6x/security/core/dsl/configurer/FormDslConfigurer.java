@@ -21,6 +21,7 @@ public interface FormDslConfigurer extends CommonSecurityDsl<FormDslConfigurer> 
 
     FormDslConfigurer loginPage(String loginPageUrl);
     FormDslConfigurer loginProcessingUrl(String loginProcessingUrl);
+    FormDslConfigurer targetUrl(String url);
     FormDslConfigurer usernameParameter(String usernameParameter);
     FormDslConfigurer passwordParameter(String passwordParameter);
     FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse);

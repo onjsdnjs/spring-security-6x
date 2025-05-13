@@ -30,18 +30,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
     }
 
     @Override
-    public void init(PlatformContext ctx, PlatformConfig config) {
-
-        HttpSecurity http = ctx.flowContext().http();
-        http.setSharedObject(ContextPersistence.class, new HttpSessionContextPersistence());
-        http.setSharedObject(StateMachineManager.class, new StateMachineManager(ctx.flowContext().flow()));
-        List<MfaStateHandler> mfaStateHandlers =
-                List.of(new FormStateHandler(), new RestStateHandler(),
-                        new OttStateHandler(), new PasskeyStateHandler(),
-                        new RecoveryStateHandler(), new TokenStateHandler());
-        http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(mfaStateHandlers));
-        http.setSharedObject(ChallengeRouter.class, new ChallengeRouter(new DefaultChallengeGenerator()));
-    }
+    public void init(PlatformContext ctx, PlatformConfig config) {}
 
     /**
      * flow의 stepConfigs 에서 이 Feature에 해당하는 Step만 적용

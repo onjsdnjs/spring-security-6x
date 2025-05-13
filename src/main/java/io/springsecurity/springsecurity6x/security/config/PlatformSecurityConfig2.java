@@ -37,8 +37,8 @@ public class PlatformSecurityConfig2 {
                                 .raw(http -> { http
                                 .securityMatcher("/api/auth/mfa");
                                 }))
-                        .ott(Customizer.withDefaults())
-                        .passkey(Customizer.withDefaults())
+                        .ott(ott -> ott.targetUrl("/loginOtt"))
+                        .passkey(passkey -> passkey.targetUrl("/loginPasskey"))
                         .order(5)
                         .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
                         .adaptive(ad -> ad.geolocation(true))
@@ -46,16 +46,16 @@ public class PlatformSecurityConfig2 {
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
                 .jwt(jwt -> Customizer.withDefaults())
 
-                .mfa(m -> m
+                /*.mfa(m -> m
                         .form(f -> f.loginProcessingUrl("/login"))
-//                        .ott(o -> o.loginProcessingUrl("/api/ott"))
-                        .passkey(Customizer.withDefaults())
+                        .ott(o -> o.loginProcessingUrl("/api/ott"))
+//                        .passkey(Customizer.withDefaults())
                         .order(6)
                         .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
                         .adaptive(ad -> ad.geolocation(true))
                         .deviceTrust(true)
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
-                .jwt(jwt -> Customizer.withDefaults())
+                .jwt(jwt -> Customizer.withDefaults())*/
 
                 .build();
     }

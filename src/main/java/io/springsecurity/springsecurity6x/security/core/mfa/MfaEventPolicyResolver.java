@@ -33,8 +33,17 @@ public class MfaEventPolicyResolver {
         // 3. 상태 기반 추론
         return switch (ctx.currentState()) {
             case INIT -> REQUEST_CHALLENGE;
-            case FORM_CHALLENGE, REST_CHALLENGE, OTT_CHALLENGE, PASSKEY_CHALLENGE -> SUBMIT_CREDENTIAL;
-            case FORM_SUBMITTED, REST_SUBMITTED, OTT_SUBMITTED, PASSKEY_SUBMITTED, TOKEN_ISSUANCE -> ISSUE_TOKEN;
+
+            case FORM_CHALLENGE, REST_CHALLENGE, OTT_CHALLENGE, PASSKEY_CHALLENGE ->
+                    SUBMIT_CREDENTIAL;
+
+            case FORM_SUBMITTED, REST_SUBMITTED, OTT_SUBMITTED, PASSKEY_SUBMITTED -> {
+                // 다음 스텝이 없으면 토큰 발급 단계로 전이
+                boolean lastStep = ctx.isLastStep(); // 이 메서드는 직접 정의해야 함
+                yield lastStep ? ISSUE_TOKEN : REQUEST_CHALLENGE;
+            }
+
+            case TOKEN_ISSUANCE -> ISSUE_TOKEN;
             case COMPLETED -> REQUEST_CHALLENGE;
             default -> ERROR;
         };

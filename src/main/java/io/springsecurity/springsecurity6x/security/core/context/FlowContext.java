@@ -4,6 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-public record FlowContext(AuthenticationFlowConfig flow, HttpSecurity http, PlatformContext context, PlatformConfig config) {
-}
+public record FlowContext(AuthenticationFlowConfig flow, HttpSecurity http,
+                          PlatformContext context, PlatformConfig config) { }
 

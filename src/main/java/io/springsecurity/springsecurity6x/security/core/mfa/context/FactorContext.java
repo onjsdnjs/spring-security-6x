@@ -20,6 +20,16 @@ public class FactorContext {
     private RecoveryConfig recoveryConfig;
     private final AtomicInteger version = new AtomicInteger(0);
 
+    private static final List<MfaState> DEFAULT_FLOW = List.of(
+            MfaState.INIT,
+            MfaState.FORM_CHALLENGE, MfaState.FORM_SUBMITTED,
+            MfaState.REST_CHALLENGE, MfaState.REST_SUBMITTED,
+            MfaState.OTT_CHALLENGE, MfaState.OTT_SUBMITTED,
+            MfaState.PASSKEY_CHALLENGE, MfaState.PASSKEY_SUBMITTED,
+            MfaState.TOKEN_ISSUANCE
+    );
+
+
     public String sessionId() {
         return sessionId;
     }
@@ -70,6 +80,19 @@ public class FactorContext {
 
     public void incrementVersion() {
         version.incrementAndGet();
+    }
+
+    public boolean isLastStep() {
+        MfaState state = currentState();
+        int idx = DEFAULT_FLOW.indexOf(state);
+
+        if (idx == -1 || idx == DEFAULT_FLOW.size() - 1) {
+            return true;
+        }
+
+        // 다음 상태가 TOKEN_ISSUANCE 이면 마지막 단계로 간주
+        MfaState next = DEFAULT_FLOW.get(idx + 1);
+        return next == MfaState.TOKEN_ISSUANCE;
     }
 }
 

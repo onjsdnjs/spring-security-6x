@@ -94,7 +94,7 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
         private void updateLastFlowState(StateType stateType, Customizer<?> specificConfigurerCustomizer) {
             // specificConfigurerCustomizer는 현재 사용되지 않지만, 향후 확장을 위해 남겨둘 수 있음
             // 예: jwt(jwt -> jwt.issuer("my-issuer")) 와 같이 세부 설정을 하고 싶을 때
-            List<AuthenticationFlowConfig> currentFlows = platformBuilder.build().flows(); // getFlows() 추가 필요
+            List<AuthenticationFlowConfig> currentFlows = platformBuilder.build().getFlows(); // getFlows() 추가 필요
             if (currentFlows.isEmpty()) {
                 throw new IllegalStateException("Cannot set state as no flow has been registered yet.");
             }

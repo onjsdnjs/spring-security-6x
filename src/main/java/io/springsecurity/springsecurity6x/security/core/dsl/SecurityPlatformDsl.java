@@ -2,54 +2,24 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.MfaDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import org.springframework.security.config.Customizer;
 
-/**
- * Security Platform DSL의 엔트리 포인트입니다.
- * <p>
- * form, rest, ott, passkey, mfa 메서드를 통해 인증 플로우를 정의하고,
- * 이어서 IdentityStateDsl을 통해 session/jwt/oauth2 중 하나를 선택합니다.
- * 설정이 모두 완료되면 build()를 통해 PlatformConfig를 생성합니다.
- */
 public interface SecurityPlatformDsl {
 
-    /**
-     * 모든 체인에서 공통으로 적용할 HttpSecurity 설정을 지정합니다.
-     *
-     * @param customizer HttpSecurity 커스터마이저
-     * @return this
-     */
     SecurityPlatformDsl global(SafeHttpCustomizer customizer);
 
-    /**
-     * Form 로그인 플로우를 정의합니다.
-     *
-     * @param customizer FormDslConfigurer 설정 람다
-     * @return 상태 선택 DSL
-     */
-    IdentityStateDsl form(Customizer<FormDslConfigurer> customizer);
+    // Customizer의 제네릭 타입을 *StepDslConfigurer로 변경
+    IdentityStateDsl form(Customizer<FormStepDslConfigurer> customizer);
 
-    IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer);
+    IdentityStateDsl rest(Customizer<RestStepDslConfigurer> customizer);
 
+    IdentityStateDsl ott(Customizer<OttStepDslConfigurer> customizer); // 타입 변경
 
-    IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer);
-
-
-    IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer);
-
+    IdentityStateDsl passkey(Customizer<PasskeyStepDslConfigurer> customizer); // 타입 변경
 
     IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer);
-    /**
-     * DSL 설정이 모두 끝난 후 호출하여
-     * 내부에 누적된 PlatformConfig를 생성합니다.
-     *
-     * @return 생성된 PlatformConfig
-     */
+
     PlatformConfig build();
 }
 

@@ -12,7 +12,7 @@ public class RestFactorOptions extends FactorAuthenticationOptions {
 
     // private 생성자로 변경, Builder를 통해서만 생성
     private RestFactorOptions(Builder builder) {
-        super(builder, AuthType.OTT); // 부모 생성자 호출
+        super(builder); // 부모 생성자 호출
         this.oneTimeTokenService = builder.oneTimeTokenService;
         this.tokenGeneratingUrl = builder.tokenGeneratingUrl;
         this.defaultSubmitPageUrl = builder.defaultSubmitPageUrl;

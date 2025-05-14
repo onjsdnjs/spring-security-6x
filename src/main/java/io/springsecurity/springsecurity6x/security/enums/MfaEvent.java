@@ -1,30 +1,25 @@
 package io.springsecurity.springsecurity6x.security.enums;
 
-/**
- * MFA 상태 전이를 유발하는 이벤트 열거형
- * 인증 흐름 내에서 사용자의 입력 또는 시스템 상황에 따라 발생하며,
- * 현재 상태와 함께 다음 상태로의 전이를 결정한다.
- */
+
 public enum MfaEvent {
+    // 기존 이벤트들
+    REQUEST_CHALLENGE,    // 특정 Factor에 대한 챌린지 생성/요청 (예: Passkey options 요청, OTT 코드 생성 요청)
+    SUBMIT_CREDENTIAL,    // 사용자가 자격 증명(비밀번호, 코드, Passkey 응답 등)을 제출
+    ISSUE_TOKEN,          // 모든 인증 완료 후 토큰 발급 요청
+    RECOVER,              // 복구 흐름 시작 요청
+    TIMEOUT,              // 인증 유효 시간 초과
+    ERROR,                // 일반 오류
 
-    /** 인증 단계에 해당하는 챌린지를 요청할 때 발생 — (ex: Passkey 옵션 요청 등) */
-    REQUEST_CHALLENGE,
-
-    MFA_REQUIRED_CHECK_COMPLETED,
-
-    /** 사용자 자격 증명(비밀번호, 코드 등)을 제출할 때 발생 */
-    SUBMIT_CREDENTIAL,
-
-    /** 모든 인증 단계를 통과한 후, 토큰을 발급받기 위해 발생하는 최종 이벤트 */
-    ISSUE_TOKEN,
-
-    /** 인증 실패, 복구 경로 요청 시 발생하는 이벤트 — (ex: 이메일 OTP 재전송 등) */
-    RECOVER,
-
-    /** 인증 유효 시간이 초과된 경우 발생 — (ex: Passkey 응답 지연) */
-    TIMEOUT,
-
-    /** 시스템 내부 오류, 인증 실패, 예외 발생 등으로 인증 흐름을 중단해야 할 때 발생 */
-    ERROR
+    // 새로운 MFA 흐름을 위한 이벤트 추가
+    PRIMARY_AUTH_SUCCESS, // 1차 인증 성공 (MFA 흐름 시작점)
+    AUTO_ATTEMPT_SKIPPED, // 자동 시도 Factor 건너뛰기 또는 실패/미지원
+    FACTOR_SELECTED,      // 사용자가 MFA Factor 선택
+    CHALLENGE_INITIATED,  // Factor 챌린지 시작됨 (예: Passkey Conditional UI 표시됨)
+    CHALLENGE_DELIVERED,  // Factor 챌린지 전달 완료 (예: OTT 코드 발송 성공)
+    CHALLENGE_DELIVERY_FAILURE, // Factor 챌린지 전달 실패
+    VERIFICATION_SUCCESS, // 특정 Factor 검증 성공
+    VERIFICATION_FAILURE, // 특정 Factor 검증 실패
+    SELECT_MFA_METHOD,    // (AUTO_ATTEMPT_FACTOR_PENDING 등에서) 다른 MFA 방법 선택 화면으로 가기 요청
+    SKIP_AUTO_ATTEMPT     // (AUTO_ATTEMPT_FACTOR_PENDING 등에서) 자동 시도 건너뛰기 요청
 }
 

@@ -73,7 +73,6 @@ public class FlowContextFactory {
             setSharedObjectIfAbsent(http, StateMachineManager.class, () -> new StateMachineManager(flowConfig));
 
             List<MfaStateHandler> handlers = List.of(
-                    new FormStateHandler(), new RestStateHandler(),
                     new OttStateHandler(), new PasskeyStateHandler(),
                     new RecoveryStateHandler(), new TokenStateHandler()
             );

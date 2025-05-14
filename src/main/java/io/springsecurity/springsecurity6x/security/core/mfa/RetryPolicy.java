@@ -1,7 +1,25 @@
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
+import lombok.Getter;
+
 /**
- * 재시도 정책 데이터 객체
+ * MFA Factor별 재시도 정책을 정의하는 클래스 또는 인터페이스.
  */
-public record RetryPolicy(int maxAttempts, long lockoutSec) {
+@Getter
+public class RetryPolicy { // 또는 interface RetryPolicy { int getMaxAttempts(); }
+
+    private final int maxAttempts;
+    // 추가적으로 재시도 간격, 잠금 정책 등을 포함할 수 있음
+
+    public RetryPolicy(int maxAttempts) {
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("Max attempts must be at least 1.");
+        }
+        this.maxAttempts = maxAttempts;
+    }
+
+    // 기본 재시도 정책 (예: 3회)
+    public static RetryPolicy defaultPolicy() {
+        return new RetryPolicy(3);
+    }
 }

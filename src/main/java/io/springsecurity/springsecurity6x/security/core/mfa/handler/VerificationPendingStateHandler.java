@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
@@ -12,7 +13,7 @@ import org.springframework.util.Assert;
 @Slf4j
 public class VerificationPendingStateHandler implements MfaStateHandler {
 
-    private final MfaPolicyProvider policyProvider; // 다음 Factor 결정 등에 사용
+    private final MfaPolicyProvider policyProvider;
 
     public VerificationPendingStateHandler(MfaPolicyProvider policyProvider) {
         Assert.notNull(policyProvider, "MfaPolicyProvider cannot be null");
@@ -21,22 +22,33 @@ public class VerificationPendingStateHandler implements MfaStateHandler {
 
     @Override
     public boolean supports(MfaState state) {
-        // Factor의 인증 정보가 제출되어 검증 대기 중인 상태를 지원
-        return state == MfaState.FACTOR_VERIFICATION_PENDING;
+        return state == MfaState.FACTOR_VERIFICATION_PENDING ||
+                state == MfaState.AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING; // 자동 시도 검증 상태도 여기서 처리
     }
 
     @Override
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
         AuthType currentFactor = ctx.getCurrentProcessingFactor();
-        log.debug("[MFA Handler] VerificationPendingStateHandler: Current state: {}, Event: {}, Factor: {}, Session ID: {}",
-                ctx.getCurrentState(), event, currentFactor, ctx.getMfaSessionId());
+        MfaState currentState = ctx.getCurrentState(); // 현재 상태 기록
 
+        log.debug("[MFA Handler] VerificationPendingState: Current state: {}, Event: {}, Factor: {}, Session ID: {}",
+                currentState, event, currentFactor, ctx.getMfaSessionId());
+
+        if (currentFactor == null) {
+            log.error("[MFA Handler] Event {} received in state {}, but no currentProcessingFactor in FactorContext. Session ID: {}", event, currentState, ctx.getMfaSessionId());
+            // currentFactor가 null 이면 어떤 Factor에 대한 검증인지 알 수 없으므로 오류 처리
+            return MfaState.MFA_SYSTEM_ERROR; // 또는 MFA_FAILURE_TERMINAL
+        }
+
+        // MfaEvent enum에 VERIFICATION_SUCCESS와 VERIFICATION_FAILURE가 정의되어 있어야 합니다.
         if (event == MfaEvent.VERIFICATION_SUCCESS) {
             ctx.recordAttempt(currentFactor, true, "Verification successful for " + currentFactor);
-            ctx.setAutoAttemptFactorSucceeded(ctx.getPreferredAutoAttemptFactor() == currentFactor); // 자동 시도 Factor 성공 여부 업데이트
+            if (currentState == MfaState.AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING) {
+                ctx.setAutoAttemptFactorSucceeded(true); // FactorContext에 setAutoAttemptFactorSucceeded(boolean) 메소드 필요
+            }
 
             // MfaPolicyProvider를 사용하여 다음 단계를 결정
-            AuthType nextFactor = policyProvider.determineNextFactor(ctx);
+            AuthType nextFactor = policyProvider.determineNextFactor(ctx); // MfaPolicyProvider에 determineNextFactor(FactorContext) 메소드 필요
 
             if (nextFactor != null) {
                 log.info("[MFA Handler] Factor {} verified. Next factor to process: {}. Session ID: {}", currentFactor, nextFactor, ctx.getMfaSessionId());
@@ -45,27 +57,39 @@ public class VerificationPendingStateHandler implements MfaStateHandler {
             } else {
                 // 모든 필수 Factor가 완료된 경우
                 log.info("[MFA Handler] All required MFA factors verified for user: {}. Proceeding to token issuance. Session ID: {}", ctx.getUsername(), ctx.getMfaSessionId());
-                return MfaState.TOKEN_ISSUANCE_REQUIRED; // 토큰 발급 단계로
+                return MfaState.MFA_VERIFICATION_COMPLETED; // 또는 TOKEN_ISSUANCE_REQUIRED (새로운 enum 값에 따름)
             }
         } else if (event == MfaEvent.VERIFICATION_FAILURE) {
             ctx.recordAttempt(currentFactor, false, "Verification failed for " + currentFactor);
+            if (currentState == MfaState.AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING) {
+                ctx.setAutoAttemptFactorSkippedOrFailed(true); // FactorContext에 setAutoAttemptFactorSkippedOrFailed(boolean) 메소드 필요
+                log.warn("[MFA Handler] Auto-attempt factor ({}) verification failed. Proceeding to factor selection. Session ID: {}", currentFactor, ctx.getMfaSessionId());
+                return MfaState.AWAITING_MFA_FACTOR_SELECTION;
+            }
+
             int attempts = ctx.incrementAttemptCountForCurrentFactor();
-            int maxAttempts = policyProvider.getRetryPolicyForFactor(currentFactor, ctx).getMaxAttempts(); // Factor별 재시도 정책
+            RetryPolicy retryPolicy = policyProvider.getRetryPolicyForFactor(currentFactor, ctx); // MfaPolicyProvider에 getRetryPolicyForFactor(...) 메소드 필요
+
+            if (retryPolicy == null) {
+                log.error("[MFA Handler] RetryPolicy not found for factor {}. Treating as max attempts reached. Session ID: {}", currentFactor, ctx.getMfaSessionId());
+                return MfaState.MFA_FAILURE_TERMINAL;
+            }
+
+            int maxAttempts = retryPolicy.getMaxAttempts(); // RetryPolicy에 getMaxAttempts() 메소드 필요
 
             if (attempts >= maxAttempts) {
                 log.warn("[MFA Handler] Max verification attempts ({}) reached for factor {} for user: {}. Session ID: {}",
                         maxAttempts, currentFactor, ctx.getUsername(), ctx.getMfaSessionId());
-                // 최대 시도 횟수 초과 시 MFA 실패 처리
                 return MfaState.MFA_FAILURE_TERMINAL;
             } else {
                 log.warn("[MFA Handler] Verification failed for factor {} (attempt {}/{}). Retrying challenge. Session ID: {}",
                         currentFactor, attempts, maxAttempts, ctx.getMfaSessionId());
-                // 재시도: 동일 Factor 챌린지 다시 시작
-                return MfaState.FACTOR_CHALLENGE_INITIATED;
+                return MfaState.FACTOR_CHALLENGE_INITIATED; // 동일 Factor 챌린지 재시도
             }
         }
         log.warn("[MFA Handler] VerificationPendingStateHandler: Unsupported event {} in state {} for factor {}. Session ID: {}",
-                event, ctx.getCurrentState(), currentFactor, ctx.getMfaSessionId());
-        throw new InvalidTransitionException(ctx.getCurrentState(), event);
+                event, currentState, currentFactor, ctx.getMfaSessionId());
+        throw new InvalidTransitionException(currentState, event);
     }
 }
+

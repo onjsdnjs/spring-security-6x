@@ -23,6 +23,6 @@ public class RetryPolicyDslConfigurerImpl implements RetryPolicyDslConfigurer {
 
     @Override
     public RetryPolicy build() {
-        return new RetryPolicy(maxAttempts, lockoutSec);
+        return new RetryPolicy(maxAttempts);
     }
 }

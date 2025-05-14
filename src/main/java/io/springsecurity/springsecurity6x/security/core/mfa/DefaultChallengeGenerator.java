@@ -113,7 +113,7 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
         } else if (state == MfaState.AWAITING_MFA_FACTOR_SELECTION) { // 예시 상태값
             log.debug("[ChallengeGenerator] Generating payload for factor selection. Session ID: {}", ctx.getMfaSessionId());
             payload.put("mode", "FACTOR_SELECTION_REQUIRED");
-            payload.put("selectionUrl", ctx.getAttributeOrDefault("mfaFactorSelectionUrl", "/mfa/select-factor"));
+//            payload.put("selectionUrl", ctx.getAttributeOrDefault("mfaFactorSelectionUrl", "/mfa/select-factor"));
             payload.put("message", "Please select an authentication factor.");
         } else {
             log.info("[ChallengeGenerator] Challenge generation called for MFA state {} where no specific client challenge is typically generated. Session ID: {}", state, ctx.getMfaSessionId());

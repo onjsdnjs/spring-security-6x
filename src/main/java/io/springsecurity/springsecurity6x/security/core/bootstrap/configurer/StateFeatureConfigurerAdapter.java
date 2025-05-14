@@ -20,7 +20,7 @@ public class StateFeatureConfigurerAdapter implements SecurityConfigurer {
 
     @Override
     public void configure(FlowContext fc) throws Exception {
-        StateConfig state = fc.flow().stateConfig();
+        StateConfig state = fc.flow().getStateConfig();
         if (state != null && feature.getId().equalsIgnoreCase(state.state())) {
             feature.apply(fc.http(), ctx);
         }

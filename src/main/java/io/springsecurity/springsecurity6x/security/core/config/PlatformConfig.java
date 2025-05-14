@@ -1,28 +1,27 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
+
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-/**
- * DSL로 구성된 글로벌 + 각 인증 플로우 설정을 보관하는 모델
- */
 public final class PlatformConfig {
-    private final Customizer<HttpSecurity> global;
+    private final Customizer<HttpSecurity> globalCustomizer; // 이름 변경 (global -> globalCustomizer)
     private final List<AuthenticationFlowConfig> flows;
 
     private PlatformConfig(Builder builder) {
-        this.global = builder.global;
-        this.flows   = List.copyOf(builder.flows);
+        this.globalCustomizer = builder.globalCustomizer;
+        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows)); // 방어적 복사
     }
 
-    public Customizer<HttpSecurity> global() {
-        return global;
+    public Customizer<HttpSecurity> getGlobalCustomizer() { // getter 이름 변경
+        return globalCustomizer;
     }
 
-    public List<AuthenticationFlowConfig> flows() {
+    public List<AuthenticationFlowConfig> getFlows() { // getter 추가
         return flows;
     }
 
@@ -31,11 +30,11 @@ public final class PlatformConfig {
     }
 
     public static class Builder {
-        private Customizer<HttpSecurity> global = http -> {};
+        private Customizer<HttpSecurity> globalCustomizer = http -> {}; // 이름 변경 및 기본값 설정
         private final List<AuthenticationFlowConfig> flows = new ArrayList<>();
 
-        public Builder global(Customizer<HttpSecurity> global) {
-            this.global = global;
+        public Builder global(Customizer<HttpSecurity> globalCustomizer) { // 파라미터 이름 변경
+            this.globalCustomizer = globalCustomizer;
             return this;
         }
 
@@ -44,15 +43,11 @@ public final class PlatformConfig {
             return this;
         }
 
-        /**
-         * Replace the last added flow, used for setting state immutably
-         */
         public Builder replaceLastFlow(AuthenticationFlowConfig flow) {
             if (this.flows.isEmpty()) {
                 throw new IllegalStateException("No flow to replace");
             }
-            this.flows.removeLast();
-            this.flows.add(flow);
+            this.flows.set(this.flows.size() - 1, flow); // removeLast + add 대신 set 사용
             return this;
         }
 

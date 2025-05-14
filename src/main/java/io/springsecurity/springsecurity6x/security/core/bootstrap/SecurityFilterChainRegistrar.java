@@ -59,17 +59,17 @@ public class SecurityFilterChainRegistrar {
 
         try {
             DefaultSecurityFilterChain  built = fc.http().build();
-            for (AuthenticationStepConfig step : fc.flow().stepConfigs()) {
-                Class<? extends Filter> filterClass = stepFilterClasses.get(step.type());
+            for (AuthenticationStepConfig step : fc.flow().getStepConfigs()) {
+                Class<? extends Filter> filterClass = stepFilterClasses.get(step.getType());
                 if (filterClass == null) {
-                    throw new IllegalStateException("알 수 없는 MFA 단계: " + step.type());
+                    throw new IllegalStateException("알 수 없는 MFA 단계: " + step.getType());
                 }
                 Filter f = built.getFilters().stream()
                         .filter(filterClass::isInstance)
                         .findFirst()
                         .orElseThrow(() ->
-                                new IllegalStateException("필터를 찾을 수 없습니다 for type: " + step.type()));
-                featureRegistry.registerFactorFilter(step.type(), f);
+                                new IllegalStateException("필터를 찾을 수 없습니다 for type: " + step.getType()));
+                featureRegistry.registerFactorFilter(step.getType(), f);
             }
 
             return new OrderedSecurityFilterChain(

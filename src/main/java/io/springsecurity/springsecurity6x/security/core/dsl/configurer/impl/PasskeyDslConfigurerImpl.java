@@ -1,111 +1,120 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
-import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.util.function.ThrowingConsumer;
+import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
+import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Set;
 
 @Slf4j
-public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyOptions.Builder, PasskeyDslConfigurer> implements PasskeyDslConfigurer {
+public class PasskeyDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<PasskeyOptions, PasskeyOptions.Builder, PasskeyDslConfigurer>
+        implements PasskeyDslConfigurer {
 
-    private int order = 0;
-
-    public PasskeyDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
-        super(stepConfig, PasskeyOptions.builder());
+    public PasskeyDslConfigurerImpl() {
+        super(PasskeyOptions.builder());
     }
 
     @Override
-    public PasskeyDslConfigurer order(int order) {
-        this.order = order;
+    protected PasskeyDslConfigurer self() {
         return this;
     }
 
-    @Override
-    public int order() {
-        return this.order;
-    }
-
+    // PasskeyDslConfigurer 인터페이스에 정의된 메소드들
     @Override
     public PasskeyDslConfigurer rpName(String name) {
-        options.rpName(name);
+        this.optionsBuilder.rpName(name);
         return this;
     }
 
     @Override
     public PasskeyDslConfigurer rpId(String id) {
-        options.rpId(id);
+        this.optionsBuilder.rpId(id);
         return this;
     }
 
     @Override
     public PasskeyDslConfigurer allowedOrigins(String... origins) {
-        options.allowedOrigins(List.of(origins));
+        if (origins != null) {
+            this.optionsBuilder.allowedOrigins(Arrays.asList(origins)); // PasskeyOptions.Builder는 List<String>을 받을 수 있음
+        }
         return this;
     }
 
-    /**
-     * 원시 HttpSecurity 커스터마이저를 안전하게 적용
-     */
-    public PasskeyDslConfigurer originRaw(Customizer<HttpSecurity> customizer) {
-        options.rawHttp(customizer);
+    // PasskeyDslConfigurer 인터페이스에 Set<String>을 받는 allowedOrigins도 정의되어 있다면 추가
+    public PasskeyDslConfigurer allowedOrigins(Set<String> origins) {
+        this.optionsBuilder.allowedOrigins(new ArrayList<>(origins)); // PasskeyOptions.Builder는 List를 받으므로 변환
         return this;
     }
+
 
     @Override
     public PasskeyDslConfigurer targetUrl(String targetUrl) {
-        options.targetUrl(targetUrl);
+        this.optionsBuilder.targetUrl(targetUrl);
         return this;
     }
 
     @Override
-    public PasskeyDslConfigurer raw(SafeHttpCustomizer safe) {
-        return originRaw(wrapSafe(safe));
+    public PasskeyDslConfigurer rawHttp(SafeHttpCustomizer customizer) {
+        super.rawHttp(customizer);
+        return self();
     }
 
-    private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
-        return http -> {
-            try {
-                safe.customize(http);
-            } catch (Exception e) {
-                log.error("Error during raw FormLoginConfigurer customization: {}", e.getMessage());
-                log.error(e.getMessage(), e);
-                throw new DslConfigurationException(e.getMessage(), e);
-            }
-        };
-    }
-
-    /**
-     * DSL 설정을 HttpSecurity에 적용하는 Consumer 반환
-     */
     @Override
-    public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
-        return http -> {
-            PasskeyOptions optsBuilt = options.build();
-            try {
-                optsBuilt.applyCommon(http);
-            } catch (Exception e) {
-                // 예외는 내부에서 로깅 또는 무시
-            }
-        };
+    public PasskeyDslConfigurer disableCsrf() {
+        super.disableCsrf();
+        return self();
     }
 
-    /**
-     * AuthenticationStepConfig 생성 및 옵션 저장
-     */
     @Override
-    public AuthenticationStepConfig toConfig() {
-        PasskeyOptions optsBuilt = options.build();
-        AuthenticationStepConfig step = stepConfig();
-        step.type("passkey");
-        step.options().put("_options", optsBuilt);
-        return step;
+    public PasskeyDslConfigurer cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
+        super.cors(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyDslConfigurer headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
+        super.headers(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyDslConfigurer sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
+        super.sessionManagement(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyDslConfigurer logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
+        super.logout(customizer);
+        return self();
+    }
+
+    public PasskeyDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
+        this.optionsBuilder.successHandler(handler); // PasskeyOptions.Builder에 해당 메소드 필요
+        return self();
+    }
+
+    public PasskeyDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
+        this.optionsBuilder.failureHandler(handler); // PasskeyOptions.Builder에 해당 메소드 필요
+        return self();
+    }
+
+    @Override
+    public PasskeyOptions buildConcreteOptions() {
+        // PasskeyOptions.Builder의 build() 메소드에서 필수 값 검증이 이루어져야 함.
+        return this.optionsBuilder.build();
     }
 }

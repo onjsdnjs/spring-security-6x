@@ -24,19 +24,19 @@ public class PathMappingRegistry {
      * 충돌 검증은 ConflictRiskAnalyzer 에서 수행합니다.
      */
     public PathMappingRegistry(PlatformConfig config) {
-        for (AuthenticationFlowConfig flow : config.flows()) {
+       /* for (AuthenticationFlowConfig flow : config.flows()) {
             String type = flow.typeName().toLowerCase();
             String entryUrl = flow.loginProcessingUrl();
             if ("mfa".equals(type)) {
                 // MFA 진입점 수집
                 mfaEntryPaths.add(entryUrl);
                 // MFA 단계별 경로 및 targetUrl 수집
-                for (AuthenticationStepConfig step : flow.stepConfigs()) {
-                    String stepType = step.type();
+                for (AuthenticationStepConfig step : flow.getStepConfigs()) {
+                    String stepType = step.getType();
                     String loginUrl = step.loginProcessingUrl();
                     mfaStepPaths.put(loginUrl, stepType);
                     // 옵션에서 targetUrl 추출
-                    Object opts = step.options().get("_options");
+                    Object opts = step.getOptions().get("_options");
                     String targetUrl = null;
                     if (opts instanceof FormOptions) {
                         targetUrl = ((FormOptions) opts).getTargetUrl();
@@ -49,11 +49,11 @@ public class PathMappingRegistry {
                 }
             } else {
                 // 단일 인증 경로 수집
-                for (AuthenticationStepConfig step : flow.stepConfigs()) {
+                for (AuthenticationStepConfig step : flow.getStepConfigs()) {
                     singleAuthPaths.add(step.loginProcessingUrl());
                 }
             }
-        }
+        }*/
     }
 
     public Set<String> singleAuthPaths() {

@@ -87,8 +87,8 @@ public class RestDslConfigurerImpl
     }
 
     @Override
-    public RestFactorOptions buildConcreteOptions() {
-        return null;
+    public RestOptions buildConcreteOptions() {
+        return this.optionsConfigurerImpl.buildConcreteOptions();
     }
 
     @Override

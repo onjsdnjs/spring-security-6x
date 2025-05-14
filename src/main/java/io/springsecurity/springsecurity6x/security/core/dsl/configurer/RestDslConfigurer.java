@@ -1,8 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.OptionsBuilderDsl;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;

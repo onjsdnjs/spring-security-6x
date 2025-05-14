@@ -47,7 +47,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
             // 또는, flowConfig.typeName()이 "mfa"일 때만 적용하도록 조건 추가 가능.
             if ("mfa".equalsIgnoreCase(fc.flow().typeName())) {
                 log.debug("Applying MfaAuthenticationFeature for flow: {}", fc.flow().typeName());
-                feature.apply(fc.http(), steps, fc.flow().stateConfig());
+                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
             }
             // MfaAuthenticationFeature가 적용된 후에는 다른 개별 step feature 들이 중복 적용되지 않도록 주의 필요.
             // 현재 로직은 MfaAuthenticationFeature가 적용된 후에도 아래의 루프가 실행될 수 있음.
@@ -76,7 +76,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
             //    그리고 아래 루프는 MfaAuthenticationFeature가 아닌 다른 일반 feature에 대해서만 동작하도록 수정.
 
             if ("mfa".equalsIgnoreCase(fc.flow().typeName())) { // MfaAuthenticationFeature는 MFA 타입의 flow에만 적용
-                feature.apply(fc.http(), steps, fc.flow().stateConfig());
+                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
                 // MfaAuthenticationFeature가 모든 하위 스텝 설정을 포함하여 처리한다고 가정하면,
                 // 이 특정 feature에 대한 작업은 여기서 완료되므로 return 할 수 있습니다.
                 // 또는, 아래 루프에서 이 feature를 제외하도록 합니다.
@@ -96,7 +96,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
                 // 해당 feature에 대해 첫 번째 매칭되는 step 에서만 apply 호출
                 log.info("Applying feature: {} for step type: {} in flow: {}", feature.getId(), step.getType(), fc.flow().typeName());
                 // AuthenticationFeature.apply는 해당 feature와 관련된 모든 steps 설정을 사용할 수 있도록 전체 steps를 전달
-                feature.apply(fc.http(), steps, fc.flow().stateConfig());
+                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
                 applied = true; // 이 Feature에 대한 적용이 완료되었음을 표시
                 // 일반적으로 하나의 AuthenticationFeature는 하나의 SecurityFilterChain에서 한 번만 주요 설정을 담당.
                 // 만약 동일 타입의 step이 여러 개 있고 각기 다르게 설정되어야 한다면,

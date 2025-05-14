@@ -17,7 +17,7 @@ public class GlobalConfigurer implements SecurityConfigurer {
 
     @Override
     public void configure(FlowContext ctx) {
-        Customizer<HttpSecurity> customizer = ctx.config().global();
+        Customizer<HttpSecurity> customizer = ctx.config().getGlobalCustomizer();
         if (customizer == null) {
             return;
         }

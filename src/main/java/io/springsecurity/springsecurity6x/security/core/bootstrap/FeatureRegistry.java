@@ -1,13 +1,11 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
 import jakarta.servlet.Filter;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * DSL 플로우에 매핑된 Feature 들을 중앙에서 관리합니다.
@@ -27,14 +25,14 @@ public class FeatureRegistry {
     public List<AuthenticationFeature> getAuthFeaturesFor(List<AuthenticationFlowConfig> flows) {
         List<AuthenticationFeature> result = new ArrayList<>();
         for (AuthenticationFlowConfig flow : flows) {
-            if ("mfa".equals(flow.typeName())) {
+            if ("mfa".equals(flow.getTypeName())) {
                 result.add(authFeatures.get("mfa"));
-                flow.stepConfigs().forEach(step -> {
-                    AuthenticationFeature feat = authFeatures.get(step.type());
+                flow.getStepConfigs().forEach(step -> {
+                    AuthenticationFeature feat = authFeatures.get(step.getType());
                     if (feat != null) result.add(feat);
                 });
             } else {
-                AuthenticationFeature feat = authFeatures.get(flow.typeName());
+                AuthenticationFeature feat = authFeatures.get(flow.getTypeName());
                 if (feat != null) result.add(feat);
             }
         }
@@ -44,7 +42,7 @@ public class FeatureRegistry {
 
     public List<StateFeature> getStateFeaturesFor(List<AuthenticationFlowConfig> flows) {
         Set<String> ids = new HashSet<>();
-        for (AuthenticationFlowConfig f : flows) ids.add(f.stateConfig().state());
+        for (AuthenticationFlowConfig f : flows) ids.add(f.getStateConfig().state());
         List<StateFeature> list = new ArrayList<>();
         ids.forEach(id -> {
             StateFeature sf = stateFeatures.get(id);

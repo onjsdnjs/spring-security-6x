@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.function.Consumer;
@@ -16,11 +17,11 @@ public class FlowConfigurer implements SecurityConfigurer {
 
     @Override
     public void configure(FlowContext ctx) {
-        Consumer<HttpSecurity> flowCustomizer = ctx.flow().customizer();
+        Customizer<HttpSecurity> flowCustomizer = ctx.flow().getRawHttpCustomizer();
         if (flowCustomizer == null) {
             return;
         }
-        flowCustomizer.accept(ctx.http());
+        flowCustomizer.customize(ctx.http());
     }
 
     @Override

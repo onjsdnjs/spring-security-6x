@@ -23,8 +23,7 @@ public class FormDslConfigurerImpl
         FormOptions.Builder,
         FormDslOptionsBuilderConfigurer, // OBI: Options Builder Configurer의 구체적 타입
         FormStepDslConfigurer          // S: 이 클래스가 구현하는 Step-aware DSL 인터페이스
-        >
-        implements FormStepDslConfigurer {
+        > implements FormStepDslConfigurer {
 
     public FormDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
         // FormDslOptionsBuilderConfigurer 인스턴스를 생성하여 부모 생성자에 전달

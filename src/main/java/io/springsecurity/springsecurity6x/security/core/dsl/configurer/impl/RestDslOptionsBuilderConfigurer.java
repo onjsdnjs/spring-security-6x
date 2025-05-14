@@ -20,7 +20,7 @@ public class RestDslOptionsBuilderConfigurer
 
     @Override
     public RestDslConfigurer loginProcessingUrl(String url) {
-        this.optionsBuilder.loginProcessingUrl(url); return self();
+        this.optionsBuilder.processingUrl(url); return self();
     }
     @Override
     public RestDslConfigurer targetUrl(String url) {

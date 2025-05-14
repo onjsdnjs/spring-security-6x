@@ -22,7 +22,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
     private final boolean permitAll;
     private final boolean alwaysUseDefaultSuccessUrl;
     private final SecurityContextRepository securityContextRepository;
-    private final List<Customizer<FormLoginConfigurer<HttpSecurity>>> rawFormLoginCustomizers;
+    private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLoginCustomizers;
 
     private FormOptions(Builder builder) {
         super(builder);
@@ -56,7 +56,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
         private boolean permitAll = false;
         private boolean alwaysUseDefaultSuccessUrl = false;
         private SecurityContextRepository securityContextRepository;
-        private List<Customizer<FormLoginConfigurer<HttpSecurity>>> rawFormLoginCustomizers;
+        private Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLoginCustomizers;
 
         public Builder() {
             super.processingUrl("/login");
@@ -114,7 +114,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
 
         public void rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> formLoginConfigurerCustomizer) {
                 Objects.requireNonNull(formLoginConfigurerCustomizer, "rawHttp customizer must not be null");
-                this.rawFormLoginCustomizers.add(formLoginConfigurerCustomizer);
+                this.rawFormLoginCustomizers= formLoginConfigurerCustomizer;
             }
         }
 }

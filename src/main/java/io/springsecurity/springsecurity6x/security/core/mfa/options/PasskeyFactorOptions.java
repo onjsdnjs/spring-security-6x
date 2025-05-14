@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.util.Assert;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,7 +12,7 @@ public class PasskeyFactorOptions extends FactorAuthenticationOptions {
     private final Set<String> allowedOrigins;
 
     private PasskeyFactorOptions(Builder builder) {
-        super(builder, AuthType.PASSKEY); // 수정된 부모 생성자 호출
+        super(builder); // 수정된 부모 생성자 호출
         this.rpName = builder.rpName;
         this.rpId = builder.rpId;
         this.allowedOrigins = Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins));

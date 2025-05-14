@@ -37,7 +37,7 @@ public abstract class AbstractOptions {
     public Customizer<SessionManagementConfigurer<HttpSecurity>> getSessionManagementCustomizer() { return sessionManagementCustomizer; }
     public Customizer<LogoutConfigurer<HttpSecurity>> getLogoutCustomizer() { return logoutCustomizer; } // 추가
     public List<String> getStaticMatchers() { return staticMatchers; }
-    public List<Customizer<HttpSecurity>> getRawFormLoginCustomizers() { return rawHttpCustomizers; }
+    public List<Customizer<HttpSecurity>> getRawHttpCustomizers() { return rawHttpCustomizers; }
 
     public void applyCommon(HttpSecurity http) throws Exception {
         if (csrfDisabled) {

@@ -12,7 +12,7 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
     private final boolean showDefaultSubmitPage; // OTT 코드/링크 생성 요청 URL
 
     private OttFactorOptions(Builder builder) {
-        super(builder, AuthType.OTT); // 부모 생성자 호출
+        super(builder); // 부모 생성자 호출
         this.oneTimeTokenService = builder.oneTimeTokenService;
         this.tokenGeneratingUrl = builder.tokenGeneratingUrl;
         this.defaultSubmitPageUrl = builder.defaultSubmitPageUrl;

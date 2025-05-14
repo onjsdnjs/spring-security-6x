@@ -10,6 +10,8 @@ public enum MfaEvent {
     /** 인증 단계에 해당하는 챌린지를 요청할 때 발생 — (ex: Passkey 옵션 요청 등) */
     REQUEST_CHALLENGE,
 
+    MFA_REQUIRED_CHECK_COMPLETED,
+
     /** 사용자 자격 증명(비밀번호, 코드 등)을 제출할 때 발생 */
     SUBMIT_CREDENTIAL,
 

@@ -75,13 +75,13 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
                 form.securityContextRepository(opts.getSecurityContextRepository());
             }
 
-            Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = opts.getRawFormLogin();
+            Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = opts.getRawFormLoginCustomizers();
             if (rawLogin != null) {
                 rawLogin.customize(form);
             }
         });
 
-        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawFormLoginCustomizers();
+        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
         for (Customizer<HttpSecurity> customizer : httpCustomizers) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }

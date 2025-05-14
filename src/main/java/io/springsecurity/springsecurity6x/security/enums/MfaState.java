@@ -30,6 +30,7 @@ public enum MfaState {
     FACTOR_VERIFICATION_PENDING, // Generic state for verification
 
     // --- 최종 상태 ---
+    TOKEN_ISSUANCE_REQUIRED,
     /** 모든 MFA 요구사항이 충족되어 최종 인증(토큰 발급 등)으로 진행될 수 있는 상태. */
     MFA_VERIFICATION_COMPLETED,
     /** MFA 과정이 완전히 성공하고 토큰까지 발급된 최종 완료 상태. */

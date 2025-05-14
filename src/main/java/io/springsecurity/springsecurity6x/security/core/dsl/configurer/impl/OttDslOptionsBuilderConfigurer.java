@@ -38,7 +38,7 @@ public class OttDslOptionsBuilderConfigurer
     // OttStepDslConfigurer 인터페이스의 모든 메소드 구현
     @Override
     public OttStepDslConfigurer loginProcessingUrl(String url) {
-        this.optionsBuilder.loginProcessingUrl(url); return self();
+        this.optionsBuilder.processingUrl(url); return self();
     }
 
     @Override
@@ -63,7 +63,7 @@ public class OttDslOptionsBuilderConfigurer
 
     @Override
     public OttStepDslConfigurer tokenService(OneTimeTokenService service) {
-        this.optionsBuilder.tokenService(service); return self();
+        this.optionsBuilder.oneTimeTokenService(service); return self();
     }
 
     @Override
@@ -71,7 +71,7 @@ public class OttDslOptionsBuilderConfigurer
         Assert.hasText(beanName, "beanName cannot be empty");
         try {
             OneTimeTokenService service = applicationContext.getBean(beanName, OneTimeTokenService.class);
-            this.optionsBuilder.tokenService(service);
+            this.optionsBuilder.oneTimeTokenService(service);
         } catch (NoSuchBeanDefinitionException e) {
             throw new IllegalArgumentException("No OneTimeTokenService bean found with name: " + beanName, e);
         }

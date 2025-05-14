@@ -77,7 +77,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
 
         });
 
-        for (Customizer<HttpSecurity> customizer : opts.getRawFormLoginCustomizers()) {
+        for (Customizer<HttpSecurity> customizer : opts.getRawHttpCustomizers()) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }

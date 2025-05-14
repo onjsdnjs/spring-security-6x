@@ -10,7 +10,7 @@ public class RecoveryCodeFactorOptions extends FactorAuthenticationOptions {
 
     // private 생성자로 변경, Builder를 통해서만 생성
     private RecoveryCodeFactorOptions(Builder builder) {
-        super(builder, AuthType.RECOVERY_CODE); // 부모 생성자 호출
+        super(builder); // 부모 생성자 호출
         // this.recoveryCodeStore = builder.recoveryCodeStore;
         this.codeLength = builder.codeLength;
         this.numberOfCodesToGenerate = builder.numberOfCodesToGenerate;

@@ -12,12 +12,14 @@ import java.util.Objects;
 public final class OttOptions extends FactorAuthenticationOptions {
 
     private final String tokenGeneratingUrl;
+    // processingUrl은 FactorAuthenticationOptions의 getProcessingUrl()을 통해 접근 (코드 제출 URL)
     private final String tokenParameterName;
     private final String defaultSubmitPageUrl;
     private final boolean showDefaultSubmitPage;
-    private final OneTimeTokenService oneTimeTokenService; // 직접 주입된 서비스
-    private final String oneTimeTokenServiceBeanName; // 빈 이름으로 조회할 경우
+    private final OneTimeTokenService oneTimeTokenService;
+    private final String oneTimeTokenServiceBeanName;
     private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+    // successHandler, failureHandler, targetUrl은 FactorAuthenticationOptions 에서 상속받음
 
     private OttOptions(Builder builder) {
         super(builder);
@@ -29,6 +31,8 @@ public final class OttOptions extends FactorAuthenticationOptions {
         this.oneTimeTokenServiceBeanName = builder.oneTimeTokenServiceBeanName;
         this.tokenGenerationSuccessHandler = builder.tokenGenerationSuccessHandler;
     }
+
+    // public String getProcessingUrl() { return super.getProcessingUrl(); } // 코드 제출 URL
 
     public static Builder builder() {
         return new Builder();
@@ -44,7 +48,7 @@ public final class OttOptions extends FactorAuthenticationOptions {
         private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
 
         public Builder() {
-            super.processingUrl("/login/ott"); // OTT 코드 제출 URL 기본값 설정
+            super.processingUrl("/login/ott"); // 코드 제출 URL 기본값
             super.targetUrl("/");
         }
 
@@ -77,13 +81,13 @@ public final class OttOptions extends FactorAuthenticationOptions {
 
         public Builder oneTimeTokenService(OneTimeTokenService service) {
             this.oneTimeTokenService = service;
-            this.oneTimeTokenServiceBeanName = null; // 직접 설정 시 빈 이름은 초기화
+            this.oneTimeTokenServiceBeanName = null;
             return this;
         }
 
         public Builder oneTimeTokenServiceBeanName(String beanName) {
             this.oneTimeTokenServiceBeanName = beanName;
-            this.oneTimeTokenService = null; // 빈 이름 설정 시 직접 설정은 초기화
+            this.oneTimeTokenService = null;
             return this;
         }
 
@@ -91,6 +95,8 @@ public final class OttOptions extends FactorAuthenticationOptions {
             this.tokenGenerationSuccessHandler = handler;
             return this;
         }
+
+        // processingUrl, targetUrl, successHandler, failureHandler는 부모 빌더의 메소드 사용
 
         @Override
         public OttOptions build() {

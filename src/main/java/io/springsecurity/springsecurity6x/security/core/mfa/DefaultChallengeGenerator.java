@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.enums.MfaState; // 사용자의 실제 MfaState enum 경로로 수정하십시오.
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -54,7 +54,7 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
                     FormOptions formOpts = getTypedOptions(currentFactorOptions, FormOptions.class, FormOptions.builder().build(), "FORM", ctx.getMfaSessionId());
                     payload.put("mode", "FORM_SUBMISSION_REQUIRED");
                     payload.put("loginPageUrl", formOpts.getLoginPage());
-                    payload.put("processingUrl", formOpts.getLoginProcessingUrl()); // FactorAuthenticationOptions에서 상속받은 getProcessingUrl() 사용
+                    payload.put("processingUrl", formOpts.getLoginProcessingUrl()); // FactorAuthenticationOptions에서 상속
                     payload.put("usernameParameter", formOpts.getUsernameParameter());
                     payload.put("passwordParameter", formOpts.getPasswordParameter());
                     payload.put("fields", List.of(
@@ -66,7 +66,7 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
                 case REST:
                     RestOptions restOpts = getTypedOptions(currentFactorOptions, RestOptions.class, RestOptions.builder().build(), "REST", ctx.getMfaSessionId());
                     payload.put("mode", "API_CREDENTIAL_SUBMISSION_REQUIRED");
-                    payload.put("url", restOpts.getLoginProcessingUrl()); // FactorAuthenticationOptions에서 상속받은 getProcessingUrl() 사용
+                    payload.put("url", restOpts.getLoginProcessingUrl()); // FactorAuthenticationOptions에서 상속
                     payload.put("method", "POST");
                     payload.put("bodySchema", Map.of(
                             Objects.toString(restOpts.getUsernameParameter(), "username"), "string",
@@ -78,21 +78,21 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
                     OttOptions ottOpts = getTypedOptions(currentFactorOptions, OttOptions.class, OttOptions.builder().build(), "OTT", ctx.getMfaSessionId());
                     payload.put("mode", "OTT_CODE_REQUIRED");
                     payload.put("generationUrl", ottOpts.getTokenGeneratingUrl());
-                    payload.put("submitUrl", ottOpts.getProcessingUrl()); // FactorAuthenticationOptions에서 상속받은 getProcessingUrl() 사용 (코드 제출용)
+                    payload.put("submitUrl", ottOpts.getProcessingUrl()); // FactorAuthenticationOptions에서 상속 (코드 제출용)
                     payload.put("submitField", Objects.toString(ottOpts.getTokenParameterName(), "token"));
                     break;
 
                 case PASSKEY:
                     PasskeyOptions passkeyOpts = getTypedOptions(currentFactorOptions, PasskeyOptions.class, null, "PASSKEY", ctx.getMfaSessionId());
-                    if (passkeyOpts == null) {
-                        log.error("[ChallengeGenerator] PasskeyOptions are essential and not found for PASSKEY factor. Session ID: {}", ctx.getMfaSessionId());
+                    if (passkeyOpts == null) { // PasskeyOptions는 rpId 등 필수값이 있어 기본값 생성이 어려움
+                        log.error("[ChallengeGenerator] PasskeyOptions are essential and not found or invalid for PASSKEY factor. Session ID: {}", ctx.getMfaSessionId());
                         payload.put("error", "PASSKEY_OPTIONS_MISSING");
-                        payload.put("message", "Passkey configuration options are missing.");
+                        payload.put("message", "Passkey configuration options are missing or invalid.");
                         return payload;
                     }
                     payload.put("mode", "PASSKEY_AUTHENTICATION_REQUIRED");
-                    payload.put("assertionOptionsUrl", passkeyOpts.getAssertionOptionsEndpoint()); // 수정된 getter 사용
-                    payload.put("assertionVerificationUrl", passkeyOpts.getProcessingUrl()); // FactorAuthenticationOptions에서 상속받은 getProcessingUrl() 사용
+                    payload.put("assertionOptionsUrl", passkeyOpts.getAssertionOptionsEndpoint()); // PasskeyOptions에 추가된 getter
+                    payload.put("assertionVerificationUrl", passkeyOpts.getProcessingUrl()); // FactorAuthenticationOptions에서 상속
                     payload.put("rpId", passkeyOpts.getRpId());
 
                     Object webAuthnOptions = ctx.getChallengePayload("publicKeyCredentialRequestOptions");
@@ -124,10 +124,14 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
         return payload;
     }
 
+    /**
+     * Helper method to safely cast FactorAuthenticationOptions to a specific type or return a default.
+     * Logs warnings if types mismatch or if options are unexpectedly null.
+     */
     private <T extends FactorAuthenticationOptions> T getTypedOptions(
             FactorAuthenticationOptions options,
             Class<T> expectedType,
-            T defaultOptions,
+            T defaultOptions, // 기본값으로 사용할 옵션 객체
             String factorNameForLog,
             String sessionIdForLog) {
 
@@ -135,15 +139,15 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
             return expectedType.cast(options);
         }
 
-        if (options != null) {
+        if (options != null) { // 타입은 안 맞지만, null은 아닌 경우
             log.warn("[ChallengeGenerator] Type mismatch for factor options. Expected: {}, Actual: {}. Factor: {}. Session ID: {}. Attempting to use default options if available.",
                     expectedType.getSimpleName(), options.getClass().getSimpleName(), factorNameForLog, sessionIdForLog);
-        } else {
+        } else { // options 자체가 null인 경우
             log.warn("[ChallengeGenerator] FactorAuthenticationOptions were null for factor {}. Session ID: {}. Attempting to use default options if available.",
                     factorNameForLog, sessionIdForLog);
         }
 
-        if (defaultOptions == null && factorNameForLog.equals("PASSKEY")) { // Passkey는 기본 옵션이 null일 수 있고, 그게 오류일 수 있음
+        if (defaultOptions == null && factorNameForLog.equals("PASSKEY")) {
             log.error("[ChallengeGenerator] Default options are null for required factor {}. This will likely lead to errors. Session ID: {}",
                     factorNameForLog, sessionIdForLog);
         } else if (defaultOptions == null) {

@@ -10,10 +10,12 @@ import java.util.*;
 @Getter
 public final class PasskeyOptions extends FactorAuthenticationOptions {
 
-    private final String assertionOptionsEndpoint;
+    // processingUrl은 FactorAuthenticationOptions의 getProcessingUrl()을 통해 접근 (Assertion 검증/제출 URL)
+    private final String assertionOptionsEndpoint; // Assertion Options 요청 URL
     private final String rpName;
     private final String rpId;
     private final Set<String> allowedOrigins;
+    // targetUrl, successHandler, failureHandler는 FactorAuthenticationOptions 에서 상속받음
     private final SecurityContextRepository securityContextRepository;
 
     private PasskeyOptions(Builder builder) {
@@ -25,19 +27,21 @@ public final class PasskeyOptions extends FactorAuthenticationOptions {
         this.securityContextRepository = builder.securityContextRepository;
     }
 
+    // public String getProcessingUrl() { return super.getProcessingUrl(); } // Assertion 검증/제출 URL
+
     public static Builder builder() {
         return new Builder();
     }
 
     public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<PasskeyOptions, Builder> {
-        private String assertionOptionsEndpoint = "/webauthn/assertion/options"; // 기본 Assertion Options 요청 URL
+        private String assertionOptionsEndpoint = "/webauthn/assertion/options";
         private String rpName = "My Application";
-        private String rpId; // 사용자가 반드시 설정
+        private String rpId;
         private List<String> allowedOrigins = new ArrayList<>();
         private SecurityContextRepository securityContextRepository;
 
         public Builder() {
-            super.processingUrl("/login/webauthn"); // Assertion 검증 URL 기본값 설정
+            super.processingUrl("/login/webauthn"); // Assertion 검증 URL 기본값
             super.targetUrl("/");
         }
 
@@ -74,6 +78,8 @@ public final class PasskeyOptions extends FactorAuthenticationOptions {
             return this;
         }
 
+        // processingUrl, targetUrl, successHandler, failureHandler는 부모 빌더의 메소드 사용
+
         @Override
         public PasskeyOptions build() {
             Assert.hasText(rpId, "RP ID (rpId) must be configured for Passkey options.");
@@ -81,4 +87,5 @@ public final class PasskeyOptions extends FactorAuthenticationOptions {
         }
     }
 }
+
 

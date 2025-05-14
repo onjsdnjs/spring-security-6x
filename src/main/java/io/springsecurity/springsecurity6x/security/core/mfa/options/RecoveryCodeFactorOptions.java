@@ -1,6 +1,5 @@
-package io.springsecurity.springsecurity6x.security.core.mfa.options.recovery;
+package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.util.Assert;
 

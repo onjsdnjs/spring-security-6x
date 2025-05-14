@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +15,10 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
 
     private static final String COOKIE_PATH = "/";
     private TokenService tokenService;
+
+    protected CookieTokenStrategy(AuthContextProperties props) {
+        super(props);
+    }
 
     @Override
     public void setTokenService(TokenService tokenService) {

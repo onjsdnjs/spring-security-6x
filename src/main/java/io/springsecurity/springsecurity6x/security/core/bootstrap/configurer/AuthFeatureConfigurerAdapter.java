@@ -40,7 +40,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
 
         if (steps.isEmpty()) return;
         for (AuthenticationStepConfig step : steps) {
-            if (feature.getId().equalsIgnoreCase(step.type())) {
+            if (feature.getId().equalsIgnoreCase(step.getType())) {
                 feature.apply(fc.http(), steps, fc.flow().stateConfig());
             }
         }

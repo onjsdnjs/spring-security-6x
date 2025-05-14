@@ -1,12 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
-// import io.springsecurity.springsecurity6x.security.core.mfa.recovery.RecoveryCodeStore;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.recovery.RecoveryCodeFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.mfa.options.recovery.RecoveryCodeFactorOptions;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.RecoveryCodeFactorOptions;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.util.Assert;
 
 public class RecoveryCodeFactorDslConfigurerImpl
         extends AbstractOptionsBuilderConfigurer<RecoveryCodeFactorOptions, RecoveryCodeFactorOptions.Builder, RecoveryCodeFactorDslConfigurer>

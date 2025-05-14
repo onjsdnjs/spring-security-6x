@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.transport;
 
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,6 +10,10 @@ import static io.springsecurity.springsecurity6x.security.token.service.TokenSer
 public class HeaderTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
 
     private TokenService tokenService;
+
+    public HeaderTokenStrategy(AuthContextProperties props) {
+        super(props);
+    }
 
     @Override
     public void setTokenService(TokenService tokenService) {

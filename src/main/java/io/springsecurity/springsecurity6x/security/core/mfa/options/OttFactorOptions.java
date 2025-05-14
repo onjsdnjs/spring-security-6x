@@ -1,8 +1,8 @@
-package io.springsecurity.springsecurity6x.security.core.mfa.options.ott;
+package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType; // AuthType enum 경로 가정
 import org.springframework.security.authentication.ott.OneTimeTokenService;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.Assert;
 
 public class OttFactorOptions extends FactorAuthenticationOptions {
@@ -11,7 +11,6 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
     private final String defaultSubmitPageUrl; // OTT 코드/링크 생성 요청 URL
     private final boolean showDefaultSubmitPage; // OTT 코드/링크 생성 요청 URL
 
-    // private 생성자로 변경, Builder를 통해서만 생성
     private OttFactorOptions(Builder builder) {
         super(builder, AuthType.OTT); // 부모 생성자 호출
         this.oneTimeTokenService = builder.oneTimeTokenService;
@@ -20,7 +19,6 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
         this.showDefaultSubmitPage = builder.showDefaultSubmitPage;
     }
 
-    // Getter 메소드들
     public OneTimeTokenService getOneTimeTokenService() {
         return oneTimeTokenService;
     }
@@ -42,33 +40,36 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
         return new Builder();
     }
 
-    // Builder 내부 클래스 정의
     public static class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<OttFactorOptions, Builder> {
         private OneTimeTokenService oneTimeTokenService;
         private String tokenGeneratingUrl;
-        private String defaultSubmitPageUrl;
-        private boolean showDefaultSubmitPage;
+        private String defaultSubmitPageUrl; // 추가
+        private boolean showDefaultSubmitPage; // 추가
+        private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler; // 추가
+
 
         public Builder oneTimeTokenService(OneTimeTokenService oneTimeTokenService) {
-            Assert.notNull(oneTimeTokenService, "oneTimeTokenService cannot be null");
             this.oneTimeTokenService = oneTimeTokenService;
             return this;
         }
 
         public Builder tokenGeneratingUrl(String tokenGeneratingUrl) {
-            Assert.hasText(tokenGeneratingUrl, "tokenGeneratingUrl cannot be empty");
             this.tokenGeneratingUrl = tokenGeneratingUrl;
             return this;
         }
 
         public Builder defaultSubmitPageUrl(String defaultSubmitPageUrl) {
-            Assert.hasText(defaultSubmitPageUrl, "tokenGeneratingUrl cannot be empty");
             this.defaultSubmitPageUrl = defaultSubmitPageUrl;
             return this;
         }
 
         public Builder showDefaultSubmitPage(boolean showDefaultSubmitPage) {
             this.showDefaultSubmitPage = showDefaultSubmitPage;
+            return this;
+        }
+
+        public Builder tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
+            this.tokenGenerationSuccessHandler = handler;
             return this;
         }
 
@@ -79,6 +80,10 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
 
         @Override
         public OttFactorOptions build() {
+            // 빌드 시점에 필수 값 검증 (예: oneTimeTokenService, processingUrl, tokenGeneratingUrl)
+            Assert.notNull(oneTimeTokenService, "OneTimeTokenService must be configured for OTT factor.");
+            Assert.hasText(super.processingUrl, "Processing URL must be set for OTT factor."); // AbstractFactorOptionsBuilder 에서 상속받은 필드
+            Assert.hasText(tokenGeneratingUrl, "Token generating URL must be set for OTT factor.");
             return new OttFactorOptions(this);
         }
     }

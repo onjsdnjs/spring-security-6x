@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.mfa.options.ott.OttFactorOptions;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.OttFactorOptions;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;

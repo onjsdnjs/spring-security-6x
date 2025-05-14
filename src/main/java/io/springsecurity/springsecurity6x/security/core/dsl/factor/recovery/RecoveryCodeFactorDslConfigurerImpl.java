@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.factor.recovery;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer; // OptionsBuilderDsl 사용 위해 추가
-import io.springsecurity.springsecurity6x.security.core.mfa.options.recovery.RecoveryCodeFactorOptions;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.RecoveryCodeFactorOptions;
 import org.springframework.security.config.Customizer; // 추가
 import org.springframework.security.config.annotation.web.builders.HttpSecurity; // 추가
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer; // 추가

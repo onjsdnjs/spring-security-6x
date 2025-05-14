@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractStepA
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestStepDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.RestFactorOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -83,6 +84,11 @@ public class RestDslConfigurerImpl
     @Override
     public RestStepDslConfigurer logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
         this.optionsConfigurerImpl.logout(customizer); return self();
+    }
+
+    @Override
+    public RestFactorOptions buildConcreteOptions() {
+        return null;
     }
 
     @Override

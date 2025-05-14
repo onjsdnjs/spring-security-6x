@@ -18,7 +18,7 @@ public class JwtTokenServiceFactory {
 
         SecretKey key = ctx.getShared(SecretKey.class);
         AuthContextProperties props = ctx.getShared(AuthContextProperties.class);
-        TokenTransportStrategy transport = TokenTransportStrategyFactory.create(props.getTokenTransportType());
+        TokenTransportStrategy transport = TokenTransportStrategyFactory.create(props);
         JwtTokenParser jwtTokenParser = new JwtTokenParser(key);
         JwtRefreshTokenStore jwtRefreshTokenStore = new JwtRefreshTokenStore(new JwtTokenParser(key), props);
 

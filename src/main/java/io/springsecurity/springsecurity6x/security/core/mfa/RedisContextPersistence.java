@@ -2,6 +2,8 @@ package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,19 +18,20 @@ public class RedisContextPersistence implements ContextPersistence {
             sid = java.util.UUID.randomUUID().toString();
         }
         return store.computeIfAbsent(sid, k -> {
-            FactorContext ctx = new FactorContext();
-            ctx.sessionId(k);
+            Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
+            FactorContext ctx = new FactorContext(authentication);
+            ctx.getMfaSessionId();
             return ctx;
         });
     }
 
     @Override
     public void saveContext(FactorContext ctx) {
-        store.put(ctx.sessionId(), ctx);
+        store.put(ctx.getMfaSessionId(), ctx);
     }
 
     @Override
     public void delete(FactorContext ctx) {
-        store.remove(ctx.sessionId());
+        store.remove(ctx.getMfaSessionId());
     }
 }

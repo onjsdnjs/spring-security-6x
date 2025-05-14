@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.factor.ott;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.OptionsBuilderDsl;
-import io.springsecurity.springsecurity6x.security.core.mfa.options.ott.OttFactorOptions;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.OttFactorOptions;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;

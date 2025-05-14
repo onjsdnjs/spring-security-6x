@@ -53,7 +53,6 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
             WebUtil.writeError(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "CONTEXT_LOAD_FAILURE", "MFA context could not be loaded.");
             return;
         }
-
         // FactorContext.isTerminal()과 같은 메소드가 있다면 사용
         if (ctx.getCurrentState() == null || ctx.getCurrentState().isTerminal()) { // getCurrentState() 사용 및 isTerminal() 가정
             chain.doFilter(req, res);

@@ -16,9 +16,10 @@ public class HttpSessionContextPersistence implements ContextPersistence {
         HttpSession session = request.getSession(true);
         FactorContext ctx = (FactorContext) session.getAttribute(MFA_CONTEXT_ATTR);
         if (ctx == null) {
-            ctx = new FactorContext();
-            ctx.currentState(MfaState.INIT);
-            ctx.version(0);
+            ctx = new FactorContext(null); // 기본 생성자 또는 primaryAuthentication을 null로 전달
+            // ctx.currentState(MfaState.INIT); // MfaState에 INIT이 없다면, FactorContext 생성자에서 초기 상태 설정
+            // (예: PRIMARY_AUTHENTICATION_COMPLETED 또는 새로운 INITIALIZING 상태)
+            // ctx.version(0); // FactorContext 생성자에서 초기화
             session.setAttribute(MFA_CONTEXT_ATTR, ctx);
         }
         return ctx;

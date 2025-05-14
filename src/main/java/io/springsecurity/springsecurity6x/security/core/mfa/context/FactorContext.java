@@ -55,8 +55,13 @@ public class FactorContext implements Serializable {
         this.primaryAuthentication = primaryAuthentication;
         if (primaryAuthentication != null) {
             this.username = primaryAuthentication.getName();
+            this.currentState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
+        } else {
+            // 1차 인증 정보가 없는 초기 상태 (예: 세션에 처음 FactorContext 생성 시)
+            // 이 경우 username은 나중에 설정되어야 함
+            this.username = null;
+            this.currentState = new AtomicReference<>(MfaState.AWAITING_MFA_FACTOR_SELECTION); // 또는 다른 적절한 초기 상태
         }
-        this.currentState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
         this.lastActivityTimestamp = Instant.now();
     }
 

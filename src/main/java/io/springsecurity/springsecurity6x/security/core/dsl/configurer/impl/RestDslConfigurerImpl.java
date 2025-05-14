@@ -5,7 +5,6 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractStepA
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestStepDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.mfa.options.RestFactorOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,56 +33,75 @@ public class RestDslConfigurerImpl
     }
 
     @Override
-    protected RestStepDslConfigurer self() {
+    protected RestStepDslConfigurer self() { // 반환 타입을 RestStepDslConfigurer로 (인터페이스에 맞게)
         return this;
     }
 
-    // RestDslConfigurer (OptionsBuilderDsl) 메소드 위임
     @Override
     public RestStepDslConfigurer loginProcessingUrl(String url) {
-        this.optionsConfigurerImpl.loginProcessingUrl(url); return self();
+        this.optionsConfigurerImpl.loginProcessingUrl(url);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer targetUrl(String url) {
-        this.optionsConfigurerImpl.targetUrl(url); return self();
+        this.optionsConfigurerImpl.targetUrl(url);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        this.optionsConfigurerImpl.successHandler(handler); return self();
+        this.optionsConfigurerImpl.successHandler(handler);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        this.optionsConfigurerImpl.failureHandler(handler); return self();
+        this.optionsConfigurerImpl.failureHandler(handler);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer securityContextRepository(SecurityContextRepository repository) {
-        this.optionsConfigurerImpl.securityContextRepository(repository); return self();
+        this.optionsConfigurerImpl.securityContextRepository(repository);
+        return self();
     }
 
     // CommonSecurityDsl 부분 위임
     @Override
     public RestStepDslConfigurer rawHttp(SafeHttpCustomizer customizer) {
-        this.optionsConfigurerImpl.rawHttp(customizer); return self();
+        this.optionsConfigurerImpl.rawHttp(customizer);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer disableCsrf() {
-        this.optionsConfigurerImpl.disableCsrf(); return self();
+        this.optionsConfigurerImpl.disableCsrf();
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
-        this.optionsConfigurerImpl.cors(customizer); return self();
+        this.optionsConfigurerImpl.cors(customizer);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
-        this.optionsConfigurerImpl.headers(customizer); return self();
+        this.optionsConfigurerImpl.headers(customizer);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
-        this.optionsConfigurerImpl.sessionManagement(customizer); return self();
+        this.optionsConfigurerImpl.sessionManagement(customizer);
+        return self();
     }
+
     @Override
     public RestStepDslConfigurer logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
-        this.optionsConfigurerImpl.logout(customizer); return self();
+        this.optionsConfigurerImpl.logout(customizer);
+        return self();
     }
 
     @Override

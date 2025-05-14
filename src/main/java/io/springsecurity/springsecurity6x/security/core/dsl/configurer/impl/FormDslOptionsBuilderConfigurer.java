@@ -67,7 +67,7 @@ public class FormDslOptionsBuilderConfigurer
 
     @Override
     public FormDslConfigurer permitAll() {
-        this.optionsBuilder.isPermitAll();
+        this.optionsBuilder.permitAll();
         return self();
     }
 

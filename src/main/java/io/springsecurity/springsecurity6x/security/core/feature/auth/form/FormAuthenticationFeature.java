@@ -7,7 +7,6 @@ import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFe
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -82,7 +81,7 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
             }
         });
 
-        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
+        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawFormLoginCustomizers();
         for (Customizer<HttpSecurity> customizer : httpCustomizers) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }

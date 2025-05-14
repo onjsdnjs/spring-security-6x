@@ -2,9 +2,13 @@ package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.Assert;
 
+import java.util.List;
 import java.util.Objects;
 
 @Getter
@@ -18,6 +22,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
     private final boolean permitAll;
     private final boolean alwaysUseDefaultSuccessUrl;
     private final SecurityContextRepository securityContextRepository;
+    private final List<Customizer<FormLoginConfigurer<HttpSecurity>>> rawFormLoginCustomizers;
 
     private FormOptions(Builder builder) {
         super(builder);
@@ -29,6 +34,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
         this.failureUrl = builder.failureUrl;
         this.permitAll = builder.permitAll;
         this.alwaysUseDefaultSuccessUrl = builder.alwaysUseDefaultSuccessUrl;
+        this.rawFormLoginCustomizers = builder.rawFormLoginCustomizers;
     }
 
     public String getLoginProcessingUrl() {
@@ -50,6 +56,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
         private boolean permitAll = false;
         private boolean alwaysUseDefaultSuccessUrl = false;
         private SecurityContextRepository securityContextRepository;
+        private List<Customizer<FormLoginConfigurer<HttpSecurity>>> rawFormLoginCustomizers;
 
         public Builder() {
             super.processingUrl("/login");
@@ -104,7 +111,12 @@ public final class FormOptions extends FactorAuthenticationOptions {
         public FormOptions build() {
             return new FormOptions(this);
         }
-    }
+
+        public void rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> formLoginConfigurerCustomizer) {
+                Objects.requireNonNull(formLoginConfigurerCustomizer, "rawHttp customizer must not be null");
+                this.rawFormLoginCustomizers.add(formLoginConfigurerCustomizer);
+            }
+        }
 }
 
 

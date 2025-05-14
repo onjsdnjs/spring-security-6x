@@ -8,15 +8,12 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -80,7 +77,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
 
         });
 
-        for (Customizer<HttpSecurity> customizer : opts.getRawHttpCustomizers()) {
+        for (Customizer<HttpSecurity> customizer : opts.getRawFormLoginCustomizers()) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }

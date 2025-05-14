@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyStepDslConfigurer;
@@ -17,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 
-
 public class PasskeyDslOptionsBuilderConfigurer
         extends AbstractOptionsBuilderConfigurer<PasskeyOptions, PasskeyOptions.Builder, PasskeyStepDslConfigurer>
         implements PasskeyStepDslConfigurer {
@@ -32,67 +32,117 @@ public class PasskeyDslOptionsBuilderConfigurer
     }
 
     @Override
-    public PasskeyStepDslConfigurer rpName(String name) {
-        this.optionsBuilder.rpName(name); return self();
+    public PasskeyStepDslConfigurer processingUrl(String url) {
+        this.optionsBuilder.processingUrl(url);
+        return self();
     }
+
+    @Override
+    public PasskeyStepDslConfigurer rpName(String name) {
+        this.optionsBuilder.rpName(name);
+        return self();
+    }
+
     @Override
     public PasskeyStepDslConfigurer rpId(String id) {
-        this.optionsBuilder.rpId(id); return self();
+        this.optionsBuilder.rpId(id);
+        return self();
     }
+
     @Override
     public PasskeyStepDslConfigurer allowedOrigins(String... origins) {
-        if (origins != null) this.optionsBuilder.allowedOrigins(Arrays.asList(origins));
+        if (origins != null) {
+            this.optionsBuilder.allowedOrigins(Arrays.asList(origins));
+        } else {
+            this.optionsBuilder.allowedOrigins(new ArrayList<>());
+        }
         return self();
     }
+
     @Override
     public PasskeyStepDslConfigurer allowedOrigins(Set<String> origins) {
-        if (origins != null) this.optionsBuilder.allowedOrigins(new ArrayList<>(origins));
+        if (origins != null) {
+            this.optionsBuilder.allowedOrigins(new ArrayList<>(origins));
+        } else {
+            this.optionsBuilder.allowedOrigins(new ArrayList<>());
+        }
         return self();
     }
+
     @Override
     public PasskeyStepDslConfigurer targetUrl(String url) {
-        this.optionsBuilder.targetUrl(url); return self();
+        this.optionsBuilder.targetUrl(url);
+        return self();
     }
+
     @Override
     public PasskeyStepDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        this.optionsBuilder.successHandler(handler); // PasskeyOptions.Builder에 successHandler 추가 필요
+        this.optionsBuilder.successHandler(handler);
         return self();
     }
+
     @Override
     public PasskeyStepDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        this.optionsBuilder.failureHandler(handler); // PasskeyOptions.Builder에 failureHandler 추가 필요
+        this.optionsBuilder.failureHandler(handler);
         return self();
     }
 
-    // CommonSecurityDsl 메소드들
+    // CommonSecurityDsl methods (from OptionsBuilderDsl)
     @Override
     public PasskeyStepDslConfigurer rawHttp(SafeHttpCustomizer customizer) {
-        super.rawHttp(customizer); return self();
-    }
-    @Override
-    public PasskeyStepDslConfigurer disableCsrf() {
-        super.disableCsrf(); return self();
-    }
-    @Override
-    public PasskeyStepDslConfigurer cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
-        super.cors(customizer); return self();
-    }
-    @Override
-    public PasskeyStepDslConfigurer headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
-        super.headers(customizer); return self();
-    }
-    @Override
-    public PasskeyStepDslConfigurer sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
-        super.sessionManagement(customizer); return self();
-    }
-    @Override
-    public PasskeyStepDslConfigurer logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
-        super.logout(customizer); return self();
+        super.rawHttp(customizer);
+        return self();
     }
 
     @Override
-    public PasskeyStepDslConfigurer order(int order) {
-        // OptionsBuilder는 order를 직접 다루지 않음
+    public PasskeyStepDslConfigurer disableCsrf() {
+        super.disableCsrf();
         return self();
     }
+
+    @Override
+    public PasskeyStepDslConfigurer cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
+        super.cors(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyStepDslConfigurer headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
+        super.headers(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyStepDslConfigurer sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
+        super.sessionManagement(customizer);
+        return self();
+    }
+
+    @Override
+    public PasskeyStepDslConfigurer logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
+        super.logout(customizer);
+        return self();
+    }
+
+    // order() is part of StepDslConfigurer, not directly handled by OptionsBuilder.
+    // This method is here to satisfy the PasskeyStepDslConfigurer interface.
+    // The actual order is managed by the AbstractStepAwareDslConfigurer.
+    @Override
+    public PasskeyStepDslConfigurer order(int order) {
+        // This method should ideally not be called on an OptionsBuilderConfigurer.
+        // It's a responsibility of the StepAwareConfigurer.
+        // Returning self() to fulfill the interface contract.
+        return self();
+    }
+
+    @Override
+    public AuthenticationStepConfig toConfig() {
+        return null;
+    }
+
+    @Override
+    public int getOrder() {
+        return 0;
+    }
 }
+

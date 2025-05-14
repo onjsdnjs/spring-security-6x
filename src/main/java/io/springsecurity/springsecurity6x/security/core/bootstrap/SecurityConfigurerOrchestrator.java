@@ -46,7 +46,7 @@ public class SecurityConfigurerOrchestrator {
                     // 로깅 또는 적절한 예외 전파
                     // 특정 Flow의 특정 Configurer 에서 오류 발생 시 어떻게 처리할지 정책 필요
                     throw new RuntimeException(
-                            "Flow '" + fc.flow().typeName() + "' 구성 중 SecurityConfigurer '" +
+                            "Flow '" + fc.flow().getTypeName() + "' 구성 중 SecurityConfigurer '" +
                                     cfg.getClass().getSimpleName() + "' 적용 오류 발생", e);
                 }
             }

@@ -1,83 +1,72 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
-import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
-import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
+import org.springframework.util.Assert;
 
-import java.util.List;
 import java.util.Objects;
 
-/**
- * OTT(One-Time Token) 인증 옵션을 불변(immutable)으로 제공하는 클래스.
- */
 @Getter
-public final class OttOptions extends AbstractOptions {
+public final class OttOptions extends FactorAuthenticationOptions {
 
-    private final List<String> matchers;
-    private final String loginProcessingUrl;
-    private final String targetUrl;
-    private final String defaultSubmitPageUrl;
     private final String tokenGeneratingUrl;
+    private final String tokenParameterName;
+    private final String defaultSubmitPageUrl;
     private final boolean showDefaultSubmitPage;
-    private final OneTimeTokenService tokenService;
+    private final OneTimeTokenService oneTimeTokenService; // 직접 주입된 서비스
+    private final String oneTimeTokenServiceBeanName; // 빈 이름으로 조회할 경우
     private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
-    private final Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> rawOttLogin;
 
-    private OttOptions(Builder b) {
-        super(b);
-        this.matchers = List.copyOf(b.matchers);
-        this.loginProcessingUrl = b.loginProcessingUrl;
-        this.targetUrl = b.targetUrl;
-        this.defaultSubmitPageUrl = b.defaultSubmitPageUrl;
-        this.tokenGeneratingUrl = b.tokenGeneratingUrl;
-        this.showDefaultSubmitPage = b.showDefaultSubmitPage;
-        this.tokenService = b.tokenService;
-        this.tokenGenerationSuccessHandler = b.tokenGenerationSuccessHandler;
-        this.rawOttLogin = b.rawOttLogin;
+    private OttOptions(Builder builder) {
+        super(builder);
+        this.tokenGeneratingUrl = Objects.requireNonNull(builder.tokenGeneratingUrl, "tokenGeneratingUrl cannot be null");
+        this.tokenParameterName = Objects.requireNonNull(builder.tokenParameterName, "tokenParameterName cannot be null");
+        this.defaultSubmitPageUrl = builder.defaultSubmitPageUrl;
+        this.showDefaultSubmitPage = builder.showDefaultSubmitPage;
+        this.oneTimeTokenService = builder.oneTimeTokenService;
+        this.oneTimeTokenServiceBeanName = builder.oneTimeTokenServiceBeanName;
+        this.tokenGenerationSuccessHandler = builder.tokenGenerationSuccessHandler;
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static final class Builder extends AbstractOptions.Builder<OttOptions, Builder> {
-        private List<String> matchers = List.of("/**");
-        private String loginProcessingUrl = "/login/ott";
-        private String targetUrl = "";
-        private String defaultSubmitPageUrl = "/login/ott";
+    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<OttOptions, Builder> {
         private String tokenGeneratingUrl = "/ott/generate";
+        private String tokenParameterName = "token";
+        private String defaultSubmitPageUrl = "/login-ott";
         private boolean showDefaultSubmitPage = true;
-        private OneTimeTokenService tokenService;
+        private OneTimeTokenService oneTimeTokenService;
+        private String oneTimeTokenServiceBeanName;
         private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
-        private Customizer<OneTimeTokenLoginConfigurer<HttpSecurity>> rawOttLogin;
+
+        public Builder() {
+            super.processingUrl("/login/ott"); // OTT 코드 제출 URL 기본값 설정
+            super.targetUrl("/");
+        }
 
         @Override
         protected Builder self() {
             return this;
         }
 
-        public Builder loginProcessingUrl(String url) {
-            this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
+        public Builder tokenGeneratingUrl(String url) {
+            Assert.hasText(url, "tokenGeneratingUrl cannot be empty");
+            this.tokenGeneratingUrl = url;
             return this;
         }
 
-        public Builder targetUrl(String u) {
-            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
-            return self();
+        public Builder tokenParameterName(String name) {
+            Assert.hasText(name, "tokenParameterName cannot be empty");
+            this.tokenParameterName = name;
+            return this;
         }
 
         public Builder defaultSubmitPageUrl(String url) {
-            this.defaultSubmitPageUrl = Objects.requireNonNull(url, "defaultSubmitPageUrl must not be null");
-            return this;
-        }
-
-        public Builder tokenGeneratingUrl(String url) {
-            this.tokenGeneratingUrl = Objects.requireNonNull(url, "tokenGeneratingUrl must not be null");
+            this.defaultSubmitPageUrl = url;
             return this;
         }
 
@@ -86,25 +75,27 @@ public final class OttOptions extends AbstractOptions {
             return this;
         }
 
-        public Builder tokenService(OneTimeTokenService service) {
-            this.tokenService = Objects.requireNonNull(service, "tokenService must not be null");
+        public Builder oneTimeTokenService(OneTimeTokenService service) {
+            this.oneTimeTokenService = service;
+            this.oneTimeTokenServiceBeanName = null; // 직접 설정 시 빈 이름은 초기화
+            return this;
+        }
+
+        public Builder oneTimeTokenServiceBeanName(String beanName) {
+            this.oneTimeTokenServiceBeanName = beanName;
+            this.oneTimeTokenService = null; // 빈 이름 설정 시 직접 설정은 초기화
             return this;
         }
 
         public Builder tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
-            this.tokenGenerationSuccessHandler = Objects.requireNonNull(handler, "tokenGenerationSuccessHandler must not be null");
+            this.tokenGenerationSuccessHandler = handler;
             return this;
         }
 
         @Override
         public OttOptions build() {
-            if (matchers.isEmpty()) {
-                throw new IllegalStateException("At least one matcher is required");
-            }
-            // 기본 tokenService 설정
-            if (tokenService == null) {
-                tokenService = new InMemoryOneTimeTokenService();
-            }
+            Assert.isTrue(oneTimeTokenService != null || oneTimeTokenServiceBeanName != null,
+                    "Either oneTimeTokenService or oneTimeTokenServiceBeanName must be set for OTT options.");
             return new OttOptions(this);
         }
     }

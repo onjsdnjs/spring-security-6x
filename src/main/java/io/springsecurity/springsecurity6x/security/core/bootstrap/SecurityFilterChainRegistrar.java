@@ -40,7 +40,7 @@ public class SecurityFilterChainRegistrar {
         AtomicInteger idx = new AtomicInteger(0);
 
         for (FlowContext fc : flows) {
-            String beanName = fc.flow().typeName() + "SecurityFilterChain" + idx.incrementAndGet();
+            String beanName = fc.flow().getTypeName() + "SecurityFilterChain" + idx.incrementAndGet();
             BeanDefinition bd = createBeanDefinition(fc);
             registry.registerBeanDefinition(beanName, bd);
         }
@@ -73,7 +73,7 @@ public class SecurityFilterChainRegistrar {
             }
 
             return new OrderedSecurityFilterChain(
-                    Ordered.HIGHEST_PRECEDENCE + fc.flow().order(),
+                    Ordered.HIGHEST_PRECEDENCE + fc.flow().getOrder(),
                     built.getRequestMatcher(),
                     built.getFilters()
             );

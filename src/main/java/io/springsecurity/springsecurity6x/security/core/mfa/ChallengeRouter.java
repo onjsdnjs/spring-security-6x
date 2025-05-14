@@ -31,8 +31,8 @@ public class ChallengeRouter {
 
         // 응답 본문 구성
         Map<String, Object> body = new HashMap<>();
-        body.put("sessionId", ctx.sessionId());
-        body.put("state", ctx.currentState().name());
+        body.put("sessionId", ctx.getMfaSessionId());
+        body.put("state", ctx.getCurrentState().name());
         body.put("challenge", challenge);
 
         // JSON 직렬화

@@ -55,11 +55,11 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
             return;
         }
         AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.OTT.name().equalsIgnoreCase(s.type()))
+                .filter(s -> AuthType.OTT.name().equalsIgnoreCase(s.getType()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("OTT step config missing"));
 
-        OttOptions opts = (OttOptions) myStep.options().get("_options");
+        OttOptions opts = (OttOptions) myStep.getOptions().get("_options");
         int idx = steps.indexOf(myStep);
         boolean last = idx == steps.size() - 1;
         Supplier<TokenService> tokenSupplier = () ->
@@ -88,10 +88,10 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
         // one-time-token 로그인 DSL 적용
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
-                    .loginProcessingUrl(opts.getLoginProcessingUrl())
+                    .loginProcessingUrl(opts.getProcessingUrl())
                     .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
-                    .tokenService(opts.getTokenService())
+                    .tokenService(opts.getOneTimeTokenService())
                     .tokenGenerationSuccessHandler(successHandler);
         });
     }

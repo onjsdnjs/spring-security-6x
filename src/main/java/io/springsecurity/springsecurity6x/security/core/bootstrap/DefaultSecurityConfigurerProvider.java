@@ -53,11 +53,11 @@ public class DefaultSecurityConfigurerProvider implements SecurityConfigurerProv
 
         List<SecurityConfigurer> configurers = new ArrayList<>(this.baseConfigurers);
         // 2. AuthenticationFeature 기반 Configurer 추가
-        featureRegistry.getAuthFeaturesFor(platformConfig.flows())
+        featureRegistry.getAuthFeaturesFor(platformConfig.getFlows())
                 .forEach(feature -> configurers.add(new AuthFeatureConfigurerAdapter(feature)));
 
         // 3. StateFeature 기반 Configurer 추가
-        featureRegistry.getStateFeaturesFor(platformConfig.flows())
+        featureRegistry.getStateFeaturesFor(platformConfig.getFlows())
                 .forEach(stateFeature -> configurers.add(new StateFeatureConfigurerAdapter(stateFeature, platformContext)));
 
         // 필요에 따라 다른 유형의 SecurityConfigurer를 동적으로 추가할 수 있습니다.

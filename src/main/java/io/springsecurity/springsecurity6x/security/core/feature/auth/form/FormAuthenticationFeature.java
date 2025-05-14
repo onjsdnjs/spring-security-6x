@@ -41,11 +41,11 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
         if (steps == null || steps.isEmpty()) return;
 
         AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.FORM.name().equalsIgnoreCase(s.type()))
+                .filter(s -> AuthType.FORM.name().equalsIgnoreCase(s.getType()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Form step config missing"));
 
-        FormOptions opts = (FormOptions) myStep.options().get("_options");
+        FormOptions opts = (FormOptions) myStep.getOptions().get("_options");
         int idx = steps.indexOf(myStep);
         boolean last = idx == steps.size() - 1;
         Supplier<TokenService> tokenSupplier = () ->
@@ -82,7 +82,7 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
             }
         });
 
-        List<Customizer<HttpSecurity>> httpCustomizers = opts.rawHttpCustomizers();
+        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
         for (Customizer<HttpSecurity> customizer : httpCustomizers) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }

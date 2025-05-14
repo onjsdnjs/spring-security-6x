@@ -47,11 +47,11 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
             return;
         }
         AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.REST.name().equalsIgnoreCase(s.type()))
+                .filter(s -> AuthType.REST.name().equalsIgnoreCase(s.getType()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Form step config missing"));
 
-        RestOptions opts = (RestOptions) myStep.options().get("_options");
+        RestOptions opts = (RestOptions) myStep.getOptions().get("_options");
         int idx = steps.indexOf(myStep);
         boolean last = idx == steps.size() - 1;
         Supplier<TokenService> tokenSupplier = () -> http.getSharedObject(TokenService.class);
@@ -80,7 +80,7 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
 
         });
 
-        for (Customizer<HttpSecurity> customizer : opts.rawHttpCustomizers()) {
+        for (Customizer<HttpSecurity> customizer : opts.getRawHttpCustomizers()) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }

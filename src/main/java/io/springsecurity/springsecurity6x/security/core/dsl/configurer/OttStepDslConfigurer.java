@@ -15,5 +15,4 @@ public interface OttStepDslConfigurer extends StepDslConfigurer, OptionsBuilderD
     OttStepDslConfigurer tokenService(OneTimeTokenService service);
     OttStepDslConfigurer tokenServiceBeanName(String beanName);
     OttStepDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler);
-    OttStepDslConfigurer order(int order);
 }

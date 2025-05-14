@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,3 +28,4 @@ public class SessionFactorContextManager implements FactorContextManager {
         req.getSession().removeAttribute(ATTR);
     }
 }
+*/

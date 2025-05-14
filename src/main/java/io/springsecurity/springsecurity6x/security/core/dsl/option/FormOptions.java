@@ -1,144 +1,103 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.util.Assert;
 
-import java.util.List;
 import java.util.Objects;
 
-/**
- * Form 인증 방식 전용 옵션 (AbstractOptions 상속)
- */
 @Getter
-public final class FormOptions extends AbstractOptions {
+public final class FormOptions extends FactorAuthenticationOptions {
+
     private final String loginPage;
-    private final String loginProcessingUrl;
-    private final String targetUrl;
     private final String usernameParameter;
     private final String passwordParameter;
     private final String defaultSuccessUrl;
-    private final boolean isAlwaysUseDefaultSuccessUrl;
-    private final boolean isPermitAll;
     private final String failureUrl;
-    private final AuthenticationSuccessHandler successHandler;
-    private final AuthenticationFailureHandler failureHandler;
+    private final boolean permitAll;
+    private final boolean alwaysUseDefaultSuccessUrl;
     private final SecurityContextRepository securityContextRepository;
-    /**
-     * -- GETTER --
-     *  raw FormLoginConfigurer 커스터마이저를 반환합니다.
-     */
-    private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
 
+    private FormOptions(Builder builder) {
+        super(builder);
+        this.loginPage = builder.loginPage;
+        this.usernameParameter = Objects.requireNonNull(builder.usernameParameter, "usernameParameter cannot be null");
+        this.passwordParameter = Objects.requireNonNull(builder.passwordParameter, "passwordParameter cannot be null");
+        this.securityContextRepository = builder.securityContextRepository;
+        this.defaultSuccessUrl = builder.defaultSuccessUrl;
+        this.failureUrl = builder.failureUrl;
+        this.permitAll = builder.permitAll;
+        this.alwaysUseDefaultSuccessUrl = builder.alwaysUseDefaultSuccessUrl;
+    }
 
-    private FormOptions(Builder b) {
-        super(b);
-        this.loginPage = b.loginPage;
-        this.loginProcessingUrl = b.loginProcessingUrl;
-        this.targetUrl = b.targetUrl;
-        this.usernameParameter = b.usernameParameter;
-        this.passwordParameter = b.passwordParameter;
-        this.defaultSuccessUrl = b.defaultSuccessUrl;
-        this.isAlwaysUseDefaultSuccessUrl = b.isAlwaysUseDefaultSuccessUrl;
-        this.isPermitAll = b.isPermitAll;
-        this.failureUrl = b.failureUrl;
-        this.successHandler = b.successHandler;
-        this.failureHandler = b.failureHandler;
-        this.securityContextRepository = b.securityContextRepository;
-        this.rawFormLogin = b.rawFormLogin;
+    public String getLoginProcessingUrl() {
+        return super.getProcessingUrl();
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static final class Builder extends AbstractOptions.Builder<FormOptions, Builder> {
+
+
+    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<FormOptions, Builder> {
         private String loginPage = "/login";
-        private String loginProcessingUrl = "/login";
-        private String targetUrl = "";
         private String usernameParameter = "username";
         private String passwordParameter = "password";
-        private String defaultSuccessUrl = "/";
-        private boolean isAlwaysUseDefaultSuccessUrl = false;
-        private boolean isPermitAll = false;
-        private String failureUrl = "/login?error";
-        private AuthenticationSuccessHandler successHandler;
-        private AuthenticationFailureHandler failureHandler;
+        private String defaultSuccessUrl = "password";
+        private String failureUrl = "password";
+        private boolean permitAll = false;
+        private boolean alwaysUseDefaultSuccessUrl = false;
         private SecurityContextRepository securityContextRepository;
-        private Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLogin;
+
+        public Builder() {
+            super.processingUrl("/login");
+            super.targetUrl("/");
+        }
 
         @Override
         protected Builder self() {
             return this;
         }
 
-        public Builder securityMatchers(List<String> m) {
-            return self();
+        public Builder loginPage(String loginPage) {
+            this.loginPage = loginPage;
+            return this;
         }
 
-        public Builder loginPage(String u) {
-            this.loginPage = Objects.requireNonNull(u, "loginPage must not be null");
-            return self();
+        public Builder usernameParameter(String usernameParameter) {
+            Assert.hasText(usernameParameter, "usernameParameter cannot be empty");
+            this.usernameParameter = usernameParameter;
+            return this;
         }
 
-        public Builder loginProcessingUrl(String u) {
-            this.loginProcessingUrl = Objects.requireNonNull(u, "loginProcessingUrl must not be null");
-            return self();
+        public Builder passwordParameter(String passwordParameter) {
+            Assert.hasText(passwordParameter, "passwordParameter cannot be empty");
+            this.passwordParameter = passwordParameter;
+            return this;
         }
 
-        public Builder targetUrl(String u) {
-            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
-            return self();
+        public Builder securityContextRepository(SecurityContextRepository securityContextRepository) {
+            this.securityContextRepository = securityContextRepository;
+            return this;
         }
 
-        public Builder usernameParameter(String p) {
-            this.usernameParameter = Objects.requireNonNull(p, "usernameParameter must not be null");
-            return self();
+        public void defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
+            this.defaultSuccessUrl = defaultSuccessUrl;
+            this.alwaysUseDefaultSuccessUrl = alwaysUse;
         }
 
-        public Builder passwordParameter(String p) {
-            this.passwordParameter = Objects.requireNonNull(p, "passwordParameter must not be null");
-            return self();
+        public void failureUrl(String failureUrl) {
+            this.failureUrl = failureUrl;
         }
 
-        public Builder defaultSuccessUrl(String u, boolean alwaysUse) {
-            this.defaultSuccessUrl = Objects.requireNonNull(u, "defaultSuccessUrl must not be null");
-            this.isAlwaysUseDefaultSuccessUrl = alwaysUse;
-            return self();
+        public void permitAll() {
+            this.permitAll = true;
         }
 
-        public Builder isPermitAll() {
-            this.isPermitAll = true;
-            return self();
-        }
-
-        public Builder failureUrl(String u) {
-            this.failureUrl = Objects.requireNonNull(u, "failureUrl must not be null");
-            return self();
-        }
-
-        public Builder successHandler(AuthenticationSuccessHandler h) {
-            this.successHandler = Objects.requireNonNull(h, "successHandler must not be null");
-            return self();
-        }
-
-        public Builder failureHandler(AuthenticationFailureHandler h) {
-            this.failureHandler = Objects.requireNonNull(h, "failureHandler must not be null");
-            return self();
-        }
-
-        public Builder securityContextRepository(SecurityContextRepository r) {
-            this.securityContextRepository = Objects.requireNonNull(r, "securityContextRepository must not be null");
-            return self();
-        }
-
-        public Builder rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> c) {
-            this.rawFormLogin = Objects.requireNonNull(c, "rawFormLogin customizer must not be null");
-            return self();
+        public void alwaysUseDefaultSuccessUr(boolean alwaysUseDefaultSuccessUrl) {
+            this.alwaysUseDefaultSuccessUrl = alwaysUseDefaultSuccessUrl;
         }
 
         @Override
@@ -147,6 +106,7 @@ public final class FormOptions extends AbstractOptions {
         }
     }
 }
+
 
 
 

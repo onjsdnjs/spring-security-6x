@@ -1,73 +1,58 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
-import lombok.Builder;
+import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-import java.util.List;
-import java.util.Objects;
-
-/**
- * REST API 로그인 인증 옵션을 immutable 으로 제공하는 클래스.
- */
 @Getter
-public final class RestOptions extends AbstractOptions {
+public final class RestOptions extends FactorAuthenticationOptions {
 
-    private final String loginProcessingUrl;
-    private final String targetUrl;
-    private final AuthenticationSuccessHandler successHandler;
-    private final AuthenticationFailureHandler failureHandler;
+    private final String usernameParameter;
+    private final String passwordParameter;
     private final SecurityContextRepository securityContextRepository;
 
-    private RestOptions(Builder b) {
-        super(b);
-        this.loginProcessingUrl = b.loginProcessingUrl;
-        this.targetUrl = b.targetUrl;
-        this.successHandler = b.successHandler;
-        this.failureHandler = b.failureHandler;
-        this.securityContextRepository = b.securityContextRepository;
+    private RestOptions(Builder builder) {
+        super(builder);
+        this.usernameParameter = builder.usernameParameter;
+        this.passwordParameter = builder.passwordParameter;
+        this.securityContextRepository = builder.securityContextRepository;
+    }
+
+    public String getLoginProcessingUrl() {
+        return super.getProcessingUrl();
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static final class Builder extends AbstractOptions.Builder<RestOptions, Builder> {
-        private String loginProcessingUrl = "/api/auth/login";
-        private String targetUrl = "";
-        private AuthenticationSuccessHandler successHandler;
-        private AuthenticationFailureHandler failureHandler;
+    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<RestOptions, Builder> {
+        private String usernameParameter = "username";
+        private String passwordParameter = "password";
         private SecurityContextRepository securityContextRepository;
+
+        public Builder() {
+            super.processingUrl("/api/auth/login"); // REST 로그인 처리 URL 기본값 설정
+            super.targetUrl("/");
+        }
 
         @Override
         protected Builder self() {
             return this;
         }
 
-        public Builder loginProcessingUrl(String url) {
-            this.loginProcessingUrl = Objects.requireNonNull(url, "loginProcessingUrl must not be null");
+        public Builder usernameParameter(String usernameParameter) {
+            this.usernameParameter = usernameParameter;
             return this;
         }
 
-        public Builder targetUrl(String u) {
-            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
-            return self();
-        }
-
-        public Builder successHandler(AuthenticationSuccessHandler handler) {
-            this.successHandler = handler;
+        public Builder passwordParameter(String passwordParameter) {
+            this.passwordParameter = passwordParameter;
             return this;
         }
 
-        public Builder failureHandler(AuthenticationFailureHandler handler) {
-            this.failureHandler = handler;
-            return this;
-        }
-
-        public Builder securityContextRepository(SecurityContextRepository repo) {
-            this.securityContextRepository = repo;
+        public Builder securityContextRepository(SecurityContextRepository securityContextRepository) {
+            this.securityContextRepository = securityContextRepository;
             return this;
         }
 
@@ -77,4 +62,5 @@ public final class RestOptions extends AbstractOptions {
         }
     }
 }
+
 

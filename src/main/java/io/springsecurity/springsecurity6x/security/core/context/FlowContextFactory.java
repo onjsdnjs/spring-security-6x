@@ -27,7 +27,7 @@ public class FlowContextFactory {
 
     public List<FlowContext> createAndSortFlows(PlatformConfig config, PlatformContext platformContext) {
         List<FlowContext> flows = new ArrayList<>();
-        for (AuthenticationFlowConfig flowCfg : config.flows()) {
+        for (AuthenticationFlowConfig flowCfg : config.getFlows()) {
             HttpSecurity http = platformContext.newHttp(); // 새로운 HttpSecurity 인스턴스 생성
             platformContext.registerHttp(flowCfg, http); // PlatformContext에 현재 Flow와 HttpSecurity 매핑 등록
 
@@ -41,7 +41,7 @@ public class FlowContextFactory {
             setupSharedObjectsForFlow(fc); // 변경된 메소드 호출
             flows.add(fc);
         }
-        flows.sort(Comparator.comparingInt(f -> f.flow().order()));
+        flows.sort(Comparator.comparingInt(f -> f.flow().getOrder()));
         log.info("{} FlowContext(s) created and sorted.", flows.size());
         return flows;
     }
@@ -55,18 +55,18 @@ public class FlowContextFactory {
         HttpSecurity http = fc.http();
         AuthenticationFlowConfig flowConfig = fc.flow();
 
-        log.debug("Setting up shared objects for flow: {}", flowConfig.typeName());
+        log.debug("Setting up shared objects for flow: {}", flowConfig.getTypeName());
 
         // CSRF, CORS 등은 GlobalConfigurer 또는 각 Feature 내에서 HttpSecurity에 직접 적용되므로 여기서 제외.
         // 여기서는 주로 MFA 흐름에 필요한 객체들을 설정합니다.
 
         // MFA 흐름이거나, 단일 단계라도 MFA 요소(예: 커스텀 필터에서 FactorContext 사용)를 사용할 가능성이 있다면 설정
         // 좀 더 명확하게는, DSL 에서 mfa {} 블록을 사용했거나, 특정 feature가 MFA 컨텍스트를 요구한다고 명시된 경우로 제한 가능
-        boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.typeName());
+        boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.getTypeName());
         // TODO: 또는, flowConfig.requiresMfaContext() 와 같은 플래그를 두어 더 명시적으로 제어 가능
 
         if (isMfaFlow) {
-            log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.typeName());
+            log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
 
             // 람다를 사용하여 지연 초기화 및 객체 재사용 방지 (HttpSecurity 인스턴스별로 새로 생성)
             setSharedObjectIfAbsent(http, ContextPersistence.class, HttpSessionContextPersistence::new);
@@ -87,9 +87,9 @@ public class FlowContextFactory {
             setSharedObjectIfAbsent(http, TrustedDeviceService.class, DefaultTrustedDeviceService::new); // DefaultTrustedDeviceService는 예시
             setSharedObjectIfAbsent(http, RecoveryService.class, DefaultRecoveryService::new); // DefaultRecoveryService는 예시
 
-            log.info("MFA specific shared objects configured for flow: {}", flowConfig.typeName());
+            log.info("MFA specific shared objects configured for flow: {}", flowConfig.getTypeName());
         } else {
-            log.debug("Non-MFA flow or MFA objects not explicitly required for flow: {}", flowConfig.typeName());
+            log.debug("Non-MFA flow or MFA objects not explicitly required for flow: {}", flowConfig.getTypeName());
         }
     }
 

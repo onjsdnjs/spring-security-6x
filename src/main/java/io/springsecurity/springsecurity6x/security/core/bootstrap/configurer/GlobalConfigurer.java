@@ -24,7 +24,7 @@ public class GlobalConfigurer implements SecurityConfigurer {
         try {
             customizer.customize(ctx.http());
         } catch (Exception ex) {
-            log.warn("Global customizer failed for flow: {}", ctx.flow().typeName(), ex);
+            log.warn("Global customizer failed for flow: {}", ctx.flow().getTypeName(), ex);
         }
     }
 

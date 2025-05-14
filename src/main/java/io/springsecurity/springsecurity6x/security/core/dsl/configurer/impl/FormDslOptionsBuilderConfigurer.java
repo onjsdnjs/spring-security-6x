@@ -37,7 +37,7 @@ public class FormDslOptionsBuilderConfigurer
 
     @Override
     public FormDslConfigurer loginProcessingUrl(String loginProcessingUrl) {
-        this.optionsBuilder.loginProcessingUrl(loginProcessingUrl);
+        this.optionsBuilder.processingUrl(loginProcessingUrl);
         return self();
     }
 

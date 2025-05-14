@@ -44,11 +44,11 @@ public class PasskeyAuthenticationFeature implements AuthenticationFeature {
         }
 
         AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.PASSKEY.name().equalsIgnoreCase(s.type()))
+                .filter(s -> AuthType.PASSKEY.name().equalsIgnoreCase(s.getType()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Passkey step config missing"));
 
-        PasskeyOptions opts = (PasskeyOptions) myStep.options().get("_options");
+        PasskeyOptions opts = (PasskeyOptions) myStep.getOptions().get("_options");
         int idx = steps.indexOf(myStep);
         boolean last = idx == steps.size() - 1;
         Supplier<TokenService> tokenSupplier = () ->

@@ -28,7 +28,7 @@ public class PlatformBootstrap implements InitializingBean {
     @Override
     public void afterPropertiesSet() throws Exception {
 
-        List<AuthenticationFlowConfig> flows = config.flows();
+        List<AuthenticationFlowConfig> flows = config.getFlows();
         List<AuthenticationFeature> features = registry.getAuthFeaturesFor(flows);
 
         platform.prepareGlobal(config, features);

@@ -1,36 +1,27 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.util.Assert;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
-/**
- * Passkey(WebAuthn) 인증 옵션을 immutable으로 제공하는 클래스.
- */
 @Getter
-public final class PasskeyOptions extends AbstractOptions {
+public final class PasskeyOptions extends FactorAuthenticationOptions {
 
+    private final String assertionOptionsEndpoint;
     private final String rpName;
     private final String rpId;
     private final Set<String> allowedOrigins;
-    private final String targetUrl;
-    private final AuthenticationSuccessHandler successHandler;
-    private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
 
     private PasskeyOptions(Builder builder) {
         super(builder);
-        this.rpName = Objects.requireNonNull(builder.rpName);
-        this.rpId = Objects.requireNonNull(builder.rpId);
-        this.allowedOrigins = Set.copyOf(builder.allowedOrigins);
-        this.targetUrl = builder.targetUrl;
-        this.successHandler = builder.successHandler;
-        this.failureHandler = builder.failureHandler;
+        this.assertionOptionsEndpoint = Objects.requireNonNull(builder.assertionOptionsEndpoint, "assertionOptionsEndpoint cannot be null");
+        this.rpName = Objects.requireNonNull(builder.rpName, "rpName must not be null");
+        this.rpId = Objects.requireNonNull(builder.rpId, "rpId must not be null");
+        this.allowedOrigins = builder.allowedOrigins != null ? Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins)) : Collections.emptySet();
         this.securityContextRepository = builder.securityContextRepository;
     }
 
@@ -38,48 +29,43 @@ public final class PasskeyOptions extends AbstractOptions {
         return new Builder();
     }
 
-    public static class Builder extends AbstractOptions.Builder<PasskeyOptions, Builder> {
-        private List<String> matchers = List.of("/**");
-        private String rpName = "SecureApp";
-        private String rpId = "localhost";
-        private List<String> allowedOrigins = List.of("http://localhost:8080");
-        private String targetUrl = "";
-        private AuthenticationSuccessHandler successHandler;
-        private AuthenticationFailureHandler failureHandler;
+    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<PasskeyOptions, Builder> {
+        private String assertionOptionsEndpoint = "/webauthn/assertion/options"; // 기본 Assertion Options 요청 URL
+        private String rpName = "My Application";
+        private String rpId; // 사용자가 반드시 설정
+        private List<String> allowedOrigins = new ArrayList<>();
         private SecurityContextRepository securityContextRepository;
+
+        public Builder() {
+            super.processingUrl("/login/webauthn"); // Assertion 검증 URL 기본값 설정
+            super.targetUrl("/");
+        }
 
         @Override
         protected Builder self() {
             return this;
         }
 
+        public Builder assertionOptionsEndpoint(String url) {
+            Assert.hasText(url, "assertionOptionsEndpoint cannot be empty");
+            this.assertionOptionsEndpoint = url;
+            return this;
+        }
+
         public Builder rpName(String rpName) {
-            this.rpName = Objects.requireNonNull(rpName, "rpName must not be null");
+            Assert.hasText(rpName, "rpName cannot be empty");
+            this.rpName = rpName;
             return this;
         }
 
         public Builder rpId(String rpId) {
-            this.rpId = Objects.requireNonNull(rpId, "rpId must not be null");
+            Assert.hasText(rpId, "rpId cannot be empty");
+            this.rpId = rpId;
             return this;
         }
 
         public Builder allowedOrigins(List<String> origins) {
-            this.allowedOrigins = List.copyOf(Objects.requireNonNull(origins, "allowedOrigins must not be null"));
-            return this;
-        }
-
-        public Builder targetUrl(String u) {
-            this.targetUrl = Objects.requireNonNull(u, "targetUrl must not be null");
-            return self();
-        }
-
-        public Builder successHandler(AuthenticationSuccessHandler handler) {
-            this.successHandler = handler;
-            return this;
-        }
-
-        public Builder failureHandler(AuthenticationFailureHandler handler) {
-            this.failureHandler = handler;
+            this.allowedOrigins = (origins != null) ? new ArrayList<>(origins) : new ArrayList<>();
             return this;
         }
 
@@ -90,12 +76,9 @@ public final class PasskeyOptions extends AbstractOptions {
 
         @Override
         public PasskeyOptions build() {
-            if (matchers == null || matchers.isEmpty()) {
-                throw new IllegalStateException("At least one matcher is required");
-            }
+            Assert.hasText(rpId, "RP ID (rpId) must be configured for Passkey options.");
             return new PasskeyOptions(this);
         }
     }
 }
-
 

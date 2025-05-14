@@ -1,39 +1,24 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.ott.OttFactorOptions;
-import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.Assert;
-import org.springframework.util.function.ThrowingConsumer;
 
-/**
- * DSL 구현체: OTT 인증 스텝 설정
- */
-public class OttDslConfigurerImpl
+public class OttFactorDslConfigurerImpl
         extends AbstractOptionsBuilderConfigurer<OttFactorOptions, OttFactorOptions.Builder, OttFactorDslConfigurer>
         implements OttFactorDslConfigurer {
 
     private final ApplicationContext applicationContext;
 
-    public OttDslConfigurerImpl(ApplicationContext applicationContext) {
-        super(OttFactorOptions.builder());
+    public OttFactorDslConfigurerImpl(ApplicationContext applicationContext) {
+        super(OttFactorOptions.builder()); // OttFactorOptions에 Builder 추가 필요
         this.applicationContext = applicationContext;
     }
 
@@ -56,7 +41,7 @@ public class OttDslConfigurerImpl
     @Override
     public OttFactorDslConfigurer tokenService(OneTimeTokenService oneTimeTokenService) {
         Assert.notNull(oneTimeTokenService, "oneTimeTokenService cannot be null");
-        this.optionsBuilder.oneTimeTokenService(oneTimeTokenService);
+        this.optionsBuilder.oneTimeTokenService(oneTimeTokenService); // OttFactorOptions.Builder에 추가
         return this;
     }
 
@@ -73,14 +58,13 @@ public class OttDslConfigurerImpl
 
     @Override
     public OttFactorDslConfigurer tokenGeneratingUrl(String url) {
-        this.optionsBuilder.tokenGeneratingUrl(url);
+        this.optionsBuilder.tokenGeneratingUrl(url); // OttFactorOptions.Builder에 추가
         return this;
     }
 
     @Override
     public OttFactorDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
-        this.optionsBuilder.tokenGenerationSuccessHandler(handler);
+        this.optionsBuilder.tokenGenerationSuccessHandler(handler); // OttFactorOptions.Builder에 추가
         return this;
     }
 }
-

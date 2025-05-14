@@ -1,6 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.dsl;
+package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
@@ -8,16 +8,12 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 
-/**
- * 다양한 DSL Configurer 들이 공통적으로 제공하는 상위 레벨 HttpSecurity 설정 메소드.
- * 실제 설정 적용은 빌드된 Options 객체의 applyCommon 메소드 또는 Feature에서 이루어집니다.
- * @param <S> Self-type
- */
-public interface CommonSecurityDsl<S extends CommonSecurityDsl<S>> {
+public interface OptionsBuilderDsl<O extends AbstractOptions, S extends OptionsBuilderDsl<O, S>> {
+    S rawHttp(SafeHttpCustomizer customizer);
     S disableCsrf();
     S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer);
     S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer);
     S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
-    S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer); // 추가
-    S rawHttp(SafeHttpCustomizer customizer); // OptionsBuilderDsl로 이동했으므로 여기서 제거하거나 중복 유지 (여기서는 중복 유지)
+    S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
+    O buildConcreteOptions();
 }

@@ -6,7 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.MfaDslConfigurer;
 import org.springframework.security.config.Customizer;
 
 /**

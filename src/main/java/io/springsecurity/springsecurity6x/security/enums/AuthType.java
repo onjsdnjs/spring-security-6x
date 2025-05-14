@@ -5,5 +5,6 @@ public enum AuthType {
     REST,
     PASSKEY,
     OTT,
-    MFA
+    MFA,
+    RECOVERY_CODE
 }

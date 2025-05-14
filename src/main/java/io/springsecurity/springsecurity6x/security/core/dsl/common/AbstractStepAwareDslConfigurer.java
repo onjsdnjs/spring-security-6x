@@ -5,8 +5,6 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.StepDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import java.util.Objects;
 
-// OBI는 OptionsBuilderDsl을 구현하는 구체적인 OptionsBuilderConfigurer 타입이어야 함
-// S는 StepDslConfigurer를 구현하는 구체적인 StepAware Configurer 인터페이스 타입이어야 함
 public abstract class AbstractStepAwareDslConfigurer<
         O extends AbstractOptions, // 최종 빌드될 Options 타입
         B extends AbstractOptions.Builder<O, B>, // Options의 Builder 타입

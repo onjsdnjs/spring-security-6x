@@ -1,27 +1,15 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.ott.OttFactorOptions;
-import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.Assert;
-import org.springframework.util.function.ThrowingConsumer;
 
 /**
  * DSL 구현체: OTT 인증 스텝 설정
@@ -75,6 +63,17 @@ public class OttDslConfigurerImpl
     public OttFactorDslConfigurer tokenGeneratingUrl(String url) {
         this.optionsBuilder.tokenGeneratingUrl(url);
         return this;
+    }
+
+    @Override
+    public OttFactorDslConfigurer defaultSubmitPageUrl(String url) {
+        this.optionsBuilder.defaultSubmitPageUrl(url);
+        return null;
+    }
+
+    @Override
+    public OttFactorDslConfigurer showDefaultSubmitPage(boolean show) {
+        return null;
     }
 
     @Override

@@ -5,6 +5,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -12,6 +14,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.function.ThrowingConsumer;
 
+@Slf4j
 public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Builder, RestDslConfigurer> implements RestDslConfigurer {
 
     public RestDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
@@ -74,7 +77,9 @@ public class RestDslConfigurerImpl extends AbstractDslConfigurer<RestOptions.Bui
             try {
                 safe.customize(http);
             } catch (Exception e) {
-                System.err.println("Rest customizer exception: " + e.getMessage());
+                log.error("Error during raw FormLoginConfigurer customization: {}", e.getMessage());
+                log.error(e.getMessage(), e);
+                throw new DslConfigurationException(e.getMessage(), e);
             }
         };
     }

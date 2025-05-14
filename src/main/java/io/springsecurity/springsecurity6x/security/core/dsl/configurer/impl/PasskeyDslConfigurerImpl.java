@@ -3,16 +3,17 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.function.ThrowingConsumer;
 
 import java.util.List;
 
-
+@Slf4j
 public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyOptions.Builder, PasskeyDslConfigurer> implements PasskeyDslConfigurer {
 
     private int order = 0;
@@ -74,7 +75,9 @@ public class PasskeyDslConfigurerImpl extends AbstractDslConfigurer<PasskeyOptio
             try {
                 safe.customize(http);
             } catch (Exception e) {
-                System.err.println("Passkey raw customizer exception: " + e.getMessage());
+                log.error("Error during raw FormLoginConfigurer customization: {}", e.getMessage());
+                log.error(e.getMessage(), e);
+                throw new DslConfigurationException(e.getMessage(), e);
             }
         };
     }

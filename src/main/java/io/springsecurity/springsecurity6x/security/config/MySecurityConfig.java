@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.config;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,14 @@ public class MySecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    /**
+     * ModelMapper bean
+     */
+    @Bean
+    public ModelMapper modelMapper() {
+        return new ModelMapper();
     }
 
 }

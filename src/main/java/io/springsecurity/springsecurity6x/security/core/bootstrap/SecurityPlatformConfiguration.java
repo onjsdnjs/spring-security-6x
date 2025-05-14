@@ -68,39 +68,20 @@ public class SecurityPlatformConfiguration {
         );
     }
 
-    /**
-     * SecurityPlatform bean 생성
-     * staticConfigurers: 플랫폼 기본 설정들
-     * featureRegistry: 인증 및 상태 Feature 레지스트리
-     */
-    /*@Bean
-    public SecurityPlatform securityPlatform(PlatformContext context,AuthContextProperties properties,
-                                             List<SecurityConfigurer> staticConfigurers,
-                                             FeatureRegistry featureRegistry) {
-        // 글로벌 공유 객체 설정
-        context.share(SecretKey.class, secretKey());
-        context.share(AuthContextProperties.class, properties);
-
-        return new SecurityPlatformInitializer(
-                context,
-                staticConfigurers,
-                featureRegistry,
-                new SecurityFilterChainRegistrar(featureRegistry,Map.of(
-                        "form",    UsernamePasswordAuthenticationFilter.class,
-                        "rest",    RestAuthenticationFilter.class,
-                        "ott",     AuthenticationFilter.class,
-                        "passkey", WebAuthnAuthenticationFilter.class
-                ))
-        );
-    }*/
+    @Bean
+    public PlatformContextInitializer platformContextInitializer(PlatformContext platformContext,
+                                                                 SecretKey secretKey,
+                                                                 AuthContextProperties authContextProperties) {
+        return new PlatformContextInitializer(platformContext, secretKey, authContextProperties);
+    }
 
     @Bean
     public SecurityPlatform securityPlatform(PlatformContext context,AuthContextProperties properties,
                                              List<SecurityConfigurer> staticConfigurers,
-                                             FeatureRegistry featureRegistry) {
-        // 글로벌 공유 객체 설정
-        context.share(SecretKey.class, secretKey());
-        context.share(AuthContextProperties.class, properties);
+                                             FeatureRegistry featureRegistry,
+                                             PlatformContextInitializer platformContextInitializer) {
+
+        platformContextInitializer.initializeSharedObjects();
 
         SecurityFilterChainRegistrar securityFilterChainRegistrar = new SecurityFilterChainRegistrar(featureRegistry, Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,
@@ -116,30 +97,23 @@ public class SecurityPlatformConfiguration {
                 new DuplicateMfaFlowValidator()
         ));
 
+        DefaultSecurityConfigurerProvider configurerProvider =
+                new DefaultSecurityConfigurerProvider(staticConfigurers, featureRegistry);
+
         return new SecurityPlatformInitializer(
                 context,
                 securityFilterChainRegistrar,
                 new FlowContextFactory(featureRegistry),
                 new DslValidatorService(dslValidator),
-                new SecurityConfigurerOrchestrator(new DefaultSecurityConfigurerProvider(staticConfigurers, featureRegistry))
+                new SecurityConfigurerOrchestrator(configurerProvider)
         );
     }
-    /**
-     * PlatformBootstrap bean
-     */
+
     @Bean
     public PlatformBootstrap platformBootstrap(SecurityPlatform securityPlatform,
                                                PlatformConfig platformConfig,
                                                FeatureRegistry registry) {
         return new PlatformBootstrap(securityPlatform, platformConfig, registry);
-    }
-
-    /**
-     * ModelMapper bean
-     */
-    @Bean
-    public ModelMapper modelMapper() {
-        return new ModelMapper();
     }
 }
 

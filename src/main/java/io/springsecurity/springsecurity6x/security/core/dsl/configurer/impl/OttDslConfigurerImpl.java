@@ -5,6 +5,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigure
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,6 +17,7 @@ import org.springframework.util.function.ThrowingConsumer;
 /**
  * DSL 구현체: OTT 인증 스텝 설정
  */
+@Slf4j
 public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Builder, OttDslConfigurer> implements OttDslConfigurer {
 
     private int order = 0;
@@ -94,8 +97,9 @@ public class OttDslConfigurerImpl extends AbstractDslConfigurer<OttOptions.Build
             try {
                 safe.customize(http);
             } catch (Exception e) {
-                // 내부 예외는 로깅 또는 무시
-                System.err.println("OTT raw customizer exception: " + e.getMessage());
+                log.error("Error during raw FormLoginConfigurer customization: {}", e.getMessage());
+                log.error(e.getMessage(), e);
+                throw new DslConfigurationException(e.getMessage(), e);
             }
         };
     }

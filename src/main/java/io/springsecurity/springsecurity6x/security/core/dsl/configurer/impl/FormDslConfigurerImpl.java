@@ -7,6 +7,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCusto
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
@@ -19,6 +21,7 @@ import org.springframework.util.function.ThrowingConsumer;
 /**
  * Form 로그인 DSL 구현체
  */
+@Slf4j
 public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Builder, FormDslConfigurer> implements FormDslConfigurer {
 
     public FormDslConfigurerImpl(AuthenticationStepConfig stepConfig) {
@@ -133,16 +136,17 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
 
     @Override
     public FormDslConfigurer rawLogin(SafeHttpFormLoginCustomizer customizer) {
-        return originRawLogin(wrapFormLOginSafe(customizer));
+        return originRawLogin(wrapSafeFormLoginCustomizer(customizer));
     }
 
-    private Customizer<FormLoginConfigurer<HttpSecurity>> wrapFormLOginSafe(SafeHttpFormLoginCustomizer safe) {
-        return http -> {
+    private Customizer<FormLoginConfigurer<HttpSecurity>> wrapSafeFormLoginCustomizer(SafeHttpFormLoginCustomizer safeCustomizer) {
+        return formLogin -> {
             try {
-                safe.customize(http);
+                safeCustomizer.customize(formLogin);
             } catch (Exception e) {
-                // 내부 로그 또는 무시
-                System.err.println("Global customizer exception: " + e.getMessage());
+                log.error("Error during raw FormLoginConfigurer customization: {}", e.getMessage());
+                log.error(e.getMessage(), e);
+                throw new DslConfigurationException(e.getMessage(), e);
             }
         };
     }
@@ -154,19 +158,22 @@ public class FormDslConfigurerImpl extends AbstractDslConfigurer<FormOptions.Bui
     public ThrowingConsumer<HttpSecurity> toFlowCustomizer() {
         return http -> {
             FormOptions optsBuilt = options.build();
+            // applyCommon은 AbstractOptions 에 있으며, 내부적으로 HttpSecurity 예외를 던질 수 있음.
+            // 필요시 AbstractOptions의 applyCommon 내의 개별 customizer.customize 호출도 try-catch로 감싸 DslConfigurationException 으로 래핑 가능.
             try {
-                optsBuilt.applyCommon(http);
+                optsBuilt.applyCommon(http); // 이 안에서 예외가 발생하면 DslConfigurationException 으로 변환되어야 함
             } catch (Exception e) {
-                // 예외는 내부에서 처리, 로그를 남기거나 무시
+                if (e instanceof DslConfigurationException) throw e;
+                String errorMessage = String.format("Error applying common options in FormDsl: %s", e.getMessage());
+                log.error(errorMessage, e);
+                throw new DslConfigurationException(errorMessage, e);
             }
+
             http.formLogin(form -> {
                 Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = optsBuilt.getRawFormLogin();
                 if (rawLogin != null) {
-                    try {
-                        rawLogin.customize(form);
-                    } catch (Exception ex) {
-                        // 내부 예외는 무시 또는 로깅
-                    }
+                    // rawLogin.customize(form) 호출은 이미 wrapSafeFormLoginCustomizer를 통해 예외처리 됨
+                    rawLogin.customize(form);
                 }
             });
         };

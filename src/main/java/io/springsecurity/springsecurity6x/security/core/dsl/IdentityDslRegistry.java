@@ -13,9 +13,12 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.Rest
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+@Slf4j
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
     public IdentityDslRegistry() {
@@ -24,16 +27,18 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
     @Override
     public SecurityPlatformDsl global(SafeHttpCustomizer customizer) {
-        platformBuilder.global(wrapSafe(customizer));
+        platformBuilder.global(wrapSafeGlobalCustomizer(customizer));
         return this;
     }
 
-    private Customizer<HttpSecurity> wrapSafe(SafeHttpCustomizer safe) {
+    private Customizer<HttpSecurity> wrapSafeGlobalCustomizer(SafeHttpCustomizer safeCustomizer) {
         return http -> {
             try {
-                safe.customize(http);
+                safeCustomizer.customize(http);
             } catch (Exception e) {
-                System.err.println("글로벌 커스터마이저 예외: " + e.getMessage());
+                String errorMessage = String.format("Error during global HttpSecurity customization: %s", e.getMessage());
+                log.error(errorMessage, e);
+                throw new DslConfigurationException(errorMessage, e);
             }
         };
     }

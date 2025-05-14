@@ -35,8 +35,12 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             } catch (Exception e) {
-                logoutHandler.logout(request, response, null);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token");
+                SecurityContextHolder.clearContext();
+                logoutHandler.logout(request, response, null); // logoutHandler가 응답을 커밋할 수 있음
+
+                if (!response.isCommitted()) { // 응답이 커밋되지 않았을 경우에만 sendError 호출
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid access token: " + e.getMessage());
+                }
                 return;
             }
         }

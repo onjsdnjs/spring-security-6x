@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class PlatformContextInitializer {
         log.debug("Initializing global shared objects in PlatformContext.");
         platformContext.share(SecretKey.class, secretKey);
         platformContext.share(AuthContextProperties.class, authContextProperties);
-        // 예: platformContext.share(ObjectMapper.class, new ObjectMapper().findAndRegisterModules());
+        platformContext.share(ObjectMapper.class, new ObjectMapper().findAndRegisterModules());
         log.info("Global shared objects (SecretKey, AuthContextProperties) registered in PlatformContext.");
     }
 }

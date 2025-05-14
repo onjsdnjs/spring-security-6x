@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import jakarta.servlet.Filter;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -32,40 +33,50 @@ import java.util.Map;
 @Configuration
 public class SecurityPlatformConfiguration {
 
-    /**
-     * JWT 서명을 위한 SecretKey bean
-     */
     @Bean
     public SecretKey secretKey() {
         return Keys.secretKeyFor(SignatureAlgorithm.HS256);
     }
 
-    /**
-     * PlatformContext bean 생성
-     */
     @Bean
     public PlatformContext platformContext(ApplicationContext ctx,
                                            ObjectProvider<HttpSecurity> provider) {
         return new DefaultPlatformContext(ctx, provider);
     }
 
-    /**
-     * FeatureRegistry bean
-     */
     @Bean
     public FeatureRegistry featureRegistry() {
         return new FeatureRegistry();
     }
 
-    /**
-     * 플랫폼 기본 Configurer 모음
-     */
     @Bean
     public List<SecurityConfigurer> staticConfigurers() {
         return List.of(
                 new FlowConfigurer(),
                 new GlobalConfigurer()
         );
+    }
+
+    @Bean
+    public SecurityFilterChainRegistrar securityFilterChainRegistrar(FeatureRegistry featureRegistry) {
+        // MFA 단계별 인증 필터 클래스 매핑
+        Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
+                "form", UsernamePasswordAuthenticationFilter.class,
+                "rest", RestAuthenticationFilter.class,
+                "ott", AuthenticationFilter.class,
+                "passkey", WebAuthnAuthenticationFilter.class
+        );
+        return new SecurityFilterChainRegistrar(featureRegistry, stepFilterClasses);
+    }
+
+    @Bean
+    public DslValidator dslValidator() {
+        return new DslValidator(List.of(
+                new DslSyntaxValidator(),
+                new DslSemanticValidator(),
+                new ConflictRiskAnalyzer(),
+                new DuplicateMfaFlowValidator()
+        ));
     }
 
     @Bean
@@ -76,26 +87,13 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public SecurityPlatform securityPlatform(PlatformContext context,AuthContextProperties properties,
+    public SecurityPlatform securityPlatform(PlatformContext context,DslValidator validator,
                                              List<SecurityConfigurer> staticConfigurers,
                                              FeatureRegistry featureRegistry,
-                                             PlatformContextInitializer platformContextInitializer) {
+                                             PlatformContextInitializer platformContextInitializer,
+                                             SecurityFilterChainRegistrar securityFilterChainRegistrar) {
 
         platformContextInitializer.initializeSharedObjects();
-
-        SecurityFilterChainRegistrar securityFilterChainRegistrar = new SecurityFilterChainRegistrar(featureRegistry, Map.of(
-                "form", UsernamePasswordAuthenticationFilter.class,
-                "rest", RestAuthenticationFilter.class,
-                "ott", AuthenticationFilter.class,
-                "passkey", WebAuthnAuthenticationFilter.class
-        ));
-
-        DslValidator dslValidator = new DslValidator(List.of(
-                new DslSyntaxValidator(),
-                new DslSemanticValidator(),
-                new ConflictRiskAnalyzer(),
-                new DuplicateMfaFlowValidator()
-        ));
 
         DefaultSecurityConfigurerProvider configurerProvider =
                 new DefaultSecurityConfigurerProvider(staticConfigurers, featureRegistry);
@@ -104,7 +102,7 @@ public class SecurityPlatformConfiguration {
                 context,
                 securityFilterChainRegistrar,
                 new FlowContextFactory(featureRegistry),
-                new DslValidatorService(dslValidator),
+                new DslValidatorService(validator),
                 new SecurityConfigurerOrchestrator(configurerProvider)
         );
     }

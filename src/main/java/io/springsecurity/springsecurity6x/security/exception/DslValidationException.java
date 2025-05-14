@@ -1,8 +1,9 @@
 package io.springsecurity.springsecurity6x.security.exception;
 
 /**
- * 토큰 검증(validation) 과정에서 문제가 발생했을 때 던지는 예외.
- * 주로 TokenService.refresh()에서 유효하지 않은 리프레시 토큰을 발견했을 때 사용.
+ * DSL(Domain Specific Language) 정의의 유효성 검사 과정에서
+ * 오류가 발견되었을 때 던져지는 예외입니다.
+ * 예를 들어, 설정 충돌, 필수 값 누락 등이 해당됩니다.
  */
 public class DslValidationException extends RuntimeException {
 

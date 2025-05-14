@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
+import io.springsecurity.springsecurity6x.security.utils.AuthUtil;
 import io.springsecurity.springsecurity6x.security.utils.WebUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -53,8 +54,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
             WebUtil.writeError(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "CONTEXT_LOAD_FAILURE", "MFA context could not be loaded.");
             return;
         }
-        // FactorContext.isTerminal()과 같은 메소드가 있다면 사용
-        if (ctx.getCurrentState() == null || ctx.getCurrentState().isTerminal()) { // getCurrentState() 사용 및 isTerminal() 가정
+        if (AuthUtil.isTerminalState(ctx.getCurrentState())) {
             chain.doFilter(req, res);
             return;
         }

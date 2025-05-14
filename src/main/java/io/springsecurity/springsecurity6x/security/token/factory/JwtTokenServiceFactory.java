@@ -14,6 +14,7 @@ import io.springsecurity.springsecurity6x.security.token.validator.JwtTokenValid
 import javax.crypto.SecretKey;
 
 public class JwtTokenServiceFactory {
+
     public static TokenService createService(PlatformContext ctx) {
 
         SecretKey key = ctx.getShared(SecretKey.class);

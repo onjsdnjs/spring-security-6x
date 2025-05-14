@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class DslSemanticValidator implements Validator<List<FlowContext>> {
     @Override
-    public ValidationResult validate(List<FlowContext> flows) throws Exception {
+    public ValidationResult validate(List<FlowContext> flows)  {
         return new ValidationResult();
     }
 }

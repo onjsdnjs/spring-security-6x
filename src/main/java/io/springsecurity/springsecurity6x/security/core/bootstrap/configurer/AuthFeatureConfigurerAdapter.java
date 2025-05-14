@@ -1,17 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.auth.mfa.MfaAuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.mfa.*;
-import io.springsecurity.springsecurity6x.security.core.mfa.handler.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
 

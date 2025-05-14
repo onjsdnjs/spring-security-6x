@@ -15,7 +15,7 @@ public class DslValidator implements Validator<List<FlowContext>> {
     }
 
     @Override
-    public ValidationResult validate(List<FlowContext> flows) throws Exception {
+    public ValidationResult validate(List<FlowContext> flows){
         ValidationResult finalResult = new ValidationResult();
         for (Validator<List<FlowContext>> v : validators) {
             ValidationResult r = v.validate(flows);

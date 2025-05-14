@@ -71,7 +71,7 @@ public class DefaultPlatformContext implements PlatformContext{
     }
 
     @Override
-    public HttpSecurity newHttp() throws Exception {
+    public HttpSecurity newHttp() {
         return httpProvider.getObject();
     }
 

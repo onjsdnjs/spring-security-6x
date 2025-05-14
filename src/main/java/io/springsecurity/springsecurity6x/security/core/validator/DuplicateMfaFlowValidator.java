@@ -27,7 +27,7 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
     private static final Logger log = LoggerFactory.getLogger(DuplicateMfaFlowValidator.class);
 
     @Override
-    public ValidationResult validate(List<FlowContext> flows) throws Exception {
+    public ValidationResult validate(List<FlowContext> flows) {
 
         if (flows == null || flows.isEmpty()) {
             return new ValidationResult();

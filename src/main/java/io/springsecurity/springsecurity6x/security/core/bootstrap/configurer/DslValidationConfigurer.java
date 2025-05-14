@@ -18,7 +18,7 @@ public class DslValidationConfigurer implements SecurityConfigurer {
     }
 
     @Override
-    public void init(PlatformContext context, PlatformConfig config) throws Exception {
+    public void init(PlatformContext context, PlatformConfig config) {
         ValidationResult result = validator.validate(flows);
         ValidationReportReporter.report(result);
     }

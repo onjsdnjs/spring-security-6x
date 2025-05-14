@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.dsl.AbstractDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
@@ -12,8 +11,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ott.OneTimeTokenLoginConfigurer;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.function.ThrowingConsumer;
-
-import java.util.List;
 
 /**
  * DSL 구현체: OTT 인증 스텝 설정

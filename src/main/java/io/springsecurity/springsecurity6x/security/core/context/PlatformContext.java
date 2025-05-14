@@ -55,7 +55,7 @@ public interface PlatformContext {
      * 새로운 HttpSecurity 인스턴스를 반환합니다.
      * 인증 방식/흐름별로 SecurityFilterChain을 분리하기 위해 사용합니다.
      */
-    HttpSecurity newHttp() throws Exception;
+    HttpSecurity newHttp();
 
     /**
      * 생성된 SecurityFilterChain을 등록합니다.

@@ -13,7 +13,7 @@ public interface SecurityConfigurer extends Ordered {
     /**
      * 플랫폼 전역 초기화 (Global) 단계에서 호출
      */
-    void init(PlatformContext ctx, PlatformConfig config) throws Exception;
+    void init(PlatformContext ctx, PlatformConfig config);
 
     /**
      * Flow별 configure 단계에서 호출

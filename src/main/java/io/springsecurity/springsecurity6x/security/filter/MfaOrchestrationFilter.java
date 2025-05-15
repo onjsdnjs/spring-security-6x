@@ -126,7 +126,6 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
                 // ctxPersistence.saveContext(ctx); // 또는 변경된 경우에만 저장하는 로직을 ContextPersistence에 위임
             }
 
-
         } catch (InvalidTransitionException e) {
             log.warn("MFA InvalidTransitionException for Session ID: {}: {}", ctx.getMfaSessionId(), e.getMessage(), e);
             WebUtil.writeError(res, HttpServletResponse.SC_CONFLICT, "INVALID_MFA_TRANSITION_ORCH", e.getMessage());

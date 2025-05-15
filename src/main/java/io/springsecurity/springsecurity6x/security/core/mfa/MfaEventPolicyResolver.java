@@ -34,7 +34,7 @@ public class MfaEventPolicyResolver {
                 yield MfaEvent.REQUEST_CHALLENGE; // 단순화된 예시
             }
             case AWAITING_MFA_FACTOR_SELECTION -> {
-                // 사용자가 Factor를 선택하는 요청이라면 해당 Factor에 대한 챌린지 요청 이벤트
+                // 사용자가 Factor 를 선택하는 요청이라면 해당 Factor에 대한 챌린지 요청 이벤트
                 // 예: String selectedFactor = req.getParameter("selectedFactor");
                 //     if (selectedFactor != null) return MfaEvent.REQUEST_CHALLENGE; // (selectedFactor 정보와 함께)
                 yield MfaEvent.SUBMIT_CREDENTIAL; // 단순화된 예시 (선택 후 바로 제출로 가정)

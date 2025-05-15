@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHa
 import io.springsecurity.springsecurity6x.security.core.mfa.options.PrimaryAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -15,7 +16,9 @@ import org.springframework.util.Assert;
 
 import java.util.*;
 
+@Getter
 public final class AuthenticationFlowConfig {
+    // Getters (기존과 동일)
     private final String typeName;
     private final int order;
     private final StateConfig stateConfig;
@@ -53,22 +56,6 @@ public final class AuthenticationFlowConfig {
                 Collections.unmodifiableList(new ArrayList<>(builder.stepConfigs)) : // 방어적 복사
                 Collections.emptyList();
     }
-
-    // Getters (기존과 동일)
-    public String getTypeName() { return typeName; }
-    public int getOrder() { return order; }
-    public StateConfig getStateConfig() { return stateConfig; }
-    public Customizer<HttpSecurity> getRawHttpCustomizer() { return rawHttpCustomizer; }
-    public List<AuthenticationStepConfig> getStepConfigs() { return stepConfigs; }
-    public PrimaryAuthenticationOptions getPrimaryAuthenticationOptions() { return primaryAuthenticationOptions; }
-    public MfaPolicyProvider getMfaPolicyProvider() { return mfaPolicyProvider; }
-    public MfaContinuationHandler getMfaContinuationHandler() { return mfaContinuationHandler; }
-    public MfaFailureHandler getMfaFailureHandler() { return mfaFailureHandler; }
-    public AuthenticationSuccessHandler getFinalSuccessHandler() { return finalSuccessHandler; }
-    public Map<AuthType, AuthenticationProcessingOptions> getRegisteredFactorOptions() { return registeredFactorOptions; }
-    public RetryPolicy getDefaultRetryPolicy() { return defaultRetryPolicy; }
-    public AdaptiveConfig getDefaultAdaptiveConfig() { return defaultAdaptiveConfig; }
-    public boolean isDefaultDeviceTrustEnabled() { return defaultDeviceTrustEnabled; }
 
 
     /**

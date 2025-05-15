@@ -59,7 +59,6 @@ public class FactorContext implements Serializable {
             this.currentState = new AtomicReference<>(MfaState.AWAITING_MFA_FACTOR_SELECTION);
         }
         this.factorSpecificOptions = (factorSpecificOptionsMap != null) ? new ConcurrentHashMap<>(factorSpecificOptionsMap) : new ConcurrentHashMap<>();
-        // ...
         this.lastActivityTimestamp = Instant.now();
     }
 

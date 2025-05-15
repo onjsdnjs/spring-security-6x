@@ -1,4 +1,3 @@
-/*
 package io.springsecurity.springsecurity6x.security.config;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
@@ -10,7 +9,7 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
-public class PlatformSecurityConfig2 {
+public class PlatformSecurityConfig {
 
     @Bean
     public PlatformConfig securityPlatformDsl() {
@@ -32,34 +31,20 @@ public class PlatformSecurityConfig2 {
                 })
 
                 .mfa(m -> m
-//                        .loginProcessUrl("/api/auth/mfa")
                         .rest(r -> r
                                 .loginProcessingUrl("/api/auth/login")
-//                                .raw(http -> { http.securityMatcher("/api/auth/mfa");})
+                                .rawHttp(http -> { http.securityMatcher("/api/auth/mfa");})
                         )
-                        .ott(ott -> ott.targetUrl("/loginOtt"))
-                        .passkey(passkey -> passkey.targetUrl("/loginPasskey"))
+                        .ott(ott -> ott.processingUrl("/loginOtt"))
+                        .passkey(passkey -> passkey.processingUrl("/loginPasskey"))
                         .order(5)
-                        .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
-                        .adaptive(ad -> ad.geolocation(true))
-                        .deviceTrust(true)
+                        .defaultRetryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
+                        .defaultAdaptivePolicy(ad -> ad.geolocation(true))
+                        .defaultDeviceTrustEnabled(true)
                         .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
                 .jwt(jwt -> Customizer.withDefaults())
-
-                */
-/*.mfa(m -> m
-                        .form(f -> f.loginProcessingUrl("/login"))
-                        .ott(o -> o.loginProcessingUrl("/api/ott"))
-//                        .passkey(Customizer.withDefaults())
-                        .order(6)
-                        .retryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
-                        .adaptive(ad -> ad.geolocation(true))
-                        .deviceTrust(true)
-                        .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
-                .jwt(jwt -> Customizer.withDefaults())*//*
 
 
                 .build();
     }
 }
-*/

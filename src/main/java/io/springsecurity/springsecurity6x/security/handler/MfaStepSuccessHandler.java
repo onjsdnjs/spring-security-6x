@@ -24,7 +24,7 @@ public class MfaStepSuccessHandler {
      */
     public static AuthenticationSuccessHandler forAuthStep(List<AuthenticationStepConfig> steps, int currentIndex) {
         AuthenticationStepConfig nextStep = steps.get(currentIndex + 1);
-        Object opts = nextStep.options().get("_options");
+        Object opts = nextStep.getOptions().get("_options");
         String targetUrl = extractTargetUrl(opts);
         return new SimpleRedirectSuccessHandler(targetUrl);
     }
@@ -34,7 +34,7 @@ public class MfaStepSuccessHandler {
      */
     public static OneTimeTokenGenerationSuccessHandler forOttStep(List<AuthenticationStepConfig> steps, int currentIndex) {
         AuthenticationStepConfig nextStep = steps.get(currentIndex + 1);
-        Object opts = nextStep.options().get("_options");
+        Object opts = nextStep.getOptions().get("_options");
         String targetUrl = extractTargetUrl(opts);
         return new OneTimeRedirectSuccessHandler(targetUrl);
     }

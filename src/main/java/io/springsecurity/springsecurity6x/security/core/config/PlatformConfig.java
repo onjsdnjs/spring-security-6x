@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
 
+import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Getter
 public final class PlatformConfig {
     private final Customizer<HttpSecurity> globalCustomizer; // 이름 변경 (global -> globalCustomizer)
     private final List<AuthenticationFlowConfig> flows;
@@ -15,14 +17,6 @@ public final class PlatformConfig {
     private PlatformConfig(Builder builder) {
         this.globalCustomizer = builder.globalCustomizer;
         this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows)); // 방어적 복사
-    }
-
-    public Customizer<HttpSecurity> getGlobalCustomizer() { // getter 이름 변경
-        return globalCustomizer;
-    }
-
-    public List<AuthenticationFlowConfig> getFlows() { // getter 추가
-        return flows;
     }
 
     public static Builder builder() {

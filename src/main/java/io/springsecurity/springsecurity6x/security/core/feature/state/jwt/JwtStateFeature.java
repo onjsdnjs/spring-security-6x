@@ -6,16 +6,11 @@ import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandl
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.factory.JwtTokenServiceFactory;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 public class JwtStateFeature implements StateFeature {
 

@@ -1,30 +1,24 @@
 <div th:fragment="menu">
-    <nav class="sidebar">
-        <div class="menu-section">
-            <div class="menu-title">인증</div>
-            <ul>
-                <li><a th:href="@{/loginForm}">Form 로그인</a></li>
-                <li><a th:href="@{/loginOtt}">OTT 로그인</a></li>
-                <li><a th:href="@{/loginPasskey}">Passkey 로그인</a></li>
+    <nav class="bg-app-secondary text-white w-64 min-h-full p-6 space-y-6">
+        <div>
+            <h3 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">인증</h3>
+            <ul class="space-y-1">
+                <li><a th:href="@{/loginForm}" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">Form 로그인 (MFA 가능)</a></li>
+                <li><a th:href="@{/loginOtt}" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">OTT 로그인 (단일)</a></li>
+                <li><a th:href="@{/loginPasskey}" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">Passkey 로그인 (단일)</a></li>
             </ul>
         </div>
-        <div class="menu-section">
-            <div class="menu-title">MFA</div>
-            <ul>
-                <li><a th:href="@{/mfa}">Rest → OTT</a></li>
+        <div>
+            <h3 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">회원</h3>
+            <ul class="space-y-1">
+                <li><a th:href="@{/register}" sec:authorize="isAnonymous()" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">회원 가입</a></li>
+                <li><a th:href="@{/users}" sec:authorize="isAuthenticated()" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">회원 목록</a></li>
             </ul>
         </div>
-        <div class="menu-section">
-            <div class="menu-title">회원</div>
-            <ul>
-                <li><a th:href="@{/register}">회원 가입</a></li>
-                <li><a th:href="@{/users}">회원 목록</a></li>
-            </ul>
-        </div>
-        <div class="menu-section">
-            <div class="menu-title">설정</div>
-            <ul>
-                <li><a th:href="@{/authMode}">인증방식 선택</a></li> <!-- 추가된 부분 -->
+        <div>
+            <h3 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">설정</h3>
+            <ul class="space-y-1">
+                <li><a th:href="@{/authMode}" class="block px-3 py-2 rounded-md hover:bg-app-primary-dark transition-colors duration-200">인증방식 선택</a></li>
             </ul>
         </div>
     </nav>

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
@@ -15,6 +16,7 @@ public interface TokenService extends TokenProvider, TokenValidator, TokenTransp
     AuthContextProperties properties();
     void blacklistRefreshToken(String refreshToken, String username, String reason);
     record RefreshResult(String accessToken, String refreshToken) {}
+    ObjectMapper getObjectMapper();
 }
 
 

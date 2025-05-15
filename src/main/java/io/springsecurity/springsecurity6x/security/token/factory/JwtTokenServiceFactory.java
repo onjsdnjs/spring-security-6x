@@ -28,8 +28,8 @@ public class JwtTokenServiceFactory {
                 new JwtTokenCreator(key),
                 jwtRefreshTokenStore,
                 transport,
-                props
-        );
+                props,
+                null);
         transport.setTokenService(tokenService);
         return tokenService;
     }

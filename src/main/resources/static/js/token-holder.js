@@ -1,5 +1,5 @@
 const TokenMemory = {
-    storage: sessionStorage,
+    storage: sessionStorage, // 기본은 sessionStorage
 
     useLocalStorage() {
         this.storage = localStorage;
@@ -14,7 +14,11 @@ const TokenMemory = {
     },
 
     set accessToken(token) {
-        this.storage.setItem("accessToken", token);
+        if (token === null || token === undefined) {
+            this.storage.removeItem("accessToken");
+        } else {
+            this.storage.setItem("accessToken", token);
+        }
     },
 
     get refreshToken() {
@@ -22,6 +26,10 @@ const TokenMemory = {
     },
 
     set refreshToken(token) {
-        this.storage.setItem("refreshToken", token);
+        if (token === null || token === undefined) {
+            this.storage.removeItem("refreshToken");
+        } else {
+            this.storage.setItem("refreshToken", token);
+        }
     }
 };

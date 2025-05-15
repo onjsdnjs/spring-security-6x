@@ -1,49 +1,57 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="ko">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원 목록</title>
     <link rel="stylesheet" th:href="@{/css/style.css}" />
-    <style>
-        .token-mode-buttons {
-            margin-bottom: 20px;
-        }
-        .token-mode-buttons button {
-            margin-right: 10px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-    </style>
+    <script th:src="@{/js/toast.js}"></script>
 </head>
-<body>
-<div class="app-wrapper">
-    <header class="app-header" th:insert="~{fragments/header :: header}"></header>
-    <aside class="sidebar" th:insert="~{fragments/menu   :: menu}"></aside>
+<body class="flex flex-col min-h-screen bg-app-light-gray">
 
-    <main class="content">
-        <div class="container" style="display: flex; flex-direction: column; align-items: center;">
-            <h2>회원 목록</h2>
-            <table id="usersTable" style="width:70%; margin:0 auto; border-collapse:collapse;">
-                <thead>
-                <tr>
-                    <th style="text-align:center">회원명</th>
-                    <th style="text-align:center">이메일</th>
-                    <th style="text-align:center">권한</th>
-                </tr>
-                </thead>
-                <tbody>
-                <!-- JS로 채워짐 -->
-                </tbody>
-            </table>
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
+
+    <main class="flex-1 p-6 md:p-10">
+        <div class="container mx-auto bg-white p-8 rounded-xl shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold text-app-accent">회원 목록</h2>
+            </div>
+
+            <div class="overflow-x-auto shadow-md sm:rounded-lg">
+                <table id="usersTable" class="min-w-full w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-white uppercase bg-app-accent">
+                    <tr>
+                        <th scope="col" class="py-3 px-6">회원명</th>
+                        <th scope="col" class="py-3 px-6">이메일</th>
+                        <th scope="col" class="py-3 px-6">권한</th>
+                    </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                    <tr id="usersTableLoadingRow">
+                        <td colspan="3" class="py-4 px-6 text-center text-gray-400 italic">
+                            사용자 정보를 불러오는 중입니다...
+                        </td>
+                    </tr>
+                    <tr id="usersTableEmptyRow" style="display: none;">
+                        <td colspan="3" class="py-4 px-6 text-center text-gray-400">
+                            표시할 사용자가 없습니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
-
-    <footer class="app-footer" th:insert="~{fragments/footer :: footer}"></footer>
 </div>
-<script src="/js/token-holder.js"></script>
-<script src="/js/init-auth.js"></script>
-<script src="/js/users.js"></script>
 
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:src="@{/js/users.js}"></script>
 </body>
 </html>

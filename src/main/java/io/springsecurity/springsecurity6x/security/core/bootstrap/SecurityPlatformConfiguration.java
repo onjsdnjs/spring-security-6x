@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.FlowConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.GlobalConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
@@ -82,8 +83,9 @@ public class SecurityPlatformConfiguration {
     @Bean
     public PlatformContextInitializer platformContextInitializer(PlatformContext platformContext,
                                                                  SecretKey secretKey,
-                                                                 AuthContextProperties authContextProperties) {
-        return new PlatformContextInitializer(platformContext, secretKey, authContextProperties);
+                                                                 AuthContextProperties authContextProperties,
+                                                                 ObjectMapper objectMapper) {
+        return new PlatformContextInitializer(platformContext, secretKey, authContextProperties, objectMapper);
     }
 
     @Bean

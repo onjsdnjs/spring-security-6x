@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import io.springsecurity.springsecurity6x.security.enums.TokenType;
 import io.springsecurity.springsecurity6x.security.exception.TokenCreationException;
@@ -32,20 +33,23 @@ public class JwtTokenService implements TokenService {
     private final RefreshTokenStore tokenStore;
     private final TokenTransportStrategy transport;
     private final AuthContextProperties props;
+    private final ObjectMapper objectMapper;
 
     public JwtTokenService(TokenValidator tokenValidator, TokenCreator tokenCreator, RefreshTokenStore tokenStore,
-                           TokenTransportStrategy transport, AuthContextProperties props) {
+                           TokenTransportStrategy transport, AuthContextProperties props, ObjectMapper objectMapper) {
         Assert.notNull(tokenValidator, "tokenValidator cannot be null");
         Assert.notNull(tokenCreator, "tokenCreator cannot be null");
         Assert.notNull(tokenStore, "tokenStore cannot be null");
         Assert.notNull(transport, "transport cannot be null");
         Assert.notNull(props, "props cannot be null");
+        Assert.notNull(objectMapper, "props cannot be null");
 
         this.tokenCreator = tokenCreator;
         this.tokenValidator = tokenValidator;
         this.tokenStore = tokenStore;
         this.transport = transport;
         this.props = props;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -201,6 +205,11 @@ public class JwtTokenService implements TokenService {
     @Override
     public AuthContextProperties properties() {
         return props;
+    }
+
+    @Override
+    public ObjectMapper getObjectMapper() {
+        return this.objectMapper;
     }
 }
 

@@ -18,15 +18,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 @Slf4j
+@Component
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
     private final ApplicationContext applicationContext;
 
-    public IdentityDslRegistry(PlatformConfig.Builder platformBuilder, ApplicationContext applicationContext) {
-        super(platformBuilder);
+    public IdentityDslRegistry(ApplicationContext applicationContext) {
+        super(PlatformConfig.builder());
         Assert.notNull(applicationContext, "ApplicationContext cannot be null");
         this.applicationContext = applicationContext;
     }
@@ -54,14 +56,14 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
     @Override
     public IdentityStateDsl form(Customizer<FormStepDslConfigurer> customizer) {
         return registerFlow(AuthType.FORM, customizer,
-                (stepConfig) -> new FormDslConfigurerImpl(stepConfig)
+                FormDslConfigurerImpl::new
         );
     }
 
     @Override
     public IdentityStateDsl rest(Customizer<RestStepDslConfigurer> customizer) {
         return registerFlow(AuthType.REST, customizer,
-                (stepConfig) -> new RestDslConfigurerImpl(stepConfig)
+                RestDslConfigurerImpl::new
         );
     }
 
@@ -77,14 +79,13 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
     @Override
     public IdentityStateDsl passkey(Customizer<PasskeyStepDslConfigurer> customizer) {
         return registerFlow(AuthType.PASSKEY, customizer,
-                (stepConfig) -> new PasskeyDslConfigurerImpl(stepConfig)
+                PasskeyDslConfigurerImpl::new
         );
     }
 
-    @Override
     public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
         return registerMultiStepFlow(customizer,
-                (flowBuilder) -> new MfaDslConfigurerImpl(flowBuilder, this.applicationContext));
+                MfaDslConfigurerImpl::new);
     }
 
     @Override

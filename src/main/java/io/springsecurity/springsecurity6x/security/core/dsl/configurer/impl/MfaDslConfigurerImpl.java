@@ -30,10 +30,6 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     private final AuthenticationFlowConfig.Builder flowConfigBuilder;
     private final FactorDslConfigurerFactory factorDslConfigurerFactory;
-    // PrimaryAuthDslConfigurerImpl은 ApplicationContext를 직접 받지 않도록 수정 (필요시 팩토리 통해 주입)
-    // private final ApplicationContext applicationContext;
-
-    // 1차 인증은 PrimaryAuthenticationOptions 타입으로 관리
     private PrimaryAuthenticationOptions primaryAuthenticationOptions;
 
     private MfaPolicyProvider policyProvider;
@@ -48,7 +44,6 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     public MfaDslConfigurerImpl(AuthenticationFlowConfig.Builder flowConfigBuilder, ApplicationContext applicationContext) {
         this.flowConfigBuilder = flowConfigBuilder;
-        // this.applicationContext = applicationContext; // FactorDslConfigurerFactory 생성에만 사용
         this.factorDslConfigurerFactory = new FactorDslConfigurerFactory(applicationContext);
     }
 
@@ -58,21 +53,14 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         return this;
     }
 
-    // 이 primaryAuthentication 메소드는 MfaDslConfigurer 인터페이스에 정의된 대로 유지.
-    // 사장님의 DSL 예시에서는 이 메소드 대신 rest() 등을 직접 호출.
     @Override
     public MfaDslConfigurer primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfigCustomizer) {
-        // PrimaryAuthDslConfigurerImpl 클래스가 올바른 패키지에 정의되어 있고, 기본 생성자가 있다고 가정
-        // 가정된 경로: io.springsecurity.springsecurity6x.security.core.dsl.configurer.mfa.impl.PrimaryAuthDslConfigurerImpl
         PrimaryAuthDslConfigurerImpl configurer = new PrimaryAuthDslConfigurerImpl();
         primaryAuthConfigCustomizer.customize(configurer);
         this.primaryAuthenticationOptions = configurer.buildOptions();
         return this;
     }
 
-    // 사장님의 DSL 예시 (.mfa(m -> m.rest(r -> ...)))를 지원하기 위한 rest() 메소드
-    // 여기서 r은 RestDslConfigurer 타입이어야 하고, 이는 OptionsBuilderDsl을 확장함.
-    // RestDslOptionsBuilderConfigurer가 RestDslConfigurer를 구현.
     @Override
     public MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurerCustomizer) {
         // RestDslOptionsBuilderConfigurer 클래스가 올바른 패키지에 정의되어 있고, 기본 생성자가 있다고 가정

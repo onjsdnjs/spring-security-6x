@@ -12,10 +12,9 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 public class PlatformSecurityConfig {
 
     @Bean
-    public PlatformConfig securityPlatformDsl() {
+    public PlatformConfig securityPlatformDsl(IdentityDslRegistry registry) {
 
-        return new IdentityDslRegistry()
-
+        return registry
                 .global(http -> {
                     http.csrf(csrf -> csrf
                             .ignoringRequestMatchers(new AntPathRequestMatcher("/h2-console/**")));

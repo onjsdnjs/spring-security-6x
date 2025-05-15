@@ -55,5 +55,10 @@ public interface MfaPolicyProvider {
     @Nullable
     AuthType getPreferredAutoAttemptFactor(FactorContext ctx);
 
-    // 기타 필요한 정책 관련 메소드 추가 가능
+    /**
+     * 주어진 FactorContext를 기반으로 MFA 정책(MFA 필요 여부, 등록된 Factor, 선호 Factor 등)을
+     * 평가하고 FactorContext 객체의 관련 필드를 업데이트합니다.
+     * @param ctx 평가하고 업데이트할 FactorContext
+     */
+    void evaluateMfaPolicy(FactorContext ctx);
 }

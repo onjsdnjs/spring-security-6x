@@ -133,7 +133,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
                 // FactorContext의 상태 변경 API 사용 (예: changeState)
                 // 이 메소드는 내부적으로 버전 관리 및 타임스탬프 업데이트를 수행한다고 가정합니다.
                 ctx.changeState(nextState); // 이 메소드가 FactorContext에 정의되어 있다고 가정
-                ctxPersistence.saveContext(ctx);
+                ctxPersistence.saveContext(ctx, request);
                 log.info("MFA State successfully transitioned: {} -> {} for Session ID: {}", currentState, nextState, ctx.getMfaSessionId());
             } else {
                 log.debug("No state change from {}. Event {} did not cause a transition for session {}.", currentState, event, ctx.getMfaSessionId());

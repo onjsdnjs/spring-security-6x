@@ -31,8 +31,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
     // 예를 들어, 1차 인증 성공 후 또는 사용자가 MFA 관련 액션을 취하는 URL.
     private final RequestMatcher requestMatcher;
 
-    public MfaOrchestrationFilter(ContextPersistence persistence,
-                                  StateMachineManager manager,
+    public MfaOrchestrationFilter(ContextPersistence persistence, StateMachineManager manager,
                                   RequestMatcher mfaProcessingRequestMatcher) {
         this.ctxPersistence = Objects.requireNonNull(persistence, "ContextPersistence cannot be null");
         this.stateMachine = Objects.requireNonNull(manager, "StateMachineManager cannot be null");
@@ -61,17 +60,20 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
+        // 이 필터가 처리해야 할 요청인지 확인 (예: /api/mfa/**)
         if (!requestMatcher.matches(req)) {
             chain.doFilter(req, res);
             return;
         }
-
         log.debug("MfaOrchestrationFilter processing request: {} {}", req.getMethod(), req.getRequestURI());
 
         FactorContext ctx = ctxPersistence.contextLoad(req);
         if (ctx == null) {
-            log.warn("FactorContext could not be loaded from persistence store for request: {}. This is unexpected if the request matches MFA processing paths.", req.getRequestURI());
-            WebUtil.writeError(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA_CONTEXT_MISSING", "MFA context could not be loaded or initialized.");
+            // MFA 컨텍스트가 없으면, 이 요청은 MFA 흐름의 일부가 아니거나 유효한 세션이 없는 것임.
+            // 오류를 반환하거나, 특정 상황에서는 다음 필터로 넘길 수 있음.
+            // 여기서는 MFA 관련 엔드포인트에 컨텍스트 없이 접근한 경우 오류로 처리.
+            log.warn("MfaOrchestrationFilter: No FactorContext found for MFA request: {}. This may indicate an invalid or expired MFA session.", req.getRequestURI());
+            WebUtil.writeError(res, HttpServletResponse.SC_UNAUTHORIZED, "MFA_SESSION_NOT_FOUND", "MFA session not found or expired. Please start the authentication process again.");
             return;
         }
 
@@ -116,7 +118,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
 
             // 상태 전이 성공 시 컨텍스트 저장
             if (currentState != nextState) { // 상태가 실제로 변경된 경우
-                ctxPersistence.saveContext(ctx);
+                ctxPersistence.saveContext(ctx,req);
                 log.info("MFA state successfully transitioned: {} -> {} for Session ID: {} via event {}",
                         currentState, nextState, ctx.getMfaSessionId(), event);
             } else {

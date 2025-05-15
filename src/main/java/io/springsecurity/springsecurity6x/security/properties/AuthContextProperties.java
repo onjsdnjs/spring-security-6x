@@ -27,6 +27,12 @@ public class AuthContextProperties {
     private TokenIssuer tokenIssuer = TokenIssuer.INTERNAL;
 
     /**
+     * MFA 관련 설정
+     */
+    @NestedConfigurationProperty
+    private MfaSettings mfa = new MfaSettings(); // 기본 인스턴스 생성
+
+    /**
      * JWT 등 외부 토큰 기반 인증 설정
      */
     @NestedConfigurationProperty

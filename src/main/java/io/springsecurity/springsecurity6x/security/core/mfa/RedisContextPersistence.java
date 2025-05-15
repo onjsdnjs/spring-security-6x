@@ -26,12 +26,12 @@ public class RedisContextPersistence implements ContextPersistence {
     }
 
     @Override
-    public void saveContext(FactorContext ctx) {
-        store.put(ctx.getMfaSessionId(), ctx);
+    public void saveContext(FactorContext ctx, HttpServletRequest request) {
+
     }
 
     @Override
-    public void delete(FactorContext ctx) {
-        store.remove(ctx.getMfaSessionId());
+    public void deleteContext(HttpServletRequest request) {
+
     }
 }

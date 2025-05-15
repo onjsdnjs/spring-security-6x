@@ -110,12 +110,12 @@ public class StateMachineManager {
 
         if (possibleTransitions == null) {
             log.error("No transitions defined for current state: {}", currentState);
-            throw new InvalidTransitionException(currentState, event, "No transitions defined for current state.");
+            throw new InvalidTransitionException(currentState, event);
         }
 
         if (!possibleTransitions.containsKey(event)) {
             log.error("Invalid event: {} for current state: {}. Possible transitions: {}", event, currentState, possibleTransitions.keySet());
-            throw new InvalidTransitionException(currentState, event, "Event not allowed for current state.");
+            throw new InvalidTransitionException(currentState, event);
         }
 
         MfaState nextState = possibleTransitions.get(event);

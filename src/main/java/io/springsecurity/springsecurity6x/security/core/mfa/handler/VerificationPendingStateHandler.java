@@ -67,7 +67,7 @@ public class VerificationPendingStateHandler implements MfaStateHandler {
                 return MfaState.AWAITING_MFA_FACTOR_SELECTION;
             }
 
-            int attempts = ctx.incrementAttemptCountForCurrentFactor();
+            int attempts = ctx.incrementAttemptCount(AuthType.REST);
             RetryPolicy retryPolicy = policyProvider.getRetryPolicyForFactor(currentFactor, ctx); // MfaPolicyProvider에 getRetryPolicyForFactor(...) 메소드 필요
 
             if (retryPolicy == null) {

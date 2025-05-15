@@ -21,6 +21,9 @@ spring:
     enableRefreshToken: true
     tokenPrefix: Bearer
 
+    mfa:
+      initiate-url: /mfa-challenge-start
+
     oauth2:
       client-id: client-app
       client-secret: secret

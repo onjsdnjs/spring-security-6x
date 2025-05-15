@@ -12,6 +12,10 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
+import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialDescriptor;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 
@@ -99,9 +103,7 @@ public class MfaApiController {
         }
 
         try {
-            GenerateOneTimeTokenRequest tokenRequest = new GenerateOneTimeTokenRequest(
-                    ottRequestDto.username(),
-                    authContextProperties.getMfa().getOtpTokenValiditySeconds()
+            GenerateOneTimeTokenRequest tokenRequest = new GenerateOneTimeTokenRequest(ottRequestDto.username()
             );
             emailOttService.generate(tokenRequest);
             log.info("MFA OTT code requested and sent to {} for session {}", ottRequestDto.username(), mfaSessionIdHeader);

@@ -21,6 +21,9 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://build.shibboleth.net/nexus/content/repositories/releases/"
+    }
 }
 
 dependencies {

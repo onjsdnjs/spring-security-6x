@@ -25,12 +25,9 @@ import org.springframework.util.Assert;
 @Component
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
-    private final ApplicationContext applicationContext;
-
     public IdentityDslRegistry(ApplicationContext applicationContext) {
-        super(PlatformConfig.builder());
+        super(PlatformConfig.builder(), applicationContext);
         Assert.notNull(applicationContext, "ApplicationContext cannot be null");
-        this.applicationContext = applicationContext;
     }
 
     @Override

@@ -20,8 +20,8 @@ public abstract class FactorAuthenticationOptions extends AbstractOptions {
     private final String targetUrl; // 인증 단계 성공 후 다음으로 이동할 URL (MFA의 중간 단계 등)
 
     protected FactorAuthenticationOptions(AbstractFactorOptionsBuilder<?, ?> builder) {
-        super(builder); // AbstractOptions의 생성자 호출 (rawHttpCustomizer 등 공통 설정)
-        this.processingUrl = Objects.requireNonNull(builder.processingUrl, "processingUrl cannot be null for FactorAuthenticationOptions");
+        super(builder);
+        this.processingUrl = builder.processingUrl;
         this.successHandler = builder.successHandler;
         this.failureHandler = builder.failureHandler;
         this.targetUrl = builder.targetUrl;

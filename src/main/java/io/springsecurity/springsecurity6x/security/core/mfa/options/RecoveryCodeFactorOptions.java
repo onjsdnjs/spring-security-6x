@@ -61,7 +61,6 @@ public class RecoveryCodeFactorOptions extends FactorAuthenticationOptions {
 
         @Override
         public RecoveryCodeFactorOptions build() {
-            Assert.hasText(super.processingUrl, "Processing URL must be set for Recovery Code factor.");
             return new RecoveryCodeFactorOptions(this);
         }
     }

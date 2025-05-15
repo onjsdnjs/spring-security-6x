@@ -56,9 +56,6 @@ public class PasskeyFactorOptions extends FactorAuthenticationOptions {
 
         @Override
         public PasskeyFactorOptions build() {
-            Assert.hasText(super.processingUrl, "Processing URL must be set for Passkey factor.");
-            Assert.hasText(this.rpId, "RP ID (rpId) must be configured for Passkey factor.");
-            Assert.notEmpty(this.allowedOrigins, "Allowed origins must be configured for Passkey factor.");
             return new PasskeyFactorOptions(this);
         }
     }

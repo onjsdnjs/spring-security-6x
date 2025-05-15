@@ -25,16 +25,10 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
     private final StateSetter stateSetter;
     protected ApplicationContext applicationContext; // MfaDslConfigurerImpl 생성 시 사용하기 위해 추가 (필드 주입 또는 setter 주입 필요)
 
-    protected AbstractFlowRegistrar(PlatformConfig.Builder platformBuilder) {
+    protected AbstractFlowRegistrar(PlatformConfig.Builder platformBuilder, ApplicationContext applicationContext) {
         this.platformBuilder = platformBuilder;
-        this.stateSetter = new StateSetter();
-    }
-
-    // ApplicationContext를 설정하기 위한 setter 메소드 (또는 생성자 오버로딩)
-    // IdentityDslRegistry가 ApplicationContext를 주입받아 이 메소드를 호출하도록 할 수 있음
-    // 또는 IdentityDslRegistry가 ApplicationContext를 필드로 직접 관리하고 registerMultiStepFlow 에 전달
-    public void applicationContext(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
+        this.stateSetter = new StateSetter();
     }
 
     protected <S extends StepDslConfigurer> IdentityStateDsl registerFlow(

@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.Rest
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.passkey.PasskeyFactorDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.recovery.RecoveryCodeFactorDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RecoveryDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.context.ApplicationContext;
@@ -25,7 +26,7 @@ public class FactorDslConfigurerFactory {
             case REST -> (D) new RestDslOptionsBuilderConfigurer();
             case OTT -> (D) new OttFactorDslConfigurerImpl(this.applicationContext);
             case PASSKEY -> (D) new PasskeyFactorDslConfigurerImpl();
-            case RECOVERY_CODE -> (D) new RecoveryCodeFactorDslConfigurerImpl(); // 정의 필요
+            case RECOVERY_CODE -> (D) new RecoveryDslConfigurerImpl(); // 정의 필요
             default -> throw new IllegalArgumentException("Unsupported factorType: " + factorType);
         };
     }

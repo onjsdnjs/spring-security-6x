@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PrimaryAu
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.passkey.PasskeyFactorDslConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.factor.recovery.RecoveryCodeFactorDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factory.FactorDslConfigurerFactory;
 import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
@@ -156,15 +157,6 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     @Override
     public AuthenticationFlowConfig build() {
         Assert.notNull(primaryAuthenticationOptions, "Primary authentication (e.g., using .rest() or .form() in primaryAuthentication()) must be configured for MFA flow.");
-        Assert.notNull(policyProvider, "MfaPolicyProvider must be configured.");
-        Assert.notNull(continuationHandler, "MfaContinuationHandler must be configured.");
-        Assert.notNull(failureHandler, "MfaFailureHandler must be configured.");
-        Assert.notNull(finalSuccessHandler, "FinalSuccessHandler must be configured.");
-        // MFA 플로우에서는 1차 인증 후 추가 Factor가 없을 수도 있음 (정책에 따라 바로 성공 처리 가능)
-        // 하지만 일반적으로 하나 이상의 Factor를 등록하므로, 이 Assert는 유지하거나 정책에 따라 조정.
-        // Assert.isTrue(registeredFactorOptionsMap != null && !registeredFactorOptionsMap.isEmpty(), "At least one secondary MFA Factor must be registered using .ott(), .passkey() etc.");
-
-        // AuthenticationFlowConfig.Builder의 모든 setter 메소드가 public이고 Builder 자신을 반환한다고 가정
         flowConfigBuilder
                 .typeName(AuthType.MFA.name().toLowerCase())
                 .order(this.order)

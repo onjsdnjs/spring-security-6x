@@ -80,10 +80,6 @@ public class OttFactorOptions extends FactorAuthenticationOptions {
 
         @Override
         public OttFactorOptions build() {
-            // 빌드 시점에 필수 값 검증 (예: oneTimeTokenService, processingUrl, tokenGeneratingUrl)
-            Assert.notNull(oneTimeTokenService, "OneTimeTokenService must be configured for OTT factor.");
-            Assert.hasText(super.processingUrl, "Processing URL must be set for OTT factor."); // AbstractFactorOptionsBuilder 에서 상속받은 필드
-            Assert.hasText(tokenGeneratingUrl, "Token generating URL must be set for OTT factor.");
             return new OttFactorOptions(this);
         }
     }

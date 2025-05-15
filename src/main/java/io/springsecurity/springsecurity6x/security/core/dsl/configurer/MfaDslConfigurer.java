@@ -1,10 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.factor.passkey.PasskeyFactorDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.AdaptiveDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RecoveryDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaContinuationHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler;
@@ -17,9 +14,9 @@ public interface MfaDslConfigurer {
     MfaDslConfigurer order(int order);
     MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurer);
     MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer);
-    MfaDslConfigurer ott(Customizer<OttFactorDslConfigurer> ottConfigurer);
-    MfaDslConfigurer passkey(Customizer<PasskeyFactorDslConfigurer> passkeyConfigurer);
-    MfaDslConfigurer recoveryFlow(Customizer<RecoveryDslConfigurer> recoveryConfigurerCustomizer);
+    MfaDslConfigurer ott(Customizer<OttDslConfigurer> ottConfigurer);
+    MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> passkeyConfigurer);
+    MfaDslConfigurer recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer);
     MfaDslConfigurer mfaContinuationHandler(MfaContinuationHandler continuationHandler);
     MfaDslConfigurer mfaFailureHandler(MfaFailureHandler failureHandler);
     MfaDslConfigurer finalSuccessHandler(AuthenticationSuccessHandler handler);

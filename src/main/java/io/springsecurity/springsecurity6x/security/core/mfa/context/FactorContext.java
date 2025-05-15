@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import lombok.Getter;
@@ -30,7 +30,7 @@ public class FactorContext implements Serializable {
     private Authentication primaryAuthentication;
     private String username;
 
-    private final Map<AuthType, FactorAuthenticationOptions> factorSpecificOptions;
+    private final Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptions;
 
     private boolean mfaRequired = false;
     private Set<AuthType> registeredMfaFactors;
@@ -47,7 +47,7 @@ public class FactorContext implements Serializable {
     private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
 
-    public FactorContext(Authentication primaryAuthentication, Map<AuthType, FactorAuthenticationOptions> factorSpecificOptionsMap) {
+    public FactorContext(Authentication primaryAuthentication, Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptionsMap) {
         this.mfaSessionId = UUID.randomUUID().toString();
         this.primaryAuthentication = primaryAuthentication;
 
@@ -59,6 +59,7 @@ public class FactorContext implements Serializable {
             this.currentState = new AtomicReference<>(MfaState.AWAITING_MFA_FACTOR_SELECTION);
         }
         this.factorSpecificOptions = (factorSpecificOptionsMap != null) ? new ConcurrentHashMap<>(factorSpecificOptionsMap) : new ConcurrentHashMap<>();
+        // ...
         this.lastActivityTimestamp = Instant.now();
     }
 
@@ -91,14 +92,22 @@ public class FactorContext implements Serializable {
         return success;
     }
 
-    public FactorAuthenticationOptions getCurrentFactorOptions() {
+    // 이 메소드는 AuthenticationStepConfig에 저장된 _options를 가져오므로,
+    // AuthenticationStepConfig에 저장 시 사용된 타입이 AuthenticationProcessingOptions 또는 그 하위 타입이어야 함.
+    public AuthenticationProcessingOptions getCurrentFactorOptions() {
         if (this.currentProcessingFactor == null) {
             return null;
         }
+        // MfaDslConfigurerImpl 에서 AuthenticationStepConfig의 "_options"에
+        // AuthenticationProcessingOptions의 구체적인 하위타입 (예: OttOptions)을 저장했으므로,
+        // 이 메소드가 그 값을 반환하도록 FactorContext가 해당 값을 어딘가에 가지고 있어야 함.
+        // 가장 직접적인 방법은 AuthenticationStepConfig 자체를 FactorContext가 알거나,
+        // currentProcessingFactor에 해당하는 옵션을 factorSpecificOptions 맵에서 가져오는 것.
+        // MfaDslConfigurerImpl 에서 registeredFactorOptionsMap에 저장하는 것을 활용.
         return this.factorSpecificOptions.get(this.currentProcessingFactor);
     }
 
-    public void setAllFactorSpecificOptions(Map<AuthType, FactorAuthenticationOptions> factorOptionsMap) {
+    public void setAllFactorSpecificOptions(Map<AuthType, AuthenticationProcessingOptions> factorOptionsMap) {
         this.factorSpecificOptions.clear();
         if (factorOptionsMap != null) {
             this.factorSpecificOptions.putAll(factorOptionsMap);
@@ -121,9 +130,8 @@ public class FactorContext implements Serializable {
         return this.currentChallengePayload.get(key);
     }
 
-    @Getter // MfaAttemptDetail 내부 필드에 대한 getter
-    public static class MfaAttemptDetail implements Serializable {
-        private static final long serialVersionUID = 2024051401L;
+    @Getter
+    public static class MfaAttemptDetail{
         private final AuthType factorType;
         private final boolean success;
         private final Instant timestamp;

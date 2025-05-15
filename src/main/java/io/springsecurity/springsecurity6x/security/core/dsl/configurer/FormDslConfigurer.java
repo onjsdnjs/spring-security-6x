@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.common.OptionsBuilderDsl;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-public interface FormDslConfigurer extends OptionsBuilderDsl<FormOptions, FormDslConfigurer> {
+public interface FormDslConfigurer extends AuthenticationFactorConfigurer<FormOptions, FormDslConfigurer> {
     FormDslConfigurer loginPage(String loginPageUrl);
     FormDslConfigurer loginProcessingUrl(String loginProcessingUrl);
     FormDslConfigurer usernameParameter(String usernameParameter);
@@ -18,5 +17,5 @@ public interface FormDslConfigurer extends OptionsBuilderDsl<FormOptions, FormDs
     FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler);
     FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler);
     FormDslConfigurer securityContextRepository(SecurityContextRepository repository);
-    FormDslConfigurer rawLogin(SafeHttpFormLoginCustomizer customizer);
+    FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer);
 }

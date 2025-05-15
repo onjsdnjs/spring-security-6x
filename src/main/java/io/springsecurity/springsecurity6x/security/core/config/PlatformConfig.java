@@ -1,9 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
 
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import lombok.Getter;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,12 +12,12 @@ import java.util.List;
 
 @Getter
 public final class PlatformConfig {
-    private final Customizer<HttpSecurity> globalCustomizer; // 이름 변경 (global -> globalCustomizer)
+    private final SafeHttpCustomizer<HttpSecurity> globalCustomizer; // 이름 변경 (global -> globalCustomizer)
     private final List<AuthenticationFlowConfig> flows;
 
     private PlatformConfig(Builder builder) {
         this.globalCustomizer = builder.globalCustomizer;
-        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows)); // 방어적 복사
+        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows)); // builder.flows 직접 사용
     }
 
     public static Builder builder() {
@@ -24,29 +25,48 @@ public final class PlatformConfig {
     }
 
     public static class Builder {
-        private Customizer<HttpSecurity> globalCustomizer = http -> {}; // 이름 변경 및 기본값 설정
+        private SafeHttpCustomizer<HttpSecurity> globalCustomizer = http -> {};
         private final List<AuthenticationFlowConfig> flows = new ArrayList<>();
 
-        public Builder global(Customizer<HttpSecurity> globalCustomizer) { // 파라미터 이름 변경
+        public Builder global(SafeHttpCustomizer<HttpSecurity> globalCustomizer) {
             this.globalCustomizer = globalCustomizer;
             return this;
         }
 
+        /**
+         * 이미 완전히 빌드된 AuthenticationFlowConfig 객체를 추가합니다.
+         */
         public Builder addFlow(AuthenticationFlowConfig flow) {
+            Assert.notNull(flow, "AuthenticationFlowConfig cannot be null");
             this.flows.add(flow);
             return this;
         }
 
+        /**
+         * 내부 flows 리스트에 직접 접근할 수 있도록 제공 (주의해서 사용).
+         * AbstractFlowRegistrar의 replaceLastState에서 사용됩니다.
+         * @return 수정 가능한 flows 리스트
+         */
+        public List<AuthenticationFlowConfig> getModifiableFlows() {
+            return this.flows;
+        }
+
+        /**
+         * 마지막으로 추가된 Flow를 주어진 Flow로 교체합니다.
+         * 이 메소드는 AbstractFlowRegistrar에서 사용됩니다.
+         * @param flow 교체할 AuthenticationFlowConfig 객체
+         */
         public Builder replaceLastFlow(AuthenticationFlowConfig flow) {
-            if (this.flows.isEmpty()) {
-                throw new IllegalStateException("No flow to replace");
+            if (!this.flows.isEmpty()) {
+                this.flows.set(this.flows.size() - 1, flow);
             }
-            this.flows.set(this.flows.size() - 1, flow); // removeLast + add 대신 set 사용
             return this;
         }
 
         public PlatformConfig build() {
-            return new PlatformConfig(this);
+            // 이제 여기서 AuthenticationFlowConfig.Builder.build()를 호출하지 않음.
+            // 이미 AuthenticationFlowConfig 객체들이 flows 리스트에 저장되어 있음.
+            return new PlatformConfig(this); // PlatformConfig 생성자는 List<AuthenticationFlowConfig>를 받음
         }
     }
 }

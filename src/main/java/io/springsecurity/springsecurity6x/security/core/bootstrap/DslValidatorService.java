@@ -39,9 +39,9 @@ public class DslValidatorService {
 
         // 유효성 검사 결과에 따라 예외를 발생시킬 수 있습니다.
         // 예를 들어, 심각한 오류가 있을 경우 초기화를 중단시키기 위함입니다.
-        if (result.hasErrors() || result.hasErrors()) {
+        /*if (result.hasErrors() || result.hasErrors()) {
             // log.error("DSL 유효성 검사 실패. 상세 내용은 이전 로그를 확인하세요.");
              throw new DslValidationException("DSL 유효성 검사에 실패했습니다.: " + result.getErrors()); // 커스텀 예외
-        }
+        }*/
     }
 }

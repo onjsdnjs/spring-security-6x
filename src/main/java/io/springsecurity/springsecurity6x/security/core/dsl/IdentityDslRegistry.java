@@ -2,87 +2,56 @@ package io.springsecurity.springsecurity6x.security.core.dsl;
 
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormStepDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.MfaDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestStepDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttStepDslConfigurer; // 추가
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyStepDslConfigurer; // 추가
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.FormDslConfigurerImpl;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.MfaDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestDslConfigurerImpl;
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.OttDslConfigurerImpl; // Step-Aware 버전
-import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.PasskeyDslConfigurerImpl; // Step-Aware 버전
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
-@Slf4j
-@Component
+@Component // Spring Component로 등록
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
     public IdentityDslRegistry(ApplicationContext applicationContext) {
         super(PlatformConfig.builder(), applicationContext);
-        Assert.notNull(applicationContext, "ApplicationContext cannot be null");
     }
 
     @Override
-    public SecurityPlatformDsl global(SafeHttpCustomizer customizer) {
-        platformBuilder.global(wrapSafeGlobalCustomizer(customizer));
+    public SecurityPlatformDsl global(SafeHttpCustomizer<HttpSecurity> customizer) {
+        platformBuilder.global(customizer);
         return this;
     }
 
-    private Customizer<HttpSecurity> wrapSafeGlobalCustomizer(SafeHttpCustomizer safeCustomizer) {
-        return http -> {
-            try {
-                if (safeCustomizer != null) {
-                    safeCustomizer.customize(http);
-                }
-            } catch (Exception e) {
-                String errorMessage = String.format("Error during global HttpSecurity customization: %s", e.getMessage());
-                log.error(errorMessage, e);
-                throw new DslConfigurationException(errorMessage, e);
-            }
-        };
+    @Override
+    public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) {
+        return registerAuthenticationMethod(AuthType.FORM, customizer, 100); // 기본 order 값 예시
     }
 
     @Override
-    public IdentityStateDsl form(Customizer<FormStepDslConfigurer> customizer) {
-        return registerFlow(AuthType.FORM, customizer,
-                FormDslConfigurerImpl::new
-        );
+    public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) {
+        return registerAuthenticationMethod(AuthType.REST, customizer, 200);
     }
 
     @Override
-    public IdentityStateDsl rest(Customizer<RestStepDslConfigurer> customizer) {
-        return registerFlow(AuthType.REST, customizer,
-                RestDslConfigurerImpl::new
-        );
+    public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) {
+        return registerAuthenticationMethod(AuthType.OTT, customizer, 300);
     }
 
-    // 단일 인증 흐름으로 OTT 지원
     @Override
-    public IdentityStateDsl ott(Customizer<OttStepDslConfigurer> customizer) {
-        return registerFlow(AuthType.OTT, customizer,
-                (stepConfig) -> new OttDslConfigurerImpl(stepConfig, this.applicationContext)
-        );
+    public IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) {
+        return registerAuthenticationMethod(AuthType.PASSKEY, customizer, 400);
     }
 
-    // 단일 인증 흐름으로 Passkey 지원
+    // RECOVERY_CODE를 단일 인증 흐름으로 사용하기 위한 DSL 메소드 (선택적 추가)
+    // public IdentityStateDsl recoveryCode(Customizer<RecoveryCodeConfigurer> customizer) {
+    //     return registerAuthenticationMethod(AuthType.RECOVERY_CODE, customizer, 450);
+    // }
+
+
     @Override
-    public IdentityStateDsl passkey(Customizer<PasskeyStepDslConfigurer> customizer) {
-        return registerFlow(AuthType.PASSKEY, customizer,
-                PasskeyDslConfigurerImpl::new
-        );
-    }
-
     public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) {
-        return registerMultiStepFlow(customizer,
-                MfaDslConfigurerImpl::new);
+        return registerMultiStepFlow(customizer, MfaDslConfigurerImpl::new);
     }
 
     @Override

@@ -1,39 +1,35 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
 import lombok.Getter;
-import org.springframework.security.web.context.SecurityContextRepository;
+
+import java.util.Objects;
 
 @Getter
-public final class RestOptions extends FactorAuthenticationOptions {
+public final class RestOptions extends AuthenticationProcessingOptions {
 
     private final String usernameParameter;
     private final String passwordParameter;
-    private final SecurityContextRepository securityContextRepository;
 
     private RestOptions(Builder builder) {
         super(builder);
-        this.usernameParameter = builder.usernameParameter; // 기본값은 빌더에서 설정
-        this.passwordParameter = builder.passwordParameter; // 기본값은 빌더에서 설정
-        this.securityContextRepository = builder.securityContextRepository;
+        this.usernameParameter = Objects.requireNonNull(builder.usernameParameter, "usernameParameter cannot be null for RestOptions");
+        this.passwordParameter = Objects.requireNonNull(builder.passwordParameter, "passwordParameter cannot be null for RestOptions");
     }
 
     public String getLoginProcessingUrl() {
-        return super.getProcessingUrl();
+        return super.getLoginProcessingUrl();
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<RestOptions, Builder> {
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<RestOptions, Builder> {
         private String usernameParameter = "username";
         private String passwordParameter = "password";
-        private SecurityContextRepository securityContextRepository;
 
         public Builder() {
-            super.processingUrl("/api/auth/login"); // 기본값 설정
-            super.targetUrl("/");             // 기본값 설정
+            super.loginProcessingUrl("/api/auth/login");
         }
 
         @Override
@@ -42,21 +38,14 @@ public final class RestOptions extends FactorAuthenticationOptions {
         }
 
         public Builder usernameParameter(String usernameParameter) {
-            this.usernameParameter = usernameParameter; // null 허용 (기본값 사용 위함)
+            this.usernameParameter = usernameParameter;
             return this;
         }
 
         public Builder passwordParameter(String passwordParameter) {
-            this.passwordParameter = passwordParameter; // null 허용 (기본값 사용 위함)
+            this.passwordParameter = passwordParameter;
             return this;
         }
-
-        public Builder securityContextRepository(SecurityContextRepository securityContextRepository) {
-            this.securityContextRepository = securityContextRepository;
-            return this;
-        }
-
-        // loginProcessingUrl, targetUrl, successHandler, failureHandler는 부모 빌더의 메소드 사용
 
         @Override
         public RestOptions build() {

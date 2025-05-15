@@ -1,18 +1,16 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.options.FactorAuthenticationOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.util.Assert;
 
-import java.util.List;
 import java.util.Objects;
 
 @Getter
-public final class FormOptions extends FactorAuthenticationOptions {
+public final class FormOptions extends AuthenticationProcessingOptions {
 
     private final String loginPage;
     private final String usernameParameter;
@@ -21,16 +19,14 @@ public final class FormOptions extends FactorAuthenticationOptions {
     private final String failureUrl;
     private final boolean permitAll;
     private final boolean alwaysUseDefaultSuccessUrl;
-    private final SecurityContextRepository securityContextRepository;
-    private final Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLoginCustomizers;
+    private final SafeHttpFormLoginCustomizer rawFormLoginCustomizers;
 
     private FormOptions(Builder builder) {
         super(builder);
         this.loginPage = builder.loginPage;
         this.usernameParameter = Objects.requireNonNull(builder.usernameParameter, "usernameParameter cannot be null");
         this.passwordParameter = Objects.requireNonNull(builder.passwordParameter, "passwordParameter cannot be null");
-        this.securityContextRepository = builder.securityContextRepository;
-        this.defaultSuccessUrl = builder.defaultSuccessUrl;
+        this.defaultSuccessUrl = builder.defaultSuccessUrl; // targetUrl과 별개로 FormLoginConfigurer에 사용
         this.failureUrl = builder.failureUrl;
         this.permitAll = builder.permitAll;
         this.alwaysUseDefaultSuccessUrl = builder.alwaysUseDefaultSuccessUrl;
@@ -38,29 +34,25 @@ public final class FormOptions extends FactorAuthenticationOptions {
     }
 
     public String getLoginProcessingUrl() {
-        return super.getProcessingUrl();
+        return super.getLoginProcessingUrl();
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-
-
-    public static final class Builder extends FactorAuthenticationOptions.AbstractFactorOptionsBuilder<FormOptions, Builder> {
-        private String loginPage = "/login";
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<FormOptions, Builder> {
+        private String loginPage = "/loginForm"; // 기본 로그인 페이지 URL 수정
         private String usernameParameter = "username";
         private String passwordParameter = "password";
-        private String defaultSuccessUrl = "password";
-        private String failureUrl = "password";
+        private String defaultSuccessUrl = "/";
+        private String failureUrl = "/loginForm?error"; // 기본 실패 URL 수정
         private boolean permitAll = false;
         private boolean alwaysUseDefaultSuccessUrl = false;
-        private SecurityContextRepository securityContextRepository;
-        private Customizer<FormLoginConfigurer<HttpSecurity>> rawFormLoginCustomizers;
+        private SafeHttpFormLoginCustomizer rawFormLoginCustomizers;
 
         public Builder() {
-            super.processingUrl("/login");
-            super.targetUrl("/");
+            super.loginProcessingUrl("/login"); // Form 인증 처리 URL 기본값
         }
 
         @Override
@@ -69,6 +61,7 @@ public final class FormOptions extends FactorAuthenticationOptions {
         }
 
         public Builder loginPage(String loginPage) {
+            Assert.hasText(loginPage, "loginPage cannot be empty");
             this.loginPage = loginPage;
             return this;
         }
@@ -85,40 +78,45 @@ public final class FormOptions extends FactorAuthenticationOptions {
             return this;
         }
 
-        public Builder securityContextRepository(SecurityContextRepository securityContextRepository) {
-            this.securityContextRepository = securityContextRepository;
+        public Builder defaultSuccessUrl(String defaultSuccessUrl) {
+            this.defaultSuccessUrl = defaultSuccessUrl;
+            this.alwaysUseDefaultSuccessUrl = false; // 명시적으로 false로 설정
             return this;
         }
 
-        public void defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
+        public Builder defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
             this.defaultSuccessUrl = defaultSuccessUrl;
             this.alwaysUseDefaultSuccessUrl = alwaysUse;
+            return this;
         }
 
-        public void failureUrl(String failureUrl) {
+        public Builder failureUrl(String failureUrl) {
+            Assert.hasText(failureUrl, "failureUrl cannot be empty");
             this.failureUrl = failureUrl;
+            return this;
         }
 
-        public void permitAll() {
+        public Builder permitAll() {
             this.permitAll = true;
+            return this;
         }
 
-        public void alwaysUseDefaultSuccessUr(boolean alwaysUseDefaultSuccessUrl) {
+        public Builder alwaysUseDefaultSuccessUrl(boolean alwaysUseDefaultSuccessUrl) {
             this.alwaysUseDefaultSuccessUrl = alwaysUseDefaultSuccessUrl;
+            return this;
+        }
+
+        public Builder rawFormLogin(SafeHttpFormLoginCustomizer rawFormLoginCustomizers) {
+            this.rawFormLoginCustomizers = rawFormLoginCustomizers;
+            return this;
         }
 
         @Override
         public FormOptions build() {
             return new FormOptions(this);
         }
-
-        public void rawFormLogin(Customizer<FormLoginConfigurer<HttpSecurity>> formLoginConfigurerCustomizer) {
-                Objects.requireNonNull(formLoginConfigurerCustomizer, "rawHttp customizer must not be null");
-                this.rawFormLoginCustomizers= formLoginConfigurerCustomizer;
-            }
-        }
+    }
 }
-
 
 
 

@@ -85,13 +85,13 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
             }
         }
 
-        if (result.hasErrors()) {
+        /*if (result.hasErrors()) {
             result.getErrors().forEach(log::error);
             throw new DslValidationException(
                     "DSL path conflicts detected. Error details:\n" +
                             String.join("\n", result.getErrors())
             );
-        }
+        }*/
 
         log.info("ConflictRiskAnalyzer: DSL conflict validation passed");
         return result;

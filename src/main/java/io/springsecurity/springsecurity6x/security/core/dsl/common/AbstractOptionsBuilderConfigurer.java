@@ -1,19 +1,21 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
-import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.context.SecurityContextRepository;
+
 import java.util.Objects;
 
 public abstract class AbstractOptionsBuilderConfigurer<
-        O extends AbstractOptions,
-        B extends AbstractOptions.Builder<O, B>,
+        O extends AuthenticationProcessingOptions,
+        B extends AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<O, B>,
         S extends OptionsBuilderDsl<O, S>> implements OptionsBuilderDsl<O, S> {
 
     protected final B optionsBuilder;
@@ -22,66 +24,75 @@ public abstract class AbstractOptionsBuilderConfigurer<
         this.optionsBuilder = Objects.requireNonNull(optionsBuilder, "optionsBuilder cannot be null");
     }
 
-    protected abstract S self();
+    protected B getOptionsBuilder() {
+        return this.optionsBuilder;
+    }
+
+    protected abstract S self(); // 하위 클래스에서 구체적인 Configurer 타입을 반환하도록 강제
 
     @Override
-    public S rawHttp(SafeHttpCustomizer customizer) {
-        this.optionsBuilder.rawHttp(wrapSafeHttpCustomizer(customizer));
+    public O buildConcreteOptions() {
+        return this.optionsBuilder.build();
+    }
+
+    // --- OptionsBuilderDsl Methods Implementation ---
+    @Override
+    public S loginProcessingUrl(String url) {
+        getOptionsBuilder().loginProcessingUrl(url);
         return self();
     }
 
     @Override
+    public S successHandler(AuthenticationSuccessHandler handler) {
+        getOptionsBuilder().successHandler(handler);
+        return self();
+    }
+
+    @Override
+    public S failureHandler(AuthenticationFailureHandler handler) {
+        getOptionsBuilder().failureHandler(handler);
+        return self();
+    }
+
+    @Override
+    public S securityContextRepository(SecurityContextRepository repository) {
+        getOptionsBuilder().securityContextRepository(repository);
+        return self();
+    }
+
+    // --- CommonSecurityDsl Methods (from AbstractOptions.Builder) ---
+    @Override
     public S disableCsrf() {
-        this.optionsBuilder.disableCsrf();
+        getOptionsBuilder().disableCsrf();
         return self();
     }
 
     @Override
     public S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
-        this.optionsBuilder.cors(customizer);
+        getOptionsBuilder().cors(customizer);
         return self();
     }
 
     @Override
     public S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
-        this.optionsBuilder.headers(customizer);
+        getOptionsBuilder().headers(customizer);
         return self();
     }
 
     @Override
     public S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
-        this.optionsBuilder.sessionManagement(customizer);
+        getOptionsBuilder().sessionManagement(customizer);
         return self();
     }
 
     @Override
     public S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
-        this.optionsBuilder.logout(customizer);
+        getOptionsBuilder().logout(customizer);
         return self();
     }
 
-    protected Customizer<HttpSecurity> wrapSafeHttpCustomizer(SafeHttpCustomizer safeCustomizer) {
-        return http -> {
-            try {
-                if (safeCustomizer != null) safeCustomizer.customize(http);
-            } catch (Exception e) {
-                throw new DslConfigurationException("Error during raw HttpSecurity customization: " + e.getMessage(), e);
-            }
-        };
-    }
-
-    protected Customizer<FormLoginConfigurer<HttpSecurity>> wrapSafeFormLoginCustomizer(SafeHttpFormLoginCustomizer safeCustomizer) {
-        return formLogin -> {
-            try {
-                if (safeCustomizer != null) safeCustomizer.customize(formLogin);
-            } catch (Exception e) {
-                throw new DslConfigurationException("Error during raw FormLoginConfigurer customization: " + e.getMessage(), e);
-            }
-        };
-    }
-
-    @Override
-    public O buildConcreteOptions() {
-        return this.optionsBuilder.build();
+    public S rawHttp(SafeHttpCustomizer customizer) {
+        getOptionsBuilder().rawHttp(customizer);
+        return self();
     }
 }

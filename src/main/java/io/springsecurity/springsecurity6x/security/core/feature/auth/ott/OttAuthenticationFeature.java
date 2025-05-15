@@ -5,19 +5,13 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.TokenIssuingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 import java.io.IOException;
@@ -88,7 +82,7 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
         // one-time-token 로그인 DSL 적용
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
-                    .loginProcessingUrl(opts.getProcessingUrl())
+                    .loginProcessingUrl(opts.getLoginProcessingUrl())
                     .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
                     .tokenService(opts.getOneTimeTokenService())

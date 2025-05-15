@@ -1,5 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,14 +14,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@Getter
 public abstract class AbstractOptions {
     private final boolean csrfDisabled;
     private final Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer;
     private final Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
     private final Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
+    // 추가
     private final Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer; // 추가
     private final List<String> staticMatchers;
-    private final List<Customizer<HttpSecurity>> rawHttpCustomizers;
+    private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers;
 
     protected AbstractOptions(Builder<?, ?> b) {
         this.csrfDisabled = b.csrfDisabled;
@@ -30,14 +34,6 @@ public abstract class AbstractOptions {
         this.staticMatchers = List.copyOf(b.staticMatchers);
         this.rawHttpCustomizers = List.copyOf(b.rawHttpCustomizers);
     }
-
-    public boolean isCsrfDisabled() { return csrfDisabled; }
-    public Customizer<CorsConfigurer<HttpSecurity>> getCorsCustomizer() { return corsCustomizer; }
-    public Customizer<HeadersConfigurer<HttpSecurity>> getHeadersCustomizer() { return headersCustomizer; }
-    public Customizer<SessionManagementConfigurer<HttpSecurity>> getSessionManagementCustomizer() { return sessionManagementCustomizer; }
-    public Customizer<LogoutConfigurer<HttpSecurity>> getLogoutCustomizer() { return logoutCustomizer; } // 추가
-    public List<String> getStaticMatchers() { return staticMatchers; }
-    public List<Customizer<HttpSecurity>> getRawHttpCustomizers() { return rawHttpCustomizers; }
 
     public void applyCommon(HttpSecurity http) throws Exception {
         if (csrfDisabled) {
@@ -62,7 +58,7 @@ public abstract class AbstractOptions {
                 }
             });
         }
-        for (Customizer<HttpSecurity> raw : rawHttpCustomizers) {
+        for (SafeHttpCustomizer<HttpSecurity> raw : rawHttpCustomizers) {
             raw.customize(http);
         }
     }
@@ -74,7 +70,7 @@ public abstract class AbstractOptions {
         private Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
         private Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer; // 추가
         private List<String> staticMatchers = List.of();
-        private List<Customizer<HttpSecurity>> rawHttpCustomizers = new ArrayList<>();
+        private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers = new ArrayList<>();
 
         protected abstract B self();
 
@@ -108,7 +104,7 @@ public abstract class AbstractOptions {
             return self();
         }
 
-        public B rawHttp(Customizer<HttpSecurity> customizer) {
+        public B rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null");
             this.rawHttpCustomizers.add(customizer);
             return self();

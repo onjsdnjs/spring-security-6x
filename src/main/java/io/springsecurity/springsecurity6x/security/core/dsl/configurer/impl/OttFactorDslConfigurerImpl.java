@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factor.ott.OttFactorDslConfigurer;
-import io.springsecurity.springsecurity6x.security.core.mfa.options.OttFactorOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
@@ -12,13 +12,13 @@ import org.springframework.security.web.authentication.ott.OneTimeTokenGeneratio
 import org.springframework.util.Assert;
 
 public class OttFactorDslConfigurerImpl
-        extends AbstractOptionsBuilderConfigurer<OttFactorOptions, OttFactorOptions.Builder, OttFactorDslConfigurer>
+        extends AbstractOptionsBuilderConfigurer<OttOptions, OttOptions.Builder, OttFactorDslConfigurer>
         implements OttFactorDslConfigurer {
 
     private final ApplicationContext applicationContext;
 
     public OttFactorDslConfigurerImpl(ApplicationContext applicationContext) {
-        super(OttFactorOptions.builder()); // OttFactorOptions에 Builder 추가 필요
+        super(OttOptions.builder()); // OttFactorOptions에 Builder 추가 필요
         this.applicationContext = applicationContext;
     }
 
@@ -26,8 +26,8 @@ public class OttFactorDslConfigurerImpl
     protected OttFactorDslConfigurer self() { return this; }
 
     @Override
-    public OttFactorDslConfigurer processingUrl(String url) {
-        this.optionsBuilder.processingUrl(url); return self();
+    public OttFactorDslConfigurer loginProcessingUrl(String url) {
+        this.optionsBuilder.loginProcessingUrl(url); return self();
     }
     @Override
     public OttFactorDslConfigurer successHandler(AuthenticationSuccessHandler handler) {

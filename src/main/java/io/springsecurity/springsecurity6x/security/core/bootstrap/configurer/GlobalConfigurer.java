@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,7 +18,7 @@ public class GlobalConfigurer implements SecurityConfigurer {
 
     @Override
     public void configure(FlowContext ctx) {
-        Customizer<HttpSecurity> customizer = ctx.config().getGlobalCustomizer();
+        SafeHttpCustomizer<HttpSecurity> customizer = ctx.config().getGlobalCustomizer();
         if (customizer == null) {
             return;
         }

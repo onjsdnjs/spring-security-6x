@@ -1,21 +1,16 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.CommonSecurityDsl;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import org.springframework.security.authentication.ott.OneTimeTokenService;
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
-public interface OttDslConfigurer extends CommonSecurityDsl<OttDslConfigurer> {
+public interface OttDslConfigurer extends AuthenticationFactorConfigurer<OttOptions, OttDslConfigurer> {
 
     OttDslConfigurer loginProcessingUrl(String url);
-
-    OttDslConfigurer targetUrl(String url);
-
     OttDslConfigurer defaultSubmitPageUrl(String url);
-
     OttDslConfigurer tokenGeneratingUrl(String url);
-
     OttDslConfigurer showDefaultSubmitPage(boolean show);
-
-    OttDslConfigurer tokenService(org.springframework.security.authentication.ott.OneTimeTokenService service);
-
-    OttDslConfigurer tokenGenerationSuccessHandler(org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler handler);
+    OttDslConfigurer tokenService(OneTimeTokenService service);
+    OttDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler);
 }
 

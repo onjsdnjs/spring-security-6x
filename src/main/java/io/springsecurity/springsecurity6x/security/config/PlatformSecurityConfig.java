@@ -40,7 +40,7 @@ public class PlatformSecurityConfig {
                         .defaultRetryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
                         .defaultAdaptivePolicy(ad -> ad.geolocation(true))
                         .defaultDeviceTrustEnabled(true)
-                        .recoveryFlow(rc -> rc.emailOtpEndpoint("/recover/email")))
+                        .recoveryFlow(rc -> rc.codeLength(100)))
                 .jwt(jwt -> Customizer.withDefaults())
 
 

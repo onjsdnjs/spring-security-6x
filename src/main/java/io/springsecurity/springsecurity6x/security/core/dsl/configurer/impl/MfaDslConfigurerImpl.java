@@ -67,8 +67,10 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     @Override
     public MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurerCustomizer) {
-        FormDslConfigurerImpl configurer = authMethodConfigurerFactory.createConfigurer(AuthType.FORM);
+        // AuthMethodConfigurerFactory는 FormConfigurer 타입으로 반환하도록 제네릭 힌트를 줌
+        FormDslConfigurer configurer = authMethodConfigurerFactory.createConfigurer(AuthType.FORM);
         formConfigurerCustomizer.customize(configurer);
+        // buildConcreteOptions()는 FormConfigurer 인터페이스(OptionsBuilderDsl 확장)에 의해 제공됨
         FormOptions formOptions = configurer.buildConcreteOptions();
         this.primaryAuthenticationOptions = PrimaryAuthenticationOptions.builder()
                 .formOptions(formOptions)
@@ -79,7 +81,8 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     @Override
     public MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurerCustomizer) {
-        RestDslConfigurerImpl configurer = authMethodConfigurerFactory.createConfigurer(AuthType.REST);
+        // AuthMethodConfigurerFactory는 RestConfigurer 타입으로 반환하도록 제네릭 힌트를 줌
+        RestDslConfigurer configurer = authMethodConfigurerFactory.createConfigurer(AuthType.REST);
         restConfigurerCustomizer.customize(configurer);
         RestOptions restOptions = configurer.buildConcreteOptions();
         this.primaryAuthenticationOptions = PrimaryAuthenticationOptions.builder()

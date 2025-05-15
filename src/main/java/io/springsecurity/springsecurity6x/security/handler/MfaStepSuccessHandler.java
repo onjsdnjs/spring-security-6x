@@ -2,9 +2,6 @@ package io.springsecurity.springsecurity6x.security.handler;
 
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
@@ -44,7 +41,7 @@ public class MfaStepSuccessHandler {
      */
     public static AuthenticationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
                                                             AuthenticationSuccessHandler delegate) {
-        return new TokenIssuingSuccessHandler(tokenSupplier, delegate);
+        return new CustomTokenIssuingSuccessHandler(tokenSupplier, delegate);
     }
 
     /**
@@ -52,7 +49,7 @@ public class MfaStepSuccessHandler {
      */
     public static OneTimeTokenGenerationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
                                                                     OneTimeTokenGenerationSuccessHandler delegate) {
-        return new TokenIssuingSuccessHandler(tokenSupplier, delegate);
+        return new CustomTokenIssuingSuccessHandler(tokenSupplier, delegate);
     }
 
     /**

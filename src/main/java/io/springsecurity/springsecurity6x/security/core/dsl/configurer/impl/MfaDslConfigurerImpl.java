@@ -101,24 +101,23 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
      *
      * @param authType                MFA Factor의 인증 타입 (예: AuthType.OTT)
      * @param factorConfigurerCustomizer 사용자 정의 Customizer
-     * @param <F_OPTS>                FactorAuthenticationOptions의 하위 타입
-     * @param <F_CONF>                FactorDslConfigurer의 하위 타입
+     * @param <O>                FactorAuthenticationOptions의 하위 타입
+     * @param <C>                FactorDslConfigurer의 하위 타입
      * @return MfaDslConfigurer (체이닝을 위해)
+     * Factor Configurer는 OptionsBuilderDsl을 구현해야 함
      */
-    private <F_OPTS extends FactorAuthenticationOptions,
-            F_CONF extends OptionsBuilderDsl<F_OPTS, F_CONF>> // Factor Configurer는 OptionsBuilderDsl을 구현해야 함
-    MfaDslConfigurer configureMfaFactor(
+    private <O extends FactorAuthenticationOptions, C extends OptionsBuilderDsl<O, C>> MfaDslConfigurer configureMfaFactor(
             AuthType authType,
-            Customizer<F_CONF> factorConfigurerCustomizer) {
+            Customizer<C> factorConfigurerCustomizer) {
 
         // FactorDslConfigurerFactory를 통해 특정 AuthType에 맞는 Configurer를 가져옴
-        F_CONF configurer = factorDslConfigurerFactory.createConfigurer(authType);
+        C configurer = factorDslConfigurerFactory.createConfigurer(authType);
 
         // 사용자 정의 Customizer 적용
         factorConfigurerCustomizer.customize(configurer);
 
         // Factor Options 빌드
-        F_OPTS factorOptions = configurer.buildConcreteOptions();
+        O factorOptions = configurer.buildConcreteOptions();
         this.registeredFactorOptionsMap.put(authType, factorOptions);
 
         // AuthenticationStepConfig 생성 및 추가

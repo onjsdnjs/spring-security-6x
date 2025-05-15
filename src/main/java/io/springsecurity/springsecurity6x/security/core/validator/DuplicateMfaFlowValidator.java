@@ -11,11 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * MFA 흐름 중복 검증기
- *  - 진입점과 단계 순서가 동일하면서 옵션도 모두 동일하면 오류
- *  - 진입점과 단계 순서는 동일하나 옵션이 다르면 경고 로그
- */
+
 /**
  * MFA 흐름 중복 검증기
  * - 각 FlowContext를 순회하며 MFA 흐름을 검사합니다.
@@ -39,8 +35,8 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
         // 모든 FlowContext 에서 MFA 흐름을 수집
         List<AuthenticationFlowConfig> allMfaFlows = flows.stream()
                 .map(FlowContext::config)
-                .flatMap(config -> config.flows().stream())
-                .filter(flow -> "mfa".equalsIgnoreCase(flow.typeName()))
+                .flatMap(config -> config.getFlows().stream())
+                .filter(flow -> "mfa".equalsIgnoreCase(flow.getTypeName()))
                 .toList();
 
         // entryUrl + 단계 순서별 그룹핑
@@ -80,11 +76,10 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
 
     /** 진입점 + 단계 순서로 그룹핑 키 생성 */
     private String entryStepsKey(AuthenticationFlowConfig flow) {
-        String entry = flow.loginProcessingUrl();
-        String steps = flow.stepConfigs().stream()
-                .map(AuthenticationStepConfig::type)
+        String steps = flow.getStepConfigs().stream()
+                .map(AuthenticationStepConfig::getType)
                 .collect(Collectors.joining("->"));
-        return entry + "|" + steps;
+        return "|" + steps;
     }
 
     /** entryStepsKey + 옵션 요약으로 fingerprint 생성 */
@@ -97,19 +92,14 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
     /** 주요 옵션들(retryPolicy, adaptiveConfig, deviceTrust, recoveryConfig)을 요약 */
     private String summarizeOptions(AuthenticationFlowConfig flow) {
         Map<String,String> map = new TreeMap<>();
-        if (flow.retryPolicy() != null) {
-            map.put("retryMax", String.valueOf(flow.retryPolicy().maxAttempts()));
-            map.put("lockoutSec", String.valueOf(flow.retryPolicy().lockoutSec()));
+        if (flow.getDefaultRetryPolicy() != null) {
+            map.put("retryMax", String.valueOf(flow.getDefaultRetryPolicy().getMaxAttempts()));
         }
-        if (flow.adaptiveConfig() != null) {
-            map.put("adaptiveGeo", String.valueOf(flow.adaptiveConfig().geolocation()));
-            map.put("adaptivePosture", String.valueOf(flow.adaptiveConfig().devicePosture()));
+        if (flow.getDefaultAdaptiveConfig() != null) {
+            map.put("adaptiveGeo", String.valueOf(flow.getDefaultAdaptiveConfig().geolocation()));
+            map.put("adaptivePosture", String.valueOf(flow.getDefaultAdaptiveConfig().devicePosture()));
         }
-        map.put("deviceTrust", String.valueOf(flow.deviceTrust()));
-        if (flow.recoveryConfig() != null) {
-            map.put("recoveryEmail", flow.recoveryConfig().getEmailOtpEndpoint());
-            map.put("recoverySms", flow.recoveryConfig().getSmsOtpEndpoint());
-        }
+        map.put("deviceTrust", String.valueOf(flow.isDefaultDeviceTrustEnabled()));
         return map.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(","));

@@ -22,7 +22,8 @@ public class PrimaryAuthCompletedStateHandler implements MfaStateHandler {
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
         log.debug("[MFA Handler] PrimaryAuthCompleted: Current state: {}, Event: {}, Session ID: {}", ctx.getCurrentState(), event, ctx.getMfaSessionId());
 
-        if (event == MfaEvent.MFA_REQUIRED_CHECK_COMPLETED) {
+//        if (event == MfaEvent.MFA_REQUIRED_CHECK_COMPLETED) {
+        if (event == MfaEvent.ISSUE_TOKEN) {
             // FactorContext에 MFA 필요 여부(isMfaRequired)와 등록된 Factor 목록(getRegisteredMfaFactors),
             // 자동 시도 Factor(getPreferredAutoAttemptFactor)가 설정되어 있다고 가정합니다.
             // 이 정보는 MfaPolicyProvider 등을 통해 미리 FactorContext에 채워져야 합니다.

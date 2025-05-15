@@ -1,56 +1,51 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;     // 추가
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;     // 새로운 MfaState 사용
+import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException; // 가정된 경로
 
 public class OttStateHandler implements MfaStateHandler {
 
     @Override
     public boolean supports(MfaState state) {
-        // 이 핸들러는 OTT Factor가 처리 중일 때의 특정 상태들을 담당합니다.
-        // StateHandlerRegistry가 상태만으로 핸들러를 선택한다면, 이 핸들러가 호출되었을 때
-        // FactorContext를 통해 현재 처리 대상이 OTT인지 추가 확인이 필요할 수 있습니다.
-        // 더 나은 방법은 MfaState 자체에 Factor 정보를 포함하거나 (예: OTT_CHALLENGE_REQUESTED),
-        // Registry가 Factor 정보도 함께 고려하여 핸들러를 선택하는 것입니다.
-        // 현재는 MfaState.FACTOR_CHALLENGE_INITIATED 와 FACTOR_VERIFICATION_PENDING 상태를 지원한다고 가정.
+        // 이 핸들러는 OTT Factor가 처리 중일 때의 FACTOR_CHALLENGE_INITIATED 또는 FACTOR_VERIFICATION_PENDING 상태를 담당.
+        // StateHandlerRegistry 에서 이 핸들러를 선택할 때, FactorContext의 currentProcessingFactor가 OTT 인지도 함께 고려되어야 이상적임.
         return state == MfaState.FACTOR_CHALLENGE_INITIATED || state == MfaState.FACTOR_VERIFICATION_PENDING;
     }
 
     @Override
     public MfaState handleEvent(MfaEvent event, FactorContext ctx) {
-        // 이 핸들러가 호출되었다면, 외부에서 이미 현재 Factor가 OTT라고 판단했거나,
-        // 또는 이 핸들러 내부에서 FactorType을 확인해야 합니다.
+        // 이 핸들러가 호출될 때는 FactorContext.getCurrentProcessingFactor()가 AuthType.OTT 여야 함.
         if (ctx.getCurrentProcessingFactor() != AuthType.OTT) {
-            // 이 핸들러는 OTT Factor를 위한 것이므로, 다른 Factor가 처리 중이면 관여하지 않음.
-            // 또는 예외를 발생시켜 잘못된 핸들러 호출임을 알릴 수 있음.
-            // 여기서는 예외를 발생시키지 않고, 상태 변화 없이 현재 상태를 반환하거나,
-            // supports에서 걸러졌다고 가정합니다.
-            // 더 안전하게는 supports(MfaState state, FactorContext ctx)로 변경하거나,
-            // 여기서 명시적으로 확인하고 예외를 던지는 것이 좋습니다.
-            // throw new IllegalStateException("OttStateHandler called for non-OTT factor: " + ctx.getCurrentProcessingFactor());
+            // 이 핸들러는 OTT Factor가 아닐 경우 호출되어서는 안 됨.
+            // 예외를 발생시켜 잘못된 핸들러 호출임을 알림.
+            throw new IllegalStateException("OttStateHandler called for a non-OTT factor. Current factor: " + ctx.getCurrentProcessingFactor() + ", Current State: " + ctx.getCurrentState());
         }
 
         MfaState currentState = ctx.getCurrentState();
 
-        if (currentState == MfaState.FACTOR_CHALLENGE_INITIATED && ctx.getCurrentProcessingFactor() == AuthType.OTT) {
-            // (예: OTT 코드/링크 발송 요청 이벤트 -> 발송 성공 후 상태 변경은 외부에서 처리)
-            // 사용자가 OTT 코드를 제출하는 이벤트 (SUBMIT_CREDENTIAL)
-            if (event == MfaEvent.SUBMIT_CREDENTIAL) {
-                // 실제 코드 검증 로직은 이 핸들러의 책임이 아님.
-                // 코드 제출 시, 검증을 기다리는 상태로 변경.
-                // 실제 검증은 MfaFactorAuthenticator (가칭) 또는 관련 Spring Security 필터에서 수행.
+        if (currentState == MfaState.FACTOR_CHALLENGE_INITIATED) {
+            if (event == MfaEvent.SUBMIT_CREDENTIAL) { // 사용자가 OTT 코드를 제출
                 ctx.getLastActivityTimestamp();
-                return MfaState.FACTOR_VERIFICATION_PENDING;
+                return MfaState.FACTOR_VERIFICATION_PENDING; // 검증 대기 상태로 변경
+            } else if (event == MfaEvent.ERROR) { // OTT 챌린지 생성/발송 중 일반 오류 발생 시
+                // (MfaEvent에 CHALLENGE_DELIVERY_FAILURE 같은 더 구체적인 이벤트가 있다면 그것을 사용)
+                // 실패 처리는 MfaFailureHandler가 담당하고, 여기서는 상태 전이만 제안.
+                return MfaState.AWAITING_MFA_FACTOR_SELECTION; // 다시 선택 화면으로 (또는 MFA_FAILURE_TERMINAL)
+            }
+        } else if (currentState == MfaState.FACTOR_VERIFICATION_PENDING) {
+            // 실제 OTT 코드 검증 성공/실패에 따른 상태 전이는
+            // MfaContinuationHandler 또는 MfaFailureHandler가 처리합니다.
+            // 이 StateHandler가 직접 MfaState.MFA_VERIFICATION_COMPLETED 등으로 전이시키지 않습니다.
+            // 따라서 이 블록에서는 특별한 상태 전이를 정의하지 않거나,
+            // 매우 제한적인 (예: TIMEOUT) 이벤트만 처리할 수 있습니다.
+            if (event == MfaEvent.TIMEOUT) {
+                return MfaState.MFA_SESSION_INVALIDATED; // 예시: 타임아웃 시 세션 무효화
             }
         }
-        // FACTOR_VERIFICATION_PENDING 상태에서의 이벤트 처리는
-        // 주로 MfaContinuationHandler 또는 MfaFailureHandler를 통해 이루어집니다.
-        // 이 상태 핸들러가 직접 최종 성공/실패 상태로 전이시키는 것은 바람직하지 않을 수 있습니다.
 
-        // 지원하지 않는 이벤트/상태 조합
         throw new InvalidTransitionException(currentState, event);
     }
 }

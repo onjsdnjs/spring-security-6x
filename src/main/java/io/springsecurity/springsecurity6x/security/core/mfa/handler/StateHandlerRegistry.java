@@ -1,43 +1,49 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
-import io.springsecurity.springsecurity6x.security.enums.MfaState; // 새로운 MfaState 사용
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class StateHandlerRegistry {
+    private static final Logger log = LoggerFactory.getLogger(StateHandlerRegistry.class);
     private final Map<MfaState, MfaStateHandler> registry = new EnumMap<>(MfaState.class);
 
     public StateHandlerRegistry(List<MfaStateHandler> handlers) {
-        if (handlers == null) {
-            throw new IllegalArgumentException("Handlers list cannot be null.");
-        }
+        Objects.requireNonNull(handlers, "Handlers list cannot be null."); // Null 체크 강화
+
         for (MfaStateHandler handler : handlers) {
-            if (handler == null) continue; // Null 핸들러 방지
-            // 새로운 MfaState enum의 모든 값을 순회하며 supports 여부 확인
-            for (MfaState state : MfaState.values()) {
+            if (handler == null) {
+                log.warn("Null MfaStateHandler instance found in the provided list, skipping.");
+                continue;
+            }
+            for (MfaState state : MfaState.values()) { // 모든 MfaState 값 순회
                 try {
                     if (handler.supports(state)) {
-                        // 하나의 상태에 여러 핸들러가 매핑되는 것을 방지하거나, 정책을 정해야 함.
-                        // 여기서는 마지막으로 등록된 핸들러가 우선권을 가짐.
                         if (registry.containsKey(state)) {
-                            // 로깅 또는 경고 처리: 이미 해당 상태에 대한 핸들러가 등록되어 있음
-                            System.err.println("Warning: Overwriting handler for MfaState " + state +
-                                    ". Old: " + registry.get(state).getClass().getSimpleName() +
-                                    ", New: " + handler.getClass().getSimpleName());
+                            log.warn("Overwriting handler for MfaState {}. Old: {}, New: {}",
+                                    state, registry.get(state).getClass().getSimpleName(), handler.getClass().getSimpleName());
                         }
                         registry.put(state, handler);
+                        log.debug("Registered handler {} for MfaState {}", handler.getClass().getSimpleName(), state);
                     }
                 } catch (Exception e) {
-                    // supports 메소드에서 예외 발생 시 로깅 또는 오류 처리
-                    System.err.println("Error while checking support for state " + state +
-                            " with handler " + handler.getClass().getSimpleName() + ": " + e.getMessage());
+                    log.error("Error while invoking supports() for state {} with handler {}: {}",
+                            state, handler.getClass().getSimpleName(), e.getMessage(), e);
                 }
             }
         }
     }
 
     public MfaStateHandler get(MfaState state) {
-        return registry.get(state);
+        MfaStateHandler handler = registry.get(state);
+        // 핸들러가 없는 경우 null을 반환하며, 호출하는 쪽에서 처리 (예: InvalidTransitionException 발생)
+        if (handler == null) {
+            log.warn("No MfaStateHandler found for MfaState: {}. This might lead to an InvalidTransitionException if not handled by the caller.", state);
+        }
+        return handler;
     }
 }

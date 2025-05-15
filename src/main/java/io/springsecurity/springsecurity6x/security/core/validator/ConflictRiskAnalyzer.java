@@ -44,17 +44,17 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
         }
 
         int mfaCount = 0;
-        for (AuthenticationFlowConfig flow : config.flows()) {
-            if (!"mfa".equalsIgnoreCase(flow.typeName())) continue;
+        for (AuthenticationFlowConfig flow : config.getFlows()) {
+            if (!"mfa".equalsIgnoreCase(flow.getTypeName())) continue;
             mfaCount++;
-            List<AuthenticationStepConfig> steps = flow.stepConfigs();
+            List<AuthenticationStepConfig> steps = flow.getStepConfigs();
             if (steps.size() < 2) continue;
 
             List<String> flowErrors = new ArrayList<>();
             for (int i = 1; i < steps.size(); i++) {
                 AuthenticationStepConfig step = steps.get(i);
-                Object opts = step.options().get("_options");
-                String type = step.type();
+                Object opts = step.getOptions().get("_options");
+                String type = step.getType();
                 String url = null;
                 if (opts instanceof FormOptions) {
                     url = ((FormOptions) opts).getTargetUrl();

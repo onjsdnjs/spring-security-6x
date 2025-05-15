@@ -47,7 +47,7 @@ public class StepTransitionFilter extends OncePerRequestFilter {
         }
 
         FactorContext ctx = ctxPersistence.contextLoad(request);
-        MfaState currentState = ctx.currentState();
+        MfaState currentState = ctx.getCurrentState();
         MfaEvent event = MfaEventPolicyResolver.resolve(request, ctx);
 
         if (AuthUtil.isTerminalState(currentState)) {

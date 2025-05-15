@@ -35,11 +35,6 @@ import java.util.Map;
 public class SecurityPlatformConfiguration {
 
     @Bean
-    public SecretKey secretKey() {
-        return Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    }
-
-    @Bean
     public PlatformContext platformContext(ApplicationContext ctx,
                                            ObjectProvider<HttpSecurity> provider) {
         return new DefaultPlatformContext(ctx, provider);

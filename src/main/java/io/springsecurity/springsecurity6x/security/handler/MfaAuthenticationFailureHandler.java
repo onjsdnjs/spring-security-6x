@@ -9,23 +9,26 @@ import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class MfaAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider; // 재시도 정책 등을 위해 주입 (선택적)
 
     public MfaAuthenticationFailureHandler(String defaultFailureUrl, ContextPersistence contextPersistence, MfaPolicyProvider mfaPolicyProvider) {
-        super(defaultFailureUrl); // 예: "/mfa/failure"
+        super(defaultFailureUrl);
         this.contextPersistence = contextPersistence;
         this.mfaPolicyProvider = mfaPolicyProvider;
-        // setUseForward(true); // 필요에 따라 Forward 방식 사용
     }
     // 간소화된 생성자 (기본 실패 URL만)
     public MfaAuthenticationFailureHandler(String defaultFailureUrl, ContextPersistence contextPersistence) {

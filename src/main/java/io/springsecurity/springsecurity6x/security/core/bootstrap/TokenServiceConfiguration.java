@@ -47,12 +47,6 @@ public class TokenServiceConfiguration {
 
         TokenTransportStrategy transport = TokenTransportStrategyFactory.create(props);
 
-        // ObjectMapper 전달
-        // TokenTransportStrategy 가 TokenService 를 필요로 하는 경우 (순환 참조 방지)
-        // transport.setTokenService(jwtTokenService); // JwtTokenService 생성자에서 transport에 자신을 주입하도록 변경 가능
-        // 또는 TokenService에 objectMapper를 주입하여 JSON 처리를 위임하고,
-        // TokenTransportStrategy는 순수하게 토큰 전달 방식만 담당하도록 분리.
-        // 현재 JwtTokenService 생성자에 ObjectMapper 추가함.
         return new JwtTokenService(
                 jwtTokenValidator,
                 jwtTokenCreator,
@@ -62,7 +56,4 @@ public class TokenServiceConfiguration {
                 objectMapper
         );
     }
-
-    // SecretKey, AuthContextProperties, ObjectMapper 는 다른 Configuration에서 Bean으로 등록되어 있다고 가정
-    // 예: MySecurityConfig.java, SecurityPlatformConfiguration.java
 }

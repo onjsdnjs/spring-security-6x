@@ -1,15 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-// MfaState는 FactorContext 생성 시점에 결정되므로 여기서 직접 사용할 필요 없음
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import lombok.extern.slf4j.Slf4j; // 로깅 추가
-import org.springframework.lang.Nullable; // Nullable 추가
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 
-@Slf4j // 로깅 추가
+@Slf4j
+@Component
 public class HttpSessionContextPersistence implements ContextPersistence {
 
     private static final String MFA_CONTEXT_ATTR = "MFA_FACTOR_CONTEXT_V2"; // 버전 명시 또는 상수명 유지

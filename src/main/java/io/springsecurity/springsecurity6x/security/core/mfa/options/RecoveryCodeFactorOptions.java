@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.util.Assert;
 
 public class RecoveryCodeFactorOptions extends FactorAuthenticationOptions {

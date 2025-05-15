@@ -13,20 +13,23 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 public interface MfaDslConfigurer {
+
     MfaDslConfigurer order(int order);
-    MfaDslConfigurer policyProvider(MfaPolicyProvider policyProvider);
+    MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer);
+    MfaDslConfigurer ott(Customizer<OttFactorDslConfigurer> ottConfigurer);
+    MfaDslConfigurer passkey(Customizer<PasskeyFactorDslConfigurer> passkeyConfigurer);
+    MfaDslConfigurer recoveryFlow(Customizer<RecoveryDslConfigurer> recoveryConfigurerCustomizer);
     MfaDslConfigurer mfaContinuationHandler(MfaContinuationHandler continuationHandler);
     MfaDslConfigurer mfaFailureHandler(MfaFailureHandler failureHandler);
     MfaDslConfigurer finalSuccessHandler(AuthenticationSuccessHandler handler);
+    MfaDslConfigurer policyProvider(MfaPolicyProvider policyProvider);
     MfaDslConfigurer defaultRetryPolicy(Customizer<RetryPolicyDslConfigurer> c);
     MfaDslConfigurer defaultAdaptivePolicy(Customizer<AdaptiveDslConfigurer> c);
     MfaDslConfigurer defaultDeviceTrustEnabled(boolean enable);
-
-    // DSL 예시에 맞춘 메소드 추가 (primaryAuthentication 대신 또는 함께 사용)
-    MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer); // 여기서 RestDslConfigurer는 OptionsBuilderDsl을 확장해야 함
-    MfaDslConfigurer ott(Customizer<OttFactorDslConfigurer> ottConfigurer);
-    MfaDslConfigurer passkey(Customizer<PasskeyFactorDslConfigurer> passkeyConfigurer);
-    MfaDslConfigurer recoveryFlow(Customizer<RecoveryDslConfigurer> recoveryConfigurer); // RecoveryDslConfigurer 정의 필요
-
     AuthenticationFlowConfig build();
+
+    // 이 메소드는 PlatformSecurityConfig.java의 DSL 에서는 직접 사용되지 않으나,
+    // 내부적으로 다른 방식으로 1차 인증을 설정할 경우를 위해 남겨둘 수 있습니다.
+    // 현재 DSL 흐름에서는 rest()가 그 역할을 대신하고 있습니다.
+    MfaDslConfigurer primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfig);
 }

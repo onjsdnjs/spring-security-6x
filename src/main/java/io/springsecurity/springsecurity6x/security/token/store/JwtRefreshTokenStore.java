@@ -39,7 +39,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
     }
 
     @Override
-    public synchronized void save(String refreshToken, String username) { // synchronized 추가
+    public void save(String refreshToken, String username) {
         Objects.requireNonNull(refreshToken, "refreshToken cannot be null");
         Objects.requireNonNull(username, "username cannot be null");
         try {

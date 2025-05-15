@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 public interface MfaDslConfigurer {
 
     MfaDslConfigurer order(int order);
+    MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurer);
     MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer);
     MfaDslConfigurer ott(Customizer<OttFactorDslConfigurer> ottConfigurer);
     MfaDslConfigurer passkey(Customizer<PasskeyFactorDslConfigurer> passkeyConfigurer);

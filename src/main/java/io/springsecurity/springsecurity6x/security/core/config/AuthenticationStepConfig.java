@@ -1,10 +1,15 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+@Getter
+@Setter
 public class AuthenticationStepConfig {
     private String type;
     private final Map<String, Object> options = new HashMap<>();
@@ -14,26 +19,6 @@ public class AuthenticationStepConfig {
 
     public AuthenticationStepConfig(String type, int order) {
         this.type = type;
-        this.order = order;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Map<String, Object> getOptions() {
-        return options;
-    }
-
-    public int getOrder() {
-        return order;
-    }
-
-    public void setOrder(int order) {
         this.order = order;
     }
 

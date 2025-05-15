@@ -51,22 +51,6 @@ public class ConflictRiskAnalyzer implements Validator<List<FlowContext>> {
             if (steps.size() < 2) continue;
 
             List<String> flowErrors = new ArrayList<>();
-            for (int i = 1; i < steps.size(); i++) {
-                AuthenticationStepConfig step = steps.get(i);
-                Object opts = step.getOptions().get("_options");
-                String type = step.getType();
-                String url = null;
-                if (opts instanceof FormOptions) {
-                    url = ((FormOptions) opts).getTargetUrl();
-                } else if (opts instanceof OttOptions) {
-                    url = ((OttOptions) opts).getTargetUrl();
-                } else if (opts instanceof PasskeyOptions) {
-                    url = ((PasskeyOptions) opts).getTargetUrl();
-                }
-                if (url == null || url.isBlank()) {
-                    flowErrors.add("MFA step '" + type + "' has no targetUrl set.");
-                }
-            }
             if (!flowErrors.isEmpty()) {
                 String headerLabel = mfaCount <= ORDINAL_EN.length ? ORDINAL_EN[mfaCount - 1] : mfaCount + "th";
                 String headerText = headerLabel + " MFA";

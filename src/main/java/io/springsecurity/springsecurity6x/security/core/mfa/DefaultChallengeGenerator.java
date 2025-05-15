@@ -76,7 +76,6 @@ public class DefaultChallengeGenerator implements ChallengeGenerator {
                         payload.put("mode", "OTT_CODE_REQUIRED");
                         payload.put("generationUrl", ottOpts.getTokenGeneratingUrl());
                         payload.put("submitUrl", ottOpts.getLoginProcessingUrl());
-                        payload.put("submitField", Objects.toString(ottOpts.getTokenParameterName(), "token"));
                     } else {
                         handleOptionTypeError(payload, AuthType.OTT, currentFactorOptions, ctx.getMfaSessionId());
                     }

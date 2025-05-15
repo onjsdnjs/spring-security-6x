@@ -18,7 +18,7 @@ public class AuthMethodConfigurerFactory {
         return switch (authType) {
             case FORM -> (C) new FormDslConfigurerImpl();
             case REST -> (C) new RestDslConfigurerImpl();
-            case OTT -> (C) new OttDslConfigurerImpl();
+            case OTT -> (C) new OttDslConfigurerImpl(applicationContext);
             case PASSKEY -> (C) new PasskeyDslConfigurerImpl();
             case RECOVERY_CODE -> (C) new RecoveryCodeDslConfigurerImpl();
             default -> throw new IllegalArgumentException("Unsupported authType for Configurer: " + authType);

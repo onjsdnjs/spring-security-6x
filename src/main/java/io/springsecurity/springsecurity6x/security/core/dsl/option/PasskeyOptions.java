@@ -15,9 +15,9 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions {
 
     private PasskeyOptions(Builder builder) {
         super(builder);
-        this.assertionOptionsEndpoint = Objects.requireNonNull(builder.assertionOptionsEndpoint, "assertionOptionsEndpoint cannot be null");
-        this.rpName = Objects.requireNonNull(builder.rpName, "rpName must not be null");
-        this.rpId = Objects.requireNonNull(builder.rpId, "rpId must not be null");
+        this.assertionOptionsEndpoint = builder.assertionOptionsEndpoint;
+        this.rpName = builder.rpName;
+        this.rpId = builder.rpId;
         this.allowedOrigins = builder.allowedOrigins != null ? Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins)) : Collections.emptySet();
     }
 

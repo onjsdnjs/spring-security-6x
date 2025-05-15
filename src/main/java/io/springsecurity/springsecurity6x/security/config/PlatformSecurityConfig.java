@@ -36,11 +36,11 @@ public class PlatformSecurityConfig {
                         )
                         .ott(ott -> ott.loginProcessingUrl("/loginOtt"))
                         .passkey(passkey -> passkey.loginProcessingUrl("/loginPasskey"))
-                        .order(5)
-                        .defaultRetryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
-                        .defaultAdaptivePolicy(ad -> ad.geolocation(true))
-                        .defaultDeviceTrustEnabled(true)
-                        .recoveryFlow(rc -> rc.codeLength(100)))
+                        .order(5))
+//                        .defaultRetryPolicy(rp -> rp.maxAttempts(3).lockoutSec(60))
+//                        .defaultAdaptivePolicy(ad -> ad.geolocation(true))
+//                        .defaultDeviceTrustEnabled(true)
+//                        .recoveryFlow(rc -> rc.codeLength(100)))
                 .jwt(jwt -> Customizer.withDefaults())
 
 

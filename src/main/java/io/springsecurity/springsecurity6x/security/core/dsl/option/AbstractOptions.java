@@ -20,7 +20,6 @@ public abstract class AbstractOptions {
     private final Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer;
     private final Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
     private final Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
-    // 추가
     private final Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer; // 추가
     private final List<String> staticMatchers;
     private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers;

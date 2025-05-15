@@ -59,14 +59,7 @@ public class MfaStepSuccessHandler {
      * Options 객체에서 targetUrl 추출
      */
     private static String extractTargetUrl(Object opts) {
-        if (opts instanceof FormOptions) {
-            return ((FormOptions) opts).getTargetUrl();
-        } else if (opts instanceof OttOptions) {
-            return ((OttOptions) opts).getTargetUrl();
-        } else if (opts instanceof PasskeyOptions) {
-            return ((PasskeyOptions) opts).getTargetUrl();
-        }
-        throw new IllegalStateException("지원되지 않는 스텝 옵션 타입: " + opts);
+        return "/login/mfa/list";
     }
 }
 

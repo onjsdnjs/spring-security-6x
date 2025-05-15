@@ -3,6 +3,8 @@ package io.springsecurity.springsecurity6x.security.core.feature.auth.form;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -75,14 +77,18 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
                 form.securityContextRepository(opts.getSecurityContextRepository());
             }
 
-            Customizer<FormLoginConfigurer<HttpSecurity>> rawLogin = opts.getRawFormLoginCustomizers();
+            SafeHttpFormLoginCustomizer rawLogin = opts.getRawFormLoginCustomizers();
             if (rawLogin != null) {
-                rawLogin.customize(form);
+                try {
+                    rawLogin.customize(form);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
         });
 
-        List<Customizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
-        for (Customizer<HttpSecurity> customizer : httpCustomizers) {
+        List<SafeHttpCustomizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
+        for (SafeHttpCustomizer<HttpSecurity> customizer : httpCustomizers) {
             Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
         }
     }

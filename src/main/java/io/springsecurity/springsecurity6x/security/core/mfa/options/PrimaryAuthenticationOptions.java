@@ -2,12 +2,14 @@ package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import lombok.Getter;
 import org.springframework.util.Assert;
 
 /**
  * MFA 플로우의 1차 인증(ID/PW)에 대한 기술적 설정을 담는 불변 객체입니다.
  * Form 방식 또는 REST 방식 중 하나를 포함할 수 있습니다.
  */
+@Getter
 public final class PrimaryAuthenticationOptions {
 
     private final FormOptions formOptions;
@@ -25,18 +27,6 @@ public final class PrimaryAuthenticationOptions {
         Assert.isTrue(formOptions == null || restOptions == null,
                 "Cannot configure both FormOptions and RestOptions for primary authentication.");
         Assert.hasText(loginProcessingUrl, "loginProcessingUrl must be set for primary authentication.");
-    }
-
-    public FormOptions getFormOptions() {
-        return formOptions;
-    }
-
-    public RestOptions getRestOptions() {
-        return restOptions;
-    }
-
-    public String getLoginProcessingUrl() {
-        return loginProcessingUrl;
     }
 
     public boolean isFormLogin() {

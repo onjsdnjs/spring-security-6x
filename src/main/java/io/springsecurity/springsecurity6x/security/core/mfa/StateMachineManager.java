@@ -13,7 +13,6 @@ public class StateMachineManager {
 
     private final Map<MfaState, Map<MfaEvent, MfaState>> transitions;
 
-    @SuppressWarnings("unused") // flowConfig는 향후 확장성을 위해 남겨둘 수 있음
     public StateMachineManager(AuthenticationFlowConfig flowConfig) {
         this.transitions = buildTable();
     }

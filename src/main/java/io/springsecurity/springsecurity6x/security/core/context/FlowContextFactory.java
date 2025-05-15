@@ -32,13 +32,7 @@ public class FlowContextFactory {
             platformContext.registerHttp(flowCfg, http); // PlatformContext에 현재 Flow와 HttpSecurity 매핑 등록
 
             FlowContext fc = new FlowContext(flowCfg, http, platformContext, config);
-            // platformContext.share(FlowContext.class, fc); // 주의: FlowContext는 Flow마다 다르므로 이렇게 공유하면 마지막 것만 남음.
-            // 대신 HttpSecurity.getSharedObject(FlowContext.class) 형태로 사용하거나
-            // SecurityConfigurerOrchestrator에서 루프 돌 때마다 fc를 직접 전달.
-            // 이전 답변에서 이 부분을 platformContext.share로 두었는데, 이는 수정이 필요함.
-            // SecurityConfigurerOrchestrator.applyConfigurations에서 fc를 직접 사용하도록 수정.
-
-            setupSharedObjectsForFlow(fc); // 변경된 메소드 호출
+            setupSharedObjectsForFlow(fc);
             flows.add(fc);
         }
         flows.sort(Comparator.comparingInt(f -> f.flow().getOrder()));
@@ -57,14 +51,7 @@ public class FlowContextFactory {
 
         log.debug("Setting up shared objects for flow: {}", flowConfig.getTypeName());
 
-        // CSRF, CORS 등은 GlobalConfigurer 또는 각 Feature 내에서 HttpSecurity에 직접 적용되므로 여기서 제외.
-        // 여기서는 주로 MFA 흐름에 필요한 객체들을 설정합니다.
-
-        // MFA 흐름이거나, 단일 단계라도 MFA 요소(예: 커스텀 필터에서 FactorContext 사용)를 사용할 가능성이 있다면 설정
-        // 좀 더 명확하게는, DSL 에서 mfa {} 블록을 사용했거나, 특정 feature가 MFA 컨텍스트를 요구한다고 명시된 경우로 제한 가능
         boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.getTypeName());
-        // TODO: 또는, flowConfig.requiresMfaContext() 와 같은 플래그를 두어 더 명시적으로 제어 가능
-
         if (isMfaFlow) {
             log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
 

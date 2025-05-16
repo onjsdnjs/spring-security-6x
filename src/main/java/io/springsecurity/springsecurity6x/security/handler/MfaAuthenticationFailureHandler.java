@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
@@ -18,81 +19,111 @@ import org.springframework.util.Assert;
 import java.io.IOException;
 
 @Slf4j
-public class MfaAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+public class MfaAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler implements MfaFailureHandler {
 
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
-    private final String initialDefaultFailureUrl; // 생성자에서 설정된 기본 실패 URL을 저장
+    private final String initialDefaultFailureUrl;
 
     public MfaAuthenticationFailureHandler(String defaultFailureUrl,
                                            ContextPersistence contextPersistence,
                                            MfaPolicyProvider mfaPolicyProvider) {
-        super(defaultFailureUrl); // 부모 클래스에 초기 기본 실패 URL 설정
+        super(defaultFailureUrl);
         Assert.notNull(contextPersistence, "ContextPersistence cannot be null");
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null");
         this.contextPersistence = contextPersistence;
         this.mfaPolicyProvider = mfaPolicyProvider;
-        this.initialDefaultFailureUrl = defaultFailureUrl; // 동적 URL 구성의 기반으로 사용하기 위해 저장
+        this.initialDefaultFailureUrl = defaultFailureUrl;
     }
 
+    /**
+     * Spring Security의 AuthenticationFailureHandler 인터페이스 메서드.
+     * MFA 실패 시 이 메서드가 호출되며, 내부적으로 onFactorFailure 또는 onGlobalMfaFailure로 분기합니다.
+     */
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException, ServletException {
 
         FactorContext factorContext = contextPersistence.contextLoad(request);
-        String finalRedirectUrl; // 최종적으로 리다이렉션될 URL
+        AuthType currentProcessingFactor = null;
 
         if (factorContext != null) {
-            AuthType currentFactor = factorContext.getCurrentProcessingFactor();
-            log.warn("MFA Step Failure: Factor {} for user {} (session {}) failed. Reason: {}",
-                    currentFactor != null ? currentFactor : "N/A",
-                    factorContext.getUsername(),
-                    factorContext.getMfaSessionId(),
-                    exception.getMessage());
-
-            if (currentFactor != null) {
-                factorContext.recordAttempt(currentFactor, false, "Verification failed: " + exception.getMessage());
-                int attempts = factorContext.getAttemptCount(currentFactor);
-
-                RetryPolicy retryPolicy = (this.mfaPolicyProvider != null) ?
-                        this.mfaPolicyProvider.getRetryPolicyForFactor(currentFactor, factorContext) : RetryPolicy.defaultPolicy();
-                int maxAttempts = (retryPolicy != null) ? retryPolicy.getMaxAttempts() : 3; // 기본값
-
-                if (attempts >= maxAttempts) {
-                    log.warn("MFA max attempts reached for factor {}. User: {}, Session: {}. Redirecting to terminal failure.",
-                            currentFactor, factorContext.getUsername(), factorContext.getMfaSessionId());
-                    factorContext.changeState(MfaState.MFA_FAILURE_TERMINAL);
-                    // 최종 실패 시에는 생성자에서 설정된 기본 실패 URL(initialDefaultFailureUrl)에 파라미터 추가
-                    finalRedirectUrl = buildFailureUrl(this.initialDefaultFailureUrl, "max_attempts_exceeded", currentFactor, 0);
-                    contextPersistence.deleteContext(request);
-                } else {
-                    // 재시도 가능: 다음 Factor 선택 페이지로 안내하고, 실패 정보와 남은 시도 횟수 전달
-                    factorContext.changeState(MfaState.AWAITING_MFA_FACTOR_SELECTION);
-                    finalRedirectUrl = buildFailureUrl("/mfa/select-factor", "factor_auth_failed", currentFactor, maxAttempts - attempts);
-                }
-                contextPersistence.saveContext(factorContext, request);
-            } else {
-                // currentFactor가 null인 경우 (예: FactorContext는 있지만 어떤 Factor 처리 중인지 모를 때)
-                log.warn("MFA Failure Handler: currentProcessingFactor is null in FactorContext. Session: {}. Using configured default failure URL.", factorContext.getMfaSessionId());
-                finalRedirectUrl = buildFailureUrl(this.initialDefaultFailureUrl, "mfa_context_error", null, 0);
-                contextPersistence.deleteContext(request); // 불완전한 컨텍스트는 삭제
-            }
-        } else {
-            // FactorContext 자체가 없는 경우 (MFA 흐름 시작 전 또는 세션 만료 등)
-            log.warn("MFA Failure Handler: FactorContext is null. Using configured default failure URL. Exception: {}", exception.getMessage());
-            finalRedirectUrl = buildFailureUrl(this.initialDefaultFailureUrl, "mfa_session_not_found", null, 0);
+            currentProcessingFactor = factorContext.getCurrentProcessingFactor();
         }
 
-        // SimpleUrlAuthenticationFailureHandler가 사용할 최종 실패 URL 설정
+        if (factorContext != null && currentProcessingFactor != null) {
+            // 특정 Factor 처리 중 발생한 실패
+            onFactorFailure(request, response, exception, currentProcessingFactor, factorContext);
+        } else {
+            // FactorContext가 없거나, 어떤 Factor 처리 중인지 알 수 없는 경우 (전역적 실패)
+            onGlobalMfaFailure(request, response, exception, factorContext);
+        }
+    }
+
+    /**
+     * MfaFailureHandler 인터페이스 구현: 특정 MFA Factor 인증 시도 실패 시 호출.
+     */
+    @Override
+    public void onFactorFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception,
+                                AuthType failedFactorType, FactorContext factorContext) throws IOException, ServletException {
+
+        Assert.notNull(factorContext, "FactorContext cannot be null for onFactorFailure");
+        Assert.notNull(failedFactorType, "FailedFactorType cannot be null for onFactorFailure");
+
+        log.warn("MFA Factor Failure: Factor '{}' for user '{}' (session ID: '{}') failed. Reason: {}",
+                failedFactorType, factorContext.getUsername(), factorContext.getMfaSessionId(), exception.getMessage());
+
+        factorContext.recordAttempt(failedFactorType, false, "Verification failed: " + exception.getMessage());
+        int attempts = factorContext.getAttemptCount(failedFactorType);
+
+        RetryPolicy retryPolicy = mfaPolicyProvider.getRetryPolicyForFactor(failedFactorType, factorContext);
+        // RetryPolicy가 null일 경우를 대비하여 기본값 사용
+        int maxAttempts = (retryPolicy != null) ? retryPolicy.getMaxAttempts() : 3;
+
+        String finalRedirectUrl;
+        if (attempts >= maxAttempts) {
+            log.warn("MFA max attempts ({}) reached for factor {}. User: {}, Session: {}. Redirecting to terminal failure page.",
+                    maxAttempts, failedFactorType, factorContext.getUsername(), factorContext.getMfaSessionId());
+            factorContext.changeState(MfaState.MFA_FAILURE_TERMINAL);
+            finalRedirectUrl = buildFailureUrl(this.initialDefaultFailureUrl, "max_attempts_exceeded", failedFactorType, 0);
+            contextPersistence.deleteContext(request); // 실패 컨텍스트 삭제
+        } else {
+            log.info("MFA factor {} failed (attempt {}/{}). User: {}, Session: {}. Redirecting to factor selection.",
+                    failedFactorType, attempts, maxAttempts, factorContext.getUsername(), factorContext.getMfaSessionId());
+            factorContext.changeState(MfaState.AWAITING_MFA_FACTOR_SELECTION); // 재시도 가능 시, Factor 선택 화면으로 유도
+            finalRedirectUrl = buildFailureUrl("/mfa/select-factor", "factor_auth_failed", failedFactorType, maxAttempts - attempts);
+            contextPersistence.saveContext(factorContext, request); // 변경된 컨텍스트 저장
+        }
+        setDefaultFailureUrl(finalRedirectUrl); // 리다이렉션할 URL 설정
+        super.onAuthenticationFailure(request, response, exception); // 부모 클래스의 실패 처리(리다이렉션) 호출
+    }
+
+    /**
+     * MfaFailureHandler 인터페이스 구현: 전반적인 MFA 흐름 실패 또는 Factor를 특정할 수 없는 실패 시 호출.
+     */
+    @Override
+    public void onGlobalMfaFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception,
+                                   @Nullable FactorContext factorContext) throws IOException, ServletException {
+
+        String username = (factorContext != null && factorContext.getUsername() != null) ? factorContext.getUsername() : "UnknownUser";
+        String sessionId = (factorContext != null) ? factorContext.getMfaSessionId() : "NoMfaSession";
+
+        log.warn("Global MFA Failure for user '{}' (MFA Session ID: '{}'). Reason: {}",
+                username, sessionId, exception.getMessage());
+
+        if (factorContext != null) {
+            factorContext.changeState(MfaState.MFA_FAILURE_TERMINAL);
+            contextPersistence.deleteContext(request); // 컨텍스트 삭제
+        }
+
+        String finalRedirectUrl = buildFailureUrl(this.initialDefaultFailureUrl, "mfa_global_failure", null, 0);
         setDefaultFailureUrl(finalRedirectUrl);
-        // 부모 클래스의 실패 처리 로직(리다이렉션 등) 실행
         super.onAuthenticationFailure(request, response, exception);
     }
 
     private String buildFailureUrl(String baseUrl, String errorKey, @Nullable AuthType factor, int attemptsLeft) {
         StringBuilder urlBuilder = new StringBuilder(baseUrl);
-        // URL에 이미 파라미터가 있는지 확인하여 '?' 또는 '&'를 적절히 사용
         urlBuilder.append(baseUrl.contains("?") ? "&" : "?").append("error=").append(errorKey);
         if (factor != null) {
             urlBuilder.append("&factor=").append(factor.name().toLowerCase());
@@ -100,7 +131,7 @@ public class MfaAuthenticationFailureHandler extends SimpleUrlAuthenticationFail
         if (attemptsLeft > 0) {
             urlBuilder.append("&attemptsLeft=").append(attemptsLeft);
         }
-        log.debug("Constructed failure URL: {}", urlBuilder.toString());
+        log.debug("Constructed failure URL for MFA: {}", urlBuilder.toString());
         return urlBuilder.toString();
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.TokenServiceConfiguration;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.IdentityDslRegistry;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.handler.JwtEmittingAndMfaAwareSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler;
@@ -131,6 +132,8 @@ public class PlatformSecurityConfig {
                                 .failureHandler(mfaAuthenticationFailureHandler)
                         )
                         .finalSuccessHandler(mfaStepBasedSuccessHandler) // 모든 MFA 단계 완료 후
+                        .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
+                        .mfaFailureHandler(mfaAuthenticationFailureHandler)
                 )
                 .jwt(Customizer.withDefaults())
                 .build();

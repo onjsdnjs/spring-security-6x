@@ -42,7 +42,6 @@ public class MfaInfrastructureAutoConfiguration {
         return new DefaultMfaPolicyProvider(userRepository);
     }
 
-    // 플랫폼 기본 제공 핸들러 Bean 등록
     @Bean
     @ConditionalOnMissingBean
     public MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler(ContextPersistence contextPersistence,

@@ -10,7 +10,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.stereotype.Component;
 
-@Component // Spring Component로 등록
+@Component
 public class IdentityDslRegistry extends AbstractFlowRegistrar {
 
     public IdentityDslRegistry(ApplicationContext applicationContext) {

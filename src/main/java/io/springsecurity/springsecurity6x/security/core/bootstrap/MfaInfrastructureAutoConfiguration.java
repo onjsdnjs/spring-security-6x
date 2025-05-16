@@ -57,11 +57,11 @@ public class MfaInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+//    @ConditionalOnMissingBean
     public MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler(ContextPersistence contextPersistence,
                                                                            MfaPolicyProvider mfaPolicyProvider) {
         String failureUrl = authContextProperties.getMfa() != null && authContextProperties.getMfa().getFailureUrl() != null ?
-                authContextProperties.getMfa().getFailureUrl() : "/mfa/failure"; // application.yml 에서 mfa.failure-url 설정 가능
+                authContextProperties.getMfa().getFailureUrl() : "/mfa/failure";
         return new MfaAuthenticationFailureHandler(failureUrl, contextPersistence, mfaPolicyProvider);
     }
 

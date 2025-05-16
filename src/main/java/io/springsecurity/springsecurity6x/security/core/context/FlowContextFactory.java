@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.DefaultRiskEngine;
 import io.springsecurity.springsecurity6x.security.core.mfa.*;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.*;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,10 +30,18 @@ public class FlowContextFactory {
         List<FlowContext> flows = new ArrayList<>();
         for (AuthenticationFlowConfig flowCfg : config.getFlows()) {
             HttpSecurity http = platformContext.newHttp(); // 새로운 HttpSecurity 인스턴스 생성
-            platformContext.registerHttp(flowCfg, http); // PlatformContext에 현재 Flow와 HttpSecurity 매핑 등록
+            platformContext.registerHttp(flowCfg, http); // PlatformContext 내부 맵에 <FlowConfig, HttpSecurity> 저장
+
+            // --- 여기가 핵심 수정 ---
+            // 생성된 HttpSecurity 객체에 PlatformContext 자체를 공유 객체로 등록합니다.
+            // 이렇게 함으로써 AbstractAuthenticationFeature 등에서 http.getSharedObject(PlatformContext.class) 호출 시
+            // null이 아닌 PlatformContext 인스턴스를 반환받을 수 있습니다.
+            log.debug("Sharing PlatformContext with HttpSecurity instance for flow: {}", flowCfg.getTypeName());
+            http.setSharedObject(PlatformContext.class, platformContext);
+            // ----------------------
 
             FlowContext fc = new FlowContext(flowCfg, http, platformContext, config);
-            setupSharedObjectsForFlow(fc);
+            setupSharedObjectsForFlow(fc); // FlowContext 내부의 HttpSecurity에 MFA 관련 객체 등 공유
             flows.add(fc);
         }
         flows.sort(Comparator.comparingInt(f -> f.flow().getOrder()));
@@ -48,30 +57,64 @@ public class FlowContextFactory {
     private void setupSharedObjectsForFlow(FlowContext fc) {
         HttpSecurity http = fc.http();
         AuthenticationFlowConfig flowConfig = fc.flow();
+        PlatformContext platformContext = fc.context(); // PlatformContext 가져오기
 
         log.debug("Setting up shared objects for flow: {}", flowConfig.getTypeName());
+
+        // 공통적으로 필요할 수 있는 빈들을 PlatformContext에서 가져와 HttpSecurity에 공유
+        // 예: UserDetailsService, PasswordEncoder 등은 PlatformContext의 applicationContext()를 통해 얻을 수 있음
+        // http.setSharedObject(UserDetailsService.class, platformContext.applicationContext().getBean(UserDetailsService.class));
+        // http.setSharedObject(PasswordEncoder.class, platformContext.applicationContext().getBean(PasswordEncoder.class));
 
         boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.getTypeName());
         if (isMfaFlow) {
             log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
 
-            // 람다를 사용하여 지연 초기화 및 객체 재사용 방지 (HttpSecurity 인스턴스별로 새로 생성)
-            setSharedObjectIfAbsent(http, ContextPersistence.class, HttpSessionContextPersistence::new);
+            // MfaPolicyProvider, ContextPersistence 등은 PlatformContext의 applicationContext를 통해 빈을 가져와서 설정
+            // 또는 MfaInfrastructureAutoConfiguration에서 이미 빈으로 등록되어 있다면,
+            // SecurityPlatformConfiguration에서 PlatformContext에 미리 share() 해두는 방법도 있음.
+            // 여기서는 applicationContext에서 가져오는 방식을 예시로 사용합니다.
+
+            setSharedObjectIfAbsent(http, ContextPersistence.class,
+                    () -> platformContext.applicationContext().getBean(ContextPersistence.class));
+            setSharedObjectIfAbsent(http, MfaPolicyProvider.class,
+                    () -> platformContext.applicationContext().getBean(MfaPolicyProvider.class));
+
+
+            // StateMachineManager는 flowConfig에 따라 달라질 수 있으므로 여기서 생성
             setSharedObjectIfAbsent(http, StateMachineManager.class, () -> new StateMachineManager(flowConfig));
 
-            List<MfaStateHandler> handlers = List.of(
-                    new OttStateHandler(), new PasskeyStateHandler(),
-                    new RecoveryStateHandler(), new TokenStateHandler()
-            );
-            setSharedObjectIfAbsent(http, StateHandlerRegistry.class, () -> new StateHandlerRegistry(handlers));
-            setSharedObjectIfAbsent(http, ChallengeRouter.class, () -> new ChallengeRouter(new DefaultChallengeGenerator()));
-            setSharedObjectIfAbsent(http, FeatureRegistry.class, () -> this.featureRegistry); // FeatureRegistry는 싱글톤이므로 그대로 전달
 
-            // MFA 관련 기타 서비스 (필요시)
+            // StateHandlerRegistry는 여러 핸들러를 포함하므로, 필요시 PlatformContext를 통해 주입받거나 생성
+            // 현재는 StateHandlerRegistry가 PlatformContextInitializer에서 주입되지 않음.
+            // 만약 StateHandlerRegistry가 빈이라면 아래와 같이 가져올 수 있음:
+            // setSharedObjectIfAbsent(http, StateHandlerRegistry.class,
+            //        () -> platformContext.applicationContext().getBean(StateHandlerRegistry.class));
+            // 여기서는 임시로 new로 생성 (실제로는 빈으로 관리되어야 함)
+            if (http.getSharedObject(StateHandlerRegistry.class) == null) {
+                // 실제 핸들러 목록은 MfaInfrastructureAutoConfiguration 등에서 정의된 빈들을 주입받아 구성해야 함
+                List<MfaStateHandler> handlers = List.of(
+                        new PrimaryAuthCompletedStateHandler(), // 추가
+                        new AutoAttemptFactorStateHandler(),    // 추가
+                        new FactorSelectionStateHandler(),      // 추가
+                        new ChallengeInitiatedStateHandler(),   // 추가
+                        new VerificationPendingStateHandler(platformContext.applicationContext().getBean(MfaPolicyProvider.class)), // 추가
+                        new OttStateHandler(),
+                        new PasskeyStateHandler(),
+                        new RecoveryStateHandler(),
+                        new TokenStateHandler()
+                );
+                http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers));
+            }
+
+
+            setSharedObjectIfAbsent(http, ChallengeRouter.class, () -> new ChallengeRouter(new DefaultChallengeGenerator()));
+            setSharedObjectIfAbsent(http, FeatureRegistry.class, () -> this.featureRegistry);
+
             setSharedObjectIfAbsent(http, AuditEventPublisher.class, DefaultAuditEventPublisher::new);
-            setSharedObjectIfAbsent(http, RiskEngine.class, DefaultRiskEngine::new); // DefaultRiskEngine은 예시
-            setSharedObjectIfAbsent(http, TrustedDeviceService.class, DefaultTrustedDeviceService::new); // DefaultTrustedDeviceService는 예시
-            setSharedObjectIfAbsent(http, RecoveryService.class, DefaultRecoveryService::new); // DefaultRecoveryService는 예시
+            setSharedObjectIfAbsent(http, RiskEngine.class, DefaultRiskEngine::new);
+            setSharedObjectIfAbsent(http, TrustedDeviceService.class, DefaultTrustedDeviceService::new);
+            setSharedObjectIfAbsent(http, RecoveryService.class, DefaultRecoveryService::new);
 
             log.info("MFA specific shared objects configured for flow: {}", flowConfig.getTypeName());
         } else {
@@ -79,12 +122,12 @@ public class FlowContextFactory {
         }
     }
 
-    /**
-     * HttpSecurity에 공유 객체가 없는 경우에만 Supplier를 통해 생성하여 설정합니다.
-     */
     private <T> void setSharedObjectIfAbsent(HttpSecurity http, Class<T> type, Supplier<T> supplier) {
         if (http.getSharedObject(type) == null) {
             http.setSharedObject(type, supplier.get());
+            log.trace("Shared object {} set in HttpSecurity for current flow.", type.getSimpleName());
+        } else {
+            log.trace("Shared object {} already exists in HttpSecurity for current flow.", type.getSimpleName());
         }
     }
 }

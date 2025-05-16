@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.HttpSessionContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.DefaultMfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.handler.JwtEmittingAndMfaAwareSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
@@ -63,6 +64,25 @@ public class MfaInfrastructureAutoConfiguration {
         String failureUrl = authContextProperties.getMfa() != null && authContextProperties.getMfa().getFailureUrl() != null ?
                 authContextProperties.getMfa().getFailureUrl() : "/mfa/failure";
         return new MfaAuthenticationFailureHandler(failureUrl, contextPersistence, mfaPolicyProvider);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtEmittingAndMfaAwareSuccessHandler jwtEmittingAndMfaAwareSuccessHandler(
+            TokenService tokenService,
+            ObjectMapper objectMapper,
+            UserRepository userRepository,
+            ContextPersistence contextPersistence,
+            AuthContextProperties authContextProperties) {
+
+        return new JwtEmittingAndMfaAwareSuccessHandler(
+                tokenService,
+                objectMapper,
+                "/", // 기본 성공 URL
+                userRepository,
+                contextPersistence,
+                authContextProperties
+        );
     }
 
     @Bean

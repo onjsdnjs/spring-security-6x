@@ -4,9 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>인증 방식 선택</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}" />
-    <script th:src="@{/js/toast.js}"></script> </head>
-<body class="flex flex-col min-h-screen bg-app-light-gray">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
+                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
+                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
+                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script th:src="@{/js/toast.js}"></script>
+    <th:block th:if="${_csrf != null}">
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    </th:block>
+</head>
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
 <div th:insert="~{fragments/header :: header}"></div>
 <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
@@ -16,8 +38,13 @@
 
     <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
         <div class="w-full max-w-lg bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
-            <h2 class="text-3xl font-bold text-center text-app-accent mb-8">인증 방식 선택</h2>
-            <p class="text-center text-gray-700 mb-10">
+            <div class="text-center mb-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-auto text-app-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622A11.99 11.99 0 0018.402 6a11.959 11.959 0 01-1.902-1.036A11.959 11.959 0 0012 2.67c-2.096 0-4.042.728-5.602 1.964z" />
+                </svg>
+                <h2 class="mt-4 text-3xl font-bold text-app-primary">인증 방식 선택</h2>
+            </div>
+            <p class="text-center text-slate-600 mb-10">
                 애플리케이션에서 사용할 API 인증 방식을 선택하세요.<br class="hidden sm:inline"/>
                 선택한 방식에 따라 토큰 처리 및 저장 방식이 달라집니다.
             </p>
@@ -25,22 +52,22 @@
             <div class="space-y-4">
                 <button id="modeHeader"
                         onclick="selectMode('header', this)"
-                        class="w-full btn btn-primary text-lg py-3 transition-all duration-150 ease-in-out transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105">
                     헤더 방식 (Access/Refresh Token)
                 </button>
                 <button id="modeCookie"
                         onclick="selectMode('cookie', this)"
-                        class="w-full btn btn-primary text-lg py-3 transition-all duration-150 ease-in-out transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105">
                     쿠키 방식 (Secure, HttpOnly)
                 </button>
                 <button id="modeHeaderCookie"
                         onclick="selectMode('header_cookie', this)"
-                        class="w-full btn btn-primary text-lg py-3 transition-all duration-150 ease-in-out transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105">
                     헤더 + 쿠키 방식 (Access Token 헤더, Refresh Token 쿠키)
                 </button>
             </div>
-            <p class="mt-8 text-sm text-center text-gray-500">
-                선택된 인증 방식: <strong id="currentAuthMode" class="text-app-accent"></strong>
+            <p class="mt-8 text-sm text-center text-slate-500">
+                선택된 인증 방식: <strong id="currentAuthMode" class="font-semibold text-app-primary"></strong>
             </p>
         </div>
     </main>
@@ -61,12 +88,12 @@
         for (const modeKey in buttons) {
             if (buttons[modeKey]) {
                 if (modeKey === selectedMode) {
-                    buttons[modeKey].classList.add('ring-2', 'ring-green-500', 'ring-offset-2');
-                    buttons[modeKey].classList.remove('btn-primary');
-                    buttons[modeKey].classList.add('bg-green-600', 'hover:bg-green-700');
+                    // Tailwind CSS 클래스로 선택된 버튼 스타일 변경
+                    buttons[modeKey].classList.remove('bg-app-accent', 'hover:bg-app-accent-hover');
+                    buttons[modeKey].classList.add('bg-success', 'hover:bg-green-600', 'ring-2', 'ring-offset-2', 'ring-success');
                 } else {
-                    buttons[modeKey].classList.remove('ring-2', 'ring-green-500', 'ring-offset-2', 'bg-green-600', 'hover:bg-green-700');
-                    buttons[modeKey].classList.add('btn-primary');
+                    buttons[modeKey].classList.remove('bg-success', 'hover:bg-green-600', 'ring-2', 'ring-offset-2', 'ring-success');
+                    buttons[modeKey].classList.add('bg-app-accent', 'hover:bg-app-accent-hover');
                 }
             }
         }
@@ -77,18 +104,15 @@
         localStorage.setItem('authMode', mode);
         updateSelectedButton(mode);
         showToast(mode.toUpperCase() + " 방식이 선택되었습니다. 로그인 페이지로 이동합니다.", "success", 2000);
-        // 변경된 authMode를 즉시 반영하기 위해 init-auth.js의 UI 업데이트 로직을 호출하거나,
-        // 간단히 페이지를 리로드 또는 로그인 페이지로 이동하여 init-auth.js가 다시 실행되도록 함
         setTimeout(() => {
             window.location.href = "/loginForm";
         }, 2000);
     }
 
-    // 페이지 로드 시 현재 선택된 모드 표시
     document.addEventListener('DOMContentLoaded', () => {
         const initialAuthMode = localStorage.getItem('authMode') || 'header';
         if (!localStorage.getItem('authMode')) {
-            localStorage.setItem('authMode', 'header'); // 최초 접속 시 기본값 설정
+            localStorage.setItem('authMode', 'header');
         }
         updateSelectedButton(initialAuthMode);
     });

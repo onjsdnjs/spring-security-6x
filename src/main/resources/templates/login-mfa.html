@@ -4,10 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MFA 로그인</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
+                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
+                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
+                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                    }
+                }
+            }
+        }
+    </script>
     <script th:src="@{/js/toast.js}"></script>
+    <th:block th:if="${_csrf != null}">
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    </th:block>
 </head>
-<body class="flex flex-col min-h-screen bg-app-light-gray">
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
 <div th:insert="~{fragments/header :: header}"></div>
 <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
@@ -17,39 +38,41 @@
 
     <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
         <div class="w-full max-w-lg bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
-            <h2 class="text-3xl font-bold text-center text-app-accent mb-2">다중 요소 인증 (MFA)</h2>
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-app-primary">다중 요소 인증 (MFA)</h2>
+            </div>
             <div class="mb-8 text-center">
-                <span id="mfaStepIndicator" class="text-sm font-semibold text-gray-600 bg-gray-200 px-3 py-1 rounded-full">1단계: 기본 인증</span>
+                <span id="mfaStepIndicator" class="text-sm font-semibold text-app-primary bg-indigo-100 px-4 py-1.5 rounded-full">1단계: 기본 인증</span>
             </div>
 
-            <form id="restForm" class="mfa-step space-y-6">
-                <h3 class="text-xl font-semibold text-gray-800 mb-1">1. 계정 정보 입력</h3>
+            <form id="restForm" class="mfa-step space-y-5">
+                <h3 class="text-xl font-semibold text-app-dark-gray mb-1">1. 계정 정보 입력</h3>
                 <div>
-                    <label for="mfaUsername" class="form-label">아이디:</label>
-                    <input id="mfaUsername" name="username" class="form-input" required autocomplete="username"/>
+                    <label for="mfaUsername" class="block text-sm font-medium text-app-dark-gray">아이디:</label>
+                    <input id="mfaUsername" name="username" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" required autocomplete="username"/>
                 </div>
                 <div>
-                    <label for="mfaPassword" class="form-label">비밀번호:</label>
-                    <input id="mfaPassword" type="password" name="password" class="form-input" required autocomplete="current-password"/>
+                    <label for="mfaPassword" class="block text-sm font-medium text-app-dark-gray">비밀번호:</label>
+                    <input id="mfaPassword" type="password" name="password" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" required autocomplete="current-password"/>
                 </div>
-                <div id="restFormMessage" class="text-sm text-red-600 text-center min-h-[1.25rem]"></div>
-                <div>
-                    <button type="submit" class="w-full btn btn-primary text-lg">다음</button>
+                <div id="restFormMessage" class="text-sm text-error text-center min-h-[1.25rem]"></div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-colors">다음</button>
                 </div>
             </form>
 
-            <form id="ottForm" class="mfa-step space-y-6" style="display:none;">
-                <h3 class="text-xl font-semibold text-gray-800 mb-1">2. 이메일 코드 인증</h3>
-                <p class="text-gray-700">
+            <form id="ottForm" class="mfa-step space-y-5" style="display:none;">
+                <h3 class="text-xl font-semibold text-app-dark-gray mb-1">2. 이메일 코드 인증</h3>
+                <p class="text-slate-600 text-sm">
                     이메일(<strong id="mfaOttEmail" class="text-app-accent"></strong>)(으)로 발송된 인증 코드를 입력하세요.
                 </p>
                 <div>
-                    <label for="mfaOtpCode" class="form-label">인증 코드:</label>
-                    <input id="mfaOtpCode" name="token" class="form-input tracking-widest text-center" placeholder="6자리 코드" required maxlength="6" pattern="\d{6}" />
+                    <label for="mfaOtpCode" class="block text-sm font-medium text-app-dark-gray">인증 코드:</label>
+                    <input id="mfaOtpCode" name="token" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 tracking-[.25em] text-center text-lg focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" placeholder="6자리 코드" required maxlength="6" pattern="\d{6}" />
                 </div>
-                <div id="ottFormMessage" class="text-sm text-red-600 text-center min-h-[1.25rem]"></div>
-                <div>
-                    <button type="submit" class="w-full btn btn-primary text-lg">코드 인증</button>
+                <div id="ottFormMessage" class="text-sm text-error text-center min-h-[1.25rem]"></div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-colors">코드 인증</button>
                 </div>
                 <button type="button" id="resendOttCode" class="w-full text-sm text-app-accent hover:underline mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     인증 코드 재전송
@@ -57,11 +80,14 @@
             </form>
 
             <div id="passkeySection" class="mfa-step text-center" style="display:none;">
-                <h3 class="text-xl font-semibold text-gray-800 mb-4">3. Passkey 인증</h3>
+                <h3 class="text-xl font-semibold text-app-dark-gray mb-4">3. Passkey 인증</h3>
                 <img th:src="@{/images/passkey-logo.svg}" alt="Passkey Logo" class="mx-auto h-12 w-auto mb-4" />
-                <p class="text-gray-700 mb-6">등록된 Passkey(생체 정보 또는 보안키)를 사용하여 인증을 완료하세요.</p>
-                <div id="passkeySectionMessage" class="text-sm text-red-600 text-center min-h-[1.25rem] mb-2"></div>
-                <button id="webauthnBtn" class="w-full btn btn-primary text-lg py-3">Passkey로 인증 완료</button>
+                <p class="text-slate-600 mb-6 text-sm">등록된 Passkey(생체 정보 또는 보안키)를 사용하여 인증을 완료하세요.</p>
+                <div id="passkeySectionMessage" class="text-sm text-error text-center min-h-[1.25rem] mb-2"></div>
+                <button id="webauthnBtn" class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm-1-5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                    Passkey로 인증 완료
+                </button>
             </div>
 
             <div id="mfaResultSection" class="mfa-step text-center" style="display:none;">

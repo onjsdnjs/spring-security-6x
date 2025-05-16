@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.TokenServiceCo
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.IdentityDslRegistry;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
+import io.springsecurity.springsecurity6x.security.handler.JwtEmittingAndMfaAwareSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
@@ -24,6 +25,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -49,14 +51,8 @@ public class PlatformSecurityConfig {
     private final MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler;
     private final MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler;
     private final MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler;
+    private final JwtEmittingAndMfaAwareSuccessHandler jwtEmittingAndMfaAwareSuccessHandler;
 
-
-    // 단일 인증 성공 시 JWT를 발급하는 핸들러 (POJO로 생성하여 사용)
-    private AuthenticationSuccessHandler singleAuthSuccessHandlerWithJwt() {
-        return new JwtEmittingSingleAuthSuccessHandler(tokenService, objectMapper, "/");
-    }
-
-    // 단일 인증 실패 핸들러 (POJO)
     private AuthenticationFailureHandler singleAuthFailureHandler(String failureUrl) {
         return new SimpleUrlAuthenticationFailureHandler(failureUrl);
     }
@@ -87,9 +83,7 @@ public class PlatformSecurityConfig {
                         .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                         .sessionManagement(session -> session
                                 .sessionCreationPolicy(authContextProperties.isAllowMultipleLogins() ?
-                                        org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED :
-                                        org.springframework.security.config.http.SessionCreationPolicy.ALWAYS)
-                                .sessionFixation().migrateSession()
+                                        SessionCreationPolicy.IF_REQUIRED : SessionCreationPolicy.ALWAYS)
                                 .maximumSessions(authContextProperties.isAllowMultipleLogins() ? authContextProperties.getMaxConcurrentLogins() : 1)
                                 .expiredUrl("/loginForm?expired")
                         )
@@ -109,7 +103,7 @@ public class PlatformSecurityConfig {
                 .form(form -> form
                         .loginPage("/loginForm")
                         .loginProcessingUrl("/login")
-                        .successHandler(singleAuthSuccessHandlerWithJwt())
+                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginForm?error"))
                 ).session(Customizer.withDefaults())
 
@@ -117,7 +111,7 @@ public class PlatformSecurityConfig {
                         .tokenService(emailOneTimeTokenService)
                         .tokenGeneratingUrl("/api/ott/generate")
                         .loginProcessingUrl("/login/ott")
-                        .successHandler(singleAuthSuccessHandlerWithJwt())
+                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginOtt?error"))
                 ).session(Customizer.withDefaults())
 
@@ -125,7 +119,7 @@ public class PlatformSecurityConfig {
                         .rpId(rpId)
                         .assertionOptionsEndpoint("/api/passkey/assertion/options")
                         .loginProcessingUrl("/login/webauthn")
-                        .successHandler(singleAuthSuccessHandlerWithJwt())
+                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginPasskey?error"))
                 ).session(Customizer.withDefaults())
 
@@ -150,60 +144,5 @@ public class PlatformSecurityConfig {
                 )
                 .jwt(Customizer.withDefaults())
                 .build();
-    }
-
-    // 단일 인증 성공 시 JWT를 발급하는 핸들러 (POJO 예시)
-    @Slf4j
-    @RequiredArgsConstructor
-    private static class JwtEmittingSingleAuthSuccessHandler implements AuthenticationSuccessHandler {
-        private final TokenService tokenService; // 생성자를 통해 주입 (POJO이므로 Spring DI 아님)
-        private final ObjectMapper objectMapper;
-        private final String defaultTargetUrl;
-
-        @Override
-        public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
-            log.info("Single Authentication successful (JWT Emitter): User {}. Issuing tokens.", authentication.getName());
-            String deviceId = request.getHeader("X-Device-Id");
-            if (deviceId == null) deviceId = getOrCreateSessionDeviceId(request);
-
-            String accessToken = tokenService.createAccessToken(authentication, deviceId);
-            String refreshToken = null;
-            if (tokenService.properties().isEnableRefreshToken()) {
-                refreshToken = tokenService.createRefreshToken(authentication, deviceId);
-            }
-
-            Map<String, Object> tokenResponse = new HashMap<>();
-            tokenResponse.put("status", "SUCCESS");
-            tokenResponse.put("message", "로그인 성공");
-            tokenResponse.put("accessToken", accessToken);
-            if (refreshToken != null) tokenResponse.put("refreshToken", refreshToken);
-            tokenResponse.put("redirectUrl", determineTargetUrl(request, response, authentication));
-
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json;charset=UTF-8");
-            objectMapper.writeValue(response.getWriter(), tokenResponse);
-        }
-
-        private String getOrCreateSessionDeviceId(HttpServletRequest request) {
-            HttpSession session = request.getSession(true);
-            String deviceId = (String) session.getAttribute("sessionDeviceIdForAuth");
-            if (deviceId == null) {
-                deviceId = UUID.randomUUID().toString();
-                session.setAttribute("sessionDeviceIdForAuth", deviceId);
-            }
-            return deviceId;
-        }
-        protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-            // 실제로는 SavedRequest가 있다면 그곳으로, 아니면 defaultTargetUrl
-            // SavedRequestAwareAuthenticationSuccessHandler의 로직 참조 가능
-            HttpSession session = request.getSession(false);
-            if (session != null) {
-                org.springframework.security.web.savedrequest.SavedRequest savedRequest = (org.springframework.security.web.savedrequest.SavedRequest) session.getAttribute("SPRING_SECURITY_SAVED_REQUEST");
-                if (savedRequest != null) {
-                    return savedRequest.getRedirectUrl();
-                }
-            }
-            return defaultTargetUrl;
-        }
     }
 }

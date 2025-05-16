@@ -4,10 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Passkey 로그인</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
+                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
+                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
+                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                    }
+                }
+            }
+        }
+    </script>
     <script th:src="@{/js/toast.js}"></script>
+    <th:block th:if="${_csrf != null}">
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    </th:block>
 </head>
-<body class="flex flex-col min-h-screen bg-app-light-gray">
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
 <div th:insert="~{fragments/header :: header}"></div>
 <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
@@ -18,14 +39,15 @@
     <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
         <div class="w-full max-w-md bg-white p-8 sm:p-10 rounded-xl shadow-2xl text-center">
             <img th:src="@{/images/passkey-logo.svg}" alt="Passkey Logo" class="mx-auto h-16 w-auto mb-6" />
-            <h2 class="text-3xl font-bold text-app-accent mb-4">Passkey 로그인</h2>
-            <p class="text-gray-700 mb-8">등록된 Passkey (생체 정보 또는 보안키)를 사용하여 안전하게 로그인하세요.</p>
-            <button id="passkeyBtn" class="w-full btn btn-primary text-lg py-3 transition-transform transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed">
+            <h2 class="text-3xl font-bold text-app-primary mb-4">Passkey 로그인</h2>
+            <p class="text-slate-600 mb-8">등록된 Passkey (생체 정보 또는 보안키)를 사용하여 안전하게 로그인하세요.</p>
+            <button id="passkeyBtn" class="w-full flex items-center justify-center px-6 py-3.5 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105 disabled:opacity-75 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm-1-5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
                 Passkey로 인증
             </button>
-            <p id="passkeyMessage" class="mt-4 text-sm text-gray-500 min-h-[1.25rem]"></p>
+            <p id="passkeyMessage" class="mt-4 text-sm text-slate-500 min-h-[1.25rem]"></p>
             <div class="mt-6">
-                <a th:href="@{/loginForm}" class="text-sm text-app-accent hover:text-app-accent-hover font-medium">
+                <a th:href="@{/loginForm}" class="text-sm text-app-accent hover:text-app-accent-hover font-medium hover:underline">
                     다른 방법으로 로그인
                 </a>
             </div>

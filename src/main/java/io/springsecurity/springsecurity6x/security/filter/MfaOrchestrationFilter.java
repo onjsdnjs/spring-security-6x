@@ -39,20 +39,18 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
     public MfaOrchestrationFilter(ContextPersistence persistence, StateMachineManager manager) {
         this.ctxPersistence = Objects.requireNonNull(persistence, "ContextPersistence cannot be null");
         this.stateMachine = Objects.requireNonNull(manager, "StateMachineManager cannot be null");
-        // 1차 인증 성공 후 FactorContext가 생성된 이후의 MFA 관련 경로만 매칭
+        // 이 필터는 1차 인증 성공 후 FactorContext가 생성된 이후의 MFA 관련 요청만 처리해야 함.
         this.requestMatcher = new OrRequestMatcher(
-                new AntPathRequestMatcher("/mfa/select-factor"),      // GET (페이지 로드), POST (선택 제출 API - 현재는 JS가 API 호출 후 페이지 이동)
-                new AntPathRequestMatcher("/mfa/verify/**"),        // GET (페이지 로드)
-                new AntPathRequestMatcher("/api/mfa/select-factor", "POST"), // 사용자가 Factor 선택 API
-                new AntPathRequestMatcher("/api/mfa/challenge", "POST"),     // Factor 챌린지 요청 API (예: OTT 재전송, Passkey 옵션 요청)
-                // 실제 Factor 검증 제출은 각 Factor 인증 필터(예: /login/mfa-ott)가 처리하고,
-                // 그 성공/실패 핸들러에서 이 필터가 다시 동작할 수 있는 상태로 만들거나,
-                // MfaStepFilterWrapper를 통해 Factor 인증 필터가 직접 호출됨.
-                // 따라서 이 필터가 직접 /login/mfa-ott 같은 경로를 매칭할 필요는 없을 수 있음.
-                // 핵심은 "상태 전이가 필요한 API 호출" 시점에 이 필터가 동작하는 것.
-                new AntPathRequestMatcher("/api/mfa/verify", "POST") // 범용적인 verify 엔드포인트 (덜 권장)
+                new AntPathRequestMatcher("/mfa/select-factor"),      // GET (MFA 선택 페이지 로드)
+                // API 호출로 MFA 단계를 진행하는 경우. 실제 Factor 검증은 각 Factor 전용 Filter에서 처리하고,
+                // 이 필터는 그 전후의 상태 관리나 API를 통한 명시적 상태 변경 요청(예: factor 선택)을 처리.
+                new AntPathRequestMatcher("/api/mfa/select-factor", "POST"),
+                new AntPathRequestMatcher("/api/mfa/challenge", "POST") // OTT 재전송, Passkey 옵션 요청 등
+                // login/mfa-ott, login/mfa-passkey 등은 MfaStepFilterWrapper가 가로채서 해당 Factor 필터로 넘김.
+                // 그 결과(성공/실패)에 따라 Success/FailureHandler가 호출되고, 이 핸들러가 다음 상태를 결정하고
+                // 경우에 따라 이 MfaOrchestrationFilter가 다시 동작할 수 있는 URL로 안내할 수 있음.
         );
-        log.info("MfaOrchestrationFilter initialized with default request matchers focusing on MFA progression URLs (e.g., /mfa/select-factor, /api/mfa/**).");
+        log.info("MfaOrchestrationFilter initialized with default request matchers for MFA progression (e.g., /mfa/select-factor, /api/mfa/**).");
     }
 
 
@@ -68,9 +66,7 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
 
         FactorContext ctx = ctxPersistence.contextLoad(req);
         if (ctx == null) {
-            // 이 필터가 매칭되는 URL은 FactorContext가 세션에 존재해야 하는 시점임.
-            // (즉, 1차 인증 성공 후 success handler에서 FactorContext를 생성하고 저장한 후)
-            log.warn("MfaOrchestrationFilter: No FactorContext found for MFA request: {}. This indicates an invalid or expired MFA session, or a misconfiguration in the authentication flow (FactorContext not saved after 1st auth).", req.getRequestURI());
+            log.warn("MfaOrchestrationFilter: No FactorContext found for MFA request: {}. This may indicate an invalid or expired MFA session, or that the 1st authentication step did not properly save the context.", req.getRequestURI());
             WebUtil.writeError(res, HttpServletResponse.SC_UNAUTHORIZED, "MFA_SESSION_NOT_FOUND", "MFA session not found or expired. Please start the authentication process again.");
             return;
         }
@@ -80,47 +76,39 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
 
         if (currentState != null && currentState.isTerminal()) {
             log.debug("MFA state {} for session {} is terminal. Orchestration filter will not process further state transitions.", currentState, ctx.getMfaSessionId());
-            chain.doFilter(req, res); // 터미널 상태면 다음 필터로 (예: 최종 응답 처리)
+            chain.doFilter(req, res);
             return;
         }
 
         try {
-            MfaEvent event = MfaEventPolicyResolver.resolve(req, ctx); // 요청으로부터 현재 컨텍스트에 맞는 MFA 이벤트를 해석
+            MfaEvent event = MfaEventPolicyResolver.resolve(req, ctx);
             log.debug("Resolved MFA Event: {} for state: {} (Session: {})", event, currentState, ctx.getMfaSessionId());
 
-            MfaState nextState = stateMachine.nextState(currentState, event); // 상태 머신을 통해 다음 상태 결정
+            MfaState nextState = stateMachine.nextState(currentState, event);
             log.debug("StateMachineManager proposed next state: {} from {} on event {} (Session: {})",
                     nextState, currentState, event, ctx.getMfaSessionId());
 
-            if (currentState != nextState) { // 상태가 실제로 변경된 경우
-                ctx.changeState(nextState);    // FactorContext 내부 상태 업데이트 (타임스탬프, 버전 등 관리)
-                ctxPersistence.saveContext(ctx, req); // 변경된 컨텍스트를 세션 등에 다시 저장
+            if (currentState != nextState) {
+                ctx.changeState(nextState);
+                ctxPersistence.saveContext(ctx, req);
                 log.info("MFA state successfully transitioned: {} -> {} for Session ID: {} via event {}",
                         currentState, nextState, ctx.getMfaSessionId(), event);
             } else {
                 log.debug("MFA event {} did not cause a state change from {}. Session ID: {}.",
                         event, currentState, ctx.getMfaSessionId());
-                // 상태 변경이 없었더라도 FactorContext의 다른 속성(예: 시도 횟수)이 변경되었을 수 있으므로 저장할 수 있음
-                // ctxPersistence.saveContext(ctx, req); // 필요하다면 항상 저장
+                // 상태 변경이 없더라도 컨텍스트의 다른 내용(시도 횟수 등)이 변경되었을 수 있으므로 저장
+                ctxPersistence.saveContext(ctx, req);
             }
-
-            // 상태 전이 후, 실제 인증 로직(예: Passkey 필터, OTT 필터)이나
-            // 사용자에게 다음 단계를 안내하는 로직(예: MfaContinuationHandler 또는 다음 필터가 처리)이 실행되어야 함.
-            // 이 필터는 주로 상태 전이만 담당하고, 다음 필터(MfaStepFilterWrapper 또는 각 인증 필터)가
-            // 새로운 상태에 기반하여 실제 작업을 수행하도록 체인을 계속 진행.
-            // 특정 상태(예: FACTOR_CHALLENGE_INITIATED)에서는 ChallengeRouter를 통해 클라이언트에 챌린지 정보를 내려줄 수도 있음.
-            // (이 부분은 MfaStepBasedSuccessHandler 나 MfaCapableRestSuccessHandler와 같은 성공 핸들러에서 처리하거나,
-            //  또는 특정 MfaState를 처리하는 전용 Controller/Handler에서 담당할 수 있음)
 
         } catch (InvalidTransitionException e) {
             log.warn("MFA InvalidTransitionException for Session ID: {}: {}", ctx.getMfaSessionId(), e.getMessage(), e);
             WebUtil.writeError(res, HttpServletResponse.SC_CONFLICT, "INVALID_MFA_TRANSITION_ORCH", e.getMessage());
-            return; // 오류 발생 시 필터 체인 중단
+            return;
         } catch (AuthenticationException e) {
             log.warn("MFA AuthenticationException for Session ID: {}: {}", ctx.getMfaSessionId(), e.getMessage(), e);
             WebUtil.writeError(res, HttpServletResponse.SC_UNAUTHORIZED, "MFA_AUTH_FAILURE_ORCH", e.getMessage());
             return;
-        } catch (IllegalArgumentException e) { // MfaEventPolicyResolver 등에서 발생 가능
+        } catch (IllegalArgumentException e) {
             log.warn("MFA IllegalArgumentException for Session ID: {}: {}", ctx.getMfaSessionId(), e.getMessage(), e);
             WebUtil.writeError(res, HttpServletResponse.SC_BAD_REQUEST, "MFA_INVALID_INPUT_ORCH", e.getMessage());
             return;
@@ -130,6 +118,12 @@ public class MfaOrchestrationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // MfaOrchestrationFilter는 상태 전이 후, 클라이언트가 다음 행동을 하거나 (예: API 응답에 따른 JS 동작)
+        // 또는 다른 필터(예: MfaStepFilterWrapper를 통해 실제 인증 필터)가 요청을 처리하도록 체인을 계속 진행.
+        // 만약 특정 상태(예: FACTOR_CHALLENGE_INITIATED)에서 ChallengeRouter를 통해 직접 응답을 생성하고 싶다면
+        // 해당 로직을 여기에 추가하거나, 전용 핸들러/컨트롤러에서 처리하도록 할 수 있음.
+        // 현재 설계에서는 이 필터는 주로 상태 변경에 집중하고, 실제 응답 생성이나 인증 처리 위임은
+        // 성공/실패 핸들러 또는 MfaStepFilterWrapper 등을 통해 이루어짐.
         if (!res.isCommitted()) {
             chain.doFilter(req, res);
         } else {

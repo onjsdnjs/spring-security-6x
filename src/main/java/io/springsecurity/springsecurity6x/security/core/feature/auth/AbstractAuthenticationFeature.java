@@ -1,16 +1,19 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.*;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.handler.CustomTokenIssuingSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.OneTimeRedirectSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.SimpleRedirectSuccessHandler;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.ott.OttAuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,187 +40,170 @@ public abstract class AbstractAuthenticationFeature<O extends AuthenticationProc
     @Override
     public abstract int getOrder();
 
-    /**
-     * 각 하위 클래스에서 해당 인증 방식에 특화된 HttpSecurity 설정을 적용합니다.
-     * 이 메소드는 일반적인 AuthenticationSuccessHandler를 사용합니다.
-     */
     protected abstract void configureHttpSecurity(HttpSecurity http, O options,
                                                   AuthenticationSuccessHandler successHandler,
                                                   AuthenticationFailureHandler failureHandler) throws Exception;
 
-    /**
-     * OTT와 같이 OneTimeTokenGenerationSuccessHandler를 사용하는 경우를 위해 오버로딩합니다.
-     * OttAuthenticationFeature 에서 이 메소드를 오버라이드하여 사용합니다.
-     */
     protected void configureHttpSecurityForOtt(HttpSecurity http, O options,
                                                OneTimeTokenGenerationSuccessHandler ottSuccessHandler,
                                                AuthenticationFailureHandler failureHandler) throws Exception {
-        throw new UnsupportedOperationException(
-                String.format("Feature %s does not support OneTimeTokenGenerationSuccessHandler. " +
-                        "Override configureHttpSecurityForOtt in the subclass if needed.", getId())
-        );
+        if (!(this instanceof OttAuthenticationFeature)) {
+            throw new UnsupportedOperationException(
+                    String.format("Feature %s is not an OTT feature and should not call configureHttpSecurityForOtt by default.", getId())
+            );
+        }
     }
 
     @Override
-    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
-        if (steps == null || steps.isEmpty()) {
-            log.debug("No steps provided for feature {}, skipping apply.", getId());
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> allStepsInCurrentFlow, StateConfig stateConfig) throws Exception {
+        AuthenticationStepConfig myRelevantStepConfig = null;
+        if (allStepsInCurrentFlow != null) {
+            for (AuthenticationStepConfig step : allStepsInCurrentFlow) {
+                // getId()는 현재 Feature의 ID (예: "form", "rest")
+                // step.getType()은 해당 스텝의 타입 (예: "form", "rest")
+                if (getId().equalsIgnoreCase(step.getType())) {
+                    myRelevantStepConfig = step; // 이 Feature가 처리해야 할 스텝을 찾음
+                    break;
+                }
+            }
+        }
+
+        if (myRelevantStepConfig == null) {
+            // 현재 HttpSecurity 설정(즉, 현재 처리 중인 AuthenticationFlowConfig)에는
+            // 이 Feature가 관여할 스텝이 없음.
+            log.trace("Feature {} is not relevant for any step in the current flow's steps list. Skipping specific configuration for this HttpSecurity instance.", getId());
             return;
         }
 
-        AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> getId().equalsIgnoreCase(s.getType()))
-                .findFirst()
-                .orElse(null); // 찾지 못하면 null 반환
+        AuthenticationFlowConfig currentFlow = http.getSharedObject(AuthenticationFlowConfig.class);
+        log.debug("Applying feature {} for its relevant step: {} in flow {}",
+                getId(), myRelevantStepConfig.getType(), (currentFlow != null ? currentFlow.getTypeName() : "Single/Unknown"));
 
-        if (myStep == null) {
-            // 이 Feature에 해당하는 스텝이 현재 Flow에 없으면 아무것도 하지 않음.
-            // 이는 정상적인 상황일 수 있음 (예: MFA Flow 에서 특정 Factor만 사용하는 경우)
-            log.trace("No step config found for feature {} in the current flow, skipping apply.", getId());
-            return;
-        }
-
-        O options = (O) myStep.getOptions().get("_options");
+        O options = (O) myRelevantStepConfig.getOptions().get("_options");
         if (options == null) {
-            throw new IllegalStateException(
-                    String.format("Options not found in AuthenticationStepConfig for %s type (Feature: %s).", getId(), this.getClass().getSimpleName()));
+            throw new IllegalStateException(String.format("Options not found in AuthenticationStepConfig for type '%s'.", getId()));
         }
-
-        int currentStepIndex = steps.indexOf(myStep);
-        boolean isLastStep = currentStepIndex == steps.size() - 1;
 
         PlatformContext platformContext = http.getSharedObject(PlatformContext.class);
         Assert.state(platformContext != null, "PlatformContext not found in HttpSecurity shared objects.");
         ApplicationContext appContext = platformContext.applicationContext();
 
-        // --- 성공 핸들러 결정 ---
-        AuthenticationSuccessHandler successHandlerForAuth = null;
-        OneTimeTokenGenerationSuccessHandler successHandlerForOtt = null;
+        // 핸들러 결정 로직 (이전 답변과 동일하게 유지 또는 개선)
+        AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
 
-        AuthenticationSuccessHandler dslConfiguredSuccessHandler = options.getSuccessHandler();
-
-        if (isLastStep) {
-            CustomTokenIssuingSuccessHandler tokenIssuingHandler = appContext.getBean(CustomTokenIssuingSuccessHandler.class);
-            successHandlerForAuth = tokenIssuingHandler;
-            if (AuthType.OTT.name().equalsIgnoreCase(getId())) {
-                successHandlerForOtt = tokenIssuingHandler; // CustomTokenIssuingSuccessHandler가 OneTimeTokenGenerationSuccessHandler도 구현
+        // 실제 HttpSecurity 설정 적용
+        if (this instanceof OttAuthenticationFeature) { // 현재 인스턴스가 OttAuthenticationFeature 인지 확인
+            if (!(successHandler instanceof OneTimeTokenGenerationSuccessHandler)) {
+                log.warn("SuccessHandler for OTT feature ({}) is not an instance of OneTimeTokenGenerationSuccessHandler. Defaulting or check config.", successHandler != null ? successHandler.getClass().getName() : "null");
+                OneTimeTokenGenerationSuccessHandler ottDefaultHandler = determineDefaultOttSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+                // configureHttpSecurityForOtt는 OttAuthenticationFeature 에서 오버라이드 되어야 함
+                ((OttAuthenticationFeature)this).configureHttpSecurityForOtt(http, (OttOptions)options, ottDefaultHandler, failureHandler);
+            } else {
+                ((OttAuthenticationFeature)this).configureHttpSecurityForOtt(http, (OttOptions)options, (OneTimeTokenGenerationSuccessHandler) successHandler, failureHandler);
             }
         } else {
-            Assert.state(currentStepIndex + 1 < steps.size(),
-                    String.format("MFA flow configuration error: No next step defined after current step %d for feature %s", currentStepIndex, getId()));
-            AuthenticationStepConfig nextStep = steps.get(currentStepIndex + 1);
-            Object nextStepOptsObj = nextStep.getOptions().get("_options");
-            String targetUrl = extractTargetUrlFromOptions(nextStepOptsObj, nextStep.getType(), options);
-
-            if (AuthType.OTT.name().equalsIgnoreCase(getId())) {
-                // OTT는 토큰 생성 성공 핸들러가 다음 단계로 안내 (실제 로그인 성공 핸들러는 아님)
-                // 따라서 isLastStep이 false인 OTT는 항상 OneTimeRedirectSuccessHandler를 사용
-                successHandlerForOtt = new OneTimeRedirectSuccessHandler(targetUrl);
-            } else {
-                successHandlerForAuth = new SimpleRedirectSuccessHandler(targetUrl);
-            }
+            configureHttpSecurity(http, options, successHandler, failureHandler);
         }
 
-        // 사용자가 DSL을 통해 successHandler를 명시적으로 설정한 경우, 그 설정을 우선 적용
-        if (dslConfiguredSuccessHandler != null) {
-            if (AuthType.OTT.name().equalsIgnoreCase(getId())) {
-                if (dslConfiguredSuccessHandler instanceof OneTimeTokenGenerationSuccessHandler) {
-                    successHandlerForOtt = (OneTimeTokenGenerationSuccessHandler) dslConfiguredSuccessHandler;
-                    log.debug("Using DSL configured OneTimeTokenGenerationSuccessHandler for OTT feature: {}", dslConfiguredSuccessHandler.getClass().getName());
-                } else {
-                    log.warn("DSL configured successHandler for OTT feature is not of type OneTimeTokenGenerationSuccessHandler. Type: {}. Using default/step-based handler instead.",
-                            dslConfiguredSuccessHandler.getClass().getName());
-                }
-            } else {
-                successHandlerForAuth = dslConfiguredSuccessHandler;
-                log.debug("Using DSL configured AuthenticationSuccessHandler for {} feature: {}", getId(), dslConfiguredSuccessHandler.getClass().getName());
-            }
-        }
-
-
-        // --- 실패 핸들러 결정 ---
-        AuthenticationFailureHandler failureHandler = options.getFailureHandler();
-        if (failureHandler == null) {
-            failureHandler = createDefaultFailureHandler(options, appContext);
-        }
-
-        // --- HttpSecurity 설정 위임 ---
-        log.debug("Configuring HttpSecurity for feature: {}, isLastStep: {}", getId(), isLastStep);
-        if (AuthType.OTT.name().equalsIgnoreCase(getId())) {
-            Assert.notNull(successHandlerForOtt, "successHandlerForOtt cannot be null for OttAuthenticationFeature");
-            configureHttpSecurityForOtt(http, options, successHandlerForOtt, failureHandler);
-        } else {
-            Assert.notNull(successHandlerForAuth, "successHandlerForAuth cannot be null for " + getId() + " feature");
-            configureHttpSecurity(http, options, successHandlerForAuth, failureHandler);
-        }
-
-        // --- 공통 후처리 (Raw HttpSecurity Customizers 적용) ---
         List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers = options.getRawHttpCustomizers();
         if (rawHttpCustomizers != null) {
-            log.debug("Applying {} raw HttpSecurity customizers for feature: {}", rawHttpCustomizers.size(), getId());
             for (SafeHttpCustomizer<HttpSecurity> customizer : rawHttpCustomizers) {
                 Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
             }
         }
-        log.info("Successfully applied configurations for AuthenticationFeature: {}", getId());
+        log.info("Feature {} applied its specific configuration for step type '{}' in flow '{}'.",
+                getId(), myRelevantStepConfig.getType(), (currentFlow != null ? currentFlow.getTypeName() : "Single/Unknown"));
     }
 
-    protected String extractTargetUrlFromOptions(Object nextStepOptionsObject, String nextStepType, O currentAuthOptions) {
-        // 1. 다음 스텝 옵션에서 URL을 가져오려는 시도 (가상의 메소드)
-        // if (nextStepOptionsObject instanceof AuthenticationProcessingOptions) {
-        //     String nextUrl = ((AuthenticationProcessingOptions) nextStepOptionsObject).getExplicitNextStepUrl();
-        //     if (nextUrl != null) return nextUrl;
-        // }
-
-        // 2. 현재 인증 방식 옵션에서 다음 MFA 선택 페이지 URL을 가져오려는 시도
-        // if (currentAuthOptions instanceof FormOptions && ((FormOptions) currentAuthOptions).getMfaTransitionUrl() != null) {
-        //    return ((FormOptions) currentAuthOptions).getMfaTransitionUrl();
-        // }
-        // ... 다른 옵션 타입에 대해서도 유사하게 ...
-
-        // 3. 다음 스텝의 타입에 따라 기본 URL 반환 (가장 기본적인 fallback)
-        log.debug("Extracting target URL for next step type: {}", nextStepType);
-        if (AuthType.OTT.name().equalsIgnoreCase(nextStepType)) {
-            return "/mfa/verify/ott";
-        } else if (AuthType.PASSKEY.name().equalsIgnoreCase(nextStepType)) {
-            return "/mfa/verify/passkey";
+    protected AuthenticationSuccessHandler resolveSuccessHandler(O options, AuthenticationFlowConfig currentFlow, AuthenticationStepConfig myStepConfig, List<AuthenticationStepConfig> allSteps, ApplicationContext appContext) {
+        if (options.getSuccessHandler() != null) {
+            return options.getSuccessHandler();
         }
-        // 기본적으로는 다음 Factor 선택 페이지로 이동
-        return "/mfa/select-factor";
+        if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
+            int currentStepIndex = allSteps.indexOf(myStepConfig);
+            boolean isLastStepInMfaFlow = (currentStepIndex == allSteps.size() - 1);
+
+            if (currentStepIndex == 0) { // MFA의 1차 인증
+                return appContext.getBean(MfaCapableRestSuccessHandler.class); // 또는 Form 용 핸들러를 Bean으로 등록하고 가져오기
+            } else if (isLastStepInMfaFlow) { // MFA의 마지막 Factor
+                return currentFlow.getFinalSuccessHandler() != null ? currentFlow.getFinalSuccessHandler() : appContext.getBean(MfaStepBasedSuccessHandler.class);
+            } else { // MFA의 중간 Factor
+                return appContext.getBean(MfaStepBasedSuccessHandler.class);
+            }
+        }
+        // 단일 인증 플로우 또는 currentFlow 정보가 없을 때
+        return determineDefaultSuccessHandler(options, currentFlow, myStepConfig, allSteps, appContext);
+    }
+
+    protected AuthenticationFailureHandler resolveFailureHandler(O options, AuthenticationFlowConfig currentFlow, AuthenticationStepConfig myStepConfig, List<AuthenticationStepConfig> allSteps, ApplicationContext appContext) {
+        if (options.getFailureHandler() != null) {
+            return options.getFailureHandler();
+        }
+        if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
+            // MfaDslConfigurer 에서 설정한 MfaFailureHandler를 가져와야 함
+            // AuthenticationFlowConfig에 저장된 MfaFailureHandler는 io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler 타입
+            // 이를 Spring Security의 AuthenticationFailureHandler 타입으로 변환하거나,
+            // MfaAuthenticationFailureHandler가 두 인터페이스를 모두 구현하도록 함 (이전 답변에서 수정)
+            if (currentFlow.getMfaFailureHandler() instanceof AuthenticationFailureHandler) {
+                return (AuthenticationFailureHandler) currentFlow.getMfaFailureHandler();
+            } else if (currentFlow.getMfaFailureHandler() != null) {
+                log.warn("MFA flow failure handler is not an instance of Spring Security AuthenticationFailureHandler. Using default.");
+                // 이 경우, MfaAuthenticationFailureHandler와 같은 Bean을 여기서 가져와야 함.
+                return appContext.getBean(io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler.class);
+            }
+        }
+        return createDefaultFailureHandler(options, appContext);
+    }
+
+    protected AuthenticationSuccessHandler determineDefaultSuccessHandler(O options, AuthenticationFlowConfig currentFlow, AuthenticationStepConfig myStepConfig, List<AuthenticationStepConfig> allSteps, ApplicationContext appContext) {
+        try {
+            return appContext.getBean("jwtEmittingAndMfaAwareSuccessHandler", AuthenticationSuccessHandler.class);
+        } catch (Exception e) {
+            log.warn("Default success handler bean 'jwtEmittingAndMfaAwareSuccessHandler' not found for feature {}. Returning basic redirect to /.", getId(), e);
+            return (request, response, authentication) -> response.sendRedirect("/");
+        }
+    }
+
+    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttSuccessHandler(O options, AuthenticationFlowConfig currentFlow, AuthenticationStepConfig myStepConfig, List<AuthenticationStepConfig> allSteps, ApplicationContext appContext) {
+        if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
+            // MfaStepBasedSuccessHandler가 OneTimeTokenGenerationSuccessHandler를 구현한다고 가정
+            // 또는 OttAuthenticationFeature의 successHandler는 MfaDslConfigurer에서 직접 설정된 것을 사용하도록 유도
+            return appContext.getBean(MfaStepBasedSuccessHandler.class);
+        } else {
+            try {
+                return appContext.getBean("jwtEmittingAndMfaAwareSuccessHandler", OneTimeTokenGenerationSuccessHandler.class);
+            } catch (Exception e) {
+                log.warn("Default OTT success handler bean 'jwtEmittingAndMfaAwareSuccessHandler' not found for feature {}. Returning basic redirect to /.", getId(), e);
+                return (request, response, token) -> response.sendRedirect("/");
+            }
+        }
     }
 
     protected AuthenticationFailureHandler createDefaultFailureHandler(O options, ApplicationContext appContext) {
         if (options instanceof RestOptions) {
             final ObjectMapper objectMapper = appContext.getBean(ObjectMapper.class);
             return (request, response, exception) -> {
-                log.warn("Default REST authentication failure: {}", exception.getMessage());
+                log.warn("Default REST authentication failure for feature {}: {}", getId(), exception.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 objectMapper.writeValue(response.getWriter(),
                         Map.of("error", "AUTHENTICATION_FAILED",
-                                "message", exception.getMessage() != null ? exception.getMessage() : "Invalid credentials or authentication error.",
+                                "message", exception.getMessage() != null ? exception.getMessage() : "Invalid credentials.",
                                 "path", request.getRequestURI()));
             };
         } else {
-            String failureUrl = determineDefaultFailureUrl(options);
+            String failureUrl = determineDefaultFailureUrl(options); // 각 Feature가 기본 실패 URL 제공
             log.debug("Using default failure URL: {} for feature {}", failureUrl, getId());
             return new SimpleUrlAuthenticationFailureHandler(failureUrl);
         }
     }
 
     protected String determineDefaultFailureUrl(O options) {
-        String featureSpecificErrorUrl = "/login?error_feature=" + getId();
         if (options instanceof FormOptions && ((FormOptions) options).getFailureUrl() != null) {
             return ((FormOptions) options).getFailureUrl();
-        } else if (options instanceof OttOptions) {
-            // OttOptions에 getFailureUrl()이 있다면 사용, 없으면 기본값
-            // return ((OttOptions) options).getFailureUrl() != null ? ((OttOptions) options).getFailureUrl() : "/loginOtt?error";
-            return "/loginOtt?error_ott_default_in_abstract";
-        } else if (options instanceof PasskeyOptions) {
-            // PasskeyOptions에 getFailureUrl()이 있다면 사용, 없으면 기본값
-            return "/loginPasskey?error_passkey_default_in_abstract";
         }
-        // REST는 createDefaultFailureHandler에서 별도 처리
-        return featureSpecificErrorUrl;
+        // 기타 다른 AuthenticationProcessingOptions의 하위 클래스에 대한 처리 추가 가능
+        return "/login?error&feature=" + getId(); // 일반적인 기본 실패 URL
     }
 }

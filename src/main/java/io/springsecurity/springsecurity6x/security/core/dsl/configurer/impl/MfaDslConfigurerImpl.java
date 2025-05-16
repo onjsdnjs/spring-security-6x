@@ -13,7 +13,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.configurer.AdaptiveD
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaContinuationHandler;
-import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler; // 이 타입을 사용
+import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.PrimaryAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -32,7 +32,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
 
     private MfaPolicyProvider policyProvider;
     private MfaContinuationHandler continuationHandler;
-    private MfaFailureHandler mfaFailureHandler; // 타입 일치 (io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler)
+    private MfaFailureHandler mfaFailureHandler;
     private AuthenticationSuccessHandler finalSuccessHandler;
     private RetryPolicy defaultRetryPolicy;
     private AdaptiveConfig defaultAdaptiveConfig;
@@ -64,7 +64,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig();
         primaryAuthStep.setType(authType.name().toLowerCase());
         primaryAuthStep.getOptions().put("_options", options);
-        primaryAuthStep.setOrder(assignOrderAndIncrement()); // 1차 인증이므로 order 0
+        primaryAuthStep.setOrder(assignOrderAndIncrement()); // 1차 인증은 order 0
         configuredSteps.add(primaryAuthStep);
     }
 
@@ -83,6 +83,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         addPrimaryAuthStep(AuthType.REST, configurer.buildConcreteOptions());
         return this;
     }
+
 
     private <O extends AuthenticationProcessingOptions, C extends AuthenticationFactorConfigurer<O, C>>
     MfaDslConfigurer configureMfaFactor(
@@ -123,7 +124,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
     }
 
     @Override
-    public MfaDslConfigurer mfaFailureHandler(MfaFailureHandler failureHandler) { // 파라미터 타입: io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler
+    public MfaDslConfigurer mfaFailureHandler(MfaFailureHandler failureHandler) {
         this.mfaFailureHandler = failureHandler;
         return this;
     }
@@ -167,6 +168,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         throw new UnsupportedOperationException("primaryAuthentication() is deprecated for MFA flow. Use form() or rest() directly within the MFA block to set the primary authentication method as the first step.");
     }
 
+
     @Override
     public AuthenticationFlowConfig build() {
         Assert.isTrue(!configuredSteps.isEmpty(), "MFA flow must have at least one step.");
@@ -190,7 +192,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         }
 
         Map<AuthType, AuthenticationProcessingOptions> factorOptionsMap = new HashMap<>();
-        for (int i = 1; i < configuredSteps.size(); i++) { // 1차 인증 스텝(index 0)은 제외
+        for (int i = 1; i < configuredSteps.size(); i++) {
             AuthenticationStepConfig step = configuredSteps.get(i);
             Object stepOptionsObject = step.getOptions().get("_options");
             if (!(stepOptionsObject instanceof AuthenticationProcessingOptions)) {
@@ -207,11 +209,11 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         flowConfigBuilder
                 .typeName(AuthType.MFA.name().toLowerCase())
                 .order(this.order)
-                .primaryAuthenticationOptions(primaryAuthOptionsForFlow) // 올바른 타입으로 전달
+                .primaryAuthenticationOptions(primaryAuthOptionsForFlow)
                 .stepConfigs(Collections.unmodifiableList(new ArrayList<>(this.configuredSteps)))
                 .mfaPolicyProvider(this.policyProvider)
                 .mfaContinuationHandler(this.continuationHandler)
-                .mfaFailureHandler(this.mfaFailureHandler) // 필드 타입과 일치
+                .mfaFailureHandler(this.mfaFailureHandler)
                 .finalSuccessHandler(this.finalSuccessHandler)
                 .registeredFactorOptions(factorOptionsMap)
                 .defaultRetryPolicy(this.defaultRetryPolicy)

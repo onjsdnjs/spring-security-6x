@@ -33,7 +33,7 @@ public class OttAuthenticationFeature extends AbstractAuthenticationFeature<OttO
 
     // OneTimeTokenGenerationSuccessHandler를 받는 메소드를 오버라이드
     @Override
-    protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
+    public void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
                                                OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
                                                AuthenticationFailureHandler failureHandler) throws Exception {
         http.oneTimeTokenLogin(ott -> {

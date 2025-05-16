@@ -2,9 +2,6 @@ package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import lombok.Getter;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
 import org.springframework.util.Assert;
 
 import java.util.Objects;

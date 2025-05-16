@@ -70,7 +70,7 @@ public class TokenServiceConfiguration {
                 props,
                 objectMapper);
 
-        transport.setTokenService(jwtTokenService);
+//        transport.setTokenService(jwtTokenService);
 
         return jwtTokenService;
     }

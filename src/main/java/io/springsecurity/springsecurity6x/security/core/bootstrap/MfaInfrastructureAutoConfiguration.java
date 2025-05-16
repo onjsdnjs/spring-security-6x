@@ -16,7 +16,6 @@ import io.springsecurity.springsecurity6x.security.http.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -78,7 +77,8 @@ public class MfaInfrastructureAutoConfiguration {
             AuthResponseWriter authResponseWriter,
             UserRepository userRepository,
             ContextPersistence contextPersistence,
-            AuthContextProperties authContextProperties) {
+            AuthContextProperties authContextProperties,
+            MfaPolicyProvider mfaPolicyProvider) {
 
         return new JwtEmittingAndMfaAwareSuccessHandler(
                 tokenService,
@@ -86,14 +86,15 @@ public class MfaInfrastructureAutoConfiguration {
                 userRepository,
                 contextPersistence,
                 authContextProperties,
-                authResponseWriter
+                authResponseWriter,
+                mfaPolicyProvider
         );
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public LogoutHandler jwtLogoutHandler(TokenService tokenService) {
-        return new JwtLogoutHandler(tokenService);
+    public LogoutHandler jwtLogoutHandler(TokenService tokenService, AuthResponseWriter authResponseWriter) {
+        return new JwtLogoutHandler(tokenService, authResponseWriter);
     }
 
     @Bean

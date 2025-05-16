@@ -4,16 +4,18 @@ import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,11 +35,12 @@ import java.util.UUID;
 public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler {
 
     private final TokenService tokenService;
-    private final String defaultTargetUrl; // 기본 성공 URL
+    private final String defaultTargetUrl;
     private final UserRepository userRepository;
     private final ContextPersistence contextPersistence;
     private final AuthContextProperties authContextProperties;
-    private final AuthResponseWriter responseWriter; // 추가
+    private final AuthResponseWriter responseWriter;
+    private final MfaPolicyProvider mfaPolicyProvider; // 추가: MfaPolicyProvider 주입 (MfaCapableRestSuccessHandler와 일관성)
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -51,7 +54,7 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
         if (authentication == null || !authentication.isAuthenticated()) {
             String usernameFromToken = (token != null && token.getUsername() != null) ? token.getUsername() : "Unknown OTT User";
             log.warn("JwtEmittingAndMfaAwareSuccessHandler.handle (OTT): Authentication not found in SecurityContext for user from token: {}.", usernameFromToken);
-            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "AUTH_CONTEXT_MISSING_OTT", "Authentication context not established after OTT.", request.getRequestURI());
+            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "AUTH_CONTEXT_MISSING_OTT_JWT_EMIT", "Authentication context missing after OTT.", request.getRequestURI());
             return;
         }
         log.debug("JwtEmittingAndMfaAwareSuccessHandler.handle (OTT) called for authenticated user: {} with OTT for: {}", authentication.getName(), token.getUsername());
@@ -65,24 +68,14 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
         Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        if (user.isMfaEnabled()) {
-            log.info("MFA is required for user: {}. Initiating MFA flow.", username);
-            FactorContext mfaCtx = new FactorContext(authentication);
-            String deviceId = getEffectiveDeviceId(request, mfaCtx);
-            mfaCtx.setAttribute("deviceId", deviceId);
+        // MfaCapableRestSuccessHandler와 동일한 로직으로 MFA 필요 여부 판단 및 FactorContext 생성
+        FactorContext mfaCtx = new FactorContext(authentication);
+        String deviceId = getEffectiveDeviceId(request, mfaCtx); // deviceId 먼저 결정
+        mfaCtx.setAttribute("deviceId", deviceId);
+        mfaPolicyProvider.evaluateMfaPolicy(mfaCtx); // MfaPolicyProvider 사용
 
-            // MfaPolicyProvider를 여기서 직접 호출하거나 (Bean 주입 필요),
-            // 이 핸들러가 MfaPolicyProvider를 모른다면, 기본 상태로 FactorContext를 시작.
-            // 여기서는 MfaCapableRestSuccessHandler와 유사하게 로직을 가져오거나,
-            // MfaPolicyProvider.evaluateMfaPolicy(mfaCtx); 호출 (MfaPolicyProvider 주입 필요)
-            // 여기서는 간단히 상태 설정 후 저장
-            if (!mfaCtx.getRegisteredMfaFactors().isEmpty() || mfaCtx.getPreferredAutoAttemptFactor() != null ) {
-                mfaCtx.changeState(MfaState.AWAITING_MFA_FACTOR_SELECTION);
-            } else {
-                log.warn("User {} requires MFA but has no registered factors. MFA cannot proceed. This should be handled by MfaPolicyProvider.", username);
-                // 이 경우, 사용자에게 오류를 알리거나, MFA를 우회하고 토큰을 발급할지 정책 결정 필요.
-                // 여기서는 MFA 안내 JSON을 보내지만, 실제로는 Factor 선택이 불가능할 수 있음.
-            }
+        if (mfaCtx.isMfaRequired()) {
+            log.info("MFA is required for user: {}. Initiating MFA flow.", username);
             contextPersistence.saveContext(mfaCtx, request);
 
             Map<String, Object> mfaRequiredDetails = new HashMap<>();
@@ -90,47 +83,59 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
             mfaRequiredDetails.put("message", "1차 인증 성공. 2차 인증이 필요합니다.");
             mfaRequiredDetails.put("mfaSessionId", mfaCtx.getMfaSessionId());
             mfaRequiredDetails.put("nextStepUrl", authContextProperties.getMfa().getInitiateUrl());
-
-            // MFA 안내는 AuthResponseWriter 사용
-            responseWriter.writeSuccessResponse(response, mfaRequiredDetails, HttpServletResponse.SC_OK); // 200 OK와 함께 JSON
+            responseWriter.writeSuccessResponse(response, mfaRequiredDetails, HttpServletResponse.SC_OK);
 
         } else {
-            log.info("MFA is not required for user: {}. Issuing tokens directly via TokenService.", username);
-            String deviceId = getEffectiveDeviceId(request, null);
-
+            log.info("MFA is not required for user: {}. Issuing tokens directly.", username);
+            // deviceId는 위에서 이미 결정됨
             String accessToken = tokenService.createAccessToken(authentication, deviceId);
             String refreshToken = null;
             if (tokenService.properties().isEnableRefreshToken()) {
                 refreshToken = tokenService.createRefreshToken(authentication, deviceId);
             }
 
-            // <<< 핵심: TokenService에 토큰 전송 위임 >>>
-            tokenService.writeAccessAndRefreshToken(response, accessToken, refreshToken);
+            TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshToken);
+            if (transportResult.getCookiesToSet() != null) {
+                for (ResponseCookie cookie : transportResult.getCookiesToSet()) {
+                    response.addHeader("Set-Cookie", cookie.toString());
+                }
+            }
+            Map<String, Object> responseBody = new HashMap<>(transportResult.getBody());
+            // 단일 인증 성공 시 redirectUrl을 포함하도록 확장 (선택적)
+            responseBody.put("redirectUrl", determineTargetUrl(request, response, authentication));
+            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
-            // 단일 인증 성공 시 FactorContext가 남아있을 이유가 없으므로 삭제
             contextPersistence.deleteContext(request);
         }
     }
 
-    private String getEffectiveDeviceId(HttpServletRequest request, FactorContext factorContext) {
+    private String getEffectiveDeviceId(HttpServletRequest request, FactorContext factorContext) { /* ... 이전 MfaCapableRestSuccessHandler와 동일 ... */
         String deviceId = request.getHeader("X-Device-Id");
         if (factorContext != null && StringUtils.hasText((String) factorContext.getAttribute("deviceId"))) {
             deviceId = (String) factorContext.getAttribute("deviceId");
         } else if (!StringUtils.hasText(deviceId)) {
-            HttpSession session = request.getSession(true); // 세션이 없으면 생성
+            HttpSession session = request.getSession(true);
             deviceId = (String) session.getAttribute("sessionDeviceIdForAuth");
             if (deviceId == null) {
                 deviceId = UUID.randomUUID().toString();
                 session.setAttribute("sessionDeviceIdForAuth", deviceId);
             }
         }
+        if (deviceId == null) deviceId = UUID.randomUUID().toString(); // 최종 fallback
         log.debug("Effective Device ID for {}: {}", (factorContext != null ? factorContext.getUsername() : "N/A"), deviceId);
         return deviceId;
     }
 
-    // determineTargetUrl 메서드는 CustomTokenIssuingSuccessHandler에 이미 있으므로,
-    // 이 핸들러가 리다이렉션 정보를 직접 포함하지 않는다면 제거해도 됨.
-    // 만약 TokenService.writeAccessAndRefreshToken 내부에서 리다이렉트 정보를 포함하지 않는다면 여기서 추가.
-    // 현재 TokenResponse에는 redirectUrl이 있으므로, TokenService.writeAccessAndRefreshToken에서
-    // 해당 정보를 활용하여 JSON에 포함시켜야 함.
+    protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            org.springframework.security.web.savedrequest.SavedRequest savedRequest =
+                    (org.springframework.security.web.savedrequest.SavedRequest) session.getAttribute("SPRING_SECURITY_SAVED_REQUEST");
+            if (savedRequest != null) {
+                session.removeAttribute("SPRING_SECURITY_SAVED_REQUEST");
+                return savedRequest.getRedirectUrl();
+            }
+        }
+        return this.defaultTargetUrl; // 생성자에서 주입받은 기본 URL
+    }
 }

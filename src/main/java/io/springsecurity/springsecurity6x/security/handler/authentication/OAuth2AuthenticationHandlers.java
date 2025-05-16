@@ -31,7 +31,7 @@ public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
             }
 
             String accessToken = tokenService.createAccessToken(authentication, deviceId);
-            tokenService.writeAccessAndRefreshToken(response, accessToken, null);
+//            tokenService.writeAccessAndRefreshToken(response, accessToken, null);
         };
     }
 

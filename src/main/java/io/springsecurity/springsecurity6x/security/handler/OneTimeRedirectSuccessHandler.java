@@ -18,14 +18,14 @@ import java.util.Map;
 public class OneTimeRedirectSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
 
     private final String targetUrl;
-    private final AuthResponseWriter responseWriter; // 추가
+    private final AuthResponseWriter responseWriter; // AuthResponseWriter 주입
 
-    public OneTimeRedirectSuccessHandler(String targetUrl) { // 기존 생성자는 유지하되, responseWriter는 Bean 주입으로
+    // 기존 생성자는 Assert 때문에 남겨두거나, responseWriter를 받는 생성자만 사용하도록 통일
+    public OneTimeRedirectSuccessHandler(String targetUrl) {
         Assert.hasText(targetUrl, "targetUrl cannot be empty");
         this.targetUrl = targetUrl;
-        this.responseWriter = null; // 이 생성자 사용 시 responseWriter는 null이 되므로 주의 또는 오류 발생시켜야 함
-        // 또는 기본 JsonAuthResponseWriter(new ObjectMapper()) 사용
-        log.warn("OneTimeRedirectSuccessHandler created without AuthResponseWriter. JSON response will not be possible via this instance unless responseWriter is set.");
+        this.responseWriter = null; // 이 경우 responseWriter가 없으므로 문제가 될 수 있음
+        log.warn("OneTimeRedirectSuccessHandler created via single-arg constructor. AuthResponseWriter is not set!");
     }
 
 
@@ -33,21 +33,17 @@ public class OneTimeRedirectSuccessHandler implements OneTimeTokenGenerationSucc
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
             throws IOException, ServletException {
         if (response.isCommitted()) {
-            log.debug("Response has already been committed. Unable to send JSON redirect for {}", targetUrl);
+            log.debug("Response has already been committed. Unable to send JSON redirect for target: {}", targetUrl);
             return;
         }
-
-        if (this.responseWriter == null) { // responseWriter가 주입되지 않은 경우 (기존 생성자 호출 시)
-            log.error("AuthResponseWriter is not set in OneTimeRedirectSuccessHandler. Cannot send JSON redirect. Falling back to direct redirect (deprecated).");
-            org.springframework.security.web.RedirectStrategy redirectStrategy = new org.springframework.security.web.DefaultRedirectStrategy();
-            redirectStrategy.sendRedirect(request, response, targetUrl);
+        if (this.responseWriter == null) {
+            log.error("AuthResponseWriter is null in OneTimeRedirectSuccessHandler. Cannot send JSON redirect. Target: {}", targetUrl);
+            // 비상 리다이렉션 또는 오류 처리
+            response.sendRedirect(targetUrl); // 최후의 수단
             return;
         }
 
         log.debug("Sending JSON redirect to {} after OTT step (User: {})", targetUrl, token != null ? token.getUsername() : "N/A");
-        responseWriter.writeSuccessResponse(
-                response,
-                Map.of("status", "SUCCESS_REDIRECT_OTT", "redirectUrl", targetUrl),
-                HttpServletResponse.SC_OK);
+        responseWriter.writeSuccessResponse(response, Map.of("status", "REDIRECT_REQUIRED_OTT", "redirectUrl", targetUrl), HttpServletResponse.SC_OK);
     }
 }

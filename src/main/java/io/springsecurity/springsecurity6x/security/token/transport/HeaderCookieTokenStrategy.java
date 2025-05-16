@@ -3,25 +3,21 @@ package io.springsecurity.springsecurity6x.security.token.transport;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.ResponseCookie;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static io.springsecurity.springsecurity6x.security.token.service.TokenService.*;
 
 public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy implements TokenTransportStrategy {
 
     private static final String COOKIE_PATH = "/";
-    private TokenService tokenService;
-
     public HeaderCookieTokenStrategy(AuthContextProperties props) {
         super(props);
-    }
-
-    @Override
-    public void setTokenService(TokenService tokenService) {
-        this.tokenService = tokenService;
     }
 
     @Override
@@ -35,33 +31,50 @@ public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy im
 
     @Override
     public String resolveRefreshToken(HttpServletRequest request) {
-        return extractCookie(request, REFRESH_TOKEN);
+        return extractCookie(request, REFRESH_TOKEN); // AbstractTokenTransportStrategy의 메서드 사용
     }
 
     @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
+    public TokenTransportResult prepareTokensForWrite(String accessToken, String refreshToken, TokenService.TokenServicePropertiesProvider propsProvider) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("accessToken", accessToken);
+        body.put("tokenType", "Bearer");
+        body.put("expiresIn", propsProvider.getAccessTokenValidity());
 
+        List<ResponseCookie> cookiesToSet = new ArrayList<>();
         if (StringUtils.hasText(refreshToken)) {
-            addCookie(response, REFRESH_TOKEN, refreshToken,
-                    (int) tokenService.properties().getRefreshTokenValidity() / 1000, COOKIE_PATH);
+            ResponseCookie refreshCookie = ResponseCookie.from(propsProvider.getRefreshTokenCookieName(), refreshToken)
+                    .path(COOKIE_PATH) // propsProvider.getCookiePath() 등으로 변경 가능
+                    .httpOnly(HTTP_ONLY)
+                    .secure(propsProvider.isCookieSecure())
+                    .sameSite(SAME_SITE)
+                    .maxAge((int) propsProvider.getRefreshTokenValidity() / 1000)
+                    .build();
+            cookiesToSet.add(refreshCookie);
         }
-        TokenResponse body = new TokenResponse(
-                accessToken,
-                "Bearer",
-                tokenService.properties().getAccessTokenValidity(),
-                null
-        );
-        try {
-            writeJson(response, body);
-            response.flushBuffer();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+
+        return TokenTransportResult.builder()
+                .body(body)
+                .cookiesToSet(cookiesToSet)
+                .build();
     }
 
     @Override
-    public void clearTokens(HttpServletResponse response) {
-        removeCookie(response, REFRESH_TOKEN, COOKIE_PATH);
+    public TokenTransportResult prepareTokensForClear(TokenService.TokenServicePropertiesProvider propsProvider) {
+        List<ResponseCookie> cookiesToRemove = new ArrayList<>();
+        ResponseCookie expiredRefreshCookie = ResponseCookie.from(propsProvider.getRefreshTokenCookieName(), "")
+                .path(COOKIE_PATH)
+                .httpOnly(HTTP_ONLY)
+                .secure(propsProvider.isCookieSecure())
+                .sameSite(SAME_SITE)
+                .maxAge(0)
+                .build();
+        cookiesToRemove.add(expiredRefreshCookie);
+
+        return TokenTransportResult.builder()
+                .cookiesToRemove(cookiesToRemove)
+                .body(Map.of("message", "Tokens cleared by server instruction."))
+                .build();
     }
 }
 

@@ -22,7 +22,7 @@ public class OAuth2LogoutHandler implements LogoutHandler {
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        tokenService.clearTokens(response);
+//        tokenService.clearTokens(response);
         SecurityContextHolder.clearContext();
     }
 }

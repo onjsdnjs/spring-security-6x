@@ -20,10 +20,10 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
         super(props);
     }
 
-    @Override
+/*    @Override
     public void setTokenService(TokenService tokenService) {
         this.tokenService = tokenService;
-    }
+    }*/
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
@@ -36,6 +36,16 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
     }
 
     @Override
+    public TokenTransportResult prepareTokensForWrite(String accessToken, String refreshToken, TokenService.TokenServicePropertiesProvider tokenServiceProperties) {
+        return null;
+    }
+
+    @Override
+    public TokenTransportResult prepareTokensForClear(TokenService.TokenServicePropertiesProvider tokenServiceProperties) {
+        return null;
+    }
+
+/*    @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
         if (StringUtils.hasText(accessToken)) {
             addCookie(response, ACCESS_TOKEN, accessToken,
@@ -46,13 +56,13 @@ public class CookieTokenStrategy extends AbstractTokenTransportStrategy implemen
                     (int) tokenService.properties().getRefreshTokenValidity() / 1000, COOKIE_PATH);
         }
         writeJson(response, Map.of("message", "Authentication Successful (JWT)"));
-    }
+    }*/
 
-    @Override
+/*    @Override
     public void clearTokens(HttpServletResponse response) {
         removeCookie(response, ACCESS_TOKEN, COOKIE_PATH);
         removeCookie(response, REFRESH_TOKEN, COOKIE_PATH);
-    }
+    }*/
 }
 
 

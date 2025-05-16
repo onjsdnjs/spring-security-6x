@@ -6,7 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter; // 추가
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,18 +14,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler; // Spring Security 인터페이스
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.io.IOException;
+import java.util.HashMap; // 추가
+import java.util.Map;    // 추가
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class MfaAuthenticationFailureHandler implements AuthenticationFailureHandler, io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler {
 
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
-    private final AuthResponseWriter responseWriter; // 추가
+    private final AuthResponseWriter responseWriter;
+    private final String defaultFailureRedirectUrl = "/loginForm?error"; // 일반적인 기본 실패 URL (클라이언트가 사용할 수도 있음)
+    private final String mfaSelectFactorUrl = "/mfa/select-factor"; // MFA 재시도 시 안내 URL
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
@@ -44,7 +50,6 @@ public class MfaAuthenticationFailureHandler implements AuthenticationFailureHan
         }
     }
 
-    // 사용자 정의 MfaFailureHandler 인터페이스 메서드
     @Override
     public void onFactorFailure(HttpServletRequest request,
                                 HttpServletResponse response,
@@ -63,9 +68,13 @@ public class MfaAuthenticationFailureHandler implements AuthenticationFailureHan
         RetryPolicy retryPolicy = mfaPolicyProvider.getRetryPolicyForFactor(failedFactorType, factorContext);
         int maxAttempts = (retryPolicy != null) ? retryPolicy.getMaxAttempts() : 3;
 
+        Map<String, Object> errorDetails = new HashMap<>();
         String errorCode = "MFA_FACTOR_FAILURE";
-        String errorMessage = String.format("%s 인증에 실패했습니다. (시도: %d/%d)", failedFactorType.name(), attempts, maxAttempts);
-        int status = HttpServletResponse.SC_UNAUTHORIZED;
+        String errorMessage = String.format("%s 인증에 실패했습니다. (남은 시도: %d회)", failedFactorType.name(), Math.max(0, maxAttempts - attempts));
+        errorDetails.put("failedFactor", failedFactorType.name());
+        errorDetails.put("attemptsMade", attempts);
+        errorDetails.put("maxAttempts", maxAttempts);
+        errorDetails.put("remainingAttempts", Math.max(0, maxAttempts - attempts));
 
         if (attempts >= maxAttempts) {
             log.warn("MFA max attempts ({}) reached for factor {}. User: {}. Session: {}. MFA terminated.",
@@ -73,15 +82,16 @@ public class MfaAuthenticationFailureHandler implements AuthenticationFailureHan
             factorContext.changeState(MfaState.MFA_FAILURE_TERMINAL);
             errorCode = "MFA_MAX_ATTEMPTS_EXCEEDED";
             errorMessage = String.format("%s 인증 최대 시도 횟수(%d회)를 초과했습니다. MFA 인증이 종료됩니다.", failedFactorType.name(), maxAttempts);
+            errorDetails.put("nextStepUrl", defaultFailureRedirectUrl); // 최종 실패 시 로그인 페이지로
             contextPersistence.deleteContext(request);
         } else {
-            factorContext.changeState(MfaState.AWAITING_MFA_FACTOR_SELECTION); // 재시도 가능 시 선택 화면으로
+            factorContext.changeState(MfaState.AWAITING_MFA_FACTOR_SELECTION);
             contextPersistence.saveContext(factorContext, request);
-            errorMessage += String.format(" %d회 더 시도할 수 있습니다. 다른 인증 수단을 선택하거나 다시 시도해주세요.", maxAttempts - attempts);
-            // 클라이언트에게 다음 단계 URL을 알려줄 수도 있음
-            // responseDetails.put("nextStepUrl", "/mfa/select-factor");
+            errorMessage += " 다른 인증 수단을 선택하거나 다시 시도해주세요.";
+            errorDetails.put("nextStepUrl", mfaSelectFactorUrl); // Factor 선택 페이지로
         }
-        responseWriter.writeErrorResponse(response, status, errorCode, errorMessage, request.getRequestURI());
+        errorDetails.put("mfaSessionId", factorContext.getMfaSessionId()); // mfaSessionId 추가
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, errorCode, errorMessage, request.getRequestURI());
     }
 
     @Override
@@ -91,13 +101,17 @@ public class MfaAuthenticationFailureHandler implements AuthenticationFailureHan
                                    @Nullable FactorContext factorContext) throws IOException, ServletException {
         String username = (factorContext != null && factorContext.getUsername() != null) ? factorContext.getUsername() : "UnknownUser";
         String sessionId = (factorContext != null) ? factorContext.getMfaSessionId() : "NoMfaSession";
-        log.warn("Global MFA Failure for user '{}' (MFA Session ID: '{}'). Reason: {}",
+        log.warn("Global MFA or Primary Auth Failure for user '{}' (MFA Session ID: '{}'). Reason: {}",
                 username, sessionId, exception.getMessage());
 
         if (factorContext != null) {
             factorContext.changeState(MfaState.MFA_FAILURE_TERMINAL);
             contextPersistence.deleteContext(request);
         }
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "MFA_GLOBAL_FAILURE", "MFA 인증 처리 중 오류가 발생했습니다: " + exception.getMessage(), request.getRequestURI());
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("nextStepUrl", defaultFailureRedirectUrl); // 최종 실패 시 로그인 페이지로
+        // 만약 1차 인증 실패라면, MfaCapableRestSuccessHandler 등에서 아예 이 핸들러가 호출되기 전에 다른 실패 핸들러가 동작할 수 있음.
+        // 이 핸들러는 주로 MFA 플로우 내에서 발생하는 전역적 실패 또는 1차 인증 실패 시 DSL에 의해 명시적으로 연결되었을 때 호출.
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "AUTHENTICATION_FAILED_GLOBAL", "인증 처리 중 오류가 발생했습니다: " + exception.getMessage(), request.getRequestURI());
     }
 }

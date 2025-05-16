@@ -1,60 +1,88 @@
 package io.springsecurity.springsecurity6x.security.handler.logout;
 
+import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter; // 추가
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.TokenInfo;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult; // 추가
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseCookie; // 추가
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class JwtLogoutHandler implements LogoutHandler {
 
     private static final Logger log = LoggerFactory.getLogger(JwtLogoutHandler.class);
     private final TokenService tokenService;
+    private final AuthResponseWriter responseWriter; // 추가
 
-    public JwtLogoutHandler(TokenService tokenService) {
+    public JwtLogoutHandler(TokenService tokenService, AuthResponseWriter responseWriter) {
         this.tokenService = Objects.requireNonNull(tokenService, "tokenService cannot be null");
+        this.responseWriter = Objects.requireNonNull(responseWriter, "responseWriter cannot be null");
     }
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         String refreshToken = tokenService.resolveRefreshToken(request);
         String username = (authentication != null) ? authentication.getName() : "UNKNOWN_USER_LOGOUT";
+        boolean errorOccurred = false;
+        String errorMessage = "로그아웃 처리 중 오류 발생"; // 기본 오류 메시지
 
         try {
             if (refreshToken != null) {
                 log.debug("Attempting to invalidate and blacklist refresh token for user: {}", username);
-                tokenService.invalidateRefreshToken(refreshToken);
-                tokenService.blacklistRefreshToken(refreshToken, username, TokenInfo.REASON_LOGOUT);
+                tokenService.invalidateRefreshToken(refreshToken); // 저장소에서 제거
+                tokenService.blacklistRefreshToken(refreshToken, username, TokenInfo.REASON_LOGOUT); // 블랙리스트 추가
                 log.info("Successfully invalidated and blacklisted refresh token for user: {}", username);
             } else {
-                log.debug("No refresh token found in request for user: {}", username);
+                log.debug("No refresh token found in request for user: {}. Assuming already logged out or token not used.", username);
             }
         } catch (AuthenticationException ex) {
             log.warn("AuthenticationException during logout for user {}: {}", username, ex.getMessage());
-            SecurityContextHolder.clearContext(); // 컨텍스트는 비움
-            // 이 예외를 그대로 전파하면 Global Exception Handler 또는 Spring Security의 EntryPoint가 처리
-            throw ex;
+            errorOccurred = true;
+            errorMessage = "로그아웃 중 인증 오류 발생: " + ex.getMessage();
+            // SecurityContextHolder.clearContext()는 finally에서 처리
         } catch (Exception ex) {
             log.error("Unexpected error during refresh token invalidation/blacklisting for user {}: {}", username, ex.getMessage(), ex);
-            SecurityContextHolder.clearContext();
-            // 일반 Exception의 경우, 어떻게 처리할지 정책 필요.
-            // 여기서는 AuthenticationServiceException 으로 감싸서 전파하는 것을 고려할 수 있으나,
-            // 이미 로그아웃 처리 중이므로 클라이언트에 오류 응답을 직접 보내는 것이 나을 수 있음.
-            // 단, clearTokens 에서 응답을 이미 커밋할 수 있으므로 주의.
+            errorOccurred = true;
+            errorMessage = "로그아웃 처리 중 예상치 못한 오류 발생: " + ex.getMessage();
         } finally {
-            // 응답이 아직 커밋되지 않았다면 토큰 정리 및 SecurityContext 클리어
-            if (!response.isCommitted()) {
-                tokenService.clearTokens(response); // 이 메소드가 응답을 커밋할 수 있음
-            }
             SecurityContextHolder.clearContext();
             log.debug("SecurityContext cleared for user: {}", username);
+
+            if (!response.isCommitted()) {
+                try {
+                    TokenTransportResult clearResult = tokenService.prepareClearTokens();
+                    if (clearResult.getCookiesToRemove() != null) {
+                        for (ResponseCookie cookie : clearResult.getCookiesToRemove()) {
+                            response.addHeader("Set-Cookie", cookie.toString());
+                        }
+                    }
+                    if (errorOccurred) {
+                        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "LOGOUT_FAILED", errorMessage, request.getRequestURI());
+                    } else {
+                        Map<String, Object> successBody = clearResult.getBody() != null ?
+                                new HashMap<>(clearResult.getBody()) : new HashMap<>();
+                        if (!successBody.containsKey("message")) {
+                            successBody.put("message", "성공적으로 로그아웃되었습니다.");
+                        }
+                        successBody.put("status", "LOGGED_OUT");
+                        successBody.put("redirectUrl", "/loginForm"); // 예시
+                        responseWriter.writeSuccessResponse(response, successBody, HttpServletResponse.SC_OK);
+                    }
+                } catch (IOException e) {
+                    log.error("Error writing logout response for user {}: {}", username, e.getMessage());
+                }
+            }
         }
     }
 }

@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
-import io.springsecurity.springsecurity6x.security.token.factory.JwtTokenServiceFactory;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

@@ -12,6 +12,7 @@ import io.springsecurity.springsecurity6x.security.token.creator.TokenRequest;
 import io.springsecurity.springsecurity6x.security.token.parser.ParsedJwt;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.store.RefreshTokenStore;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -145,6 +146,33 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
+    public TokenTransportResult prepareTokensForTransport(String accessToken, String refreshToken) {
+        TokenServicePropertiesProvider propsProvider = new TokenServicePropertiesProvider() {
+            @Override public long getAccessTokenValidity() { return props.getAccessTokenValidity(); }
+            @Override public long getRefreshTokenValidity() { return props.getRefreshTokenValidity(); }
+            @Override public String getCookiePath() { return "/"; }
+            @Override public boolean isCookieSecure() { return props.isCookieSecure(); }
+            @Override public String getRefreshTokenCookieName() { return REFRESH_TOKEN; }
+            @Override public String getAccessTokenCookieName() { return ACCESS_TOKEN; }
+        };
+        return transport.prepareTokensForWrite(accessToken, refreshToken, propsProvider);
+    }
+
+    @Override
+    public TokenTransportResult prepareClearTokens() {
+        TokenServicePropertiesProvider propsProvider = new TokenServicePropertiesProvider() {
+
+            @Override public long getAccessTokenValidity() { return props.getAccessTokenValidity(); }
+            @Override public long getRefreshTokenValidity() { return props.getRefreshTokenValidity(); }
+            @Override public String getCookiePath() { return "/"; }
+            @Override public boolean isCookieSecure() { return props.isCookieSecure(); }
+            @Override public String getRefreshTokenCookieName() { return REFRESH_TOKEN; }
+            @Override public String getAccessTokenCookieName() { return ACCESS_TOKEN; }
+        };
+        return transport.prepareTokensForClear(propsProvider);
+    }
+
+    @Override
     public void blacklistRefreshToken(String refreshToken, String username, String reason) {
         Objects.requireNonNull(refreshToken, "refreshToken cannot be null");
         Objects.requireNonNull(username, "username cannot be null");
@@ -154,12 +182,6 @@ public class JwtTokenService implements TokenService {
             log.error("Failed to blacklist refresh token for user: {}, token: {}, reason: {}", username, refreshToken, reason, e);
             // 필요시 TokenStorageException 등 구체적인 예외로 변환하여 throw
         }
-    }
-
-    // TokenValidator, TokenTransportStrategy 인터페이스 메소드 구현은 기존과 유사하게 유지
-    @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
-        transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
     }
 
     @Override
@@ -198,8 +220,8 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
-    public void clearTokens(HttpServletResponse response) {
-        transport.clearTokens(response);
+    public TokenTransportStrategy getUnderlyingTokenTransportStrategy() {
+        return null;
     }
 
     @Override

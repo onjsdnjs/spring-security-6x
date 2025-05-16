@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
 import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,11 +35,16 @@ public class OAuth2TokenService implements TokenService {
         return transport.resolveRefreshToken(request);
     }
 
-
     @Override
+    public TokenTransportStrategy getUnderlyingTokenTransportStrategy() {
+        return null;
+    }
+
+
+/*    @Override
     public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken){
         transport.writeAccessAndRefreshToken(response, accessToken, refreshToken);
-    }
+    }*/
 
     @Override
     public String createRefreshToken(Authentication authentication, String deviceId) {
@@ -85,15 +91,15 @@ public class OAuth2TokenService implements TokenService {
         return transport.resolveAccessToken(request);
     }
 
-    @Override
+/*    @Override
     public void clearTokens(HttpServletResponse response) {
         transport.clearTokens(response);
-    }
+    }*/
 
-    @Override
+/*    @Override
     public void setTokenService(TokenService tokenService) {
         TokenService.super.setTokenService(tokenService);
-    }
+    }*/
 
     @Override
     public AuthContextProperties properties() {
@@ -107,6 +113,16 @@ public class OAuth2TokenService implements TokenService {
 
     @Override
     public ObjectMapper getObjectMapper() {
+        return null;
+    }
+
+    @Override
+    public TokenTransportResult prepareTokensForTransport(String accessToken, String refreshToken) {
+        return null;
+    }
+
+    @Override
+    public TokenTransportResult prepareClearTokens() {
         return null;
     }
 }

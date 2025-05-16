@@ -13,15 +13,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SimpleRedirectSuccessHandler implements AuthenticationSuccessHandler {
     private final String targetUrl;
-    private final AuthResponseWriter responseWriter; // 추가
+    private final AuthResponseWriter responseWriter; // AuthResponseWriter 주입
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
             throws IOException {
-
-        responseWriter.writeSuccessResponse(
-                response,
-                Map.of("status", "SUCCESS_REDIRECT", "redirectUrl", targetUrl),
-                HttpServletResponse.SC_OK);
+        if (response.isCommitted()) {
+            return;
+        }
+        // JSON으로 redirectUrl 응답
+        responseWriter.writeSuccessResponse(response, Map.of("status", "REDIRECT_REQUIRED", "redirectUrl", targetUrl), HttpServletResponse.SC_OK);
     }
 }

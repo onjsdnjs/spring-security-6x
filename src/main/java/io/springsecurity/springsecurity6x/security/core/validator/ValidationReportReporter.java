@@ -37,7 +37,7 @@ public class ValidationReportReporter {
         if (hasErrors) {
             reportBuilder.append(String.format("%s (설정 파일: %s)\n", ERROR_TITLE, dslSourceName));
             reportBuilder.append("-----------------------------------------------------------------------------------------\n");
-            reportBuilder.append("  다음과 같은 치명적인 설정 오류가 발견되어 서버 기동을 중단합니다:\n");
+            reportBuilder.append("  다음과 같은 설정 오류가 발견되어 서버 기동을 중단합니다:\n");
             reportBuilder.append(BORDER_LINE).append("\n\n");
             for (int i = 0; i < result.getErrors().size(); i++) {
                 reportBuilder.append(ERROR_PREFIX).append(i + 1).append(". ").append(result.getErrors().get(i)).append("\n");

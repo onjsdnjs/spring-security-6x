@@ -118,7 +118,7 @@ public class PlatformSecurityConfig {
                 ).session(Customizer.withDefaults())
 
                 .mfa(mfa -> mfa
-                        .rest(rest -> rest
+                        .form(rest -> rest
                                 .loginProcessingUrl("/api/auth/login")
                                 .successHandler(mfaCapableRestSuccessHandler)
                         )

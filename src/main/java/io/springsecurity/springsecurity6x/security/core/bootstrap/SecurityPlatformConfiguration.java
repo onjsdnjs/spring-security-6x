@@ -135,7 +135,6 @@ public class SecurityPlatformConfiguration {
 
         platformContextInitializer.initializeSharedObjects();
 
-        // DefaultSecurityConfigurerProvider는 staticConfigurers와 featureRegistry를 받아 Configurer 목록을 생성
         DefaultSecurityConfigurerProvider configurerProvider =
                 new DefaultSecurityConfigurerProvider(staticConfigurers, featureRegistry);
 
@@ -155,7 +154,6 @@ public class SecurityPlatformConfiguration {
                                                DslValidatorService dslValidatorService,
                                                FlowContextFactory flowContextFactory,
                                                PlatformContext platformContext) {
-        // PlatformBootstrap 생성자에도 DslValidatorService, FlowContextFactory, PlatformContext 추가
         return new PlatformBootstrap(securityPlatform, platformConfig, registry, dslValidatorService, flowContextFactory, platformContext);
     }
 }

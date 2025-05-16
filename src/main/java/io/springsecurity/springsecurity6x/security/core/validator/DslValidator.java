@@ -42,7 +42,7 @@ public class DslValidator implements Validator<PlatformConfig> {
         List<AuthenticationFlowConfig> flows = platformConfig.getFlows();
 
         // 2. Flow 목록 전체 수준 검증 (예: URL 중복 검사)
-        // 이 Validator들은 PlatformConfig에서 flows를 직접 가져와서 사용하거나,
+        // 이 Validator 들은 PlatformConfig에서 flows를 직접 가져와서 사용하거나,
         // DslValidator가 flows를 명시적으로 전달해야 함.
         // 현재는 Validator<List<AuthenticationFlowConfig>> 타입이므로 flows를 직접 전달.
         if (!CollectionUtils.isEmpty(flowListValidators)) {

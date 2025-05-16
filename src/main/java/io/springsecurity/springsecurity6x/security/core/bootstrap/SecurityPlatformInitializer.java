@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 
 @Slf4j
-@RequiredArgsConstructor // 생성자 자동 생성
+@RequiredArgsConstructor
 public class SecurityPlatformInitializer implements SecurityPlatform {
     private final PlatformContext context;
     private final PlatformConfig config; // 추가: PlatformConfig를 필드로 가짐

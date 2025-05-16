@@ -26,8 +26,8 @@ public class PlatformBootstrap implements InitializingBean {
     private final PlatformConfig config;
     private final FeatureRegistry registry;
     private final DslValidatorService dslValidatorService;
-    private FlowContextFactory flowContextFactory;
-    private PlatformContext platformContext;
+    private final FlowContextFactory flowContextFactory;
+    private final PlatformContext platformContext;
 
     @Override
     public void afterPropertiesSet() throws Exception {

@@ -16,7 +16,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 

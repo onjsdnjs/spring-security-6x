@@ -29,7 +29,6 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 public class MfaInfrastructureAutoConfiguration {
 
     private final AuthContextProperties authContextProperties;
-    private final ObjectMapper objectMapper;
     private final TokenService tokenService;
     private final UserRepository userRepository;
 
@@ -48,42 +47,46 @@ public class MfaInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler(ContextPersistence contextPersistence,
-                                                                     MfaPolicyProvider mfaPolicyProvider, AuthResponseWriter authResponseWriter) {
-        return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService, authContextProperties, authResponseWriter);
+                                                                     MfaPolicyProvider mfaPolicyProvider,
+                                                                     AuthResponseWriter authResponseWriter) {
+        return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,
+                                                authContextProperties, authResponseWriter);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler(MfaPolicyProvider mfaPolicyProvider,
-                                                                 ContextPersistence contextPersistence) {
-        return new MfaStepBasedSuccessHandler(tokenService, mfaPolicyProvider, contextPersistence);
+                                                                 ContextPersistence contextPersistence,
+                                                                 AuthResponseWriter authResponseWriter) {
+        return new MfaStepBasedSuccessHandler(tokenService, mfaPolicyProvider, contextPersistence, authResponseWriter);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler(ContextPersistence contextPersistence,
-                                                                           MfaPolicyProvider mfaPolicyProvider) {
+                                                                           MfaPolicyProvider mfaPolicyProvider,
+                                                                           AuthResponseWriter authResponseWriter) {
         String failureUrl = authContextProperties.getMfa() != null && authContextProperties.getMfa().getFailureUrl() != null ?
                 authContextProperties.getMfa().getFailureUrl() : "/mfa/failure";
-        return new MfaAuthenticationFailureHandler(failureUrl, contextPersistence, mfaPolicyProvider);
+        return new MfaAuthenticationFailureHandler(contextPersistence, mfaPolicyProvider, authResponseWriter);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public JwtEmittingAndMfaAwareSuccessHandler jwtEmittingAndMfaAwareSuccessHandler(
             TokenService tokenService,
-            ObjectMapper objectMapper,
+            AuthResponseWriter authResponseWriter,
             UserRepository userRepository,
             ContextPersistence contextPersistence,
             AuthContextProperties authContextProperties) {
 
         return new JwtEmittingAndMfaAwareSuccessHandler(
                 tokenService,
-                objectMapper,
                 "/", // 기본 성공 URL
                 userRepository,
                 contextPersistence,
-                authContextProperties
+                authContextProperties,
+                authResponseWriter
         );
     }
 

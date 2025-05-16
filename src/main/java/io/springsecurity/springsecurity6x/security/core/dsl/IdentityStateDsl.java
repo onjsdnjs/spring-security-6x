@@ -16,20 +16,20 @@ public interface IdentityStateDsl {
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer);
+    IdentityAuthDsl session(Customizer<SessionStateConfigurer> customizer);
 
     /**
      * 외부 JWT 라이브러리 기반 토큰 전략을 사용합니다.
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer);
+    IdentityAuthDsl jwt(Customizer<JwtStateConfigurer> customizer);
 
     /**
      * Spring AuthorizationServer/ResourceServer(OAuth2) 기반 JWT 전략을 사용합니다.
      *
      * @return 상위 DSL 으로 복귀
      */
-    SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer);
+    IdentityAuthDsl oauth2(Customizer<OAuth2StateConfigurer> customizer);
 }
 

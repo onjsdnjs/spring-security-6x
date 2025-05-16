@@ -6,9 +6,9 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-public interface SecurityPlatformDsl {
+public interface IdentityAuthDsl {
 
-    SecurityPlatformDsl global(SafeHttpCustomizer<HttpSecurity> customizer);
+    IdentityAuthDsl global(SafeHttpCustomizer<HttpSecurity> customizer);
 
     IdentityStateDsl form(Customizer<FormDslConfigurer> customizer);
 

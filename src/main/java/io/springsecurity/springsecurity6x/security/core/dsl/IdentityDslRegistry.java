@@ -18,7 +18,7 @@ public class IdentityDslRegistry extends AbstractFlowRegistrar {
     }
 
     @Override
-    public SecurityPlatformDsl global(SafeHttpCustomizer<HttpSecurity> customizer) {
+    public IdentityAuthDsl global(SafeHttpCustomizer<HttpSecurity> customizer) {
         platformBuilder.global(customizer);
         return this;
     }

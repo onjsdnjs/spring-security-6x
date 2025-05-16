@@ -19,7 +19,7 @@ import org.springframework.security.config.Customizer;
 import java.util.List;
 import java.util.function.BiFunction;
 
-public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
+public abstract class AbstractFlowRegistrar implements IdentityAuthDsl {
     protected final PlatformConfig.Builder platformBuilder;
     private final StateSetter stateSetter;
     protected ApplicationContext applicationContext;
@@ -41,12 +41,8 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
      * @param <C> Configurer 타입
      * @return IdentityStateDsl
      */
-    protected <O extends AuthenticationProcessingOptions,
-            C extends AuthenticationFactorConfigurer<O, C>>
-    IdentityStateDsl registerAuthenticationMethod(
-            AuthType authType,
-            Customizer<C> configurerCustomizer,
-            int defaultOrder) {
+    protected <O extends AuthenticationProcessingOptions, C extends AuthenticationFactorConfigurer<O, C>> IdentityStateDsl
+    registerAuthenticationMethod(AuthType authType, Customizer<C> configurerCustomizer, int defaultOrder) {
 
         C configurer = authMethodConfigurerFactory.createConfigurer(authType);
         configurerCustomizer.customize(configurer);
@@ -66,8 +62,7 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
         return stateSetter;
     }
 
-    protected IdentityStateDsl registerMultiStepFlow(
-            Customizer<MfaDslConfigurer> customizer,
+    protected IdentityStateDsl registerMultiStepFlow(Customizer<MfaDslConfigurer> customizer,
             BiFunction<AuthenticationFlowConfig.Builder, ApplicationContext, MfaDslConfigurer> factory) {
 
         AuthenticationFlowConfig.Builder flowBuilderForMfa = AuthenticationFlowConfig.builder(AuthType.MFA.name().toLowerCase());
@@ -92,19 +87,19 @@ public abstract class AbstractFlowRegistrar implements SecurityPlatformDsl {
 
     private class StateSetter implements IdentityStateDsl {
         @Override
-        public SecurityPlatformDsl session(Customizer<SessionStateConfigurer> customizer) {
+        public IdentityAuthDsl session(Customizer<SessionStateConfigurer> customizer) {
             replaceLastState(StateType.SESSION.name().toLowerCase());
             return AbstractFlowRegistrar.this;
         }
 
         @Override
-        public SecurityPlatformDsl jwt(Customizer<JwtStateConfigurer> customizer) {
+        public IdentityAuthDsl jwt(Customizer<JwtStateConfigurer> customizer) {
             replaceLastState(StateType.JWT.name().toLowerCase());
             return AbstractFlowRegistrar.this;
         }
 
         @Override
-        public SecurityPlatformDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
+        public IdentityAuthDsl oauth2(Customizer<OAuth2StateConfigurer> customizer) {
             replaceLastState(StateType.OAUTH2.name().toLowerCase());
             return AbstractFlowRegistrar.this;
         }

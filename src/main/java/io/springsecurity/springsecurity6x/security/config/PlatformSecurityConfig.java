@@ -31,7 +31,7 @@ import java.util.Map;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@Import(TokenServiceConfiguration.class) // TokenService 관련 Bean 설정 Import
+@Import(TokenServiceConfiguration.class)
 public class PlatformSecurityConfig {
 
     private final ApplicationContext applicationContext;

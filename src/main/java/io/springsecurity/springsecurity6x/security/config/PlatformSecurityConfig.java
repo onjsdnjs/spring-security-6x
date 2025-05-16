@@ -96,6 +96,7 @@ public class PlatformSecurityConfig {
                         .loginProcessingUrl("/login")
                         .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginForm?error"))
+                        .order(10)
                 ).session(Customizer.withDefaults())
 
                 .ott(ott -> ott
@@ -104,6 +105,7 @@ public class PlatformSecurityConfig {
                         .loginProcessingUrl("/login/ott")
                         .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginOtt?error"))
+                        .order(20)
                 ).session(Customizer.withDefaults())
 
                 .passkey(passkey -> passkey
@@ -112,6 +114,7 @@ public class PlatformSecurityConfig {
                         .loginProcessingUrl("/login/webauthn")
                         .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                         .failureHandler(singleAuthFailureHandler("/loginPasskey?error"))
+                        .order(30)
                 ).session(Customizer.withDefaults())
 
                 .mfa(mfa -> mfa
@@ -134,6 +137,7 @@ public class PlatformSecurityConfig {
                         .finalSuccessHandler(mfaStepBasedSuccessHandler) // 모든 MFA 단계 완료 후
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
                         .mfaFailureHandler(mfaAuthenticationFailureHandler)
+                        .order(40)
                 )
                 .jwt(Customizer.withDefaults())
                 .build();

@@ -51,12 +51,12 @@ public abstract class AbstractFlowRegistrar implements IdentityAuthDsl {
         AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
         stepConfig.setType(authType.name().toLowerCase());
         stepConfig.getOptions().put("_options", options);
-        stepConfig.setOrder(defaultOrder); // 여기서 직접 order 설정
+        stepConfig.setOrder(options.getOrder()); // 여기서 직접 order 설정
 
         AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(authType.name().toLowerCase())
                 .stepConfigs(List.of(stepConfig))
                 .stateConfig(null)
-                .order(defaultOrder); // Flow 전체의 order도 step의 order와 동일하게 설정
+                .order(options.getOrder()); // Flow 전체의 order도 step의 order와 동일하게 설정
 
         platformBuilder.addFlow(flowBuilder.build());
         return stateSetter;

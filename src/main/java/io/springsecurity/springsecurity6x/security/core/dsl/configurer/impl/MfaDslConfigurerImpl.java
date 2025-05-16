@@ -64,7 +64,7 @@ public class MfaDslConfigurerImpl implements MfaDslConfigurer {
         AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig();
         primaryAuthStep.setType(authType.name().toLowerCase());
         primaryAuthStep.getOptions().put("_options", options);
-        primaryAuthStep.setOrder(assignOrderAndIncrement()); // 1차 인증은 order 0
+        primaryAuthStep.setOrder(assignOrderAndIncrement());
         configuredSteps.add(primaryAuthStep);
     }
 

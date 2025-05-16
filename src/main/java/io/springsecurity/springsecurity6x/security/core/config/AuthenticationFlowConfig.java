@@ -115,7 +115,10 @@ public final class AuthenticationFlowConfig {
             return this;
         }
 
-        public Builder order(int order) { this.order = order; return this; }
+        public Builder order(int order) {
+            this.order = order;
+            return this;
+        }
         public Builder stateConfig(StateConfig stateConfig) { this.stateConfig = stateConfig; return this; }
         public Builder rawHttpCustomizer(Customizer<HttpSecurity> customizer) {
             this.rawHttpCustomizer = customizer;

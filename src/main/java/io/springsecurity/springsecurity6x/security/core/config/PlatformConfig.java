@@ -12,12 +12,12 @@ import java.util.List;
 
 @Getter
 public final class PlatformConfig {
-    private final SafeHttpCustomizer<HttpSecurity> globalCustomizer; // 이름 변경 (global -> globalCustomizer)
+    private final SafeHttpCustomizer<HttpSecurity> globalCustomizer;
     private final List<AuthenticationFlowConfig> flows;
 
     private PlatformConfig(Builder builder) {
         this.globalCustomizer = builder.globalCustomizer;
-        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows)); // builder.flows 직접 사용
+        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows));
     }
 
     public static Builder builder() {

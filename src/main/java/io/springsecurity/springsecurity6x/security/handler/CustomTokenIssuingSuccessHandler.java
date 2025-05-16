@@ -34,9 +34,9 @@ public class CustomTokenIssuingSuccessHandler implements AuthenticationSuccessHa
     private final ObjectMapper objectMapper;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException{
+
         log.info("CustomTokenIssuingSuccessHandler: Standard authentication success for user {}", authentication.getName());
         issueTokensAndRespond(request, response, authentication);
     }

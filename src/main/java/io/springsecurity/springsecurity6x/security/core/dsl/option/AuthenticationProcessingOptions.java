@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 @Getter
 public abstract class AuthenticationProcessingOptions extends AbstractOptions {
     private final String loginProcessingUrl;
+    private final int order;
     private final AuthenticationSuccessHandler successHandler;
     private final AuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
@@ -16,6 +17,7 @@ public abstract class AuthenticationProcessingOptions extends AbstractOptions {
     protected AuthenticationProcessingOptions(AbstractAuthenticationProcessingOptionsBuilder<?, ?> builder) {
         super(builder);
         this.loginProcessingUrl = builder.loginProcessingUrl;
+        this.order = builder.order;
         this.successHandler = builder.successHandler;
         this.failureHandler = builder.failureHandler;
         this.securityContextRepository = builder.securityContextRepository;
@@ -26,6 +28,7 @@ public abstract class AuthenticationProcessingOptions extends AbstractOptions {
             extends AbstractOptions.Builder<O, B> {
 
         protected String loginProcessingUrl;
+        protected int order;
         protected AuthenticationSuccessHandler successHandler;
         protected AuthenticationFailureHandler failureHandler;
         protected SecurityContextRepository securityContextRepository;
@@ -33,6 +36,11 @@ public abstract class AuthenticationProcessingOptions extends AbstractOptions {
         public B loginProcessingUrl(String processingUrl) {
             Assert.hasText(processingUrl, "processingUrl cannot be empty");
             this.loginProcessingUrl = processingUrl;
+            return self();
+        }
+
+        public B order(int order) {
+            this.order = order;
             return self();
         }
 

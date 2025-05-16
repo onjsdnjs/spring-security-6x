@@ -21,6 +21,12 @@ public class PasskeyDslConfigurerImpl
     }
 
     @Override
+    public PasskeyDslConfigurer order(int order) {
+        getOptionsBuilder().order(order);
+        return this;
+    }
+
+    @Override
     public PasskeyDslConfigurer assertionOptionsEndpoint(String url) {
         getOptionsBuilder().assertionOptionsEndpoint(url);
         return self();

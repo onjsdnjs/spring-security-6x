@@ -12,6 +12,7 @@ public class RecoveryCodeDslConfigurerImpl
         super(RecoveryCodeOptions.builder());
     }
 
+
     @Override
     protected RecoveryCodeDslConfigurer self() {
         return this;
@@ -27,5 +28,11 @@ public class RecoveryCodeDslConfigurerImpl
     public RecoveryCodeDslConfigurer numberOfCodesToGenerate(int number) {
         getOptionsBuilder().numberOfCodesToGenerate(number);
         return self();
+    }
+
+    @Override
+    public RecoveryCodeDslConfigurer order(int order) {
+        getOptionsBuilder().order(order);
+        return  self();
     }
 }

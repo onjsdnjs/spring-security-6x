@@ -16,5 +16,11 @@ public class RestDslConfigurerImpl
     protected RestDslConfigurer self() { // 반환 타입을 RestStepDslConfigurer로 (인터페이스에 맞게)
         return this;
     }
+
+    @Override
+    public RestDslConfigurer order(int order) {
+        getOptionsBuilder().order(order);
+        return this;
+    }
 }
 

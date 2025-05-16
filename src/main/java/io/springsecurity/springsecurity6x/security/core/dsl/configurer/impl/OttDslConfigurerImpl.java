@@ -21,6 +21,12 @@ public class OttDslConfigurerImpl
     }
 
     @Override
+    public OttDslConfigurer order(int order) {
+        getOptionsBuilder().order(order);
+        return this;
+    }
+
+    @Override
     public OttDslConfigurer defaultSubmitPageUrl(String url) {
         getOptionsBuilder().defaultSubmitPageUrl(url); return self();
     }

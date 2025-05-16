@@ -18,7 +18,7 @@ import java.util.*;
 
 @Getter
 public final class AuthenticationFlowConfig {
-    // Getters (기존과 동일)
+
     private final String typeName;
     private final int order;
     private final StateConfig stateConfig;

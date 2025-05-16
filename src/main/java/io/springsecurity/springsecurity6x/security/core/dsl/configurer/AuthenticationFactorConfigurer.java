@@ -11,4 +11,6 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.Authenticatio
  */
 public interface AuthenticationFactorConfigurer<O extends AuthenticationProcessingOptions, S extends AuthenticationFactorConfigurer<O, S>>
         extends OptionsBuilderDsl<O, S> {
+
+    S order(int order);
 }

@@ -10,8 +10,16 @@ public class FormDslConfigurerImpl
         extends AbstractOptionsBuilderConfigurer<FormOptions, FormOptions.Builder, FormDslConfigurer>
         implements FormDslConfigurer {
 
+    private int order;
+
     public FormDslConfigurerImpl() {
         super(FormOptions.builder());
+    }
+
+    @Override
+    public FormDslConfigurer order(int order) {
+        getOptionsBuilder().order(order);
+        return this;
     }
 
     @Override
@@ -21,36 +29,49 @@ public class FormDslConfigurerImpl
 
     @Override
     public FormDslConfigurer loginPage(String loginPageUrl) {
-        getOptionsBuilder().loginPage(loginPageUrl); return self();
+        getOptionsBuilder().loginPage(loginPageUrl);
+        return self();
     }
-   
+
     @Override
     public FormDslConfigurer usernameParameter(String usernameParameter) {
-        getOptionsBuilder().usernameParameter(usernameParameter); return self();
+        getOptionsBuilder().usernameParameter(usernameParameter);
+        return self();
     }
+
     @Override
     public FormDslConfigurer passwordParameter(String passwordParameter) {
-        getOptionsBuilder().passwordParameter(passwordParameter); return self();
+        getOptionsBuilder().passwordParameter(passwordParameter);
+        return self();
     }
+
     @Override
     public FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) {
-        getOptionsBuilder().defaultSuccessUrl(defaultSuccessUrl, alwaysUse); return self();
+        getOptionsBuilder().defaultSuccessUrl(defaultSuccessUrl, alwaysUse);
+        return self();
     }
+
     @Override
     public FormDslConfigurer failureUrl(String failureUrl) {
-        getOptionsBuilder().failureUrl(failureUrl); return self();
+        getOptionsBuilder().failureUrl(failureUrl);
+        return self();
     }
+
     @Override
     public FormDslConfigurer permitAll() {
-        getOptionsBuilder().permitAll(); return self();
+        getOptionsBuilder().permitAll();
+        return self();
     }
 
     @Override
     public FormDslConfigurer securityContextRepository(SecurityContextRepository repository) {
-        getOptionsBuilder().securityContextRepository(repository); return self();
+        getOptionsBuilder().securityContextRepository(repository);
+        return self();
     }
+
     @Override
     public FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer) {
-        getOptionsBuilder().rawFormLogin(customizer); return self();
+        getOptionsBuilder().rawFormLogin(customizer);
+        return self();
     }
 }

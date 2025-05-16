@@ -10,7 +10,6 @@ public interface SecurityPlatformDsl {
 
     SecurityPlatformDsl global(SafeHttpCustomizer<HttpSecurity> customizer);
 
-    // Customizer의 제네릭 타입을 *StepDslConfigurer로 변경
     IdentityStateDsl form(Customizer<FormDslConfigurer> customizer);
 
     IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer);

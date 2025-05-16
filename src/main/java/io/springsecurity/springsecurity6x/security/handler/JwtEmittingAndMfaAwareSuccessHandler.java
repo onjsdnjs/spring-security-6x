@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
-@RequiredArgsConstructor // 생성자 주입을 위해
+@RequiredArgsConstructor
 public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSuccessHandler {
 
     private final TokenService tokenService;

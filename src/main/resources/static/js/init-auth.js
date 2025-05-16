@@ -1,71 +1,74 @@
+// init-auth.js
 (async function initAuthFlow() {
-    const authMode = localStorage.getItem("authMode") || "header"; // 기본값을 header로 설정
+    const authMode = localStorage.getItem("authMode") || "header";
 
-    // CSRF 토큰 가져오기 (모든 페이지에 CSRF 메타 태그가 있다고 가정)
     const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute("content") : null;
     const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
 
-    function updateLoginUi() {
-        const loginLink = document.getElementById("loginLink");
-        const registerLink = document.getElementById("registerLink");
-        const logoutLink = document.getElementById("logoutLink");
+    function updateLoginUi() { /* ...이전과 동일... */ }
 
-        // authMode가 'cookie' 가 아닐 때 (즉, 'header' 또는 'header_cookie') UI를 JS로 제어
-        if (authMode === "header" || authMode === "header_cookie") {
-            const accessToken = TokenMemory.accessToken;
-            const isLoggedIn = !!(accessToken && accessToken.trim());
-
-            if (loginLink) loginLink.style.display = isLoggedIn ? "none" : "inline-block";
-            if (registerLink) registerLink.style.display = isLoggedIn ? "none" : "inline-block";
-            if (logoutLink) logoutLink.style.display = isLoggedIn ? "inline-block" : "none";
-        } else { // 'cookie' 모드일 경우, Thymeleaf sec:authorize에 의해 UI가 제어되므로 JS 에서는 숨김/표시를 강제하지 않음
-            if (loginLink) loginLink.style.display = ""; // 기본값으로 되돌림 (Thymeleaf가 제어하도록)
-            if (registerLink) registerLink.style.display = "";
-            if (logoutLink) logoutLink.style.display = "";
-        }
-    }
-
-    // 쿠키 방식이 아닐 경우에만 리프레시 시도
     if (authMode === "header" || authMode === "header_cookie") {
-        const headers = { "Content-Type": "application/json" };
-        if (authMode !== "header" && csrfToken && csrfHeader) { // header_cookie 모드이고 CSRF 토큰이 있다면 헤더에 추가 (쿠키는 브라우저가 자동 전송)
+        const headers = { "Content-Type": "application/json" }; // POST 요청 본문이 없어도 Content-Type 명시 가능
+        let requestBody = null; // 'header' 모드 시 리프레시 토큰을 본문에 담을 경우 사용
+
+        if (authMode === "header_cookie" && csrfToken && csrfHeader) {
             headers[csrfHeader] = csrfToken;
+        } else if (authMode === "header") {
+            const storedRefreshToken = TokenMemory.refreshToken;
+            if (storedRefreshToken) {
+                headers["X-Refresh-Token"] = storedRefreshToken; // 헤더에 리프레시 토큰 추가
+                // 또는 서버가 본문에서 읽는다면:
+                // requestBody = JSON.stringify({ refreshToken: storedRefreshToken });
+            } else {
+                console.log("Refresh: No refresh token in TokenMemory for 'header' mode. Skipping refresh call.");
+                updateLoginUi();
+                return;
+            }
         }
-        // 'header' 모드에서는 Refresh Token을 요청 본문에 포함해야 할 수 있음 (서버 구현에 따라 다름)
-        // 현재 코드는 본문 없이 /api/auth/refresh를 호출하고, 서버가 쿠키의 Refresh Token을 사용하거나
-        // 헤더 방식일 경우 별도 처리를 기대함. 명확한 서버 스펙에 따라 수정 필요.
 
         try {
-            const response = await fetch("/api/auth/refresh", {
+            const fetchOptions = {
                 method: "POST",
-                credentials: "same-origin", // 쿠키 전송을 위해 필요 (header_cookie 모드)
-                headers: headers
-            });
+                credentials: authMode === "header_cookie" ? "same-origin" : "include",
+                headers: headers,
+            };
+            if (requestBody) { // 'header' 모드에서 본문에 토큰을 담는 경우
+                fetchOptions.body = requestBody;
+            }
 
-            if (response.status === 204) { // No Content: 유효한 리프레시 토큰 없음 (로그아웃 상태)
-                console.log("Refresh: No active session (204). User is likely logged out.");
-                TokenMemory.accessToken = null;
-                TokenMemory.refreshToken = null; // 명시적 클리어
-            } else if (response.status === 401) { // Unauthorized: 리프레시 토큰 만료 또는 무효
-                console.warn("Refresh: Session expired or invalid (401). Clearing tokens.");
-                TokenMemory.accessToken = null;
-                TokenMemory.refreshToken = null;
-            } else if (response.ok) {
-                const data = await response.json();
-                TokenMemory.accessToken = data.accessToken;
-                if (authMode === "header") { // 'header' 모드에서만 refreshToken을 JS 메모리에 저장
-                    TokenMemory.refreshToken = data.refreshToken;
+            const response = await fetch("/api/auth/refresh", fetchOptions);
+            const responseStatus = response.status;
+            const contentType = response.headers.get("content-type");
+            let responseData = null;
+
+            if (responseStatus !== 204) {
+                const textResponse = await response.text().catch(() => "Could not read response text.");
+                console.warn(`Refresh: Response from /api/auth/refresh was not JSON. Status: ${responseStatus}, Content-Type: ${contentType}`);
+                console.warn("Refresh: Non-JSON response body:", textResponse.substring(0, 500));
+                responseData = { error: "unexpected_response_type", message: `Server returned non-JSON response (Status: ${responseStatus})` };
+            }
+
+            if (responseStatus === 200 && responseData && responseData.accessToken) {
+                TokenMemory.accessToken = responseData.accessToken;
+                if (authMode === "header" && responseData.refreshToken) {
+                    TokenMemory.refreshToken = responseData.refreshToken;
                 }
                 console.log("Access token refreshed successfully.");
-            } else {
-                console.warn(`Refresh: Failed to refresh token. Status: ${response.status}`);
-                TokenMemory.accessToken = null; // 실패 시 토큰 클리어
+            } else if (responseStatus === 204) { // 204 No Content: 리프레시 토큰이 없거나 유효하지 않아 아무 작업 안 함
+                console.log("Refresh: Received 204 No Content. Assuming no active session or refresh token. Clearing tokens.");
+                TokenMemory.accessToken = null;
+                TokenMemory.refreshToken = null;
+            } else { // 400, 401, 403, 500 등 또는 200이지만 accessToken이 없는 경우
+                const errorMessage = responseData?.message || `Token refresh failed with status ${responseStatus}`;
+                console.warn(`Refresh: Failed to refresh token. Status: ${responseStatus}. Message: ${errorMessage}`, responseData);
+                TokenMemory.accessToken = null;
                 TokenMemory.refreshToken = null;
             }
-        } catch (error) {
-            console.error("Refresh: Error during token refresh:", error);
+
+        } catch (error) { // 네트워크 오류 등 fetch 자체의 예외
+            console.error("Refresh: Network or other error during token refresh:", error);
             TokenMemory.accessToken = null;
             TokenMemory.refreshToken = null;
         }

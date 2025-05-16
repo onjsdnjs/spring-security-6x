@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
-import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter; // 추가
+import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -29,7 +28,7 @@ public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandle
     private final MfaPolicyProvider mfaPolicyProvider;
     private final TokenService tokenService;
     private final AuthContextProperties authContextProperties;
-    private final AuthResponseWriter responseWriter; // 추가: JSON 응답 생성용
+    private final AuthResponseWriter responseWriter;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,

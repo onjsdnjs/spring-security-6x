@@ -46,8 +46,7 @@ public class PlatformSecurityConfig {
     private final ApplicationContext applicationContext;
     private final AuthContextProperties authContextProperties;
     private final ObjectMapper objectMapper;
-    private final EmailOneTimeTokenService emailOneTimeTokenService; // 자동 설정된 Bean
-    private final TokenService tokenService; // 자동 설정된 Bean
+    private final EmailOneTimeTokenService emailOneTimeTokenService;
     private final MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler;
     private final MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler;
     private final MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler;

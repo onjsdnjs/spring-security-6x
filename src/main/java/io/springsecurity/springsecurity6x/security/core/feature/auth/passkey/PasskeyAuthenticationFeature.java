@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth.passkey;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature; // 상속
+import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -28,6 +28,12 @@ public class PasskeyAuthenticationFeature extends AbstractAuthenticationFeature<
                     .rpId(opts.getRpId())
                     .allowedOrigins(opts.getAllowedOrigins());
         });
+    }
+
+    @Override
+    protected String determineDefaultFailureUrl(PasskeyOptions options) {
+        // 예: return options.getFailureUrl() != null ? options.getFailureUrl() : "/loginPasskey?error_passkey_default";
+        return "/loginPasskey?error_passkey_default";
     }
 }
 

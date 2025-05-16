@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.token.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.creator.TokenCreator;
+import io.springsecurity.springsecurity6x.security.token.parser.TokenParser;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -69,6 +71,16 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
+    public boolean shouldRotateRefreshToken(String refreshToken) {
+        return TokenService.super.shouldRotateRefreshToken(refreshToken);
+    }
+
+    @Override
+    public TokenParser tokenParser() {
+        return TokenService.super.tokenParser();
+    }
+
+    @Override
     public String resolveAccessToken(HttpServletRequest request) {
         return transport.resolveAccessToken(request);
     }
@@ -79,6 +91,11 @@ public class OAuth2TokenService implements TokenService {
     }
 
     @Override
+    public void setTokenService(TokenService tokenService) {
+        TokenService.super.setTokenService(tokenService);
+    }
+
+    @Override
     public AuthContextProperties properties() {
         return props;
     }
@@ -86,6 +103,11 @@ public class OAuth2TokenService implements TokenService {
     @Override
     public void blacklistRefreshToken(String refreshToken, String username, String reason) {
 
+    }
+
+    @Override
+    public ObjectMapper getObjectMapper() {
+        return null;
     }
 }
 

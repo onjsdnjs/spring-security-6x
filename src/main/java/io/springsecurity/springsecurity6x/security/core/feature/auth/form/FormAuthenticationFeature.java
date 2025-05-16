@@ -29,7 +29,10 @@ public class FormAuthenticationFeature extends AbstractAuthenticationFeature<For
                     .loginProcessingUrl(opts.getLoginProcessingUrl())
                     .usernameParameter(opts.getUsernameParameter())
                     .passwordParameter(opts.getPasswordParameter())
-                    .failureUrl(opts.getFailureUrl())
+                    // defaultSuccessUrl은 successHandler가 설정되면 일반적으로 무시됨.
+                    // 필요시 successHandler 내부에서 이 URL을 사용하도록 로직 추가 가능.
+                    // .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
+                    .failureUrl(opts.getFailureUrl()) // SimpleUrlAuthenticationFailureHandler가 사용
                     .permitAll(opts.isPermitAll())
                     .successHandler(successHandler)
                     .failureHandler(failureHandler);
@@ -47,5 +50,10 @@ public class FormAuthenticationFeature extends AbstractAuthenticationFeature<For
                 }
             }
         });
+    }
+
+    @Override
+    protected String determineDefaultFailureUrl(FormOptions options) {
+        return options.getFailureUrl() != null ? options.getFailureUrl() : "/loginForm?error_form_default";
     }
 }

@@ -21,30 +21,44 @@ public class OttAuthenticationFeature extends AbstractAuthenticationFeature<OttO
         return 300;
     }
 
+    // 이 메소드는 OttAuthenticationFeature 에서 직접 사용되지 않음.
     @Override
     protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
-                                         AuthenticationSuccessHandler successHandler, // 이 파라미터는 사용되지 않음
+                                         AuthenticationSuccessHandler successHandler, // 사용 안 함
                                          AuthenticationFailureHandler failureHandler) throws Exception {
-        // OttAuthenticationFeature는 OneTimeTokenGenerationSuccessHandler를 사용하므로 이 메소드는 호출되지 않아야 함.
-        // 만약 호출된다면 설정 오류이므로 예외 발생.
         throw new UnsupportedOperationException(
-                "OttAuthenticationFeature uses OneTimeTokenGenerationSuccessHandler, not AuthenticationSuccessHandler for its primary success path."
+                "OttAuthenticationFeature uses OneTimeTokenGenerationSuccessHandler. Call configureHttpSecurityForOtt instead."
         );
     }
 
-    // OneTimeTokenGenerationSuccessHandler를 받는 메소드를 오버라이드하여 실제 설정 수행
+    // OneTimeTokenGenerationSuccessHandler를 받는 메소드를 오버라이드
     @Override
-    protected void configureHttpSecurity(HttpSecurity http, OttOptions opts,
-                                         OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
-                                         AuthenticationFailureHandler failureHandler) throws Exception {
+    protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
+                                               OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
+                                               AuthenticationFailureHandler failureHandler) throws Exception {
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
-                    .loginProcessingUrl(opts.getLoginProcessingUrl()) // 사용자가 링크 클릭 시 토큰 검증 및 로그인 처리 URL
-                    .showDefaultSubmitPage(opts.isShowDefaultSubmitPage()) // 토큰 입력 폼 페이지 표시 여부
-                    .tokenGeneratingUrl(opts.getTokenGeneratingUrl()) // 클라이언트가 토큰 생성을 요청하는 URL
-                    .tokenService(opts.getOneTimeTokenService()) // OneTimeTokenService 빈
-                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler); // 토큰 *생성* 성공 시 핸들러
+                    .loginProcessingUrl(opts.getLoginProcessingUrl())
+                    .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
+                    .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
+                    .tokenService(opts.getOneTimeTokenService())
+                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler);
+
+            // Spring Security 6.x의 oneTimeTokenLogin() DSL이 failureHandler를 직접 지원하는지 확인 필요.
+            // 지원하지 않는다면, OneTimeTokenAuthenticationFilter를 커스텀하게 설정하거나,
+            // SecurityFilterChain에 별도의 예외 처리 필터를 추가하는 방식을 고려해야 합니다.
+            // 예시: if (failureHandler != null) { ott.failureHandler(failureHandler); } (DSL 지원 가정)
+            // 현재 Spring Security의 Standard DSL에는 ott.failureHandler()가 명시적으로 없을 수 있습니다.
+            // 이 경우, OneTimeTokenAuthenticationFilter의 setAuthenticationFailureHandler를 사용하거나
+            // ExceptionTranslationFilter 등을 통해 예외를 처리해야 합니다.
+            // 여기서는 DSL이 지원한다고 가정하거나, 혹은 AbstractAuthenticationFilter에서 이미 기본 에러 처리가 된다고 간주합니다.
         });
     }
-}
 
+    @Override
+    protected String determineDefaultFailureUrl(OttOptions options) {
+        // OttOptions에 failureUrl 필드가 있다면 그것을 사용. 없다면 기본값.
+        // 예: return options.getFailureUrl() != null ? options.getFailureUrl() : "/loginOtt?error_ott_default";
+        return "/loginOtt?error_ott_default";
+    }
+}

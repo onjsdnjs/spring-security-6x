@@ -74,6 +74,7 @@ public abstract class AbstractFlowRegistrar implements IdentityAuthDsl {
     }
 
     private void replaceLastState(String stateName) {
+
         List<AuthenticationFlowConfig> currentFlows = platformBuilder.getModifiableFlows();
         if (currentFlows.isEmpty()) {
             System.err.println("Warning: No flow to replace state for. State '" + stateName + "' will not be applied.");

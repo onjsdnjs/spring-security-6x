@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     const loginForm = document.getElementById("loginForm");
-    const messageDiv = document.getElementById("loginFormMessage"); // 메시지 표시 영역
+    const messageDiv = document.getElementById("loginFormMessage");
 
     if (!loginForm) return;
 
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function displayLoginMessage(message, type = 'error') {
         if (messageDiv) {
-            messageDiv.innerHTML = `<p class="${type === 'error' ? 'text-red-600' : 'text-green-600'}">${message}</p>`;
+            messageDiv.innerHTML = `<p class="${type === 'error' ? 'text-red-500' : (type === 'info' ? 'text-blue-500' : 'text-green-500')}">${message}</p>`;
         } else if (typeof showToast === 'function') {
             showToast(message, type);
         } else {
@@ -29,17 +29,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const headers = {
             "Content-Type": "application/json",
-            "X-Device-Id": getOrCreateDeviceId()
+            "X-Device-Id": getOrCreateDeviceId() // Device ID 추가
         };
 
-        if (authMode !== "header" && csrfToken && csrfHeader) {
+        if (authMode !== "header" && csrfToken && csrfHeader) { // 'cookie' 또는 'header_cookie' 모드 + CSRF 토큰 존재 시
             headers[csrfHeader] = csrfToken;
         }
 
         try {
             const response = await fetch("/api/auth/login", { // 1차 인증 요청 URL
                 method: "POST",
-                credentials: "same-origin",
+                credentials: "same-origin", // 쿠키 방식 인증 시 필요
                 headers: headers,
                 body: JSON.stringify({ username, password })
             });
@@ -48,26 +48,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (response.ok) {
                 if (result.status === "MFA_REQUIRED") {
-                    // 서버에서 mfaSessionId와 다음 단계 URL(select-factor 페이지)을 받아야 함
-                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId); // 서버 응답에 mfaSessionId가 있다고 가정
+                    // MFA 필요: 서버에서 mfaSessionId와 다음 단계 URL(select-factor 페이지)을 받아야 함
+                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username); // 다음 MFA 단계에서 사용자 식별자로 사용
                     displayLoginMessage("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info");
+                    showToast("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info", 2000);
                     setTimeout(() => {
-                        window.location.href = result.nextStepUrl || "/mfa/select-factor"; // 서버가 nextStepUrl을 주거나 기본 경로로 이동
+                        window.location.href = result.nextStepUrl || "/mfa/select-factor";
                     }, 1500);
                     return;
                 }
 
-                // MFA가 필요 없는 일반 로그인 성공
+                // MFA가 필요 없는 일반 로그인 성공 또는 모든 MFA 단계 완료 후 토큰 발급
                 if (authMode === "header" || authMode === "header_cookie") {
                     TokenMemory.accessToken = result.accessToken;
-                    if (authMode === "header") {
+                    if (authMode === "header" && result.refreshToken) { // 'header' 모드이고 refreshToken이 응답에 있을 때만 저장
                         TokenMemory.refreshToken = result.refreshToken;
                     }
                 }
                 showToast("로그인 성공!", "success");
                 setTimeout(() => {
-                    window.location.href = result.redirect || "/";
+                    window.location.href = result.redirectUrl || "/"; // 서버 응답에 redirectUrl이 있으면 사용
                 }, 1000);
 
             } else {

@@ -1,30 +1,30 @@
+// resources/static/js/mfa-login.js (개선된 버전)
 document.addEventListener("DOMContentLoaded", () => {
     const restForm = document.getElementById("restForm");
     const ottForm = document.getElementById("ottForm");
     const passkeySection = document.getElementById("passkeySection");
     const mfaStepIndicator = document.getElementById("mfaStepIndicator");
+    const mfaResultSection = document.getElementById("mfaResultSection");
 
-    // 각 폼/섹션의 메시지 영역
     const restFormMessage = document.getElementById("restFormMessage");
     const ottFormMessage = document.getElementById("ottFormMessage");
     const mfaOttEmailDisplay = document.getElementById("mfaOttEmail");
     const passkeySectionMessage = document.getElementById("passkeySectionMessage");
     const resendOttCodeButton = document.getElementById("resendOttCode");
 
-
-    if (!restForm || !ottForm || !passkeySection) {
-        console.error("MFA L_LOGIN: One or more MFA step elements not found.");
+    if (!restForm || !ottForm || !passkeySection || !mfaResultSection) {
+        console.error("MFA Login: One or more MFA step elements not found.");
         return;
     }
 
-    const steps = [restForm, ottForm, passkeySection];
-    let currentStepIndex = 0;
-    let mfaSessionData = { // MFA 흐름 동안 유지될 데이터 (예: mfaSessionId, username)
-        mfaSessionId: null,
-        username: null,
-        deviceId: getOrCreateDeviceId()
+    const steps = {
+        PRIMARY: restForm,
+        OTT: ottForm,
+        PASSKEY: passkeySection,
+        COMPLETE: mfaResultSection // 최종 결과 표시용
     };
-
+    let currentMfaSessionId = null;
+    let currentMfaUsername = null;
 
     const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
@@ -32,15 +32,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
     const authMode = localStorage.getItem("authMode") || "header";
 
-    function displayStepMessage(stepIndex, message, type = 'error') {
+    function displayStepMessage(stepKey, message, type = 'error') {
         let targetElement;
-        if (stepIndex === 0) targetElement = restFormMessage;
-        else if (stepIndex === 1) targetElement = ottFormMessage;
-        else if (stepIndex === 2) targetElement = passkeySectionMessage;
+        if (stepKey === 'PRIMARY') targetElement = restFormMessage;
+        else if (stepKey === 'OTT') targetElement = ottFormMessage;
+        else if (stepKey === 'PASSKEY') targetElement = passkeySectionMessage;
+        else if (stepKey === 'COMPLETE') { // 결과 섹션에 메시지 표시
+            mfaResultSection.innerHTML = `<p class="text-lg font-semibold ${type === 'success' ? 'text-green-600' : 'text-red-600'}">${message}</p>`;
+            if (type === 'success') {
+                mfaResultSection.innerHTML += '<p class="mt-4"><a href="/" class="text-app-accent hover:underline">홈으로 이동</a></p>';
+            }
+            return; // 메시지 영역이 다르므로 여기서 반환
+        }
+
 
         if (targetElement) {
             targetElement.textContent = message;
-            targetElement.className = `text-sm text-center ${type === 'error' ? 'text-red-600' : 'text-green-600'}`;
+            targetElement.className = `text-sm text-center min-h-[1.25rem] ${type === 'error' ? 'text-red-500' : (type === 'info' ? 'text-blue-500' : 'text-green-500')}`;
         } else if (typeof showToast === 'function') {
             showToast(message, type);
         } else {
@@ -49,21 +57,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateStepIndicator(stepName) {
-        if (mfaStepIndicator) {
-            mfaStepIndicator.textContent = stepName;
-        }
+        if (mfaStepIndicator) mfaStepIndicator.textContent = stepName;
     }
 
-
-    function showStep(index) {
-        steps.forEach((step, i) => {
-            step.style.display = i === index ? "" : "none";
-        });
-        currentStepIndex = index;
-        // 각 단계에 맞는 인디케이터 업데이트
-        if (index === 0) updateStepIndicator("1단계: 계정 정보 입력");
-        else if (index === 1) updateStepIndicator("2단계: 이메일 코드 인증");
-        else if (index === 2) updateStepIndicator("3단계: Passkey 인증");
+    function showStep(stepKeyToShow) {
+        for (const key in steps) {
+            steps[key].style.display = key === stepKeyToShow ? "" : "none";
+        }
+        if (stepKeyToShow === 'PRIMARY') updateStepIndicator("1단계: 계정 정보 입력");
+        else if (stepKeyToShow === 'OTT') updateStepIndicator("2단계: 이메일 코드 인증");
+        else if (stepKeyToShow === 'PASSKEY') updateStepIndicator("3단계: Passkey 인증");
+        else if (stepKeyToShow === 'COMPLETE') updateStepIndicator("인증 완료");
     }
 
     function getOrCreateDeviceId() {
@@ -75,104 +79,117 @@ document.addEventListener("DOMContentLoaded", () => {
         return deviceId;
     }
 
-    function createHeaders(includeContentType = true) {
-        const headers = {};
-        if (includeContentType) {
-            headers["Content-Type"] = "application/json";
+    function createApiHeaders(includeMfaSession = false) {
+        const headers = {
+            "Content-Type": "application/json",
+            "X-Device-Id": getOrCreateDeviceId()
+        };
+        if (csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
+        if (includeMfaSession && currentMfaSessionId) {
+            headers["X-MFA-Session-Id"] = currentMfaSessionId;
         }
-        if (authMode !== "header" && csrfToken && csrfHeader) {
-            headers[csrfHeader] = csrfToken;
+        return headers;
+    }
+
+    function createFilterHeaders(includeMfaSession = false) {
+        // Spring Security Filter는 Content-Type을 다르게 요구할 수 있음.
+        // 예: application/x-www-form-urlencoded 또는 특정 커스텀 헤더.
+        // 여기서는 API와 유사하게 JSON으로 가정하나, 실제 필터 구현에 따라 조정 필요.
+        const headers = {
+            "Content-Type": "application/json", // 필터가 JSON을 받는다고 가정
+            "X-Device-Id": getOrCreateDeviceId()
+        };
+        if (csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
+        if (includeMfaSession && currentMfaSessionId) {
+            headers["X-MFA-Session-Id"] = currentMfaSessionId;
         }
-        // 헤더 기반 토큰 인증 모드일 경우, 필요시 AccessToken 추가 (MFA 중간 단계에서는 보통 불필요)
-        // if (authMode === "header" || authMode === "header_cookie") {
-        //     const accessToken = TokenMemory.accessToken;
-        //     if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-        // }
-        // MFA 세션 ID는 요청 본문이나 URL 파라미터로 전달하는 것이 일반적일 수 있음
-        // 또는 X-MFA-Session 헤더 등으로 전달 (서버 스펙 확인)
-        if (mfaSessionData.mfaSessionId) {
-            headers["X-MFA-Session-Id"] = mfaSessionData.mfaSessionId;
-        }
-        headers["X-Device-Id"] = mfaSessionData.deviceId;
         return headers;
     }
 
 
     // --- 1단계: 기본 로그인 (ID/PW) ---
-    restForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const username = restForm.username.value;
-        const password = restForm.password.value;
-        mfaSessionData.username = username; // MFA 흐름에서 사용할 사용자 이름 저장
+    if (restForm) {
+        restForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const username = restForm.username.value;
+            const password = restForm.password.value;
+            currentMfaUsername = username; // MFA 흐름에서 사용할 사용자 이름 저장
 
-        displayStepMessage(0, "인증 중...", "info");
+            displayStepMessage('PRIMARY', "1차 인증 중...", "info");
 
-        try {
-            // `/api/auth/login`은 MFA 필요 여부를 판단하고, 필요시 MFA 세션 시작 정보를 반환해야 함
-            const response = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: createHeaders(),
-                body: JSON.stringify({ username, password })
-            });
+            try {
+                // 이 API는 MfaCapableRestSuccessHandler가 처리
+                const response = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: createApiHeaders(),
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
 
-            const result = await response.json();
+                if (response.ok && result.status === "MFA_REQUIRED") {
+                    currentMfaSessionId = result.mfaSessionId;
+                    if (mfaOttEmailDisplay) mfaOttEmailDisplay.textContent = username;
 
-            if (response.ok && result.status === "MFA_REQUIRED") {
-                mfaSessionData.mfaSessionId = result.mfaSessionId; // 서버에서 생성된 MFA 세션 ID 저장
-                if (mfaOttEmailDisplay) mfaOttEmailDisplay.textContent = username; // OTT 폼에 이메일 표시
-
-                // 서버 응답에 따라 다음 단계로 이동
-                // 예: result.nextFactorType === 'OTT' 이면 OTT 폼으로
-                // 여기서는 고정적으로 OTT 폼으로 이동한다고 가정
-                displayStepMessage(0, "1차 인증 성공. 2차 인증으로 이동합니다.", "success");
-                // 2차 인증(OTT) 챌린지 자동 요청
-                await requestOttChallenge(); // OTT 코드 발송 요청
-                showStep(1); // OTT 폼으로 이동
-            } else if (response.ok) { // MFA_REQUIRED가 아닌 일반 성공 (MFA 불필요)
-                if (authMode === "header" || authMode === "header_cookie") {
-                    TokenMemory.accessToken = result.accessToken;
-                    if (authMode === "header") TokenMemory.refreshToken = result.refreshToken;
+                    displayStepMessage('PRIMARY', "1차 인증 성공. 다음 MFA 단계를 진행합니다.", "success");
+                    // 서버 응답에 다음 단계 정보(nextFactorType 또는 nextStepUrl)가 있다면 그것을 따름
+                    // 여기서는 예시로 OTT로 바로 진행한다고 가정하고 OTT 챌린지 요청
+                    // 실제로는 result.nextFactorType에 따라 분기해야 함
+                    showToast("1차 인증 성공. 다음 인증으로 이동합니다.", "success", 1500);
+                    // MfaCapableRestSuccessHandler가 nextStepUrl("/mfa/select-factor")을 내려주면 그곳으로 이동.
+                    // 이 페이지는 이미 select-factor를 거쳐 특정 factor로 온 경우이므로, 바로 다음 factor로 진행.
+                    // 이 페이지의 설계 자체가 1차->OTT->Passkey 순으로 고정된 흐름을 가정하고 있음.
+                    // 서버에서 다음 Factor 정보를 받아와야 더 유연해짐.
+                    // 현재는 예시로 OTT를 다음으로 가정함.
+                    if (await requestOttChallengeForMfaFlow()) {
+                        showStep('OTT');
+                    } else {
+                        displayStepMessage('PRIMARY', "OTT 코드 요청에 실패했습니다. 관리자에게 문의하세요.", "error");
+                    }
+                } else if (response.ok && result.status === "SUCCESS") { // MFA 불필요, 바로 로그인 성공
+                    if (authMode === "header" || authMode === "header_cookie") {
+                        TokenMemory.accessToken = result.accessToken;
+                        if (authMode === "header" && result.refreshToken) TokenMemory.refreshToken = result.refreshToken;
+                    }
+                    displayStepMessage('COMPLETE', "로그인 성공!", "success");
+                    showStep('COMPLETE');
+                    setTimeout(() => { window.location.href = result.redirectUrl || "/"; }, 2000);
+                } else {
+                    displayStepMessage('PRIMARY', `1차 인증 실패: ${result.message || response.statusText}`, "error");
                 }
-                if (typeof showToast === 'function') showToast("로그인 성공!", "success"); else alert("로그인 성공!");
-                window.location.href = result.redirect || "/";
+            } catch (error) {
+                console.error("MFA Login - Step 1 (REST) error:", error);
+                displayStepMessage('PRIMARY', "1차 인증 요청 중 오류 발생", "error");
             }
-            else {
-                displayStepMessage(0, `1차 인증 실패: ${result.message || response.statusText}`, "error");
-            }
-        } catch (error) {
-            console.error("MFA L_LOGIN - Step 1 (REST) error:", error);
-            displayStepMessage(0, "1차 인증 요청 중 오류 발생", "error");
-        }
-    });
+        });
+    }
 
-    async function requestOttChallenge() {
-        if (!mfaSessionData.username) {
-            displayStepMessage(1, "OTT 코드 요청 실패: 사용자 정보 없음", "error");
+    async function requestOttChallengeForMfaFlow() {
+        if (!currentMfaUsername || !currentMfaSessionId) {
+            displayStepMessage('OTT', "OTT 코드 요청 실패: 사용자 또는 세션 정보 없음", "error");
             return false;
         }
-        displayStepMessage(1, "OTT 인증 코드를 요청 중입니다...", "info");
+        displayStepMessage('OTT', "OTT 인증 코드를 요청 중입니다...", "info");
         try {
-            // 서버 API: MFA OTT 챌린지 요청 (예: `/api/mfa/challenge?factor=ott`)
-            // 요청 본문에는 mfaSessionId 또는 username 이 포함될 수 있음 (서버 스펙에 따라)
-            const response = await fetch(`/api/mfa/challenge?event=REQUEST_CHALLENGE&factorType=OTT`, { // 서버 엔드포인트 확인 필요
+            // MfaApiController의 /api/mfa/request-ott-code 사용
+            const response = await fetch(`/api/mfa/request-ott-code`, {
                 method: "POST",
-                headers: createHeaders(),
-                body: JSON.stringify({ username: mfaSessionData.username /*, mfaSessionId: mfaSessionData.mfaSessionId */ })
+                headers: createApiHeaders(true), // MFA 세션 ID 포함
+                body: JSON.stringify({ username: currentMfaUsername, factorType: "OTT" })
             });
 
             if (response.ok) {
                 const challengeResult = await response.json();
-                console.log("OTT Challenge requested successfully:", challengeResult);
-                displayStepMessage(1, `이메일(${mfaSessionData.username})로 인증 코드가 발송되었습니다.`, "success");
+                displayStepMessage('OTT', challengeResult.message || `이메일(${currentMfaUsername})로 인증 코드가 발송되었습니다.`, "success");
+                if (mfaOttEmailDisplay) mfaOttEmailDisplay.textContent = currentMfaUsername;
                 return true;
             } else {
                 const errorData = await response.json().catch(() => ({message: "OTT 코드 요청 실패"}));
-                displayStepMessage(1, `OTT 코드 요청 실패: ${errorData.message || response.statusText}`, "error");
+                displayStepMessage('OTT', `OTT 코드 요청 실패: ${errorData.message || response.statusText}`, "error");
                 return false;
             }
         } catch (error) {
-            console.error("MFA L_LOGIN - Request OTT Challenge error:", error);
-            displayStepMessage(1, "OTT 코드 요청 중 오류 발생", "error");
+            console.error("MFA Login - Request OTT Challenge error:", error);
+            displayStepMessage('OTT', "OTT 코드 요청 중 오류 발생", "error");
             return false;
         }
     }
@@ -180,128 +197,160 @@ document.addEventListener("DOMContentLoaded", () => {
     if(resendOttCodeButton) {
         resendOttCodeButton.addEventListener("click", async () => {
             resendOttCodeButton.disabled = true;
-            await requestOttChallenge();
-            setTimeout(() => { resendOttCodeButton.disabled = false; }, 30000); // 30초 후 재전송 가능
+            await requestOttChallengeForMfaFlow();
+            setTimeout(() => { resendOttCodeButton.disabled = false; }, 30000);
         });
     }
 
-
     // --- 2단계: OTT 코드 인증 ---
-    ottForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const ottCode = ottForm.token.value;
-        displayStepMessage(1, "OTT 코드 인증 중...", "info");
-
-        try {
-            // 서버 API: MFA OTT 코드 검증 (예: `/api/mfa/verify?factor=ott`)
-            // 요청 본문에는 mfaSessionId와 사용자가 입력한 ottCode가 포함되어야 함
-            const response = await fetch(`/api/mfa/verify?event=SUBMIT_CREDENTIAL&factorType=OTT`, { // 서버 엔드포인트 확인 필요
-                method: "POST",
-                headers: createHeaders(),
-                body: JSON.stringify({ token: ottCode /*, mfaSessionId: mfaSessionData.mfaSessionId */ })
-            });
-
-            const result = await response.json();
-
-            if (response.ok && result.status === "MFA_CONTINUE") { // OTT 검증 성공, 다음 MFA 단계로
-                displayStepMessage(1, "OTT 코드 인증 성공. 다음 단계로 이동합니다.", "success");
-                // 서버 응답에 따라 다음 Factor가 Passkey 인지 확인 후 Passkey 단계로 이동
-                // if (result.nextFactorType === 'PASSKEY') { ... }
-                showStep(2); // Passkey 인증 단계로 이동
-            } else if (response.ok && result.status === "MFA_COMPLETE") { // 모든 MFA 완료, 토큰 발급
-                if (authMode === "header" || authMode === "header_cookie") {
-                    TokenMemory.accessToken = result.accessToken;
-                    if (authMode === "header") TokenMemory.refreshToken = result.refreshToken;
-                }
-                if (typeof showToast === 'function') showToast("MFA 로그인 성공!", "success"); else alert("MFA 로그인 성공!");
-                window.location.href = result.redirect || "/";
+    if (ottForm) {
+        ottForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const ottCode = ottForm.token.value;
+            if (!ottCode || ottCode.length !== 6 || !/^\d{6}$/.test(ottCode)) {
+                displayStepMessage('OTT', "6자리 숫자로 된 인증 코드를 입력해주세요.", "error");
+                return;
             }
-            else {
-                displayStepMessage(1, `OTT 코드 인증 실패: ${result.message || response.statusText}`, "error");
+            displayStepMessage('OTT', "OTT 코드 인증 중...", "info");
+
+            try {
+                // 이 요청은 /login/mfa-ott 로 가서 MfaStepBasedSuccessHandler 가 처리
+                const response = await fetch(`/login/mfa-ott`, {
+                    method: "POST",
+                    headers: createFilterHeaders(true), // MFA 세션 ID 포함
+                    body: JSON.stringify({ token: ottCode, username: currentMfaUsername })
+                });
+                const result = await response.json();
+
+                if (response.ok && result.status === "MFA_CONTINUE" && result.nextFactorType === "PASSKEY") {
+                    displayStepMessage('OTT', "OTT 코드 인증 성공. Passkey 인증으로 이동합니다.", "success");
+                    showToast("OTT 코드 인증 성공. 다음 인증으로 이동합니다.", "success", 1500);
+                    // Passkey 챌린지 자동 요청
+                    if (await requestPasskeyChallengeForMfaFlow()) {
+                        showStep('PASSKEY');
+                    } else {
+                        displayStepMessage('OTT', "Passkey 옵션 요청에 실패했습니다.", "error");
+                    }
+                } else if (response.ok && result.status === "MFA_COMPLETE") {
+                    if (authMode === "header" || authMode === "header_cookie") {
+                        TokenMemory.accessToken = result.accessToken;
+                        if (authMode === "header" && result.refreshToken) TokenMemory.refreshToken = result.refreshToken;
+                    }
+                    displayStepMessage('COMPLETE', "MFA 로그인 성공!", "success");
+                    showStep('COMPLETE');
+                    setTimeout(() => { window.location.href = result.redirectUrl || "/"; }, 2000);
+                } else {
+                    displayStepMessage('OTT', `OTT 코드 인증 실패: ${result.message || response.statusText}`, "error");
+                }
+            } catch (error) {
+                console.error("MFA Login - Step 2 (OTT) error:", error);
+                displayStepMessage('OTT', "OTT 코드 인증 요청 중 오류 발생", "error");
+            }
+        });
+    }
+
+    async function requestPasskeyChallengeForMfaFlow() {
+        if (!currentMfaUsername || !currentMfaSessionId) {
+            displayStepMessage('PASSKEY', "Passkey 옵션 요청 실패: 사용자 또는 세션 정보 없음", "error");
+            return false;
+        }
+        displayStepMessage('PASSKEY', "Passkey 인증 옵션을 요청 중입니다...", "info");
+        try {
+            const response = await fetch(`/api/mfa/assertion/options`, {
+                method: "POST",
+                headers: createApiHeaders(true),
+                body: JSON.stringify({ username: currentMfaUsername })
+            });
+            if (response.ok) {
+                const pkOptions = await response.json();
+                // JS WebAuthn API가 사용할 수 있도록 challenge와 id를 ArrayBuffer로 변환
+                if (pkOptions.challenge) pkOptions.challenge = base64UrlToArraryBuffer(pkOptions.challenge);
+                if (pkOptions.allowCredentials) {
+                    pkOptions.allowCredentials.forEach(cred => {
+                        if (cred.id) cred.id = base64UrlToArraryBuffer(cred.id);
+                    });
+                }
+                // 이 옵션을 passkeyButton 클릭 핸들러에서 사용할 수 있도록 저장 (예: 전역 변수 또는 data attribute)
+                passkeySection.dataset.pkOptions = JSON.stringify(pkOptions);
+                displayStepMessage('PASSKEY', "Passkey 인증 장치를 확인하세요.", "info");
+                return true;
+            } else {
+                const errorData = await response.json().catch(() => ({message: "Passkey 옵션 요청 실패"}));
+                displayStepMessage('PASSKEY', `Passkey 옵션 요청 실패: ${errorData.message || response.statusText}`, "error");
+                return false;
             }
         } catch (error) {
-            console.error("MFA L_LOGIN - Step 2 (OTT) error:", error);
-            displayStepMessage(1, "OTT 코드 인증 요청 중 오류 발생", "error");
+            console.error("MFA Login - Request Passkey Challenge error:", error);
+            displayStepMessage('PASSKEY', "Passkey 옵션 요청 중 오류 발생", "error");
+            return false;
         }
-    });
+    }
 
 
     // --- 3단계: Passkey 인증 ---
     const passkeyButton = document.getElementById("webauthnBtn");
     if (passkeyButton) {
         passkeyButton.addEventListener("click", async () => {
-            displayStepMessage(2, "Passkey 인증을 준비 중입니다...", "info");
+            displayStepMessage('PASSKEY', "Passkey 인증을 시작합니다...", "info");
             passkeyButton.disabled = true;
 
-            try {
-                // 1. Passkey Assertion Options 요청 (MFA용)
-                // 서버 API: MFA Passkey 옵션 요청 (예: `/api/mfa/challenge?factor=passkey`)
-                const optionsResponse = await fetch(`/api/mfa/challenge?event=REQUEST_CHALLENGE&factorType=PASSKEY`, { // 서버 엔드포인트 확인 필요
-                    method: "POST", // POST 권장
-                    headers: createHeaders(),
-                    body: JSON.stringify({ username: mfaSessionData.username /*, mfaSessionId: mfaSessionData.mfaSessionId */ })
+            const pkOptionsString = passkeySection.dataset.pkOptions;
+            if (!pkOptionsString) {
+                displayStepMessage('PASSKEY', "Passkey 인증 옵션이 없습니다. 이전 단계를 확인하세요.", "error");
+                passkeyButton.disabled = false;
+                return;
+            }
+            const publicKeyCredentialRequestOptions = JSON.parse(pkOptionsString);
+            // dataset에서 가져온 후에도 ArrayBuffer 변환이 필요할 수 있음 (문자열화 되었으므로)
+            if (typeof publicKeyCredentialRequestOptions.challenge === 'string') {
+                publicKeyCredentialRequestOptions.challenge = base64UrlToArraryBuffer(publicKeyCredentialRequestOptions.challenge);
+            }
+            if (publicKeyCredentialRequestOptions.allowCredentials) {
+                publicKeyCredentialRequestOptions.allowCredentials.forEach(cred => {
+                    if (typeof cred.id === 'string') cred.id = base64UrlToArraryBuffer(cred.id);
                 });
+            }
 
-                if (!optionsResponse.ok) {
-                    const errorData = await optionsResponse.json().catch(() => ({message: "Passkey 옵션 요청 실패"}));
-                    throw new Error(`옵션 요청 실패: ${errorData.message || optionsResponse.statusText}`);
-                }
-                const publicKeyCredentialRequestOptions = await optionsResponse.json();
-                console.log("MFA - Received PublicKeyCredentialRequestOptions:", publicKeyCredentialRequestOptions);
 
-                // challenge 및 allowCredentials.id 를 ArrayBuffer로 변환
-                if (publicKeyCredentialRequestOptions.challenge) {
-                    publicKeyCredentialRequestOptions.challenge = base64UrlToArraryBuffer(publicKeyCredentialRequestOptions.challenge);
-                }
-                if (publicKeyCredentialRequestOptions.allowCredentials) {
-                    publicKeyCredentialRequestOptions.allowCredentials.forEach(cred => {
-                        if (cred.id) cred.id = base64UrlToArraryBuffer(cred.id);
-                    });
-                }
-
-                // 2. navigator.credentials.get() 호출
-                displayStepMessage(2, "Passkey 장치로 인증을 확인해주세요...", "info");
+            try {
+                displayStepMessage('PASSKEY', "Passkey 장치로 인증을 확인해주세요...", "info");
                 const assertion = await navigator.credentials.get({ publicKey: publicKeyCredentialRequestOptions });
 
-                // 3. 서버로 Assertion 결과 전송 (MFA용)
-                // 서버 API: MFA Passkey 검증 (예: `/api/mfa/verify?factor=passkey&event=ISSUE_TOKEN`)
-                // event=ISSUE_TOKEN 은 마지막 단계에서 토큰 발급을 의미할 수 있음 (서버 설계에 따름)
-                displayStepMessage(2, "Passkey 인증 결과를 서버로 전송 중...", "info");
+                displayStepMessage('PASSKEY', "Passkey 인증 결과를 서버로 전송 중...", "info");
                 const assertionResponseForServer = {
                     id: arrayBufferToBase64Url(assertion.rawId),
                     rawId: arrayBufferToBase64Url(assertion.rawId),
                     type: assertion.type,
-                    response: {
-                        authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
-                        clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
-                        signature: arrayBufferToBase64Url(assertion.response.signature),
-                        userHandle: assertion.response.userHandle ? arrayBufferToBase64Url(assertion.response.userHandle) : null,
-                    }
+                    clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
+                    authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
+                    signature: arrayBufferToBase64Url(assertion.response.signature),
+                    userHandle: assertion.response.userHandle ? arrayBufferToBase64Url(assertion.response.userHandle) : null,
                 };
 
-                const loginResponse = await fetch(`/api/mfa/verify?event=SUBMIT_CREDENTIAL&factorType=PASSKEY`, { // 서버 엔드포인트 확인 필요
+                // 이 요청은 /login/mfa-passkey 로 가서 MfaStepBasedSuccessHandler 가 처리
+                const loginResponse = await fetch(`/login/mfa-passkey`, {
                     method: "POST",
-                    headers: createHeaders(),
-                    body: JSON.stringify({ webauthnResponse: assertionResponseForServer /*, mfaSessionId: mfaSessionData.mfaSessionId */ })
+                    headers: createFilterHeaders(true), // MFA 세션 ID 포함
+                    body: JSON.stringify(assertionResponseForServer)
                 });
-
                 const result = await loginResponse.json();
-                if (loginResponse.ok && result.status === "MFA_COMPLETE") { // MFA 최종 성공
+
+                if (loginResponse.ok && result.status === "MFA_COMPLETE") {
                     if (authMode === "header" || authMode === "header_cookie") {
                         TokenMemory.accessToken = result.accessToken;
-                        if (authMode === "header") TokenMemory.refreshToken = result.refreshToken;
+                        if (authMode === "header" && result.refreshToken) TokenMemory.refreshToken = result.refreshToken;
                     }
-                    displayStepMessage(2, "MFA 로그인 성공!", "success");
-                    setTimeout(() => { window.location.href = result.redirect || "/"; }, 1000);
+                    displayStepMessage('COMPLETE', "MFA 로그인 성공!", "success");
+                    showStep('COMPLETE');
+                    setTimeout(() => { window.location.href = result.redirectUrl || "/"; }, 2000);
                 } else {
-                    throw new Error(`Passkey 인증 실패: ${result.message || loginResponse.statusText}`);
+                    displayStepMessage('PASSKEY', `Passkey 인증 실패: ${result.message || loginResponse.statusText}`, "error");
                 }
-
             } catch (error) {
-                console.error("MFA L_LOGIN - Step 3 (Passkey) error:", error);
-                displayStepMessage(2, `Passkey 인증 오류: ${error.message}`, "error");
+                console.error("MFA Login - Step 3 (Passkey) error:", error);
+                displayStepMessage('PASSKEY', `Passkey 인증 오류: ${error.message}`, "error");
                 if (error.name === "NotAllowedError") {
-                    displayStepMessage(2, "Passkey 인증이 사용자에 의해 취소되었거나, 허용되지 않은 작업입니다.", "info");
+                    displayStepMessage('PASSKEY', "Passkey 인증이 사용자에 의해 취소되었거나, 허용되지 않은 작업입니다.", "info");
                 }
             } finally {
                 passkeyButton.disabled = false;
@@ -309,7 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Base64URL <-> ArrayBuffer 변환 함수 (passkey-login.js와 동일)
     function base64UrlToArraryBuffer(base64Url) {
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const raw = window.atob(base64);
@@ -325,6 +373,5 @@ document.addEventListener("DOMContentLoaded", () => {
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     }
 
-    // 초기 화면 설정
-    showStep(0);
+    showStep('PRIMARY'); // 초기 화면은 1단계(ID/PW)
 });

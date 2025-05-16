@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     const passkeyButton = document.getElementById("passkeyBtn");
-    const messageElement = document.getElementById("passkeyMessage"); // 메시지 표시용
+    const messageElement = document.getElementById("passkeyMessage");
 
     if (!passkeyButton) return;
 
@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function displayMessage(message, type = 'info') {
         if (messageElement) {
             messageElement.textContent = message;
-            messageElement.className = `mt-4 text-sm ${type === 'error' ? 'text-red-600' : (type === 'success' ? 'text-green-600' : 'text-gray-500')}`;
+            messageElement.className = `mt-4 text-sm ${type === 'error' ? 'text-red-500' : (type === 'success' ? 'text-green-600' : 'text-gray-500')}`;
         } else if (typeof showToast === 'function') {
             showToast(message, type);
         } else {
@@ -25,23 +25,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute("content") : null;
         const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
 
-        if (!csrfToken || !csrfHeader) {
+        // CSRF 토큰은 일반적으로 WebAuthn assertion options 요청 시 POST라면 필요.
+        // GET이라면 생략 가능. 서버 구현에 따라 다름.
+        if ((!csrfToken || !csrfHeader) && (optionsResponse?.method?.toUpperCase() === "POST")) {
             displayMessage("오류: 보안 토큰을 찾을 수 없습니다. 페이지를 새로고침 해주세요.", "error");
             passkeyButton.disabled = false;
             return;
         }
 
+        const deviceId = getOrCreateDeviceId(); // Device ID 추가
+
         try {
             // 1. Assertion Options 요청
+            // 서버 엔드포인트는 Spring Security WebAuthn이 기본 제공하는 /webauthn/assertion/options 또는 커스텀 엔드포인트
+            // 현재 PlatformSecurityConfig에는 `/webauthn/assertion/options`로 단일 Passkey 로그인 옵션 요청 경로가 설정됨
             const optionsResponse = await fetch("/webauthn/assertion/options", {
-                method: "POST", // 서버 구현에 따라 GET 또는 POST (보안상 POST 권장, CSRF 필요)
+                method: "POST", // Spring Security WebAuthn 기본은 POST
                 credentials: "same-origin",
                 headers: {
-                    "Content-Type": "application/json", // POST 요청 시 필요
-                    [csrfHeader]: csrfToken
-                }
-                // username을 body로 보내야 할 수도 있음 (서버 구현 확인)
-                // body: JSON.stringify({ username: "user_identifier_if_needed" })
+                    "Content-Type": "application/json",
+                    ...( (csrfToken && csrfHeader) && { [csrfHeader]: csrfToken } ), // CSRF 토큰 동적 추가
+                    "X-Device-Id": deviceId // Device ID 헤더 추가
+                    // username을 body로 보내야 할 수도 있음 (서버 구현 확인 - Spring Security WebAuthn은 username 자동 감지 시도)
+                },
+                // body: JSON.stringify({ username: "user_identifier_if_needed" }) // 필요시 username 전달
             });
 
             if (!optionsResponse.ok) {
@@ -52,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const publicKeyCredentialRequestOptions = await optionsResponse.json();
             console.log("Received PublicKeyCredentialRequestOptions:", publicKeyCredentialRequestOptions);
 
-            // challenge가 base64url 인코딩된 문자열로 오면 ArrayBuffer로 변환 필요
             if (publicKeyCredentialRequestOptions.challenge) {
                 publicKeyCredentialRequestOptions.challenge = base64UrlToArraryBuffer(publicKeyCredentialRequestOptions.challenge);
             }
@@ -64,60 +70,74 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-
-            // 2. navigator.credentials.get() 호출
             displayMessage("Passkey 장치로 인증을 확인해주세요...", "info");
             const assertion = await navigator.credentials.get({ publicKey: publicKeyCredentialRequestOptions });
             console.log("Received assertion from authenticator:", assertion);
 
-            // 3. 서버로 Assertion 결과 전송
             displayMessage("인증 결과를 서버로 전송 중...", "info");
-
-            // ArrayBuffer 들을 base64url 문자열로 변환하여 JSON 으로 전송
-            const assertionResponse = {
+            const assertionResponseForServer = {
                 id: arrayBufferToBase64Url(assertion.rawId),
                 rawId: arrayBufferToBase64Url(assertion.rawId),
                 type: assertion.type,
-                response: {
-                    authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
-                    clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
-                    signature: arrayBufferToBase64Url(assertion.response.signature),
-                    userHandle: assertion.response.userHandle ? arrayBufferToBase64Url(assertion.response.userHandle) : null,
-                },
+                clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
+                authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
+                signature: arrayBufferToBase64Url(assertion.response.signature),
+                userHandle: assertion.response.userHandle ? arrayBufferToBase64Url(assertion.response.userHandle) : null,
             };
 
-
+            // 로그인 처리 URL은 Spring Security WebAuthn이 기본 제공하는 /login/webauthn 또는 커스텀 엔드포인트
+            // 현재 PlatformSecurityConfig에는 `/login/webauthn`으로 단일 Passkey 로그인 처리 경로가 설정됨
             const loginResponse = await fetch("/login/webauthn", {
                 method: "POST",
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    [csrfHeader]: csrfToken
+                    ...( (csrfToken && csrfHeader) && { [csrfHeader]: csrfToken } ),
+                    "X-Device-Id": deviceId
                 },
-                body: JSON.stringify(assertionResponse)
+                body: JSON.stringify(assertionResponseForServer)
             });
 
-            if (loginResponse.ok) {
-                // 서버에서 로그인 성공 시 토큰 등을 반환할 수 있음.
-                // 현재 프로젝트에서는 성공 시 페이지 리다이렉션 또는 SecurityContext에 인증 정보 저장.
-                // init-auth.js가 토큰을 처리하거나, 서버가 쿠키를 설정할 것임.
+            const result = await loginResponse.json().catch(() => null); // 모든 응답을 JSON으로 파싱 시도
+
+            if (loginResponse.ok && result) {
+                if (result.status === "MFA_REQUIRED") {
+                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
+                    // Passkey 인증은 username을 직접 입력받지 않으므로, 서버가 인증된 username을 내려주거나,
+                    // mfaUsername을 비워두고 mfa-select-factor.js 에서 서버에 mfaSessionId만으로 사용자 정보를 요청해야 할 수 있음.
+                    // 여기서는 서버가 result.username 등을 내려준다고 가정하거나, mfaUsername 없이 진행.
+                    // 일반적으로 Passkey 인증 후에는 username을 알 수 있으므로, 서버가 result.username을 포함해주는 것이 좋음.
+                    const mfaUsername = result.username || 'PasskeyUser'; // 서버 응답에 username이 있다고 가정
+                    sessionStorage.setItem("mfaUsername", mfaUsername);
+
+                    showToast("Passkey 인증 성공. 2차 인증이 필요합니다.", "info", 2000);
+                    setTimeout(() => {
+                        window.location.href = result.nextStepUrl || "/mfa/select-factor";
+                    }, 1500);
+                    return;
+                }
+
+                // MFA가 필요 없는 일반 성공
+                const authMode = localStorage.getItem("authMode") || "header";
+                if (authMode === "header" || authMode === "header_cookie") {
+                    if(result.accessToken) TokenMemory.accessToken = result.accessToken;
+                    if (authMode === "header" && result.refreshToken) {
+                        TokenMemory.refreshToken = result.refreshToken;
+                    }
+                }
                 displayMessage("Passkey 인증 성공!", "success");
-                // 서버 응답에 따라 토큰 저장 로직 추가 가능
-                // const result = await loginResponse.json();
-                // TokenMemory.accessToken = result.accessToken;
-                // TokenMemory.refreshToken = result.refreshToken;
+                showToast("Passkey 인증 성공!", "success");
                 setTimeout(() => {
-                    window.location.href = "/"; // 성공 시 홈으로
+                    window.location.href = result.redirectUrl || "/";
                 }, 1000);
             } else {
-                const errorData = await loginResponse.json().catch(() => ({message: "Passkey 인증 실패"}));
-                throw new Error(`인증 실패: ${errorData.message || loginResponse.statusText}`);
+                const errorMessage = result?.message || (loginResponse.status === 401 ? "Passkey 인증에 실패했습니다." : "알 수 없는 오류.");
+                throw new Error(`인증 실패: ${errorMessage}`);
             }
 
         } catch (error) {
             console.error("Passkey login error:", error);
             displayMessage(`오류: ${error.message}`, "error");
-            // navigator.credentials.get() 취소 시 AbortError 또는 NotAllowedError 발생 가능
             if (error.name === "NotAllowedError") {
                 displayMessage("Passkey 인증이 사용자에 의해 취소되었거나, 허용되지 않은 작업입니다.", "info");
             } else if (error.name === "AbortError") {
@@ -128,7 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Base64URL to ArrayBuffer
     function base64UrlToArraryBuffer(base64Url) {
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const raw = window.atob(base64);
@@ -139,7 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return buffer.buffer;
     }
 
-    // ArrayBuffer to Base64URL
     function arrayBufferToBase64Url(buffer) {
         const bytes = new Uint8Array(buffer);
         let str = '';
@@ -148,5 +166,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const base64 = window.btoa(str);
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function getOrCreateDeviceId() {
+        let deviceId = localStorage.getItem("deviceId");
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem("deviceId", deviceId);
+        }
+        return deviceId;
     }
 });

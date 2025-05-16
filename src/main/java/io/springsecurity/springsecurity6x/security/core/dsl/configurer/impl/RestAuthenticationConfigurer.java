@@ -14,6 +14,7 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository; // 기본값으로 사용
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -88,7 +89,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         if (securityContextRepository != null) {
             restFilter.setSecurityContextRepository(securityContextRepository);
         } else {
-            restFilter.setSecurityContextRepository(new HttpSessionSecurityContextRepository());
+            restFilter.setSecurityContextRepository(new RequestAttributeSecurityContextRepository());
         }
         http.addFilterBefore(postProcess(restFilter), UsernamePasswordAuthenticationFilter.class);
     }

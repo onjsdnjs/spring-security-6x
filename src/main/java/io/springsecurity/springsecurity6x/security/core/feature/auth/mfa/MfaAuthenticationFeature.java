@@ -23,7 +23,9 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
 
     private static final Logger log = LoggerFactory.getLogger(MfaAuthenticationFeature.class);
     private static final String ID = "mfa";
-    private final ApplicationContext applicationContext;
+    private ApplicationContext applicationContext;
+
+    public MfaAuthenticationFeature() {}
 
     public MfaAuthenticationFeature(ApplicationContext applicationContext) {
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null for MfaAuthenticationFeature");
@@ -71,7 +73,7 @@ public class MfaAuthenticationFeature implements AuthenticationFeature {
 
         // 1. MFA 흐름 제어 공통 필터 추가
         // MfaOrchestrationFilter의 RequestMatcher는 해당 MFA 플로우 내의 특정 API 경로들을 포함해야 함.
-        // SecurityConfig에서 HttpSecurity 객체에 requestMatcher()를 통해 이 MFA FilterChain이 적용될 경로를 지정.
+        // SecurityConfig 에서 HttpSecurity 객체에 requestMatcher()를 통해 이 MFA FilterChain이 적용될 경로를 지정.
         // 따라서 MfaOrchestrationFilter는 해당 FilterChain 내에서 모든 요청에 대해 동작하게 됨 (내부에서 다시 requestMatcher로 거름).
         MfaOrchestrationFilter mfaOrchestrationFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine);
         http.addFilterBefore(mfaOrchestrationFilter, LogoutFilter.class); // 예시 위치

@@ -17,9 +17,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
-@AutoConfiguration
+@Configuration
 @EnableConfigurationProperties(AuthContextProperties.class)
 @RequiredArgsConstructor
 public class MfaInfrastructureAutoConfiguration {
@@ -57,7 +58,7 @@ public class MfaInfrastructureAutoConfiguration {
     }
 
     @Bean
-//    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean
     public MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler(ContextPersistence contextPersistence,
                                                                            MfaPolicyProvider mfaPolicyProvider) {
         String failureUrl = authContextProperties.getMfa() != null && authContextProperties.getMfa().getFailureUrl() != null ?
@@ -66,7 +67,7 @@ public class MfaInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "jwtLogoutHandler") // 이름으로 구분
+    @ConditionalOnMissingBean
     public LogoutHandler jwtLogoutHandler(TokenService tokenService) {
         return new JwtLogoutHandler(tokenService);
     }

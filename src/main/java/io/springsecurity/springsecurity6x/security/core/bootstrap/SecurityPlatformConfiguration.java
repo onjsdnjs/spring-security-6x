@@ -10,7 +10,9 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import jakarta.servlet.Filter;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.ObjectProvider;
@@ -25,6 +27,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 
 import java.util.List;

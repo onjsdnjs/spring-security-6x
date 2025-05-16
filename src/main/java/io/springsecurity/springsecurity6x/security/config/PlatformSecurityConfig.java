@@ -48,7 +48,7 @@ public class PlatformSecurityConfig {
     private final TokenService tokenService; // 자동 설정된 Bean
     private final MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler;
     private final MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler;
-//    private final MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler;
+    private final MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler;
 
 
     // 단일 인증 성공 시 JWT를 발급하는 핸들러 (POJO로 생성하여 사용)
@@ -138,13 +138,13 @@ public class PlatformSecurityConfig {
                                 .tokenService(emailOneTimeTokenService)
                                 .loginProcessingUrl("/login/mfa-ott")
                                 .successHandler(mfaStepBasedSuccessHandler)
-//                                .failureHandler(mfaAuthenticationFailureHandler)
+                                .failureHandler(mfaAuthenticationFailureHandler)
                         )
                         .passkey(passkey -> passkey
                                 .rpId(rpId)
                                 .loginProcessingUrl("/login/mfa-passkey")
                                 .successHandler(mfaStepBasedSuccessHandler)
-//                                .failureHandler(mfaAuthenticationFailureHandler)
+                                .failureHandler(mfaAuthenticationFailureHandler)
                         )
                         .finalSuccessHandler(mfaStepBasedSuccessHandler) // 모든 MFA 단계 완료 후
                 )

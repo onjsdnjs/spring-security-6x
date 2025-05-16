@@ -22,11 +22,11 @@ public class JwtStateFeature implements StateFeature {
     @Override
     public void apply(HttpSecurity http, PlatformContext ctx) throws Exception {
 
-        TokenService service = JwtTokenServiceFactory.createService(ctx);
-        LogoutHandler logoutHandler = new JwtLogoutHandler(service);
+        TokenService tokenService = ctx.applicationContext().getBean(TokenService.class);
+        JwtLogoutHandler logoutHandler = ctx.applicationContext().getBean(JwtLogoutHandler.class);
         LogoutSuccessHandler successHandler = new JwtLogoutSuccessHandler();
 
-        http.setSharedObject(TokenService.class, service);
+        http.setSharedObject(TokenService.class, tokenService);
         http.setSharedObject(LogoutHandler.class, logoutHandler);
         http.setSharedObject(LogoutSuccessHandler.class, successHandler);
 

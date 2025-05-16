@@ -42,7 +42,7 @@ public class JwtTokenService implements TokenService {
         Assert.notNull(tokenStore, "tokenStore cannot be null");
         Assert.notNull(transport, "transport cannot be null");
         Assert.notNull(props, "props cannot be null");
-        Assert.notNull(objectMapper, "props cannot be null");
+        Assert.notNull(objectMapper, "objectMapper cannot be null");
 
         this.tokenCreator = tokenCreator;
         this.tokenValidator = tokenValidator;

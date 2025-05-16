@@ -26,7 +26,7 @@ public class FeatureRegistry {
         ServiceLoader.load(AuthenticationFeature.class, getClass().getClassLoader())
                 .forEach(f -> {
                     AuthenticationFeature featureInstance = f;
-                    if (f instanceof MfaAuthenticationFeature) { // 타입 체크로 변경
+                    if (f instanceof MfaAuthenticationFeature) {
                         try {
                             featureInstance = f.getClass()
                                     .asSubclass(AuthenticationFeature.class)

@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-@Component // 만약 Bean으로 등록되어 사용된다면
+@Component
 @RequiredArgsConstructor
 public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler { // 인터페이스 추가
 

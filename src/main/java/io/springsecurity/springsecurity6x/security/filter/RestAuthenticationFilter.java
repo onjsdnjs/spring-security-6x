@@ -122,8 +122,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.securityContextRepository = securityContextRepository;
     }
 
-    // setSecurityContextHolderStrategy는 보통 기본값을 사용하므로 Setter 생략 가능
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

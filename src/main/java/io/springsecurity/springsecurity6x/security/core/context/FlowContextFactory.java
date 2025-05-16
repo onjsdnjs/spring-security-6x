@@ -1,15 +1,15 @@
 package io.springsecurity.springsecurity6x.security.core.context;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.DefaultRiskEngine;
-import io.springsecurity.springsecurity6x.security.core.mfa.*;
+import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.*;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.CollectionUtils;
@@ -49,11 +49,7 @@ public class FlowContextFactory {
             http.setSharedObject(AuthenticationFlowConfig.class, flowCfg);
             // PlatformContext 자체도 HttpSecurity에 공유 (AbstractAuthenticationFeature 등에서 ApplicationContext 접근용)
             http.setSharedObject(PlatformContext.class, platformContext);
-
-
-            io.springsecurity.springsecurity6x.security.core.context.FlowContext fc =
-                    new io.springsecurity.springsecurity6x.security.core.context.FlowContext(flowCfg, http, platformContext, config);
-
+            FlowContext fc = new FlowContext(flowCfg, http, platformContext, config);
             setupSharedObjectsForFlow(fc); // HttpSecurity에 필요한 공유 객체들 설정
             flows.add(fc);
         }
@@ -62,13 +58,9 @@ public class FlowContextFactory {
         return flows;
     }
 
-    // setupSharedObjectsForFlow 메서드는 이전과 유사하게 유지
     private void setupSharedObjectsForFlow(io.springsecurity.springsecurity6x.security.core.context.FlowContext fc) {
-        // ... (이전 답변의 setupSharedObjectsForFlow 로직 참고) ...
-        // 이 메서드 내부에서 ApplicationContext를 사용해야 한다면, 생성자에서 받은 this.applicationContext 사용
         HttpSecurity http = fc.http();
         AuthenticationFlowConfig flowConfig = fc.flow();
-        // ApplicationContext appContext = platformContext.applicationContext(); // PlatformContext에서 가져오거나
         ApplicationContext appContext = this.applicationContext; // 직접 주입받은 것 사용
 
         log.debug("Setting up shared objects for flow: {}", flowConfig.getTypeName());
@@ -76,26 +68,26 @@ public class FlowContextFactory {
         boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.getTypeName());
         if (isMfaFlow) {
             log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
-            // MfaInfrastructureAutoConfiguration 등에서 빈으로 등록된 MFA 핵심 서비스들을 HttpSecurity에 공유
-            setSharedObjectIfAbsent(http, io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence.class, () -> appContext.getBean(io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence.class));
-            setSharedObjectIfAbsent(http, io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider.class, () -> appContext.getBean(io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider.class));
-            setSharedObjectIfAbsent(http, io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager.class, () -> new io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager(flowConfig));
+            setSharedObjectIfAbsent(http, ContextPersistence.class, () -> appContext.getBean(ContextPersistence.class));
+            setSharedObjectIfAbsent(http, MfaPolicyProvider.class, () -> appContext.getBean(MfaPolicyProvider.class));
+            setSharedObjectIfAbsent(http, StateMachineManager.class, () -> new StateMachineManager(flowConfig));
+            setSharedObjectIfAbsent(http, ObjectMapper.class, ObjectMapper::new);
 
-            if (http.getSharedObject(io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry.class) == null) {
+            if (http.getSharedObject(StateHandlerRegistry.class) == null) {
                 try {
-                    io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider policyProvider = appContext.getBean(io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider.class);
-                    List<io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaStateHandler> handlers = List.of(
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.PrimaryAuthCompletedStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.AutoAttemptFactorStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.FactorSelectionStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.ChallengeInitiatedStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.VerificationPendingStateHandler(policyProvider),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.OttStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.PasskeyStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.RecoveryStateHandler(),
-                            new io.springsecurity.springsecurity6x.security.core.mfa.handler.TokenStateHandler()
+                    MfaPolicyProvider policyProvider = appContext.getBean(MfaPolicyProvider.class);
+                    List<MfaStateHandler> handlers = List.of(
+                            new PrimaryAuthCompletedStateHandler(),
+                            new AutoAttemptFactorStateHandler(),
+                            new FactorSelectionStateHandler(),
+                            new ChallengeInitiatedStateHandler(),
+                            new VerificationPendingStateHandler(policyProvider),
+                            new OttStateHandler(),
+                            new PasskeyStateHandler(),
+                            new RecoveryStateHandler(),
+                            new TokenStateHandler()
                     );
-                    http.setSharedObject(io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry.class, new io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry(handlers));
+                    http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers));
                 } catch (Exception e) { // NoSuchBeanDefinitionException 포함
                     log.error("Failed to get MfaPolicyProvider bean for StateHandlerRegistry setup in flow: {}. Error: {}", flowConfig.getTypeName(), e.getMessage());
                 }

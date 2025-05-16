@@ -134,7 +134,7 @@ public class PlatformSecurityConfig {
                                 .successHandler(mfaStepBasedSuccessHandler)
                                 .failureHandler(mfaAuthenticationFailureHandler)
                         )
-                        .finalSuccessHandler(mfaStepBasedSuccessHandler) // 모든 MFA 단계 완료 후
+                        .finalSuccessHandler(mfaStepBasedSuccessHandler)
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
                         .mfaFailureHandler(mfaAuthenticationFailureHandler)
                         .order(40)

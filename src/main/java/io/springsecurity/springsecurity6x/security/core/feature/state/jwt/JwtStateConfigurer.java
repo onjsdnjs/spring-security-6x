@@ -1,8 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.http.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,10 +22,11 @@ public class JwtStateConfigurer extends AbstractHttpConfigurer<JwtStateConfigure
 
         TokenService service = http.getSharedObject(TokenService.class);
         LogoutHandler logoutHandler = http.getSharedObject(LogoutHandler.class);
+        ObjectMapper objectMapper = http.getSharedObject(ObjectMapper.class);
 
         http.addFilterBefore(new JwtPreAuthenticationFilter(service), LogoutFilter.class);
         http.addFilterAfter(new JwtAuthorizationFilter(service, logoutHandler), ExceptionTranslationFilter.class);
-        http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, logoutHandler), JwtAuthorizationFilter.class);
+        http.addFilterAfter(new JwtRefreshAuthenticationFilter(service, logoutHandler, new JsonAuthResponseWriter(objectMapper)), JwtAuthorizationFilter.class);
     }
 }
 

@@ -38,7 +38,7 @@ import java.util.Map;
 @Slf4j
 public class RestAuthenticationFilter extends OncePerRequestFilter {
 
-    private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
+    private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
     private final RequestMatcher requestMatcher;
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -50,8 +50,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
 
-    // 전역 설정에서 주입받을 MFA 관련 URL (예시)
-    private final String mfaInitiateUrl; // 예: "/mfa" 또는 "/mfa/initiate"
+    private final String mfaInitiateUrl;
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
@@ -70,12 +69,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.requestMatcher = requestMatcher;
         this.mfaInitiateUrl = mfaInitiateUrl;
 
-        // 기본 핸들러 설정
-        this.successHandler = defaultSuccessHandler(); // MFA 불필요 시 사용될 핸들러
+        this.successHandler = defaultSuccessHandler();
         this.failureHandler = defaultFailureHandler();
     }
 
-    // 기본 성공 핸들러 (MFA가 필요 없는 경우 또는 토큰 기반 인증에서 토큰 발급 등)
     private AuthenticationSuccessHandler defaultSuccessHandler() {
         return (request, response, authentication) -> {
             log.info("DefaultSuccessHandler: Primary authentication successful for user: {}. No MFA required or MFA flow handled separately.", authentication.getName());

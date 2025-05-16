@@ -11,6 +11,8 @@ import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFail
 import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
+import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.http.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +48,8 @@ public class MfaInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler(ContextPersistence contextPersistence,
-                                                                     MfaPolicyProvider mfaPolicyProvider) {
-        return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService, authContextProperties);
+                                                                     MfaPolicyProvider mfaPolicyProvider, AuthResponseWriter authResponseWriter) {
+        return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService, authContextProperties, authResponseWriter);
     }
 
     @Bean
@@ -89,5 +91,11 @@ public class MfaInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean
     public LogoutHandler jwtLogoutHandler(TokenService tokenService) {
         return new JwtLogoutHandler(tokenService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthResponseWriter authResponseWriter(ObjectMapper objectMapper) {
+        return new JsonAuthResponseWriter(objectMapper);
     }
 }

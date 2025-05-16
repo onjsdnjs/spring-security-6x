@@ -137,7 +137,7 @@ public class PlatformSecurityConfig {
                         .finalSuccessHandler(mfaStepBasedSuccessHandler)
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
                         .mfaFailureHandler(mfaAuthenticationFailureHandler)
-                        .order(40)
+                        .order(5)
                 )
                 .jwt(Customizer.withDefaults())
                 .build();

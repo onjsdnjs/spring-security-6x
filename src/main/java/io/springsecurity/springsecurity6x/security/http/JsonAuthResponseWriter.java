@@ -17,8 +17,8 @@ public class JsonAuthResponseWriter implements AuthResponseWriter {
     }
 
     @Override
-    public void writeSuccessResponse(HttpServletResponse response, Object data) throws IOException {
-        response.setStatus(HttpServletResponse.SC_OK);
+    public void writeSuccessResponse(HttpServletResponse response, Object data, int code) throws IOException {
+        response.setStatus(code);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), data);

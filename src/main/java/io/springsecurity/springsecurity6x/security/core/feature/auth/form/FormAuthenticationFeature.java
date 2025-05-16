@@ -1,77 +1,38 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth.form;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Supplier;
-
-/**
- * Form 기반 로그인 전략을 적용하는 Feature 구현체
- */
-public class FormAuthenticationFeature implements AuthenticationFeature {
+public class FormAuthenticationFeature extends AbstractAuthenticationFeature<FormOptions> {
 
     @Override
     public String getId() {
         return AuthType.FORM.name().toLowerCase();
     }
-    @Override public int getOrder() { return 100; }
 
-    /**
-     * @param http HttpSecurity
-     * @param steps DSL로 정의된 인증 단계 설정 리스트 (여기서는 FormOptions로 변환 가능)
-     * @param state 최종 인증 상태 (session, jwt 등)
-     */
     @Override
-    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
+    public int getOrder() {
+        return 100;
+    }
 
-        if (steps == null || steps.isEmpty()) return;
-
-        AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.FORM.name().equalsIgnoreCase(s.getType()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Form step config missing"));
-
-        FormOptions opts = (FormOptions) myStep.getOptions().get("_options");
-        int idx = steps.indexOf(myStep);
-        boolean last = idx == steps.size() - 1;
-        Supplier<TokenService> tokenSupplier = () ->
-                http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
-
-        AuthenticationSuccessHandler orig = opts.getSuccessHandler() != null
-                ? opts.getSuccessHandler()
-                : new SimpleUrlAuthenticationSuccessHandler(opts.getDefaultSuccessUrl());
-
-        AuthenticationSuccessHandler successHandler = last
-                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, orig)
-                : MfaStepSuccessHandler.forAuthStep(steps, idx);
-
-
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, FormOptions opts,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {
         http.formLogin(form -> {
-            // apply basic options
             form.loginPage(opts.getLoginPage())
-                .loginProcessingUrl(opts.getLoginProcessingUrl())
-                .usernameParameter(opts.getUsernameParameter())
-                .passwordParameter(opts.getPasswordParameter())
-                .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
-                .failureUrl(opts.getFailureUrl())
-                .permitAll(opts.isPermitAll())
-                .successHandler(successHandler)
-                .failureHandler(opts.getFailureHandler());
+                    .loginProcessingUrl(opts.getLoginProcessingUrl())
+                    .usernameParameter(opts.getUsernameParameter())
+                    .passwordParameter(opts.getPasswordParameter())
+                    .failureUrl(opts.getFailureUrl())
+                    .permitAll(opts.isPermitAll())
+                    .successHandler(successHandler)
+                    .failureHandler(failureHandler);
 
             if (opts.getSecurityContextRepository() != null) {
                 form.securityContextRepository(opts.getSecurityContextRepository());
@@ -82,15 +43,9 @@ public class FormAuthenticationFeature implements AuthenticationFeature {
                 try {
                     rawLogin.customize(form);
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    throw new RuntimeException("Error customizing raw form login for " + getId(), e);
                 }
             }
         });
-
-        List<SafeHttpCustomizer<HttpSecurity>> httpCustomizers = opts.getRawHttpCustomizers();
-        for (SafeHttpCustomizer<HttpSecurity> customizer : httpCustomizers) {
-            Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
-        }
     }
 }
-

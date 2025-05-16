@@ -37,19 +37,22 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         if (mfaActuallyRequired) {
             Set<AuthType> registeredFactors = getRegisteredMfaFactorsForUser(username);
+            // FactorContext에 사용자의 등록된 MFA 요소 설정
             ctx.setRegisteredMfaFactors(registeredFactors != null ? EnumSet.copyOf(registeredFactors) : EnumSet.noneOf(AuthType.class));
 
             if (CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
                 log.warn("MFA is required for user '{}' (session {}), but no MFA factors are registered. MFA cannot proceed.", username, ctx.getMfaSessionId());
-                ctx.setMfaRequired(false);
+                ctx.setMfaRequired(false); // 등록된 요소가 없으면 MFA를 요구할 수 없음
             } else {
-                ctx.setPreferredAutoAttemptFactor(determinePreferredAutoAttemptFactor(username, registeredFactors, ctx));
+                // getPreferredAutoAttemptFactor(FactorContext ctx) 호출로 변경
+                ctx.setPreferredAutoAttemptFactor(getPreferredAutoAttemptFactor(ctx));
                 log.info("MFA policy evaluated for user {}: MFA Required={}, Registered Factors={}, PreferredAutoAttempt={}. Session: {}",
                         username, ctx.isMfaRequired(), ctx.getRegisteredMfaFactors(), ctx.getPreferredAutoAttemptFactor(), ctx.getMfaSessionId());
             }
         } else {
             log.info("MFA policy evaluated for user {}: MFA Not Required. Session: {}", username, ctx.getMfaSessionId());
-            ctx.setRegisteredMfaFactors(EnumSet.noneOf(AuthType.class));
+            ctx.setRegisteredMfaFactors(EnumSet.noneOf(AuthType.class)); // MFA가 필요 없으면 등록된 요소도 없음으로 처리
+            ctx.setPreferredAutoAttemptFactor(null); // 선호 자동 시도 요소도 없음으로 처리
         }
     }
 

@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
@@ -39,18 +41,16 @@ public class MfaStepSuccessHandler {
     /**
      * 최종 인증 단계: TokenIssuingSuccessHandler를 통해 토큰 발급
      */
-    public static AuthenticationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
-                                                            AuthenticationSuccessHandler delegate) {
-        return new CustomTokenIssuingSuccessHandler(tokenSupplier, delegate);
+    public static AuthenticationSuccessHandler forTokenStep(TokenService tokenService, ContextPersistence ctxService, ObjectMapper objectMapper) {
+        return new CustomTokenIssuingSuccessHandler(tokenService, ctxService, objectMapper);
     }
 
     /**
      * 최종 OTT 단계: TokenIssuingSuccessHandler를 통해 토큰 발급
      */
-    public static OneTimeTokenGenerationSuccessHandler forTokenStep(Supplier<TokenService> tokenSupplier,
-                                                                    OneTimeTokenGenerationSuccessHandler delegate) {
-        return new CustomTokenIssuingSuccessHandler(tokenSupplier, delegate);
-    }
+   /* public static OneTimeTokenGenerationSuccessHandler forTokenStep(TokenService tokenService, ContextPersistence ctxService, ObjectMapper objectMapper) {
+        return new CustomTokenIssuingSuccessHandler(tokenService, ctxService, objectMapper);
+    }*/
 
     /**
      * Options 객체에서 targetUrl 추출

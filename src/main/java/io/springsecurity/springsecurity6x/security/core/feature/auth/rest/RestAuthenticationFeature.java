@@ -1,37 +1,18 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import org.springframework.http.MediaType;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Supplier;
-
-/**
- * REST 기반 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
- *
- * - DSL로 설정된 RestOptions(matchers, loginProcessingUrl, defaultSuccessUrl, failureUrl 등)을
- *   HttpSecurity.with(RestAuthenticationConfigurer) 블록 안에서 구성합니다.
- * - 성공/실패 핸들러와 SecurityContextRepository는 옵션이 없으면 기본 핸들러(provider를 통해 주입된)를 사용합니다.
- */
-public class RestAuthenticationFeature implements AuthenticationFeature {
+public class RestAuthenticationFeature extends AbstractAuthenticationFeature<RestOptions> {
 
     @Override
     public String getId() {
-        return "rest";
+        return AuthType.REST.name().toLowerCase();
     }
 
     @Override
@@ -40,47 +21,31 @@ public class RestAuthenticationFeature implements AuthenticationFeature {
     }
 
     @Override
-    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
-        if (steps == null || steps.isEmpty()) {
-            return;
-        }
-        AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.REST.name().equalsIgnoreCase(s.getType()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Form step config missing"));
-
-        RestOptions opts = (RestOptions) myStep.getOptions().get("_options");
-        int idx = steps.indexOf(myStep);
-        boolean last = idx == steps.size() - 1;
-        Supplier<TokenService> tokenSupplier = () -> http.getSharedObject(TokenService.class);
-
-        // 기존 핸들러
-        AuthenticationSuccessHandler orig = opts.getSuccessHandler() != null
-                ? opts.getSuccessHandler()
-                : (req,res,auth) -> {
-            res.setStatus(200);
-            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            new ObjectMapper().writeValue(res.getWriter(), Map.of("message","인증 성공"));
-        };
-
-        // 단계별 핸들러
-        AuthenticationSuccessHandler handler = last
-                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, orig)
-                : MfaStepSuccessHandler.forAuthStep(steps, idx);
-
-
+    protected void configureHttpSecurity(HttpSecurity http, RestOptions opts,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {
         http.with(new RestAuthenticationConfigurer(), rest -> {
             rest.loginProcessingUrl(opts.getLoginProcessingUrl())
-                .successHandler(handler);
-            if (opts.getFailureHandler() != null) rest.failureHandler(opts.getFailureHandler());
-            if (opts.getSecurityContextRepository() != null)
+                    .successHandler(successHandler)
+                    .failureHandler(failureHandler);
+
+            if (opts.getSecurityContextRepository() != null) {
                 rest.securityContextRepository(opts.getSecurityContextRepository());
+            }
 
+            // mfaInitiateUrl 설정은 RestAuthenticationConfigurer 내부에서
+            // PlatformContext나 AuthContextProperties를 통해 가져오도록 하는 것이 더 깔끔할 수 있습니다.
+            // 현재 AbstractAuthenticationFeature 에서는 이 부분을 직접 다루지 않습니다.
+            // 필요하다면 options 객체에 mfaInitiateUrl을 포함시키거나,
+            // AbstractAuthenticationFeature의 apply 메소드에서 appContext를 통해 설정할 수 있습니다.
         });
-
-        for (SafeHttpCustomizer<HttpSecurity> customizer : opts.getRawHttpCustomizers()) {
-            Objects.requireNonNull(customizer, "rawHttp customizer must not be null").customize(http);
-        }
     }
+
+    // REST API의 경우, AbstractAuthenticationFeature의 determineDefaultFailureUrl이
+    // SimpleUrlAuthenticationFailureHandler를 생성하므로, JSON 오류 응답을 보내는
+    // 기본 실패 핸들러를 사용하도록 apply 메소드에서 직접 설정했습니다.
+    // 따라서 이 메소드는 호출되지 않거나, 호출되더라도 REST에 적합한 URL을 반환하지 않을 수 있습니다.
+    // AbstractAuthenticationFeature의 apply 메소드에서 failureHandler가 null일 때
+    // REST 타입에 대한 특별 처리가 이미 추가되었습니다.
 }
 

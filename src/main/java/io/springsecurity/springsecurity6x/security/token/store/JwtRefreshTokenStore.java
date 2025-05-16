@@ -38,7 +38,7 @@ public class JwtRefreshTokenStore implements RefreshTokenStore {
         return username + ":" + deviceId;
     }
 
-    @Override
+    @Override // 동시성 문제 고려
     public void save(String refreshToken, String username) {
         Objects.requireNonNull(refreshToken, "refreshToken cannot be null");
         Objects.requireNonNull(username, "username cannot be null");

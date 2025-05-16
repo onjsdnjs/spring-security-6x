@@ -1,41 +1,19 @@
 package io.springsecurity.springsecurity6x.security.core.feature.auth.ott;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
-import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.handler.MfaStepSuccessHandler;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 
-/**
- * OTT(One-Time Token) 로그인 전략을 HttpSecurity에 적용하는 AuthenticationFeature 구현체입니다.
- *
- * DSL로 설정된 OttOptions를 읽어서:
- *  - URL 매처(matchers)
- *  - 토큰 제출 페이지 URL(defaultSubmitPageUrl)
- *  - 로그인 처리 URL(loginProcessingUrl)
- *  - 토큰 생성 엔드포인트(tokenGeneratingUrl)
- *  - 토큰 서비스(tokenService)
- *  - 토큰 생성 성공 핸들러(tokenGenerationSuccessHandler)
- * 등을 설정합니다.
- */
-public class OttAuthenticationFeature implements AuthenticationFeature {
+public class OttAuthenticationFeature extends AbstractAuthenticationFeature<OttOptions> {
 
     @Override
     public String getId() {
-        return "ott";
+        return AuthType.OTT.name().toLowerCase();
     }
 
     @Override
@@ -44,49 +22,28 @@ public class OttAuthenticationFeature implements AuthenticationFeature {
     }
 
     @Override
-    public void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception {
-        if (steps == null || steps.isEmpty()) {
-            return;
-        }
-        AuthenticationStepConfig myStep = steps.stream()
-                .filter(s -> AuthType.OTT.name().equalsIgnoreCase(s.getType()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("OTT step config missing"));
+    protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
+                                         AuthenticationSuccessHandler successHandler, // 이 파라미터는 사용되지 않음
+                                         AuthenticationFailureHandler failureHandler) throws Exception {
+        // OttAuthenticationFeature는 OneTimeTokenGenerationSuccessHandler를 사용하므로 이 메소드는 호출되지 않아야 함.
+        // 만약 호출된다면 설정 오류이므로 예외 발생.
+        throw new UnsupportedOperationException(
+                "OttAuthenticationFeature uses OneTimeTokenGenerationSuccessHandler, not AuthenticationSuccessHandler for its primary success path."
+        );
+    }
 
-        OttOptions opts = (OttOptions) myStep.getOptions().get("_options");
-        int idx = steps.indexOf(myStep);
-        boolean last = idx == steps.size() - 1;
-        Supplier<TokenService> tokenSupplier = () ->
-                http.getSharedObject(PlatformContext.class).getShared(TokenService.class);
-
-        OneTimeTokenGenerationSuccessHandler origHandler = opts.getTokenGenerationSuccessHandler() != null
-                ? opts.getTokenGenerationSuccessHandler()
-                : (request, response, oneTimeToken) -> {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-                    try {
-                        new ObjectMapper().writeValue(response.getWriter(), Map.of(
-                                "message", "인증 성공",
-                                "token", oneTimeToken.getTokenValue()
-                        ));
-                    } catch (IOException e) {
-                        throw new RuntimeException("JSON 응답 실패", e);
-                    }
-                };
-
-
-        OneTimeTokenGenerationSuccessHandler successHandler = last
-                ? MfaStepSuccessHandler.forTokenStep(tokenSupplier, origHandler)
-                : MfaStepSuccessHandler.forOttStep(steps, idx);
-
-        // one-time-token 로그인 DSL 적용
+    // OneTimeTokenGenerationSuccessHandler를 받는 메소드를 오버라이드하여 실제 설정 수행
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, OttOptions opts,
+                                         OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
-                    .loginProcessingUrl(opts.getLoginProcessingUrl())
-                    .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
-                    .tokenGeneratingUrl(opts.getTokenGeneratingUrl())
-                    .tokenService(opts.getOneTimeTokenService())
-                    .tokenGenerationSuccessHandler(successHandler);
+                    .loginProcessingUrl(opts.getLoginProcessingUrl()) // 사용자가 링크 클릭 시 토큰 검증 및 로그인 처리 URL
+                    .showDefaultSubmitPage(opts.isShowDefaultSubmitPage()) // 토큰 입력 폼 페이지 표시 여부
+                    .tokenGeneratingUrl(opts.getTokenGeneratingUrl()) // 클라이언트가 토큰 생성을 요청하는 URL
+                    .tokenService(opts.getOneTimeTokenService()) // OneTimeTokenService 빈
+                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler); // 토큰 *생성* 성공 시 핸들러
         });
     }
 }

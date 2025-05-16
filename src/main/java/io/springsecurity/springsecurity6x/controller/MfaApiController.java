@@ -12,8 +12,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialDescriptor;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.util.Assert;
@@ -35,9 +33,9 @@ public class MfaApiController {
     private final ContextPersistence contextPersistence;
     private final EmailOneTimeTokenService emailOttService;
     private final AuthContextProperties authContextProperties;
-    private final RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
+//    private final RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
     // WebAuthnCredentialRecordStore는 사용자의 등록된 Passkey ID 목록(allowCredentials)을 가져올 때 필요. 자동 설정 또는 명시적 Bean 주입.
-    private final WebAuthnCredentialRecordStore webAuthnCredentialRecordStore;
+//    private final WebAuthnCredentialRecordStore webAuthnCredentialRecordStore;
     private final ApplicationContext applicationContext; // RP ID 기본값 조회용
 
     @PostMapping("/select-factor")
@@ -132,7 +130,7 @@ public class MfaApiController {
         }
 
         try {
-            String rpIdFromServer = httpServletRequest.getServerName(); // 현재 요청 호스트 사용
+            /*String rpIdFromServer = httpServletRequest.getServerName(); // 현재 요청 호스트 사용
             RelyingPartyRegistration relyingParty = relyingPartyRegistrationRepository.findByRpId(rpIdFromServer);
             if (relyingParty == null) {
                 rpIdFromServer = applicationContext.getEnvironment().getProperty("spring.security.webauthn.relyingparty.id", "localhost");
@@ -163,12 +161,13 @@ public class MfaApiController {
                 optionsBuilder.timeout(relyingParty.getAuthenticationTimeout().toMillis());
             }
 
-            PublicKeyCredentialRequestOptions assertionOptions = optionsBuilder.build();
+            PublicKeyCredentialRequestOptions assertionOptions = optionsBuilder.build();*/
 
             log.info("MFA Passkey assertion options generated for user {} (session {})", optionsRequestDto.username(), mfaSessionIdHeader);
             // 클라이언트에 전달하기 전에 challenge와 allowCredentials의 id를 Base64URL 문자열로 변환할 필요 없음
             // PublicKeyCredentialRequestOptions 객체 자체가 직렬화되어 전달됨 (내부적으로 Base64URL로 되어 있음)
-            return ResponseEntity.ok(assertionOptions.toMap());
+//            return ResponseEntity.ok(assertionOptions.toMap());
+            return null;
         } catch (Exception e) {
             log.error("Error generating MFA Passkey assertion options for user {}: {}", optionsRequestDto.username(), e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", "PASSKEY_OPTIONS_ERROR", "message", "Passkey 옵션 생성에 실패했습니다: " + e.getMessage()));

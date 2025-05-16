@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
-@Component // Spring Bean으로 등록
+@Component
 @RequiredArgsConstructor
 public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandler {
 
@@ -33,7 +33,7 @@ public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandle
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+                                        Authentication authentication) throws IOException{
         log.info("MFA Capable REST Success Handler: Primary authentication successful for user: {}", authentication.getName());
 
         // Device ID 추출 (클라이언트 JS 에서 X-Device-Id 헤더로 전송)

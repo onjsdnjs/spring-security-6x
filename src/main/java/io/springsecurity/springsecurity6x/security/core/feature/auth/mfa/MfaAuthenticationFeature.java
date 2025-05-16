@@ -19,14 +19,9 @@ import org.springframework.util.Assert;
 import java.util.List;
 
 @Slf4j
-public class MfaAuthenticationFeature implements AuthenticationFeature { // AuthenticationFeature 인터페이스 구현
+public class MfaAuthenticationFeature implements AuthenticationFeature {
 
     private static final String ID = "mfa";
-    private final ApplicationContext applicationContext; // FeatureRegistry 접근 또는 직접 Feature 생성용
-
-    public MfaAuthenticationFeature(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
-    }
 
     @Override
     public String getId() {

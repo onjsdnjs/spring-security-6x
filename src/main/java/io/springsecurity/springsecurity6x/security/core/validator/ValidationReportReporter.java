@@ -9,10 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ValidationReportReporter {
     public static void report(ValidationResult result) {
-       /* if (!result.isValid()) {
-            String joined = String.join("\n", result.getErrors());
-            throw new IllegalStateException("DSL 검증 실패:\n" + joined);
-        }*/
+
     }
 }
 

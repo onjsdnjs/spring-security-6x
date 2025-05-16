@@ -43,7 +43,7 @@ public class Users {
         this.roles = roles;
     }
 
-    // registeredMfaFactors 필드에 대한 getter (MfaWorkflowService에서 사용)
+    // registeredMfaFactors 필드에 대한 getter (MfaWorkflowService 에서 사용)
     public String getMfaFactors() {
         return registeredMfaFactors;
     }

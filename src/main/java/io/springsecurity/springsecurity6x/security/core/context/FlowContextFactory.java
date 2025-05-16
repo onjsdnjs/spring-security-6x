@@ -29,7 +29,7 @@ public class FlowContextFactory {
     }
 
     public List<FlowContext> createAndSortFlows(PlatformConfig config, PlatformContext platformContextInstanceToShare) {
-        // platformContextInstanceToShare가 null이면 심각한 문제이므로 미리 확인
+        // platformContextInstanceToShare가 null 이면 심각한 문제이므로 미리 확인
         Objects.requireNonNull(platformContextInstanceToShare, "platformContextInstanceToShare cannot be null when creating flows.");
         log.debug("FlowContextFactory creating flows with PlatformContext instance: {}", System.identityHashCode(platformContextInstanceToShare));
 

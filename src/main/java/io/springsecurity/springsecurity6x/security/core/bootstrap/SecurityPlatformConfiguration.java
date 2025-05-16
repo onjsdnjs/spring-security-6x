@@ -44,8 +44,8 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public FeatureRegistry featureRegistry() {
-        return new FeatureRegistry();
+    public FeatureRegistry featureRegistry(ApplicationContext applicationContext) {
+        return new FeatureRegistry(applicationContext);
     }
 
     @Bean

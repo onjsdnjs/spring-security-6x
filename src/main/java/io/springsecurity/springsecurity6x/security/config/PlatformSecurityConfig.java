@@ -11,11 +11,7 @@ import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccess
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
-import io.springsecurity.springsecurity6x.security.token.service.TokenService;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -26,16 +22,11 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Configuration
@@ -57,7 +48,7 @@ public class PlatformSecurityConfig {
     }
 
     @Bean
-    public PlatformConfig appSpecificPlatformDslConfig(IdentityDslRegistry registry) {
+    public PlatformConfig platformDslConfig(IdentityDslRegistry registry) {
         String rpId = applicationContext.getEnvironment().getProperty("spring.security.webauthn.relyingparty.id", "localhost");
 
         return registry

@@ -29,8 +29,8 @@ public class GlobalConfigurer implements SecurityConfigurer {
 
     @Override
     public void configure(FlowContext ctx) {
-        HttpSecurity http = ctx.http(); // 현재 Flow의 HttpSecurity 객체
-        AuthenticationFlowConfig flow = ctx.flow(); // 현재 Flow 정보
+        HttpSecurity http = ctx.http();
+        AuthenticationFlowConfig flow = ctx.flow();
 
         log.debug("Configuring flow: {} - Adding ASEPFilter", flow.getTypeName());
         try {

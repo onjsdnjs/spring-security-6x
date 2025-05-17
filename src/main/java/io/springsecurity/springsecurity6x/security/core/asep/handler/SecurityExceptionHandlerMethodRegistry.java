@@ -52,11 +52,11 @@ public class SecurityExceptionHandlerMethodRegistry implements ApplicationContex
                 applicationContext.getBeansWithAnnotation(SecurityControllerAdvice.class).values()
         );
         // @SecurityControllerAdvice 빈 정렬 (OrderUtils.sort 사용 가능)
-        adviceBeans.sort((o1, o2) -> OrderUtils.getOrder(o1.getClass(), Ordered.LOWEST_PRECEDENCE)
-                .compareTo(OrderUtils.getOrder(o2.getClass(), Ordered.LOWEST_PRECEDENCE)));
+//        adviceBeans.sort((o1, o2) -> OrderUtils.getOrder(o1.getClass(), Ordered.LOWEST_PRECEDENCE)
+//                .compareTo(OrderUtils.getOrder(o2.getClass(), Ordered.LOWEST_PRECEDENCE)));
 
 
-        for (Object adviceBean : adviceBeans) {
+       /* for (Object adviceBean : adviceBeans) {
             Class<?> adviceBeanType = ClassUtils.getUserClass(adviceBean);
             // TODO: @SecurityControllerAdvice의 assignableTypes, basePackages 필터링 로직 추가
 
@@ -74,7 +74,7 @@ public class SecurityExceptionHandlerMethodRegistry implements ApplicationContex
                 );
                 registerHandlerMethod(handlerMethod);
             }
-        }
+        }*/
 
         cachedHandlers.values().forEach(list -> list.sort(Comparator.comparingInt(HandlerMethod::getPriority)));
         universalHandlers.sort(Comparator.comparingInt(HandlerMethod::getPriority));

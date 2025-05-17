@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.asep.filter;
 
+import io.springsecurity.springsecurity6x.security.core.asep.handler.SecurityExceptionHandlerInvoker;
+import io.springsecurity.springsecurity6x.security.core.asep.handler.SecurityExceptionHandlerMethodRegistry;
+import io.springsecurity.springsecurity6x.security.core.asep.handler.model.HandlerMethod;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -15,6 +19,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -156,7 +161,7 @@ public class ASEPFilter extends OncePerRequestFilter implements Ordered {
             String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
             if (acceptHeader != null && !acceptHeader.trim().isEmpty()) {
                 List<MediaType> acceptedMediaTypes = MediaType.parseMediaTypes(acceptHeader);
-                MediaType.sortBySpecificityAndQuality(acceptedMediaTypes);
+                MimeTypeUtils.sortBySpecificity(acceptedMediaTypes);
                 for (MediaType acceptedType : acceptedMediaTypes) {
                     for (MediaType producedType : handlerProduces) {
                         if (acceptedType.isCompatibleWith(producedType)) {
@@ -175,7 +180,7 @@ public class ASEPFilter extends OncePerRequestFilter implements Ordered {
         String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
         if (acceptHeader != null && !acceptHeader.trim().isEmpty()) {
             List<MediaType> acceptedMediaTypes = MediaType.parseMediaTypes(acceptHeader);
-            MediaType.sortBySpecificityAndQuality(acceptedMediaTypes);
+            MimeTypeUtils.sortBySpecificity(acceptedMediaTypes);
 
             for (MediaType acceptedType : acceptedMediaTypes) {
                 for (HttpMessageConverter<?> converter : converters) {

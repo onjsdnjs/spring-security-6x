@@ -144,7 +144,7 @@ public class SecurityExceptionHandlerMethodRegistry implements ApplicationContex
         // Content Negotiation에 실패하고, produces가 명시된 핸들러만 있다면, 첫 번째 후보 반환 (또는 null 반환 정책)
         // 혹은, produces가 없는 핸들러를 우선시 할 수도 있음.
         // 여기서는 Content Negotiation 실패 시, 우선순위가 가장 높은 핸들러를 반환 (이미 정렬됨)
-        return candidateHandlers.get(0);
+        return candidateHandlers.getFirst();
     }
 
     private List<HandlerMethod> findHandlersForExceptionType(Class<? extends Throwable> exceptionType) {

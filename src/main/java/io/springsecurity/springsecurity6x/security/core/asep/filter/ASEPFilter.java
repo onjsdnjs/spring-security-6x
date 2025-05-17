@@ -48,7 +48,7 @@ public class ASEPFilter extends OncePerRequestFilter implements Ordered {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+            throws IOException {
         try {
             filterChain.doFilter(request, response);
         } catch (Throwable ex) {

@@ -131,7 +131,8 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             Authentication authResult = attemptAuthentication(request);
-            successfulAuthentication(request, response, filterChain, authResult);
+            throw new IllegalArgumentException("test");
+//            successfulAuthentication(request, response, filterChain, authResult);
         } catch (AuthenticationException ex) {
             log.warn("RestAuthenticationFilter: Authentication attempt failed for {}: {}", request.getRequestURI(), ex.getMessage());
             unsuccessfulAuthentication(request, response, ex);

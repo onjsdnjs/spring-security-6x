@@ -14,14 +14,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.format.support.FormattingConversionService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,16 +29,11 @@ public class AsepAutoConfiguration {
 
     private final HttpMessageConverters httpMessageConverters;
     private final ConversionService conversionService;
-    // ApplicationContext is automatically available to beans that implement ApplicationContextAware
-    // private final ApplicationContext applicationContext;
-
 
     public AsepAutoConfiguration(ObjectProvider<HttpMessageConverters> httpMessageConvertersProvider,
-                                 ObjectProvider<ConversionService> conversionServiceProvider
-            /*, ApplicationContext applicationContext */ ) {
+                                 ObjectProvider<ConversionService> conversionServiceProvider) {
         this.httpMessageConverters = httpMessageConvertersProvider.getIfAvailable(() -> new HttpMessageConverters(new ArrayList<>()));
         this.conversionService = conversionServiceProvider.getIfAvailable(FormattingConversionService::new);
-        // this.applicationContext = applicationContext;
     }
 
     @Bean
@@ -120,9 +111,7 @@ public class AsepAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SecurityExceptionHandlerMethodRegistry securityExceptionHandlerMethodRegistry() {
-        SecurityExceptionHandlerMethodRegistry registry = new SecurityExceptionHandlerMethodRegistry();
-        // ApplicationContextAware and InitializingBean interfaces handle initialization
-        return registry;
+        return new SecurityExceptionHandlerMethodRegistry();
     }
 
     @Bean
@@ -136,24 +125,9 @@ public class AsepAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ASEPFilter asepFilter(SecurityExceptionHandlerMethodRegistry registry,
-                                 SecurityExceptionHandlerInvoker invoker) {
-        return new ASEPFilter(registry, invoker, this.httpMessageConverters.getConverters());
+                                 SecurityExceptionHandlerInvoker invoker,
+                                 HttpMessageConverters httpMessageConverters) {
+        return new ASEPFilter(registry, invoker, httpMessageConverters.getConverters());
     }
 
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-    @ConditionalOnMissingBean(name = "asepSecurityFilterChain")
-    public SecurityFilterChain asepSecurityFilterChain(HttpSecurity http, ASEPFilter asepFilter) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable) // Default disable for easier testing/API usage
-                .authorizeHttpRequests(authorize -> authorize
-                        .anyRequest().permitAll() // Default permit all, to be overridden by user config
-                )
-                // Add ASEPFilter after SecurityContext is established
-                .addFilterAfter(asepFilter, SecurityContextHolderFilter.class);
-        // For Spring Security 6+, consider SecurityContextPersistenceFilter.class:
-        // .addFilterAfter(asepFilter, SecurityContextPersistenceFilter.class);
-
-        return http.build();
-    }
 }

@@ -19,7 +19,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.MimeTypeUtils;
-import org.springframework.util.ReflectionUtils.MethodFilter;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -32,9 +31,6 @@ public class SecurityExceptionHandlerMethodRegistry implements ApplicationContex
     private ApplicationContext applicationContext;
     private final Map<Class<? extends Throwable>, List<HandlerMethod>> cachedHandlers = new ConcurrentHashMap<>(64);
     private final List<HandlerMethod> universalHandlers = new ArrayList<>(); // Throwable 처리
-
-    // ContentNegotiationManager는 외부에서 주입받거나 기본 전략으로 생성 가능
-    // private ContentNegotiationManager contentNegotiationManager = new ContentNegotiationManager();
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
@@ -51,30 +47,32 @@ public class SecurityExceptionHandlerMethodRegistry implements ApplicationContex
         List<Object> adviceBeans = new ArrayList<>(
                 applicationContext.getBeansWithAnnotation(SecurityControllerAdvice.class).values()
         );
-        // @SecurityControllerAdvice 빈 정렬 (OrderUtils.sort 사용 가능)
-//        adviceBeans.sort((o1, o2) -> OrderUtils.getOrder(o1.getClass(), Ordered.LOWEST_PRECEDENCE)
-//                .compareTo(OrderUtils.getOrder(o2.getClass(), Ordered.LOWEST_PRECEDENCE)));
+        adviceBeans.sort(Comparator.comparing(
+                bean -> OrderUtils.getOrder(bean.getClass(), Ordered.LOWEST_PRECEDENCE)
+        ));
 
-
-       /* for (Object adviceBean : adviceBeans) {
+        for (Object adviceBean : adviceBeans) {
             Class<?> adviceBeanType = ClassUtils.getUserClass(adviceBean);
             // TODO: @SecurityControllerAdvice의 assignableTypes, basePackages 필터링 로직 추가
 
-            Map<Method, SecurityExceptionHandler> annotatedMethods = MethodIntrospector.selectMethods(
-                    adviceBeanType,
-                    (MethodFilter) method -> AnnotatedElementUtils.hasAnnotation(method, SecurityExceptionHandler.class)
+            Map<Method, SecurityExceptionHandler> annotatedMethods = MethodIntrospector.selectMethods(adviceBeanType,
+                    (MethodIntrospector.MetadataLookup<SecurityExceptionHandler>) method ->
+                            // 이 콜백은 각 메소드에 대해 호출되며,
+                            // @SecurityExceptionHandler 어노테이션이 있으면 해당 어노테이션 객체를, 없으면 null을 반환합니다.
+                            // MethodIntrospector는 null이 아닌 결과만 Map에 <Method, Annotation> 형태로 수집합니다.
+                            AnnotatedElementUtils.findMergedAnnotation(method, SecurityExceptionHandler.class)
             );
 
             for (Map.Entry<Method, SecurityExceptionHandler> entry : annotatedMethods.entrySet()) {
                 Method method = entry.getKey();
-                SecurityExceptionHandler handlerAnnotation = entry.getValue();
+                SecurityExceptionHandler handlerAnnotation = entry.getValue(); // getValue()가 어노테이션 객체
                 HandlerMethod handlerMethod = new HandlerMethod(
                         adviceBean, method, handlerAnnotation.value(),
                         handlerAnnotation.priority(), handlerAnnotation.produces()
                 );
                 registerHandlerMethod(handlerMethod);
             }
-        }*/
+        }
 
         cachedHandlers.values().forEach(list -> list.sort(Comparator.comparingInt(HandlerMethod::getPriority)));
         universalHandlers.sort(Comparator.comparingInt(HandlerMethod::getPriority));

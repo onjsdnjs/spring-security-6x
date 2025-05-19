@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.core.asep.filter.ASEPFilter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.FlowConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.GlobalConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
@@ -47,7 +46,7 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public List<SecurityConfigurer> staticConfigurers() {
+    public List<SecurityConfigurer> globalConfigurers() {
         return List.of(
                 new FlowConfigurer(),
                 new GlobalConfigurer()
@@ -124,7 +123,6 @@ public class SecurityPlatformConfiguration {
 
     @Bean
     public SecurityPlatform securityPlatform(PlatformContext context,
-                                             DslValidatorService dslValidatorService,
                                              List<SecurityConfigurer> staticConfigurers,
                                              FeatureRegistry featureRegistry,
                                              PlatformContextInitializer platformContextInitializer,

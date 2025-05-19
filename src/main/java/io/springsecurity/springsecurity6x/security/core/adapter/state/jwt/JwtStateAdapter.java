@@ -1,8 +1,8 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
+package io.springsecurity.springsecurity6x.security.core.adapter.state.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
 import io.springsecurity.springsecurity6x.security.http.JsonAuthResponseWriter;
@@ -23,7 +23,7 @@ import java.util.Objects;
  * IdentityStateDsl의 jwt() 메소드에서 사용됩니다.
  */
 @Slf4j
-public final class JwtStateFeature implements StateFeature { // final class
+public final class JwtStateAdapter implements StateAdapter { // final class
 
     private static final String ID = "jwt"; // 상수로 변경
 

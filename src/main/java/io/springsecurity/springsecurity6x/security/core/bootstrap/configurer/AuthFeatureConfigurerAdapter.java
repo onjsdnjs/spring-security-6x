@@ -4,8 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.MfaAuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -16,12 +16,12 @@ import java.util.Objects; // Objects.requireNonNull 추가를 위해 import
  */
 @Slf4j
 public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
-    private final AuthenticationFeature feature;
+    private final AuthenticationAdapter feature;
 
     /**
      * @param feature 인증 기능 구현체
      */
-    public AuthFeatureConfigurerAdapter(AuthenticationFeature feature) {
+    public AuthFeatureConfigurerAdapter(AuthenticationAdapter feature) {
         this.feature = Objects.requireNonNull(feature, "AuthenticationFeature cannot be null"); // Null 체크 추가
     }
 
@@ -41,7 +41,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
         List<AuthenticationStepConfig> steps = fc.flow().getStepConfigs();
 
         // 1. MfaAuthenticationFeature인 경우 특별 처리
-        if (feature instanceof MfaAuthenticationFeature) {
+        if (feature instanceof MfaAuthenticationAdapter) {
             // MfaAuthenticationFeature는 전체 MFA 흐름을 구성하므로,
             // 특정 step.type()과 매칭되지 않아도 모든 stepConfigs를 전달하여 적용될 수 있음.
             // 또는, flowConfig.typeName()이 "mfa"일 때만 적용하도록 조건 추가 가능.

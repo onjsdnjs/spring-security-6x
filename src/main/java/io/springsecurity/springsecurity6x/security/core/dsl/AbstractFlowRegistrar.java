@@ -10,9 +10,9 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.MfaDslCon
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.factory.AuthMethodConfigurerFactory;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.session.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import lombok.extern.slf4j.Slf4j;

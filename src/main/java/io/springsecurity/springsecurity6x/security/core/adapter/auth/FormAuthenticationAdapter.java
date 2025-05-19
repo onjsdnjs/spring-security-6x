@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-public final class FormAuthenticationFeature extends AbstractAuthenticationFeature<FormOptions> {
+public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapter<FormOptions> {
 
     @Override
     public String getId() {

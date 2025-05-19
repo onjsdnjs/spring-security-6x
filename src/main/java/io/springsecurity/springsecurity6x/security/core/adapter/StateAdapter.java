@@ -1,6 +1,5 @@
-package io.springsecurity.springsecurity6x.security.core.feature;
+package io.springsecurity.springsecurity6x.security.core.adapter;
 
-import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -10,7 +9,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
  *
  * 각 구현체는 자신의 전략에 맞추어 세션 정책, 토큰 필터, 공유 객체 설정 등을 구성합니다.
  */
-public interface StateFeature {
+public interface StateAdapter {
 
     /**
      * 이 상태 기능의 고유 식별자(ID)를 반환합니다.

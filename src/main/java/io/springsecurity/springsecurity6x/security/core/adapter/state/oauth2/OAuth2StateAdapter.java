@@ -1,16 +1,16 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.oauth2;
+package io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
-public class OAuth2StateFeature implements StateFeature {
+public class OAuth2StateAdapter implements StateAdapter {
 
     private OAuth2StateConfigurer configurer;
 
-    public OAuth2StateFeature(){}
+    public OAuth2StateAdapter(){}
 
-    public OAuth2StateFeature(OAuth2StateConfigurer configurer) {
+    public OAuth2StateAdapter(OAuth2StateConfigurer configurer) {
         this.configurer = configurer;
     }
 

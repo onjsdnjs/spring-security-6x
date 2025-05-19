@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -8,7 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
@@ -32,7 +32,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-public abstract class AbstractAuthenticationFeature<O extends AuthenticationProcessingOptions> implements AuthenticationFeature {
+public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProcessingOptions> implements AuthenticationAdapter {
 
     /**
      * 각 인증 방식에 특화된 HttpSecurity 설정을 적용합니다.
@@ -62,7 +62,7 @@ public abstract class AbstractAuthenticationFeature<O extends AuthenticationProc
                                                OneTimeTokenGenerationSuccessHandler ottSuccessHandler,
                                                AuthenticationFailureHandler failureHandler) throws Exception {
         // 기본 구현은 지원하지 않음을 명시하거나, OttAuthenticationFeature 에서 반드시 오버라이드하도록 함
-        if (!(this instanceof OttAuthenticationFeature)) {
+        if (!(this instanceof OttAuthenticationAdapter)) {
             throw new UnsupportedOperationException(
                     String.format("Feature %s is not an OTT feature and should not call configureHttpSecurityForOtt. " +
                             "This method must be overridden by OttAuthenticationFeature.", getId())
@@ -113,7 +113,7 @@ public abstract class AbstractAuthenticationFeature<O extends AuthenticationProc
         AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
         AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
 
-        if (this instanceof OttAuthenticationFeature ottFeature) { // Java 16+ 패턴 변수
+        if (this instanceof OttAuthenticationAdapter ottFeature) { // Java 16+ 패턴 변수
             OneTimeTokenGenerationSuccessHandler resolvedOttSuccessHandler = null;
             if (!(successHandler instanceof OneTimeTokenGenerationSuccessHandler)) {
                 log.warn("AuthenticationFeature [{}]: Resolved successHandler for OTT feature is not an instance of OneTimeTokenGenerationSuccessHandler (Actual: {}). " +

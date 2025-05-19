@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -6,7 +6,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-public class PasskeyAuthenticationFeature extends AbstractAuthenticationFeature<PasskeyOptions> {
+public class PasskeyAuthenticationAdapter extends AbstractAuthenticationAdapter<PasskeyOptions> {
 
     @Override
     public String getId() {

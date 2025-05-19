@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client;
+package io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.client;
 
 import java.time.Instant;
 

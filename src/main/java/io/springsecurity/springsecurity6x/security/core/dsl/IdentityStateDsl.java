@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
-import io.springsecurity.springsecurity6x.security.core.feature.state.jwt.JwtStateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.OAuth2StateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.feature.state.session.SessionStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.session.SessionStateConfigurer;
 import org.springframework.security.config.Customizer;
 
 /**

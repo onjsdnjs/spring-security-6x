@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature;
+package io.springsecurity.springsecurity6x.security.core.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
@@ -13,7 +13,7 @@ import java.util.List;
  * 각 구현체는 자신의 인증 방식에 맞추어
  * HttpSecurity에 필터 추가, 엔드포인트 설정, 핸들러 지정 등을 수행합니다.
  */
-public interface AuthenticationFeature {
+public interface AuthenticationAdapter {
 
     /**
      * 인증 기능의 고유 식별자(ID)를 반환합니다 (예: "form", "rest", etc.)

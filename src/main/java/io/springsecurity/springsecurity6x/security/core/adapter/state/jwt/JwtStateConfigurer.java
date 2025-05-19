@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.state.jwt;
+package io.springsecurity.springsecurity6x.security.core.adapter.state.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;

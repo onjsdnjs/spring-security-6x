@@ -4,13 +4,13 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
 
 public class StateFeatureConfigurerAdapter implements SecurityConfigurer {
-    private final StateFeature feature;
+    private final StateAdapter feature;
     private final PlatformContext ctx;
 
-    public StateFeatureConfigurerAdapter(StateFeature feature, PlatformContext ctx) {
+    public StateFeatureConfigurerAdapter(StateAdapter feature, PlatformContext ctx) {
         this.feature = feature;
         this.ctx = ctx;
     }

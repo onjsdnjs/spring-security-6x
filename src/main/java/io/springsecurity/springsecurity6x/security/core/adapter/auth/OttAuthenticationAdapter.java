@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -8,7 +8,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 
-public class OttAuthenticationFeature extends AbstractAuthenticationFeature<OttOptions> {
+public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttOptions> {
 
     @Override
     public String getId() {

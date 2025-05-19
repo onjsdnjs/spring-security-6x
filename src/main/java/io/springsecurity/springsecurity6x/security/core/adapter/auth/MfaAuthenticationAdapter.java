@@ -1,10 +1,10 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.filter.MfaOrchestrationFilter;
@@ -19,15 +19,15 @@ import org.springframework.util.Assert;
 import java.util.List;
 import java.util.Objects;
 
-public class MfaAuthenticationFeature implements AuthenticationFeature {
+public class MfaAuthenticationAdapter implements AuthenticationAdapter {
 
-    private static final Logger log = LoggerFactory.getLogger(MfaAuthenticationFeature.class);
+    private static final Logger log = LoggerFactory.getLogger(MfaAuthenticationAdapter.class);
     private static final String ID = "mfa";
     private ApplicationContext applicationContext;
 
-    public MfaAuthenticationFeature() {}
+    public MfaAuthenticationAdapter() {}
 
-    public MfaAuthenticationFeature(ApplicationContext applicationContext) {
+    public MfaAuthenticationAdapter(ApplicationContext applicationContext) {
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null for MfaAuthenticationFeature");
     }
 

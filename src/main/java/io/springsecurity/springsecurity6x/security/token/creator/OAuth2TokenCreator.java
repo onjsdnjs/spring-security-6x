@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.creator;
 
-import io.springsecurity.springsecurity6x.security.core.feature.state.oauth2.client.OAuth2TokenProvider;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.client.OAuth2TokenProvider;
 
 public class OAuth2TokenCreator implements TokenCreator {
 

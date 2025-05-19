@@ -2,9 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.context.FlowContextFactory;
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.validator.DslValidatorService;
 import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +40,7 @@ public class PlatformBootstrap implements InitializingBean {
 
         // 1. 플랫폼 전역 준비 (기존 로직)
         List<AuthenticationFlowConfig> flows = config.getFlows();
-        List<AuthenticationFeature> features = registry.getAuthFeaturesFor(flows);
+        List<AuthenticationAdapter> features = registry.getAuthFeaturesFor(flows);
         platform.prepareGlobal(config, features);
 
         // 2. 플랫폼 초기화 (기존 로직)

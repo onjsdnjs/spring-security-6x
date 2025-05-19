@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-public final class RestAuthenticationFeature extends AbstractAuthenticationFeature<RestOptions> {
+public final class RestAuthenticationAdapter extends AbstractAuthenticationAdapter<RestOptions> {
 
     @Override
     public String getId() {

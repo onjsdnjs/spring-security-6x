@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.asep.handler;
 
+import io.springsecurity.springsecurity6x.security.core.asep.annotation.CaughtException;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.argumentresolver.SecurityHandlerMethodArgumentResolver;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.model.HandlerMethod;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.returnvaluehandler.SecurityHandlerMethodReturnValueHandler;
@@ -13,64 +14,37 @@ import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
+import org.springframework.util.ObjectUtils; // ObjectUtils 추가
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList; // ArrayList 추가
 import java.util.List;
 import java.util.Objects;
 
-/**
- * ASEP의 예외 핸들러 메소드를 실행하고,
- * ArgumentResolver 및 ReturnValueHandler를 사용하여 인자 준비 및 반환 값 처리를 수행합니다.
- * 이 클래스는 POJO로 설계되어 각 SecurityFilterChain 스코프별로 인스턴스화될 수 있습니다.
- * 기존 SecurityExceptionHandlerInvoker의 역할을 대체합니다.
- */
 @Slf4j
-public final class SecurityExceptionHandlerInvoker { // final class로 변경
+public final class SecurityExceptionHandlerInvoker {
 
     private final List<SecurityHandlerMethodArgumentResolver> argumentResolvers;
     private final List<SecurityHandlerMethodReturnValueHandler> returnValueHandlers;
     private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
-    /**
-     * 생성자.
-     * @param argumentResolvers 이 어댑터 인스턴스가 사용할 ArgumentResolver 리스트 (외부에서 정렬 완료된 리스트 권장)
-     * @param returnValueHandlers 이 어댑터 인스턴스가 사용할 ReturnValueHandler 리스트 (외부에서 정렬 완료된 리스트 권장)
-     */
     public SecurityExceptionHandlerInvoker(
             List<SecurityHandlerMethodArgumentResolver> argumentResolvers,
             List<SecurityHandlerMethodReturnValueHandler> returnValueHandlers) {
         Assert.notNull(argumentResolvers, "ArgumentResolvers must not be null");
         Assert.notNull(returnValueHandlers, "ReturnValueHandlers must not be null");
-
-        // 방어적 복사를 통해 외부에서의 리스트 변경 방지 및 불변성 확보
         this.argumentResolvers = List.copyOf(argumentResolvers);
         this.returnValueHandlers = List.copyOf(returnValueHandlers);
-
-        // 주입 시점에 정렬이 완료되었다고 가정. 필요시 여기서도 정렬 가능.
-        // AnnotationAwareOrderComparator.sort(this.argumentResolvers);
-        // AnnotationAwareOrderComparator.sort(this.returnValueHandlers);
-
-        log.debug("ASEP: AsepHandlerAdapter (POJO) initialized. ArgumentResolvers: {}, ReturnValueHandlers: {}",
+        log.debug("ASEP: SecurityExceptionHandlerInvoker initialized. ArgumentResolvers: {}, ReturnValueHandlers: {}",
                 this.argumentResolvers.size(), this.returnValueHandlers.size());
     }
 
-    /**
-     * 주어진 HandlerMethod를 실행합니다.
-     *
-     * @param request 현재 HttpServletRequest
-     * @param response 현재 HttpServletResponse
-     * @param authentication 현재 Authentication 객체 (nullable)
-     * @param exception 발생한 예외 (nullable - 핸들러 실행 시점에는 원본 예외가 아닐 수 있으므로 nullable)
-     * @param handlerMethod 실행할 HandlerMethod (non-null)
-     * @param resolvedMediaType Content Negotiation을 통해 결정된 응답 미디어 타입 (nullable)
-     * @throws Exception 핸들러 메소드 실행 또는 결과 처리 중 발생하는 모든 예외
-     */
     public void invokeHandlerMethod(
             HttpServletRequest request,
             HttpServletResponse response,
             @Nullable Authentication authentication,
-            Throwable exception, // @CaughtException 등으로 주입될 원본 예외
+            Throwable originalException, // 원본 예외
             HandlerMethod handlerMethod,
             @Nullable MediaType resolvedMediaType) throws Exception {
 
@@ -80,26 +54,33 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
         Objects.requireNonNull(methodToInvoke, "Method in HandlerMethod cannot be null");
         Objects.requireNonNull(beanToInvoke, "Bean in HandlerMethod cannot be null");
 
+        // Spring MVC 와 유사하게, 발생한 예외와 그 원인들을 수집
+        List<Throwable> exceptionsToProvide = new ArrayList<>();
+        Throwable exToExpose = originalException;
+        while (exToExpose != null) {
+            exceptionsToProvide.add(exToExpose);
+            Throwable cause = exToExpose.getCause();
+            exToExpose = (cause != exToExpose ? cause : null);
+        }
+        // 추가적으로 HandlerMethod 자체도 providedArg로 전달 가능 (Spring MVC 참조)
+        // exceptionsToProvide.add(handlerMethod); // 필요하다면
 
-        Object[] args = getMethodArgumentValues(request, response, authentication, exception, handlerMethod);
+        // getMethodArgumentValues에 수집된 예외 목록 전달
+        Object[] args = getMethodArgumentValues(request, response, authentication, originalException, handlerMethod, exceptionsToProvide.toArray());
 
         Object returnValue;
         if (log.isDebugEnabled()) {
-            log.debug("ASEP: Invoking exception handler method: {} on bean: {}",
-                    methodToInvoke.toGenericString(), beanToInvoke.getClass().getName());
+            log.debug("ASEP: Invoking exception handler method: {} on bean: {} with {} provided exception(s)/arg(s)",
+                    methodToInvoke.toGenericString(), beanToInvoke.getClass().getName(), exceptionsToProvide.size());
         }
         try {
-            // 접근성 확보 (private 메소드 등은 호출 불가, public 이어야 함)
-            // methodToInvoke.setAccessible(true); // 필요시, 단 public 메소드 권장
             returnValue = methodToInvoke.invoke(beanToInvoke, args);
         } catch (InvocationTargetException ex) {
-            // 핸들러 메소드 내부에서 발생한 예외는 원인 예외를 추출하여 다시 던짐
             Throwable targetException = ex.getTargetException();
             log.warn("ASEP: Exception thrown from handler method [{}] during ASEP processing: {}",
                     methodToInvoke.getName(), targetException.getMessage(), targetException);
-            if (targetException instanceof Error error) throw error; // Error는 그대로 전파
-            if (targetException instanceof Exception e) throw e;   // Exception도 그대로 전파
-            // targetException이 Error나 Exception이 아닌 Throwable인 경우는 거의 없으나, 안전하게 처리
+            if (targetException instanceof Error error) throw error;
+            if (targetException instanceof Exception e) throw e;
             throw new IllegalStateException("Unexpected ASEP handler method invocation target exception type: " +
                     targetException.getClass().getName(), targetException);
         } catch (IllegalAccessException ex) {
@@ -108,8 +89,7 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
             throw new IllegalStateException("Could not access ASEP handler method: " + ex.getMessage(), ex);
         }
 
-
-        MethodParameter returnTypeParameter = new MethodParameter(methodToInvoke, -1); // -1 for return type
+        MethodParameter returnTypeParameter = new MethodParameter(methodToInvoke, -1);
         handleReturnValue(returnValue, returnTypeParameter, request, response, authentication, handlerMethod, resolvedMediaType);
     }
 
@@ -117,45 +97,85 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
             HttpServletRequest request,
             HttpServletResponse response,
             @Nullable Authentication authentication,
-            Throwable caughtException, // @CaughtException 등으로 주입될 원본 예외
-            HandlerMethod handlerMethod) throws Exception {
+            Throwable originalCaughtException, // ASEPFilter 에서 최초 catch된 예외
+            HandlerMethod handlerMethod,
+            @Nullable Object... providedArgs) throws Exception { // Spring MVC 의 providedArgs와 유사한 역할
 
         Method method = handlerMethod.getMethod();
         MethodParameter[] parameters = getMethodParameters(method);
         if (parameters.length == 0) {
-            return new Object[0]; // 인자가 없는 메소드
+            return new Object[0];
         }
 
         Object[] args = new Object[parameters.length];
         for (int i = 0; i < parameters.length; i++) {
             MethodParameter parameter = parameters[i];
-            parameter.initParameterNameDiscovery(this.parameterNameDiscoverer); // 파라미터 이름 발견 활성화
+            parameter.initParameterNameDiscovery(this.parameterNameDiscoverer);
 
+            // 1. 먼저, 파라미터 타입이 Throwable을 상속하고, @CaughtException 어노테이션이 없는 경우,
+            //    providedArgs (예외 및 원인 목록) 중에서 타입이 일치하는 것을 찾아 주입.
+            if (Throwable.class.isAssignableFrom(parameter.getParameterType()) &&
+                    !parameter.hasParameterAnnotation(CaughtException.class)) { // @CaughtException이 없는 예외 파라미터
+                args[i] = findProvidedArgument(parameter, providedArgs);
+                if (args[i] != null) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("ASEP: Resolved exception parameter [{}] (type: {}) directly from provided exceptions.",
+                                parameter.getParameterName(), parameter.getParameterType().getSimpleName());
+                    }
+                    continue; // 다음 파라미터로
+                }
+                // 만약 providedArgs 에서 못 찾았지만 파라미터가 Throwable 타입이면, 다른 ArgumentResolver가 처리할 수도 있음
+                // (예: @CaughtException + 특정 로직). 여기서는 우선적으로 providedArgs 에서 찾음.
+            }
+
+            // 2. 위에서 처리되지 않았다면, 등록된 ArgumentResolver 들을 순회하여 처리.
             SecurityHandlerMethodArgumentResolver selectedResolver = findSupportingResolver(parameter);
-            if (selectedResolver == null) {
-                throw new IllegalStateException(
-                        String.format("ASEP: No suitable SecurityHandlerMethodArgumentResolver found for parameter type [%s] at index %d in method [%s]",
-                                parameter.getParameterType().getName(), i, method.toGenericString()));
-            }
-
-            if (log.isTraceEnabled()) {
-                log.trace("ASEP: Resolving argument for parameter [{}] (type: {}) with resolver [{}] in method [{}]",
-                        parameter.getParameterName(), parameter.getParameterType().getSimpleName(),
-                        selectedResolver.getClass().getSimpleName(), method.getName());
-            }
-            try {
-                args[i] = selectedResolver.resolveArgument(
-                        parameter, request, response, authentication, caughtException, handlerMethod
-                );
-            } catch (Exception ex) {
-                // ArgumentResolver 내부에서 발생한 예외는 그대로 전파하여 ASEPFilter의 바깥쪽 try-catch에서 처리
-                log.error("ASEP: Error resolving argument for parameter [{}] in method [{}] using resolver [{}]: {}",
-                        parameter.getParameterName(), method.getName(), selectedResolver.getClass().getSimpleName(), ex.getMessage(), ex);
-                throw ex;
+            if (selectedResolver != null) {
+                if (log.isTraceEnabled()) {
+                    log.trace("ASEP: Resolving argument for parameter [{}] (type: {}) with resolver [{}] in method [{}]",
+                            parameter.getParameterName(), parameter.getParameterType().getSimpleName(),
+                            selectedResolver.getClass().getSimpleName(), method.getName());
+                }
+                try {
+                    // CaughtExceptionArgumentResolver는 originalCaughtException을 사용하도록 수정
+                    args[i] = selectedResolver.resolveArgument(
+                            parameter, request, response, authentication, originalCaughtException, handlerMethod
+                    );
+                } catch (Exception ex) {
+                    log.error("ASEP: Error resolving argument for parameter [{}] in method [{}] using resolver [{}]: {}",
+                            parameter.getParameterName(), method.getName(), selectedResolver.getClass().getSimpleName(), ex.getMessage(), ex);
+                    throw ex;
+                }
+            } else {
+                // findProvidedArgument 에서도 못 찾고, 지원하는 ArgumentResolver도 없는 경우
+                // (필수 파라미터인데 아무도 처리 못하면 문제 발생 가능 -> 핸들러 메서드 시그니처 설계 중요)
+                // 기본적으로는 null이 할당될 수 있으나, 핸들러 메서드에서 NPE 발생 가능성.
+                // Spring MVC는 이 경우 null을 전달하거나, 특정 타입(Optional 등)은 다르게 처리.
+                log.warn("ASEP: No suitable SecurityHandlerMethodArgumentResolver found (and not resolved from providedArgs) " +
+                                "for parameter type [{}] at index {} in method [{}]. Argument will be null if not optional.",
+                        parameter.getParameterType().getName(), i, method.toGenericString());
+                args[i] = null; // 또는 예외 발생
             }
         }
         return args;
     }
+
+    /**
+     * Spring MVC의 InvocableHandlerMethod.findProvidedArgument와 유사한 로직.
+     * providedArgs 중에서 MethodParameter 타입과 일치하는 첫 번째 인자를 찾아 반환합니다.
+     */
+    @Nullable
+    private Object findProvidedArgument(MethodParameter parameter, @Nullable Object... providedArgs) {
+        if (!ObjectUtils.isEmpty(providedArgs)) {
+            for (Object providedArg : providedArgs) {
+                if (parameter.getParameterType().isInstance(providedArg)) {
+                    return providedArg;
+                }
+            }
+        }
+        return null;
+    }
+
 
     @Nullable
     private SecurityHandlerMethodArgumentResolver findSupportingResolver(MethodParameter parameter) {
@@ -169,7 +189,7 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
 
     private void handleReturnValue(
             @Nullable Object returnValue,
-            MethodParameter returnType, // MethodParameter로 returnType을 정확히 표현
+            MethodParameter returnType,
             HttpServletRequest request,
             HttpServletResponse response,
             @Nullable Authentication authentication,
@@ -189,13 +209,11 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
                         returnValue, returnType, request, response, authentication, handlerMethod, resolvedMediaType
                 );
             } catch (Exception ex) {
-                // ReturnValueHandler 내부에서 발생한 예외는 그대로 전파
                 log.error("ASEP: Error handling return value for method [{}] using handler [{}]: {}",
                         handlerMethod.getMethod().getName(), selectedHandler.getClass().getSimpleName(), ex.getMessage(), ex);
                 throw ex;
             }
         } else {
-            // void 반환 타입이거나, 반환 값이 null이고 이를 처리할 명시적인 핸들러가 없는 경우
             Class<?> paramType = returnType.getParameterType();
             if (returnValue == null && (paramType.equals(void.class) || paramType.equals(Void.class))) {
                 if (log.isDebugEnabled()) {
@@ -203,11 +221,8 @@ public final class SecurityExceptionHandlerInvoker { // final class로 변경
                                     "Assuming response was handled directly within the handler method or no content is intended.",
                             handlerMethod.getMethod().getName());
                 }
-                // 응답이 이미 커밋되지 않았다면, 기본적으로 여기서 응답이 완료된 것으로 간주.
-                // (예: 핸들러 내에서 response.getWriter().write() 등을 직접 사용한 경우)
                 return;
             }
-            // 지원하는 핸들러가 없고, void 반환도 아닌 경우
             throw new IllegalStateException(
                     String.format("ASEP: No suitable SecurityHandlerMethodReturnValueHandler found for return value type [%s] from method [%s]",
                             returnType.getParameterType().getName(), handlerMethod.getMethod().toGenericString()));

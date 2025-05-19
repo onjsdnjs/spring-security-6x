@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
-
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.AuthFeatureConfigurerAdapter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.StateFeatureConfigurerAdapter;
@@ -22,30 +21,24 @@ import java.util.Objects;
 @Slf4j
 public final class DefaultSecurityConfigurerProvider implements SecurityConfigurerProvider {
 
-    private final List<SecurityConfigurer> baseConfigurers; // GlobalConfigurer, AsepConfigurer 등 Spring 컨텍스트의 모든 SecurityConfigurer 빈
+    private final List<SecurityConfigurer> applicationWideConfigurers;
     private final FeatureRegistry featureRegistry;
-    private final ApplicationContext applicationContext; // 로깅 또는 디버깅용으로만 유지, 직접적인 기능 의존성 X
+    private final ApplicationContext applicationContext;
 
-    /**
-     * 생성자.
-     * @param allCollectedConfigurers Spring 컨텍스트에 등록된 모든 SecurityConfigurer 빈들.
-     * (예: GlobalConfigurer, AsepConfigurer 등)
-     * Spring이 자동으로 List에 주입해줍니다.
-     * @param featureRegistry 플랫폼의 FeatureRegistry.
-     * @param applicationContext ApplicationContext (주로 로깅/디버깅 또는 매우 예외적인 경우에 사용).
-     */
     @Autowired
     public DefaultSecurityConfigurerProvider(
-            List<SecurityConfigurer> allCollectedConfigurers, // null일 수 있음을 명시적 처리
+            List<SecurityConfigurer> collectedApplicationWideConfigurers,
             FeatureRegistry featureRegistry,
             ApplicationContext applicationContext) {
-        this.baseConfigurers = (allCollectedConfigurers != null) ? List.copyOf(allCollectedConfigurers) : Collections.emptyList();
+
+        this.applicationWideConfigurers = (collectedApplicationWideConfigurers != null) ?
+                List.copyOf(collectedApplicationWideConfigurers) : Collections.emptyList();
         this.featureRegistry = Objects.requireNonNull(featureRegistry, "FeatureRegistry cannot be null");
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null");
 
-        log.info("DefaultSecurityConfigurerProvider initialized with {} base configurers.", this.baseConfigurers.size());
+        log.info("DefaultSecurityConfigurerProvider initialized with {} application-wide configurers.", this.applicationWideConfigurers.size());
         if (log.isDebugEnabled()) {
-            this.baseConfigurers.forEach(cfg -> log.debug("  - Detected Base Configurer: {}", cfg.getClass().getName()));
+            this.applicationWideConfigurers.forEach(cfg -> log.debug("  - Detected Application-Wide Configurer: {}", cfg.getClass().getName()));
         }
     }
 
@@ -56,40 +49,37 @@ public final class DefaultSecurityConfigurerProvider implements SecurityConfigur
         Objects.requireNonNull(platformContext, "PlatformContext cannot be null");
         Objects.requireNonNull(platformConfig, "PlatformConfig cannot be null");
 
-        List<SecurityConfigurer> allEffectiveConfigurers = new ArrayList<>(this.baseConfigurers);
+        // 1. 애플리케이션 전역 Configurer (Spring 컨텍스트에서 수집된 빈들)
+        List<SecurityConfigurer> effectiveConfigurers = new ArrayList<>(this.applicationWideConfigurers);
+        log.debug("DefaultSecurityConfigurerProvider: Starting with {} application-wide configurers.", effectiveConfigurers.size());
 
-        // FeatureRegistry를 통해 동적으로 생성되는 Adapter들을 추가
-        // 이 Adapter들은 특정 Flow에 대한 HttpSecurity를 직접 구성하는 것이 아니라,
-        // 내부적으로 Feature의 apply(HttpSecurity, PlatformContext) 등을 호출하는 역할을 함.
-        // 각 Feature의 apply 메소드는 FlowContext의 HttpSecurity에 접근하여 작업을 수행.
-        // 따라서, 이 Provider는 Feature 자체나 그 Adapter를 반환하고,
-        // Orchestrator가 각 Flow에 대해 이들을 실행시킴.
-
-        if (featureRegistry != null && platformConfig != null && !CollectionUtils.isEmpty(platformConfig.getFlows())) {
-            // AuthFeature들에 대한 Adapter 추가
+        // 2. FeatureRegistry를 통해 동적으로 생성되는 Feature 기반 Configurer Adapter들 추가
+        // 이 Adapter 들은 PlatformConfig에 정의된 모든 Flow에 대해 생성될 수 있으며,
+        // 각 Adapter의 configure(FlowContext) 메소드 내부에서 현재 Flow에 적용될지 여부를 판단함.
+        if (featureRegistry != null && !CollectionUtils.isEmpty(platformConfig.getFlows())) {
             featureRegistry.getAuthFeaturesFor(platformConfig.getFlows())
                     .forEach(feature -> {
-                        allEffectiveConfigurers.add(new AuthFeatureConfigurerAdapter(feature));
-                        log.debug("DefaultSecurityConfigurerProvider: Added AuthFeatureConfigurerAdapter for feature '{}'", feature.getId());
+                        effectiveConfigurers.add(new AuthFeatureConfigurerAdapter(feature));
+                        log.debug("DefaultSecurityConfigurerProvider: Added AuthFeatureConfigurerAdapter for feature '{}'.", feature.getId());
                     });
 
-            // StateFeature들에 대한 Adapter 추가
             featureRegistry.getStateFeaturesFor(platformConfig.getFlows())
                     .forEach(stateFeature -> {
-                        allEffectiveConfigurers.add(new StateFeatureConfigurerAdapter(stateFeature, platformContext));
-                        log.debug("DefaultSecurityConfigurerProvider: Added StateFeatureConfigurerAdapter for feature '{}'", stateFeature.getId());
+                        // StateFeatureConfigurerAdapter는 PlatformContext를 필요로 함
+                        effectiveConfigurers.add(new StateFeatureConfigurerAdapter(stateFeature, platformContext));
+                        log.debug("DefaultSecurityConfigurerProvider: Added StateFeatureConfigurerAdapter for feature '{}'.", stateFeature.getId());
                     });
         } else {
-            log.warn("DefaultSecurityConfigurerProvider: FeatureRegistry, PlatformConfig, or PlatformConfig.getFlows() is null/empty. " +
-                    "No feature-based configurers (AuthFeature, StateFeature) will be added.");
+            log.warn("DefaultSecurityConfigurerProvider: FeatureRegistry or PlatformConfig.getFlows() is null/empty. " +
+                    "No dynamic feature-based configurers (AuthFeature, StateFeature) will be added.");
         }
 
-        // 최종적으로 모든 Configurer (기본 빈 + 동적 생성 Adapter) 리스트 반환
-        // 순서 정렬은 SecurityConfigurerOrchestrator에서 수행
-        log.info("DefaultSecurityConfigurerProvider: Total {} configurers provided (Base: {}, FeatureAdapters: {}).",
-                allEffectiveConfigurers.size(),
-                this.baseConfigurers.size(),
-                allEffectiveConfigurers.size() - this.baseConfigurers.size());
-        return List.copyOf(allEffectiveConfigurers); // 불변 리스트 반환
+        // AsepConfigurer는 applicationWideConfigurers에 이미 포함되어 있음 (싱글톤 빈으로 가정).
+        // AsepConfigurer의 configure(FlowContext) 메소드가 각 Flow에 대해 호출될 때,
+        // 해당 Flow의 HttpSecurity.sharedObjects에 저장된 XxxAsepAttributes를 사용하여
+        // POJO ASEPFilter를 동적으로 생성하고 추가함.
+
+        log.info("DefaultSecurityConfigurerProvider: Total {} effective configurers prepared.", effectiveConfigurers.size());
+        return List.copyOf(effectiveConfigurers); // 최종 리스트를 불변으로 반환
     }
 }

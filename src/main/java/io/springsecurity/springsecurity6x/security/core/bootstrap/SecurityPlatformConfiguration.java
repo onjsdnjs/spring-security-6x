@@ -30,8 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@EnableConfigurationProperties(AuthContextProperties.class)
 @Configuration
+@EnableConfigurationProperties(AuthContextProperties.class)
 public class SecurityPlatformConfiguration {
 
     @Bean

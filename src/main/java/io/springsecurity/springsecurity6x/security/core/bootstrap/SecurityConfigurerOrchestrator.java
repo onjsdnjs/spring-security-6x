@@ -46,7 +46,7 @@ public final class SecurityConfigurerOrchestrator { // final class
 
         // 1. 모든 전역 SecurityConfigurer의 init() 호출 (애플리케이션 시작 시 1회)
         // 이 Configurer 들은 특정 Flow에 종속되지 않는 전역 설정을 담당 (예: AsepConfigurer의 기본 설정 로드)
-        List<SecurityConfigurer> globalConfigurers = configurerProvider.getGlobalConfigurers(platformContext, platformConfig);
+        List<SecurityConfigurer> globalConfigurers = configurerProvider.getConfigurers(platformContext, platformConfig);
         if (globalConfigurers == null) {
             globalConfigurers = Collections.emptyList();
         }
@@ -74,7 +74,7 @@ public final class SecurityConfigurerOrchestrator { // final class
 
             // 현재 Flow의 HttpSecurity에 적용될 Configurer 리스트 가져오기
             // (전역 Configurer + 현재 Flow에 특화된 Configurer - 예: DSL을 통해 커스터마이징된 AsepConfigurer)
-            List<SecurityConfigurer> flowSpecificConfigurers = configurerProvider.getFlowSpecificConfigurers(platformContext, platformConfig, fc.http());
+            List<SecurityConfigurer> flowSpecificConfigurers = configurerProvider.getConfigurers(platformContext, platformConfig, fc.http());
             if (flowSpecificConfigurers == null) {
                 flowSpecificConfigurers = Collections.emptyList();
             }

@@ -27,7 +27,6 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 
 
 @Configuration
-@EnableConfigurationProperties(AuthContextProperties.class)
 @RequiredArgsConstructor
 @EnableAsep
 public class MfaInfrastructureAutoConfiguration {

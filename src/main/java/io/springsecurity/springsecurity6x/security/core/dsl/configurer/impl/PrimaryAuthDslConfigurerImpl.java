@@ -19,8 +19,8 @@ import org.springframework.util.Assert;
 import java.util.Objects;
 
 @Slf4j
-@Getter // formLoginCustomizer, restLoginCustomizer에 대한 public getter 자동 생성
-public final class PrimaryAuthDslConfigurerImpl<H extends HttpSecurityBuilder<H>> // H 제네릭은 형식적으로 유지
+@Getter
+public final class PrimaryAuthDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
         implements PrimaryAuthDslConfigurer {
 
     private Customizer<FormDslConfigurer> formLoginCustomizer;

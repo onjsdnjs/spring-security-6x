@@ -14,7 +14,11 @@ import java.time.Instant;
 
 public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper mapper = new ObjectMapper(); // or @Autowired 가능
+    private final ObjectMapper objectMapper;
+
+    public TokenAuthenticationEntryPoint(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
@@ -32,7 +36,7 @@ public class TokenAuthenticationEntryPoint implements AuthenticationEntryPoint {
                     request.getRequestURI()
             );
 
-            mapper.writeValue(response.getOutputStream(), body);
+            objectMapper.writeValue(response.getOutputStream(), body);
 
         } else {
             response.sendRedirect("/loginForm");

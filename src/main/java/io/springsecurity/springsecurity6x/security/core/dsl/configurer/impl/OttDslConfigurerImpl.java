@@ -85,7 +85,7 @@ public final class OttDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public OttDslConfigurer asep(Customizer<OttAsepAttributes> ottAsepAttributesCustomizer) throws Exception {
+    public OttDslConfigurer asep(Customizer<OttAsepAttributes> ottAsepAttributesCustomizer) {
         H builder = getBuilder();
         OttAsepAttributes attributes = builder.getSharedObject(OttAsepAttributes.class);
         if (attributes == null) {

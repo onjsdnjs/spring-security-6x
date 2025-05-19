@@ -2,6 +2,8 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
+import io.springsecurity.springsecurity6x.security.core.asep.annotation.EnableAsep;
+import io.springsecurity.springsecurity6x.security.core.asep.autoconfigure.AsepAutoConfiguration;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.HttpSessionContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.DefaultMfaPolicyProvider;
@@ -20,11 +22,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+
 
 @Configuration
 @EnableConfigurationProperties(AuthContextProperties.class)
 @RequiredArgsConstructor
+@EnableAsep
 public class MfaInfrastructureAutoConfiguration {
 
     private final AuthContextProperties authContextProperties;
@@ -49,7 +54,7 @@ public class MfaInfrastructureAutoConfiguration {
                                                                      MfaPolicyProvider mfaPolicyProvider,
                                                                      AuthResponseWriter authResponseWriter) {
         return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,
-                                                authContextProperties, authResponseWriter);
+                authContextProperties, authResponseWriter);
     }
 
     @Bean

@@ -15,7 +15,4 @@ public interface FormDslConfigurer
     FormDslConfigurer failureUrl(String failureUrl);
     FormDslConfigurer permitAll();
     FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer);
-
-    @Override
-    FormDslConfigurer asep(Customizer<FormAsepAttributes> formAsepAttributesCustomizer) throws Exception;
 }

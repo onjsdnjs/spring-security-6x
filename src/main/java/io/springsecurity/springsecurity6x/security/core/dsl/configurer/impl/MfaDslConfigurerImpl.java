@@ -206,7 +206,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public MfaDslConfigurerImpl<H> asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer) throws Exception {
+    public MfaDslConfigurerImpl<H> asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer){
         H builder = getBuilder();
         MfaAsepAttributes attributes = builder.getSharedObject(MfaAsepAttributes.class);
         if (attributes == null) {

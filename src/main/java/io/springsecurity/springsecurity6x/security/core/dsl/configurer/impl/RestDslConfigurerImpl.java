@@ -56,7 +56,7 @@ public final class RestDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     // 인터페이스는 RestDslConfigurer를 반환하도록 되어 있으므로 호환됨.
 
     @Override
-    public RestDslConfigurer asep(Customizer<RestAsepAttributes> restAsepAttributesCustomizer) throws Exception {
+    public RestDslConfigurer asep(Customizer<RestAsepAttributes> restAsepAttributesCustomizer){
         H builder = getBuilder();
         RestAsepAttributes attributes = builder.getSharedObject(RestAsepAttributes.class);
         if (attributes == null) {

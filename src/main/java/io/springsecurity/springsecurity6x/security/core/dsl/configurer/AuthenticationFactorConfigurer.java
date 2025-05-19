@@ -21,5 +21,5 @@ public interface AuthenticationFactorConfigurer<
 
     S order(int order);
 
-    S asep(Customizer<A> asepAttributesCustomizer) throws Exception;
+    S asep(Customizer<A> asepAttributesCustomizer);
 }

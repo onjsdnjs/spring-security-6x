@@ -91,7 +91,7 @@ public final class PasskeyDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public PasskeyDslConfigurer asep(Customizer<PasskeyAsepAttributes> passkeyAsepAttributesCustomizer) throws Exception {
+    public PasskeyDslConfigurer asep(Customizer<PasskeyAsepAttributes> passkeyAsepAttributesCustomizer){
         H builder = getBuilder();
         PasskeyAsepAttributes attributes = builder.getSharedObject(PasskeyAsepAttributes.class);
         if (attributes == null) {

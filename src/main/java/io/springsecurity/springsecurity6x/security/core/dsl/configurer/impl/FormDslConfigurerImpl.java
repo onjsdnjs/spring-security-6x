@@ -99,7 +99,7 @@ public final class FormDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public FormDslConfigurer asep(Customizer<FormAsepAttributes> formAsepAttributesCustomizer) throws Exception {
+    public FormDslConfigurer asep(Customizer<FormAsepAttributes> formAsepAttributesCustomizer) {
         H builder = (H) getBuilder();
 
         FormAsepAttributes attributes = builder.getSharedObject(FormAsepAttributes.class);

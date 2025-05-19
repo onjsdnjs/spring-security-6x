@@ -32,7 +32,7 @@ public interface MfaDslConfigurer extends SecurityConfigurerDsl { // SecurityCon
     AuthenticationFlowConfig build(); // 최종적으로 AuthenticationFlowConfig 객체 반환
 
     // MFA 플로우 전체에 대한 ASEP 설정을 위한 DSL 메소드
-    MfaDslConfigurer asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer) throws Exception;
+    MfaDslConfigurer asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer);
 
     // Primary Authentication (MFA 이전의 1차 인증) 설정
     MfaDslConfigurer primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfig);

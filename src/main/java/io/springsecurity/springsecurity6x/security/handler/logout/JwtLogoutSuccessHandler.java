@@ -12,7 +12,11 @@ import java.util.Map;
 
 public class JwtLogoutSuccessHandler implements LogoutSuccessHandler {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public JwtLogoutSuccessHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
@@ -20,6 +24,6 @@ public class JwtLogoutSuccessHandler implements LogoutSuccessHandler {
 
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8");
-        mapper.writeValue(response.getWriter(), Map.of("message", "로그아웃 되었습니다"));
+        objectMapper.writeValue(response.getWriter(), Map.of("message", "로그아웃 되었습니다"));
     }
 }

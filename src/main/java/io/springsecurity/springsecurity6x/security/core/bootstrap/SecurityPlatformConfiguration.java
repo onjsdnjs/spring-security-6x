@@ -47,10 +47,10 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public List<SecurityConfigurer> staticConfigurers(ASEPFilter asepFilter) {
+    public List<SecurityConfigurer> staticConfigurers() {
         return List.of(
                 new FlowConfigurer(),
-                new GlobalConfigurer(asepFilter)
+                new GlobalConfigurer()
         );
     }
 

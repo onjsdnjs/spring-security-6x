@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.List;
 
@@ -13,17 +14,27 @@ import java.util.List;
 public interface SecurityConfigurerProvider {
 
     /**
-     * 적용할 SecurityConfigurer 리스트를 반환합니다.
-     * 이 메소드는 전역 초기화(init) 단계와 각 Flow별 구성(configure) 단계 모두에서 호출될 수 있습니다.
-     * 반환되는 Configurer 들은 자신의 init/configure 메소드 내에서
-     * 전달받는 PlatformContext 또는 FlowContext를 통해 적용 범위를 결정해야 합니다.
-     *
+     * 전역 초기화 단계에서 사용될 SecurityConfigurer 리스트를 반환합니다.
+     * 이 시점에서는 특정 HttpSecurity 인스턴스와 무관한 Configurer들이 주로 포함됩니다.
      * @param platformContext 플랫폼 전역 컨텍스트
      * @param platformConfig 플랫폼 전역 설정
-     * @return 적용할 SecurityConfigurer 리스트
+     * @return SecurityConfigurer 리스트
      */
-    List<SecurityConfigurer> getConfigurers(
+    List<SecurityConfigurer> getGlobalConfigurers(PlatformContext platformContext, PlatformConfig platformConfig);
+
+    /**
+     * 특정 HttpSecurity 인스턴스(즉, 특정 Flow)에 적용될 SecurityConfigurer 리스트를 반환합니다.
+     * 이 메소드는 각 FlowContext 처리 시 호출될 수 있습니다.
+     * @param platformContext 플랫폼 전역 컨텍스트
+     * @param platformConfig 플랫폼 전역 설정
+     * @param httpForScope 현재 처리 중인 HttpSecurity 인스턴스 (null이 아니어야 함).
+     * 이 인스턴스의 sharedObjects를 확인하여 DSL별 커스텀 ASEP 설정을 로드한
+     * AsepConfigurer 등을 포함시킬 수 있습니다.
+     * @return 해당 HttpSecurity 스코프에 적용될 SecurityConfigurer 리스트
+     */
+    List<SecurityConfigurer>getFlowSpecificConfigurers(
             PlatformContext platformContext,
-            PlatformConfig platformConfig
+            PlatformConfig platformConfig,
+            HttpSecurity httpForScope
     );
 }

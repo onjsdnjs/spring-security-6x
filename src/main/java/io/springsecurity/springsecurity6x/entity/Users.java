@@ -27,7 +27,7 @@ public class Users {
 
     // --- MFA 관련 필드 ---
     @Column(nullable = false)
-    private boolean mfaEnabled = true; // 사용자가 MFA를 활성화했는지 여부
+    private boolean mfaEnabled; // 사용자가 MFA를 활성화했는지 여부
 
     /**
      * 등록된 MFA 수단 (쉼표로 구분된 AuthType 이름 문자열).

@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
-import io.springsecurity.springsecurity6x.security.filter.MfaOrchestrationFilter;
+import io.springsecurity.springsecurity6x.security.filter.MfaContinuationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,11 +75,11 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
         // MfaOrchestrationFilter의 RequestMatcher는 해당 MFA 플로우 내의 특정 API 경로들을 포함해야 함.
         // SecurityConfig 에서 HttpSecurity 객체에 requestMatcher()를 통해 이 MFA FilterChain이 적용될 경로를 지정.
         // 따라서 MfaOrchestrationFilter는 해당 FilterChain 내에서 모든 요청에 대해 동작하게 됨 (내부에서 다시 requestMatcher로 거름).
-        MfaOrchestrationFilter mfaOrchestrationFilter = new MfaOrchestrationFilter(ctxPersistence, stateMachine);
-        http.addFilterBefore(mfaOrchestrationFilter, LogoutFilter.class); // 예시 위치
+        MfaContinuationFilter mfaContinuationFilter = new MfaContinuationFilter(ctxPersistence, stateMachine);
+        http.addFilterBefore(mfaContinuationFilter, LogoutFilter.class); // 예시 위치
 
         MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence);
-        http.addFilterBefore(mfaStepFilterWrapper, MfaOrchestrationFilter.class); // Orchestration 필터보다 먼저 특정 factor 처리 시도
+        http.addFilterBefore(mfaStepFilterWrapper, MfaContinuationFilter.class); // Orchestration 필터보다 먼저 특정 factor 처리 시도
 
         log.debug("MFA common filters (MfaOrchestrationFilter, MfaStepFilterWrapper) added for MFA flow.");
 

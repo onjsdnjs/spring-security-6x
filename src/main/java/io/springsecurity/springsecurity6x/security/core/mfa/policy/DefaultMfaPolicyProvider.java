@@ -5,9 +5,12 @@ import io.springsecurity.springsecurity6x.repository.UserRepository;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.lang.Nullable;
+import org.springframework.security.core.Authentication; // 추가
+import org.springframework.stereotype.Component; // @Component 추가
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -16,130 +19,116 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
+@Component // 빈으로 등록
 @RequiredArgsConstructor
 public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
 
     @Override
-    public void evaluateMfaPolicy(FactorContext ctx) {
-        Assert.notNull(ctx, "FactorContext cannot be null for MFA policy evaluation.");
-        if (ctx.getUsername() == null) {
-            log.warn("Cannot evaluate MFA policy: username is null in FactorContext. Session: {}", ctx.getMfaSessionId());
-            ctx.setMfaRequired(false);
+    public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
+        Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null.");
+        Assert.notNull(ctx, "FactorContext cannot be null.");
+        Assert.isTrue(Objects.equals(primaryAuthentication.getName(), ctx.getUsername()),
+                "Username in FactorContext must match primaryAuthentication's name.");
+
+        String username = ctx.getUsername();
+        Optional<Users> userOptional = userRepository.findByUsername(username);
+
+        if (userOptional.isEmpty()) {
+            log.warn("User {} not found. MFA cannot be evaluated.", username);
+            ctx.setMfaRequiredAsPerPolicy(false);
+            ctx.setCurrentMfaState(MfaState.NONE); // 또는 적절한 실패 상태
             return;
         }
-        String username = ctx.getUsername();
 
-        boolean mfaActuallyRequired = determineIfMfaIsActuallyRequiredForUser(username, ctx);
-        ctx.setMfaRequired(mfaActuallyRequired);
+        Users user = userOptional.get();
+        boolean mfaEnabledForUser = user.isMfaEnabled();
+        ctx.setMfaRequiredAsPerPolicy(mfaEnabledForUser);
 
-        if (mfaActuallyRequired) {
-            Set<AuthType> registeredFactors = getRegisteredMfaFactorsForUser(username);
-            // FactorContext에 사용자의 등록된 MFA 요소 설정
-            ctx.setRegisteredMfaFactors(registeredFactors != null ? EnumSet.copyOf(registeredFactors) : EnumSet.noneOf(AuthType.class));
+        if (mfaEnabledForUser) {
+            Set<AuthType> registeredFactors = parseRegisteredMfaFactors(user.getMfaFactors());
+            ctx.setRegisteredMfaFactors(registeredFactors.isEmpty() ? EnumSet.noneOf(AuthType.class) : EnumSet.copyOf(registeredFactors));
 
             if (CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
-                log.warn("MFA is required for user '{}' (session {}), but no MFA factors are registered. MFA cannot proceed.", username, ctx.getMfaSessionId());
-                ctx.setMfaRequired(false); // 등록된 요소가 없으면 MFA를 요구할 수 없음
+                log.warn("MFA is enabled for user '{}', but no MFA factors are registered. MFA cannot proceed.", username);
+                ctx.setMfaRequiredAsPerPolicy(false); // 실제 진행 불가하므로 MFA 요구 안 함으로 변경
+                ctx.setCurrentMfaState(MfaState.NONE); // 또는 MFA_FAILED_TERMINAL (설정 오류)
             } else {
-                // getPreferredAutoAttemptFactor(FactorContext ctx) 호출로 변경
-                ctx.setPreferredAutoAttemptFactor(getPreferredAutoAttemptFactor(ctx));
-                log.info("MFA policy evaluated for user {}: MFA Required={}, Registered Factors={}, PreferredAutoAttempt={}. Session: {}",
-                        username, ctx.isMfaRequired(), ctx.getRegisteredMfaFactors(), ctx.getPreferredAutoAttemptFactor(), ctx.getMfaSessionId());
+                // 첫 번째 처리할 Factor 결정 (예: 정책에 따라 또는 등록된 첫 번째 Factor)
+                AuthType initialFactor = determineNextFactorToProcessInternal(ctx.getRegisteredMfaFactors(), ctx.getCompletedMfaFactors());
+                if (initialFactor != null) {
+                    ctx.setCurrentProcessingFactor(initialFactor);
+                    ctx.setCurrentMfaState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
+                    log.info("MFA required for user {}. Initial factor: {}, Initial state: {}. Session: {}",
+                            username, initialFactor, ctx.getCurrentMfaState(), ctx.getMfaSessionId());
+                } else {
+                    // 등록된 Factor는 있지만, 정책상 진행할 첫 Factor가 없는 이상한 경우 (또는 모두 이미 완료된 것처럼?)
+                    // 이 경우는 거의 발생하지 않아야 함. 등록된 Factor가 있다면 하나는 진행 가능해야 함.
+                    log.warn("MFA required for user '{}', registered factors exist, but no initial factor determined. Defaulting to AWAITING_FACTOR_SELECTION. Session: {}",
+                            username, ctx.getMfaSessionId());
+                    ctx.setCurrentMfaState(MfaState.AWAITING_FACTOR_SELECTION);
+                }
             }
         } else {
-            log.info("MFA policy evaluated for user {}: MFA Not Required. Session: {}", username, ctx.getMfaSessionId());
-            ctx.setRegisteredMfaFactors(EnumSet.noneOf(AuthType.class)); // MFA가 필요 없으면 등록된 요소도 없음으로 처리
-            ctx.setPreferredAutoAttemptFactor(null); // 선호 자동 시도 요소도 없음으로 처리
+            log.info("MFA not enabled for user {}. Session: {}", username, ctx.getMfaSessionId());
+            ctx.setCurrentMfaState(MfaState.NONE); // MFA 불필요
         }
     }
 
-    private boolean determineIfMfaIsActuallyRequiredForUser(String username, FactorContext ctx) {
-        return userRepository.findByUsername(username)
-                .map(Users::isMfaEnabled)
-                .orElse(false);
-    }
-
-    @Override
-    public Set<AuthType> getRegisteredMfaFactors(FactorContext ctx) {
-        Assert.notNull(ctx, "FactorContext cannot be null for getting registered MFA factors.");
-        Assert.hasText(ctx.getUsername(), "Username in FactorContext cannot be empty.");
-        return getRegisteredMfaFactorsForUser(ctx.getUsername());
-    }
-
-    private Set<AuthType> getRegisteredMfaFactorsForUser(String username) {
-        Assert.hasText(username, "Username cannot be empty for fetching registered MFA factors");
-        log.debug("DefaultMfaPolicyProvider: Fetching registered MFA factors for user {}", username);
-
-        return userRepository.findByUsername(username)
-                .map(user -> {
-                    String mfaFactorsString = user.getMfaFactors();
-                    if (StringUtils.hasText(mfaFactorsString)) {
-                        try {
-                            return Arrays.stream(mfaFactorsString.split(","))
-                                    .map(String::trim)
-                                    .map(String::toUpperCase)
-                                    .map(AuthType::valueOf)
-                                    .collect(Collectors.toCollection(() -> EnumSet.noneOf(AuthType.class)));
-                        } catch (IllegalArgumentException e) {
-                            log.warn("Invalid AuthType string found in mfaFactors for user {}: '{}'", username, mfaFactorsString, e);
-                            return EnumSet.noneOf(AuthType.class);
-                        }
-                    }
-                    return EnumSet.noneOf(AuthType.class);
-                })
-                .orElseGet(() -> {
-                    log.warn("User {} not found for fetching registered MFA factors.", username);
-                    return EnumSet.noneOf(AuthType.class);
-                });
-    }
-
-
-    @Override
-    public AuthType determineNextFactor(FactorContext ctx) {
-        Assert.notNull(ctx, "FactorContext cannot be null for determining next factor.");
-        if (!ctx.isMfaRequired() || CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
-            return null;
+    private Set<AuthType> parseRegisteredMfaFactors(String mfaFactorsString) {
+        if (StringUtils.hasText(mfaFactorsString)) {
+            try {
+                return Arrays.stream(mfaFactorsString.split(","))
+                        .map(String::trim)
+                        .map(String::toUpperCase)
+                        .map(AuthType::valueOf)
+                        .collect(Collectors.toCollection(() -> EnumSet.noneOf(AuthType.class)));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid AuthType string found in mfaFactors: '{}'", mfaFactorsString, e);
+                return EnumSet.noneOf(AuthType.class);
+            }
         }
-        List<AuthType> processingOrder = List.of(AuthType.PASSKEY, AuthType.OTT); // 예시 순서
+        return EnumSet.noneOf(AuthType.class);
+    }
+
+    @Override
+    @Nullable
+    public AuthType determineNextFactorToProcess(FactorContext ctx) {
+        Assert.notNull(ctx, "FactorContext cannot be null.");
+        if (!ctx.isMfaRequiredAsPerPolicy() || CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
+            return null; // MFA가 필요 없거나 등록된 Factor가 없으면 다음 Factor 없음
+        }
+        return determineNextFactorToProcessInternal(ctx.getRegisteredMfaFactors(), ctx.getCompletedMfaFactors());
+    }
+
+    /**
+     * 실제 다음 Factor를 결정하는 내부 로직.
+     * 등록된 Factor 중 아직 완료되지 않은 것을 우선순위에 따라 반환.
+     */
+    @Nullable
+    private AuthType determineNextFactorToProcessInternal(Set<AuthType> registeredFactors, Set<AuthType> completedFactors) {
+        // 예시: 우선순위 (Passkey > OTT > RecoveryCode)
+        // 실제 우선순위는 플랫폼 정책에 따라 설정 가능
+        List<AuthType> processingOrder = List.of(AuthType.PASSKEY, AuthType.OTT, AuthType.RECOVERY_CODE);
 
         for (AuthType factorInOrder : processingOrder) {
-            if (ctx.getRegisteredMfaFactors().contains(factorInOrder) && !isFactorCompleted(ctx, factorInOrder)) {
-                log.debug("Next MFA factor determined for user {}: {}. Session: {}", ctx.getUsername(), factorInOrder, ctx.getMfaSessionId());
+            if (registeredFactors.contains(factorInOrder) && !completedFactors.contains(factorInOrder)) {
+                log.debug("Next MFA factor determined: {}", factorInOrder);
                 return factorInOrder;
             }
         }
-        log.debug("No more MFA factors to process for user {}. All registered factors seem completed. Session: {}", ctx.getUsername(), ctx.getMfaSessionId());
-        return null;
-    }
-
-    private boolean isFactorCompleted(FactorContext ctx, AuthType factorType) {
-        Assert.notNull(ctx, "FactorContext cannot be null for checking if factor is completed.");
-        return ctx.getMfaAttemptHistory().stream()
-                .anyMatch(attempt -> Objects.equals(attempt.getFactorType(), factorType) && attempt.isSuccess());
+        log.debug("No more MFA factors to process. All registered and required factors seem completed.");
+        return null; // 모든 등록된 Factor가 완료되었거나, 진행할 Factor가 없음
     }
 
     @Override
     public RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx) {
-        Assert.notNull(factorType, "FactorType cannot be null for getting retry policy.");
-        Assert.notNull(ctx, "FactorContext cannot be null for getting retry policy.");
-        log.debug("Providing default retry policy for factor {} (user {}, session {})", factorType, ctx.getUsername(), ctx.getMfaSessionId());
-        return new RetryPolicy(3);
-    }
-
-    @Override
-    public boolean isMfaRequired(FactorContext ctx) {
-        Assert.notNull(ctx, "FactorContext cannot be null for checking if MFA is required.");
-        return ctx.isMfaRequired();
-    }
-
-    @Override
-    public AuthType getPreferredAutoAttemptFactor(FactorContext ctx) {
-        Assert.notNull(ctx, "FactorContext cannot be null for getting preferred auto-attempt factor.");
-        if (ctx.getRegisteredMfaFactors().contains(AuthType.PASSKEY)) {
-            return AuthType.PASSKEY;
-        }
-        return null;
+        Assert.notNull(factorType, "FactorType cannot be null.");
+        Assert.notNull(ctx, "FactorContext cannot be null.");
+        // 실제로는 factorType 또는 사용자 등급별로 다른 재시도 정책 반환 가능
+        log.debug("Providing default retry policy (3 attempts) for factor {} (user {}, session {})",
+                factorType, ctx.getUsername(), ctx.getMfaSessionId());
+        return new RetryPolicy(3); // 기본 3회
     }
 }

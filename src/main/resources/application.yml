@@ -22,7 +22,7 @@ spring:
     tokenPrefix: Bearer
 
     mfa:
-      initiate-url: /mfa-challenge-start
+      initiate-url: /mfa/initiate
 
     oauth2:
       client-id: client-app

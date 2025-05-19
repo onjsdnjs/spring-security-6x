@@ -16,8 +16,8 @@ import java.time.Instant;
 @Configuration
 public class SecurityExceptionHandlerAdvice {
 
-    @SecurityExceptionHandler({ IllegalArgumentException.class, IllegalStateException.class})
-    public ResponseEntity<ErrorResponse> handleException(IllegalArgumentException e, HttpServletRequest request) {
+    @SecurityExceptionHandler({ RuntimeException.class})
+    public ResponseEntity<ErrorResponse> handleException(RuntimeException e, HttpServletRequest request) {
 
         ErrorResponse body = new ErrorResponse(
                 Instant.now().toString(),

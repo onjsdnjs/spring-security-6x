@@ -1,10 +1,9 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import lombok.Getter;
-import lombok.Setter; // 필요한 필드에만 선별적으로 사용하거나, 아래처럼 명시적 setter 사용
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
@@ -22,160 +21,83 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class FactorContext implements Serializable {
 
-    private static final long serialVersionUID = 20240516_01L; // 날짜 기반으로 변경
+    private static final long serialVersionUID = 20250519_01L; // 날짜 기반으로 변경
 
     private final String mfaSessionId;
-    private final AtomicReference<MfaState> currentState;
+    private final AtomicReference<MfaState> currentMfaState; // 변경: 이전 currentState -> currentMfaState
     private final AtomicInteger version = new AtomicInteger(0);
 
-    // 1차 인증 정보 (불변으로 설정하거나, 초기화 후 변경되지 않도록 관리)
-    private final Authentication primaryAuthentication;
+    private final Authentication primaryAuthentication; // 1차 인증 성공 객체
     private final String username;
 
-    // 각 Factor 타입별로 구성된 옵션들 (불변 컬렉션으로 관리)
-    private final Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptions;
+    // MFA 정책 및 진행 상태 관련 필드
+    @Setter private boolean mfaRequiredAsPerPolicy = false; // MfaPolicyProvider가 평가한 MFA 필요 여부
+    @Setter private EnumSet<AuthType> registeredMfaFactors = EnumSet.noneOf(AuthType.class); // 사용자에게 등록된 모든 MFA 수단
+    @Setter @Nullable private AuthType preferredAutoAttemptFactor; // 현재 사용하지 않으나, 향후 자동 시도 로직 위해 유지
+    @Setter @Nullable private AuthType currentProcessingFactor; // 현재 사용자가 선택했거나 시스템이 다음에 처리할 Factor
+    private final Set<AuthType> completedMfaFactors = EnumSet.noneOf(AuthType.class); // 이번 MFA 세션에서 성공한 Factor 목록 (CopyOnWriteArraySet 또는 동기화된 Set 사용 고려)
 
-    // --- MFA 정책 및 진행 상태 관련 필드 ---
-    // 이 필드들은 Setter를 통해 외부(주로 MfaPolicyProvider 또는 관련 핸들러)에서 설정될 수 있어야 함
-    @Setter
-    private boolean mfaRequired = false;
-    @Setter
-    private Set<AuthType> registeredMfaFactors = EnumSet.noneOf(AuthType.class);
-    @Setter
-    @Nullable
-    private AuthType preferredAutoAttemptFactor;
-
-    @Setter
-    private boolean autoAttemptFactorSucceeded = false;
-    @Setter
-    private boolean autoAttemptFactorSkippedOrFailed = false;
-
-    // 현재 처리 중인 MFA Factor 타입 (Setter를 통해 상태 핸들러 등에서 설정)
-    @Setter
-    @Nullable
-    private AuthType currentProcessingFactor;
-
-    // Factor별 인증 시도 횟수 (내부에서만 변경)
     private final Map<AuthType, Integer> factorAttemptCounts = new ConcurrentHashMap<>();
     private Instant lastActivityTimestamp;
-
-    // 현재 진행 중인 챌린지 관련 데이터 (예: Passkey 챌린지 옵션)
-    private final Map<String, Object> currentChallengePayload = new ConcurrentHashMap<>();
-    // MFA 시도 이력 (내부에서만 변경)
     private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
-    // 기타 확장 속성
-    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final Map<String, Object> attributes = new ConcurrentHashMap<>(); // 기타 확장 속성 (예: deviceId)
 
-    /**
-     * MFA 컨텍스트 생성자.
-     * 일반적으로 1차 인증 성공 후 호출됩니다.
-     *
-     * @param primaryAuthentication        1차 인증 성공 결과 (null이 아니어야 함).
-     * @param factorSpecificOptionsMap 각 Factor 타입별로 미리 구성된 옵션 맵 (null일 수 있음).
-     * @param initialMfaState            MFA 흐름의 시작 상태 (일반적으로 PRIMARY_AUTHENTICATION_COMPLETED).
-     */
-    public FactorContext(Authentication primaryAuthentication,
-                         @Nullable Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptionsMap,
-                         MfaState initialMfaState) {
+    // Factor별 옵션은 PlatformConfig -> AuthenticationFlowConfig -> AuthenticationStepConfig 에 저장되므로,
+    // FactorContext에 직접 모든 옵션을 들고 있을 필요는 없을 수 있음.
+    // 단, 현재 처리 중인 Factor의 옵션은 빠르게 접근하기 위해 currentProcessingFactorOptions 와 같이 가질 수 있음.
+    // 여기서는 간결성을 위해 우선 제거. 필요시 추가.
+    // private final Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptions;
+
+    public FactorContext(Authentication primaryAuthentication) {
         Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null when creating FactorContext.");
-        Assert.notNull(initialMfaState, "InitialMfaState cannot be null.");
-
         this.mfaSessionId = UUID.randomUUID().toString();
         this.primaryAuthentication = primaryAuthentication;
         this.username = primaryAuthentication.getName();
-        this.currentState = new AtomicReference<>(initialMfaState);
-
-        this.factorSpecificOptions = (factorSpecificOptionsMap != null) ?
-                Collections.unmodifiableMap(new HashMap<>(factorSpecificOptionsMap)) : // 불변 맵으로 저장
-                Collections.emptyMap();
+        this.currentMfaState = new AtomicReference<>(MfaState.NONE); // 초기 상태는 NONE, 1차 인증 성공 핸들러에서 PRIMARY_AUTHENTICATION_COMPLETED로 설정
         this.lastActivityTimestamp = Instant.now();
-        log.info("FactorContext created. Session ID: {}, Initial State: {}, Username: {}",
-                mfaSessionId, this.currentState.get(), this.username);
+        log.info("FactorContext created. Session ID: {}, Username: {}", mfaSessionId, this.username);
     }
 
-    /**
-     * 1차 인증 정보와 기본 초기 상태(PRIMARY_AUTHENTICATION_COMPLETED)로 FactorContext를 생성하는 편의 생성자.
-     *
-     * @param primaryAuthentication 1차 인증 성공 결과 (null이 아니어야 함).
-     */
-    public FactorContext(Authentication primaryAuthentication) {
-        this(primaryAuthentication, Collections.emptyMap(), MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
+    public MfaState getCurrentMfaState() {
+        return currentMfaState.get();
     }
 
-    /**
-     * (테스트 또는 매우 특수한 시나리오용) 1차 인증 없이 특정 초기 상태와 사용자 이름으로 시작합니다.
-     *
-     * @param initialState             초기 MFA 상태.
-     * @param username                 (선택적) 사용자 이름.
-     * @param factorSpecificOptionsMap (선택적) Factor 옵션.
-     */
-    public FactorContext(MfaState initialState, @Nullable String username,
-                         @Nullable Map<AuthType, AuthenticationProcessingOptions> factorSpecificOptionsMap) {
-        Assert.notNull(initialState, "InitialMfaState cannot be null.");
-        this.mfaSessionId = UUID.randomUUID().toString();
-        this.primaryAuthentication = null; // 1차 인증 정보 없음
-        this.username = username;
-        this.currentState = new AtomicReference<>(initialState);
-        this.factorSpecificOptions = (factorSpecificOptionsMap != null) ?
-                Collections.unmodifiableMap(new HashMap<>(factorSpecificOptionsMap)) :
-                Collections.emptyMap();
-        this.lastActivityTimestamp = Instant.now();
-        log.info("FactorContext created (manual init). Session ID: {}, Initial State: {}, Username: {}",
-                mfaSessionId, this.currentState.get(), this.username);
-    }
-
-
-    public MfaState getCurrentState() {
-        return currentState.get();
-    }
-
-    public int getVersion() {
-        return version.get();
-    }
-
-    public void changeState(MfaState newState) {
+    public void setCurrentMfaState(MfaState newState) {
         Assert.notNull(newState, "New MfaState cannot be null.");
-        MfaState oldState = this.currentState.getAndSet(newState);
+        MfaState oldState = this.currentMfaState.getAndSet(newState);
         if (oldState != newState) {
             this.version.incrementAndGet();
             this.lastActivityTimestamp = Instant.now();
-            log.debug("FactorContext (ID: {}) state changed: {} -> {}", mfaSessionId, oldState, newState);
+            log.info("FactorContext (ID: {}) state changed: {} -> {}", mfaSessionId, oldState, newState);
         }
     }
 
     public boolean compareAndSetState(MfaState expect, MfaState update) {
         Assert.notNull(expect, "Expected MfaState cannot be null.");
         Assert.notNull(update, "Update MfaState cannot be null.");
-        boolean success = this.currentState.compareAndSet(expect, update);
+        boolean success = this.currentMfaState.compareAndSet(expect, update);
         if (success) {
             this.version.incrementAndGet();
             this.lastActivityTimestamp = Instant.now();
-            log.debug("FactorContext (ID: {}) state compareAndSet: {} -> {}. Success: {}", mfaSessionId, expect, update, true);
+            log.info("FactorContext (ID: {}) state compareAndSet: {} -> {}. Success: {}", mfaSessionId, expect, update, true);
         } else {
-            log.warn("FactorContext (ID: {}) state compareAndSet failed. Expected: {}, Actual: {}, UpdateTo: {}", mfaSessionId, expect, getCurrentState(), update);
+            log.warn("FactorContext (ID: {}) state compareAndSet FAILED. Expected: {}, Actual: {}, UpdateTo: {}", mfaSessionId, expect, getCurrentMfaState(), update);
         }
         return success;
     }
 
-    @Nullable
-    public AuthenticationProcessingOptions getOptionsForFactor(AuthType factorType) {
-        return this.factorSpecificOptions.get(factorType);
-    }
-
-    @Nullable
-    public AuthenticationProcessingOptions getCurrentFactorOptions() {
-        if (this.currentProcessingFactor == null) {
-            return null;
+    public void addCompletedFactor(AuthType factorType) {
+        if (factorType != null) {
+            this.completedMfaFactors.add(factorType);
+            this.lastActivityTimestamp = Instant.now();
+            log.debug("FactorContext (ID: {}): Factor {} marked as completed.", mfaSessionId, factorType);
         }
-        return getOptionsForFactor(this.currentProcessingFactor);
     }
-
-    // setAllFactorSpecificOptions는 생성 시점에만 전달받도록 변경 (불변성 강화)
 
     public int incrementAttemptCount(@Nullable AuthType factorType) {
         if (factorType == null) {
             log.warn("FactorContext (ID: {}): Attempted to increment attempt count for a null factorType.", mfaSessionId);
-            return 0; // 또는 예외 발생
+            return 0;
         }
         int newCount = factorAttemptCounts.compute(factorType, (key, val) -> (val == null) ? 1 : val + 1);
         this.lastActivityTimestamp = Instant.now();
@@ -188,26 +110,10 @@ public class FactorContext implements Serializable {
         return factorAttemptCounts.getOrDefault(factorType, 0);
     }
 
-
     public void recordAttempt(@Nullable AuthType factorType, boolean success, String detail) {
         this.mfaAttemptHistory.add(new MfaAttemptDetail(factorType, success, detail));
         this.lastActivityTimestamp = Instant.now();
         log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}'", mfaSessionId, factorType, success, detail);
-    }
-
-    @Nullable
-    public Object getChallengePayload(String key) {
-        return this.currentChallengePayload.get(key);
-    }
-
-    public void setChallengePayload(String key, Object value) {
-        this.currentChallengePayload.put(key, value);
-        log.debug("FactorContext (ID: {}): Challenge payload set: Key='{}', Value type='{}'", mfaSessionId, key, value != null ? value.getClass().getSimpleName() : "null");
-    }
-
-    public void clearChallengePayload() {
-        this.currentChallengePayload.clear();
-        log.debug("FactorContext (ID: {}): Challenge payload cleared.", mfaSessionId);
     }
 
     @Nullable
@@ -222,7 +128,7 @@ public class FactorContext implements Serializable {
 
     @Getter
     public static class MfaAttemptDetail implements Serializable {
-        private static final long serialVersionUID = 20240516_02L;
+        private static final long serialVersionUID = 20250519_02L;
         @Nullable
         private final AuthType factorType;
         private final boolean success;
@@ -235,33 +141,6 @@ public class FactorContext implements Serializable {
             this.timestamp = Instant.now();
             this.detail = detail;
         }
-
-        @Override
-        public String toString() {
-            return "MfaAttemptDetail{" +
-                    "factorType=" + factorType +
-                    ", success=" + success +
-                    ", timestamp=" + timestamp +
-                    ", detail='" + detail + '\'' +
-                    '}';
-        }
-    }
-
-    @Override
-    public String toString() {
-        return "FactorContext{" +
-                "mfaSessionId='" + mfaSessionId + '\'' +
-                ", currentState=" + currentState.get() +
-                ", version=" + version.get() +
-                ", username='" + username + '\'' +
-                ", mfaRequired=" + mfaRequired +
-                ", currentProcessingFactor=" + currentProcessingFactor +
-                ", registeredMfaFactors=" + registeredMfaFactors +
-                ", preferredAutoAttemptFactor=" + preferredAutoAttemptFactor +
-                ", autoAttemptFactorSucceeded=" + autoAttemptFactorSucceeded +
-                ", autoAttemptFactorSkippedOrFailed=" + autoAttemptFactorSkippedOrFailed +
-                ", lastActivityTimestamp=" + lastActivityTimestamp +
-                '}';
     }
 }
 

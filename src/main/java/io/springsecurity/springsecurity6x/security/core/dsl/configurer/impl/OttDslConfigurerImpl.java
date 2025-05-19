@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.asep.dsl.OttAsepAttributes;
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttributes;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
@@ -8,15 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 @Slf4j
-public final class OttDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
-        extends AbstractOptionsBuilderConfigurer<OttDslConfigurerImpl<H>, H, OttOptions, OttOptions.Builder, OttDslConfigurer>
+public final class OttDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<OttDslConfigurerImpl, OttOptions, OttOptions.Builder, OttDslConfigurer>
         implements OttDslConfigurer {
 
     public OttDslConfigurerImpl(ApplicationContext applicationContext) {
@@ -86,28 +86,20 @@ public final class OttDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     @Override
     public OttDslConfigurer asep(Customizer<OttAsepAttributes> ottAsepAttributesCustomizer) {
-        H builder = getBuilder();
-        OttAsepAttributes attributes = builder.getSharedObject(OttAsepAttributes.class);
-        if (attributes == null) {
-            attributes = new OttAsepAttributes();
-        }
+
+        OttAsepAttributes attributes = new OttAsepAttributes();
         if (ottAsepAttributesCustomizer != null) {
             ottAsepAttributesCustomizer.customize(attributes);
         }
-        builder.setSharedObject(OttAsepAttributes.class, attributes);
-        log.debug("ASEP: OttAsepAttributes stored/updated in sharedObjects for builder hash: {}", System.identityHashCode(builder));
+        // builder.setSharedObject(PasskeyAsepAttributes.class, attributes); // 제거
+        getOptionsBuilder().asepAttributes(attributes); // PasskeyOptions.Builder에 저장
+        log.debug("ASEP: PasskeyAsepAttributes configured and will be stored within PasskeyOptions.");
         return self();
     }
 
-
     @Override
-    protected OttDslConfigurerImpl<H> self() {
+    protected OttDslConfigurerImpl self() {
         return this;
-    }
-
-    @Override
-    public void configure(H builder) throws Exception {
-
     }
 }
 

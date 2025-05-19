@@ -1,29 +1,30 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
-
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.*;
+import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
+import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
 public abstract class AbstractOptionsBuilderConfigurer<
-        T extends AbstractOptionsBuilderConfigurer<T, B, O, OB, C>,
-        B extends HttpSecurityBuilder<B>, // HttpSecurityBuilder 타입
-        O extends AuthenticationProcessingOptions,
-        OB extends AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<O, OB>,
+        T extends AbstractOptionsBuilderConfigurer<T, O, OB, C>,
+        O extends AbstractOptions,
+        OB extends AbstractOptions.Builder<O, OB>,
         C extends OptionsBuilderDsl<O, C> & SecurityConfigurerDsl>
-        extends AbstractHttpConfigurer<T, B> // AbstractHttpConfigurer의 T는 CfgImpl
-        implements OptionsBuilderDsl<O, C> { // OptionsBuilderDsl의 S는 CfgInterface
+        implements OptionsBuilderDsl<O, C> {
 
     protected final OB optionsBuilder;
     @Setter
@@ -35,13 +36,7 @@ public abstract class AbstractOptionsBuilderConfigurer<
 
     protected final ApplicationContext getApplicationContext() {
         if (this.applicationContext == null) {
-            B builder = getBuilder();
-            if (builder != null) {
-                this.applicationContext = builder.getSharedObject(ApplicationContext.class);
-            }
-            if (this.applicationContext == null) {
-                log.warn("ApplicationContext could not be retrieved from HttpSecurityBuilder for {}. ", this.getClass().getSimpleName());
-            }
+            log.warn("ApplicationContext not set for {}. Some features requiring ApplicationContext may not work.", this.getClass().getSimpleName());
         }
         return this.applicationContext;
     }
@@ -50,37 +45,50 @@ public abstract class AbstractOptionsBuilderConfigurer<
         return this.optionsBuilder;
     }
 
-    // 하위 클래스에서 self()를 CfgInterface 타입으로 반환하도록 구현해야 함
-    // 하지만 DSL 체이닝을 위해 실제로는 CfgImpl 타입을 반환하고 CfgInterface로 업캐스팅
-    protected abstract T self(); // 구체 구현체 반환용
+    protected abstract T self();
 
     @Override
     public O buildConcreteOptions() {
         return this.optionsBuilder.build();
     }
 
-    // OptionsBuilderDsl 메소드들은 CfgInterface 타입을 반환
     @Override
     public C loginProcessingUrl(String url) {
-        getOptionsBuilder().loginProcessingUrl(url);
+        if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
+            ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).loginProcessingUrl(url);
+        } else {
+            logUnsupportedOption("loginProcessingUrl");
+        }
         return (C) self();
     }
 
     @Override
     public C successHandler(AuthenticationSuccessHandler handler) {
-        getOptionsBuilder().successHandler(handler);
+        if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
+            ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).successHandler(handler);
+        } else {
+            logUnsupportedOption("successHandler");
+        }
         return (C) self();
     }
 
     @Override
     public C failureHandler(AuthenticationFailureHandler handler) {
-        getOptionsBuilder().failureHandler(handler);
+        if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
+            ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).failureHandler(handler);
+        } else {
+            logUnsupportedOption("failureHandler");
+        }
         return (C) self();
     }
 
     @Override
     public C securityContextRepository(SecurityContextRepository repository) {
-        getOptionsBuilder().securityContextRepository(repository);
+        if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
+            ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).securityContextRepository(repository);
+        } else {
+            logUnsupportedOption("securityContextRepository");
+        }
         return (C) self();
     }
 
@@ -121,5 +129,19 @@ public abstract class AbstractOptionsBuilderConfigurer<
     }
 
     @Override
-    public abstract void configure(B builder) throws Exception;
+    public C authorizeStaticPermitAll(List<String> patterns) {
+        getOptionsBuilder().authorizeStaticPermitAll(patterns);
+        return (C) self();
+    }
+
+    @Override
+    public C authorizeStaticPermitAll(String... patterns) {
+        getOptionsBuilder().authorizeStaticPermitAll(patterns);
+        return (C) self();
+    }
+
+    private void logUnsupportedOption(String optionName) {
+        log.warn("Option '{}' is not applicable for the current OptionsBuilder type: {}. This setting will be ignored.",
+                optionName, optionsBuilder.getClass().getName());
+    }
 }

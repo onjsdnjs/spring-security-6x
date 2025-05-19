@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.FormAsepAttributes;
 import lombok.Getter;
 import org.springframework.util.Assert;
 

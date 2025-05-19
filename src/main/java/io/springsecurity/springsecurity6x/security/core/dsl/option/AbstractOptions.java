@@ -22,8 +22,8 @@ public abstract class AbstractOptions {
     private final Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
     private final Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
     private final Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer;
-    private final List<String> staticMatchers; // 정적 리소스 허용 패턴
-    private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers; // 플랫폼 고유 HttpSecurity 커스터마이저
+    private final List<String> staticMatchers;
+    private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers;
 
     protected AbstractOptions(Builder<?, ?> builder) {
         Objects.requireNonNull(builder, "Builder cannot be null");
@@ -80,19 +80,16 @@ public abstract class AbstractOptions {
      */
     public abstract static class Builder<O extends AbstractOptions, B extends Builder<O, B>> {
         private boolean csrfDisabled = false;
-        private Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer = Customizer.withDefaults(); // 기본값 설정
+        private Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer = Customizer.withDefaults();
         private Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer = Customizer.withDefaults();
         private Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer = Customizer.withDefaults();
         private Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer = Customizer.withDefaults();
-        private List<String> staticMatchers = Collections.emptyList(); // 불변 기본값
+        private List<String> staticMatchers = Collections.emptyList();
         private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers = new ArrayList<>();
 
-        /**
-         * @return 빌더 자신 (타입 B)
-         */
         protected abstract B self();
 
-        public B csrfDisabled(boolean csrfDisabled) { // 명시적으로 boolean 받도록 변경
+        public B csrfDisabled(boolean csrfDisabled) {
             this.csrfDisabled = csrfDisabled;
             return self();
         }
@@ -117,15 +114,14 @@ public abstract class AbstractOptions {
             return self();
         }
 
-        public B authorizeStaticPermitAll(List<String> patterns) { // 메소드명 변경 (permitAll 명시)
+        public B authorizeStaticPermitAll(List<String> patterns) {
             this.staticMatchers = List.copyOf(Objects.requireNonNull(patterns, "patterns cannot be null"));
             return self();
         }
-        public B authorizeStaticPermitAll(String... patterns) { // varargs 추가
+        public B authorizeStaticPermitAll(String... patterns) {
             this.staticMatchers = List.of(Objects.requireNonNull(patterns, "patterns cannot be null"));
             return self();
         }
-
 
         public B rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) {
             this.rawHttpCustomizers.add(Objects.requireNonNull(customizer, "rawHttp customizer cannot be null"));

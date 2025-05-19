@@ -24,15 +24,16 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.*;
 
-@AutoConfiguration
+@AutoConfiguration // Spring Boot 2.7+
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnClass({HttpSecurity.class})
+@ConditionalOnClass({HttpSecurity.class}) // HttpSecurity가 classpath에 있어야 활성화
 @Slf4j
 public class AsepAutoConfiguration {
 
     private final HttpMessageConverters httpMessageConverters;
     private final ConversionService conversionService;
 
+    // 생성자 주입 방식 권장
     public AsepAutoConfiguration(ObjectProvider<HttpMessageConverters> httpMessageConvertersProvider,
                                  ObjectProvider<ConversionService> conversionServiceProvider) {
         this.httpMessageConverters = httpMessageConvertersProvider.getIfAvailable(() -> new HttpMessageConverters(Collections.emptyList()));
@@ -61,43 +62,51 @@ public class AsepAutoConfiguration {
         resolvers.add(new SecurityCookieValueArgumentResolver(this.conversionService));
         resolvers.add(new SecurityRequestAttributeArgumentResolver());
         resolvers.add(new SecuritySessionAttributeArgumentResolver());
-        resolvers.add(new SecurityRequestBodyArgumentResolver(this.httpMessageConverters.getConverters())); // getConverters() 호출
-        AnnotationAwareOrderComparator.sort(resolvers); // 정렬
+        // SecurityRequestBodyArgumentResolver는 messageConverters를 필요로 함
+        if (this.httpMessageConverters != null && !this.httpMessageConverters.getConverters().isEmpty()) {
+            resolvers.add(new SecurityRequestBodyArgumentResolver(this.httpMessageConverters.getConverters()));
+        } else {
+            log.warn("ASEP: HttpMessageConverters bean not available or empty. SecurityRequestBodyArgumentResolver will not be fully functional.");
+            resolvers.add(new SecurityRequestBodyArgumentResolver(Collections.emptyList())); // 빈 리스트로라도 생성
+        }
+        AnnotationAwareOrderComparator.sort(resolvers);
         log.debug("ASEP: Created 'asepDefaultArgumentResolvers' bean with {} resolvers.", resolvers.size());
-        return Collections.unmodifiableList(resolvers); // 불변 리스트로 반환
+        return Collections.unmodifiableList(resolvers);
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "asepDefaultReturnValueHandlers")
     public List<SecurityHandlerMethodReturnValueHandler> asepDefaultReturnValueHandlers() {
         List<SecurityHandlerMethodReturnValueHandler> handlers = new ArrayList<>();
-        handlers.add(new ResponseEntityReturnValueHandler(this.httpMessageConverters.getConverters()));
-        handlers.add(new SecurityResponseBodyReturnValueHandler(this.httpMessageConverters.getConverters()));
+        if (this.httpMessageConverters != null && !this.httpMessageConverters.getConverters().isEmpty()) {
+            handlers.add(new ResponseEntityReturnValueHandler(this.httpMessageConverters.getConverters()));
+            handlers.add(new SecurityResponseBodyReturnValueHandler(this.httpMessageConverters.getConverters()));
+        } else {
+            log.warn("ASEP: HttpMessageConverters bean not available or empty. ResponseEntityReturnValueHandler and SecurityResponseBodyReturnValueHandler will not be fully functional.");
+            handlers.add(new ResponseEntityReturnValueHandler(Collections.emptyList()));
+            handlers.add(new SecurityResponseBodyReturnValueHandler(Collections.emptyList()));
+        }
         handlers.add(new RedirectReturnValueHandler());
-        AnnotationAwareOrderComparator.sort(handlers); // 정렬
+        AnnotationAwareOrderComparator.sort(handlers);
         log.debug("ASEP: Created 'asepDefaultReturnValueHandlers' bean with {} handlers.", handlers.size());
-        return Collections.unmodifiableList(handlers); // 불변 리스트로 반환
+        return Collections.unmodifiableList(handlers);
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "asepDslAttributesMapping")
     public Map<String, Class<? extends BaseAsepAttributes>> asepDslAttributesMapping() {
         Map<String, Class<? extends BaseAsepAttributes>> mapping = new HashMap<>();
-        // --- 중요: 이 매핑은 플랫폼의 AuthenticationFlowConfig.getTypeName() 반환값과 정확히 일치해야 합니다. ---
+        // 플랫폼의 AuthenticationFlowConfig.getTypeName()과 일치해야 함 (소문자 권장)
         mapping.put("form", FormAsepAttributes.class);
         mapping.put("rest", RestAsepAttributes.class);
         mapping.put("ott", OttAsepAttributes.class);
         mapping.put("passkey", PasskeyAsepAttributes.class);
-        mapping.put("mfa", MfaAsepAttributes.class);
-        mapping.put("mfa-ott", MfaOttAsepAttributes.class);
-        mapping.put("mfa-passkey", MfaPasskeyAsepAttributes.class);
-        // ... (플랫폼에서 추가된 다른 DSL 및 MFA Factor 타입에 대한 모든 매핑을 여기에 정확히 추가) ...
-
+        mapping.put("mfa", MfaAsepAttributes.class); // MFA 플로우 전체 ASEP
+        // MFA 내부 Factor별 ASEP (선택적, XxxOptions에 직접 저장하는 방식이면 이 매핑은 불필요할 수 있음)
+        // mapping.put("mfa-ott", MfaOttAsepAttributes.class);
+        // mapping.put("mfa-passkey", MfaPasskeyAsepAttributes.class);
         log.info("ASEP: Initialized 'asepDslAttributesMapping' ({} entries). Keys: {}", mapping.size(), mapping.keySet());
-        if (mapping.isEmpty()) {
-            log.warn("ASEP: 'asepDslAttributesMapping' is EMPTY. DSL-specific ASEP settings may not load correctly if any DSL uses ASEP.");
-        }
-        return Collections.unmodifiableMap(mapping); // 불변 맵으로 반환
+        return Collections.unmodifiableMap(mapping);
     }
 
     @Bean
@@ -106,16 +115,15 @@ public class AsepAutoConfiguration {
             SecurityExceptionHandlerMethodRegistry methodRegistry,
             @Qualifier("asepDefaultArgumentResolvers") List<SecurityHandlerMethodArgumentResolver> defaultArgumentResolvers,
             @Qualifier("asepDefaultReturnValueHandlers") List<SecurityHandlerMethodReturnValueHandler> defaultReturnValueHandlers,
-            HttpMessageConverters httpMessageConverters,
-            @Qualifier("asepDslAttributesMapping") Map<String, Class<? extends BaseAsepAttributes>> dslAttributesMapping) {
+            HttpMessageConverters httpMessageConverters, // Spring Boot가 자동 구성한 HttpMessageConverters 주입
+            @Qualifier("asepDslAttributesMapping") Map<String, Class<? extends BaseAsepAttributes>> dslAttributesMapping) { // dslAttributesMapping 파라미터 복원
         AsepConfigurer configurer = new AsepConfigurer(
                 methodRegistry,
                 defaultArgumentResolvers,
                 defaultReturnValueHandlers,
-                httpMessageConverters,
-                dslAttributesMapping
+                httpMessageConverters, // 생성자에 전달
+                dslAttributesMapping // 생성자에 전달
         );
-        // configurer.order(플랫폼_기본_순서); // AsepConfigurer에 order 설정 메소드가 있다면 여기서 기본값 설정
         log.info("ASEP: AsepConfigurer bean (Singleton, implements SecurityConfigurer) created and configured.");
         return configurer;
     }

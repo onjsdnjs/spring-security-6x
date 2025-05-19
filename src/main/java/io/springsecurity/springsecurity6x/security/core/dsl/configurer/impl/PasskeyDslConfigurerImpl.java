@@ -6,7 +6,6 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDs
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -15,41 +14,41 @@ import java.util.List;
 import java.util.Set;
 
 @Slf4j
-public final class PasskeyDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
-        extends AbstractOptionsBuilderConfigurer<PasskeyDslConfigurerImpl<H>, H, PasskeyOptions, PasskeyOptions.Builder, PasskeyDslConfigurer>
+public final class PasskeyDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<PasskeyDslConfigurerImpl, PasskeyOptions, PasskeyOptions.Builder, PasskeyDslConfigurer>
         implements PasskeyDslConfigurer {
 
-    public PasskeyDslConfigurerImpl(/* ApplicationContext context */) {
+    public PasskeyDslConfigurerImpl() {
         super(PasskeyOptions.builder());
     }
 
     @Override
     public PasskeyDslConfigurer order(int order) {
-        getOptionsBuilder().order(order);
+        getOptionsBuilder().order(order); // AuthenticationProcessingOptions.Builder의 order 사용
         return self();
     }
 
     @Override
     public PasskeyDslConfigurer loginProcessingUrl(String url) {
-        getOptionsBuilder().loginProcessingUrl(url);
+        super.loginProcessingUrl(url); // AbstractOptionsBuilderConfigurer의 메서드 호출
         return self();
     }
 
     @Override
     public PasskeyDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        getOptionsBuilder().successHandler(handler);
+        super.successHandler(handler);
         return self();
     }
 
     @Override
     public PasskeyDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        getOptionsBuilder().failureHandler(handler);
+        super.failureHandler(handler);
         return self();
     }
 
     @Override
     public PasskeyDslConfigurer securityContextRepository(SecurityContextRepository repository) {
-        getOptionsBuilder().securityContextRepository(repository);
+        super.securityContextRepository(repository);
         return self();
     }
 
@@ -92,26 +91,21 @@ public final class PasskeyDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     @Override
     public PasskeyDslConfigurer asep(Customizer<PasskeyAsepAttributes> passkeyAsepAttributesCustomizer){
-        H builder = getBuilder();
-        PasskeyAsepAttributes attributes = builder.getSharedObject(PasskeyAsepAttributes.class);
-        if (attributes == null) {
-            attributes = new PasskeyAsepAttributes();
-        }
+
+        PasskeyAsepAttributes attributes = new PasskeyAsepAttributes();
         if (passkeyAsepAttributesCustomizer != null) {
             passkeyAsepAttributesCustomizer.customize(attributes);
         }
-        builder.setSharedObject(PasskeyAsepAttributes.class, attributes);
-        log.debug("ASEP: PasskeyAsepAttributes stored/updated in sharedObjects for builder hash: {}", System.identityHashCode(builder));
+        // builder.setSharedObject(PasskeyAsepAttributes.class, attributes); // 제거
+        getOptionsBuilder().asepAttributes(attributes); // PasskeyOptions.Builder에 저장
+        log.debug("ASEP: PasskeyAsepAttributes configured and will be stored within PasskeyOptions.");
         return self();
     }
 
     @Override
-    protected PasskeyDslConfigurerImpl<H> self() {
+    protected PasskeyDslConfigurerImpl self() {
         return this;
     }
 
-    @Override
-    public void configure(H builder) throws Exception {
-
-    }
+    // configure(H builder) 메서드는 AbstractOptionsBuilderConfigurer에서 제거되었으므로 여기서도 불필요
 }

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.MfaAsepAttributes; // 추가
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.AdaptiveConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
@@ -22,8 +23,9 @@ public final class AuthenticationFlowConfig {
     private final String typeName;
     private final int order;
     private final StateConfig stateConfig;
-    private final Customizer<HttpSecurity> rawHttpCustomizer;
+    private final Customizer<HttpSecurity> rawHttpCustomizer; // SafeHttpCustomizer<HttpSecurity>로 변경 가능
 
+    // MFA 전용 필드들
     private final PrimaryAuthenticationOptions primaryAuthenticationOptions;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final MfaContinuationHandler mfaContinuationHandler;
@@ -33,9 +35,10 @@ public final class AuthenticationFlowConfig {
     private final RetryPolicy defaultRetryPolicy;
     private final AdaptiveConfig defaultAdaptiveConfig;
     private final boolean defaultDeviceTrustEnabled;
+    private final MfaAsepAttributes mfaAsepAttributes; // <<-- 추가
+
     private final List<AuthenticationStepConfig> stepConfigs;
 
-    // Private 생성자, Builder를 통해서만 생성
     private AuthenticationFlowConfig(Builder builder) {
         this.typeName = builder.typeName;
         this.order = builder.order;
@@ -47,22 +50,17 @@ public final class AuthenticationFlowConfig {
         this.mfaFailureHandler = builder.mfaFailureHandler;
         this.finalSuccessHandler = builder.finalSuccessHandler;
         this.registeredFactorOptions = builder.registeredFactorOptions != null ?
-                Collections.unmodifiableMap(new HashMap<>(builder.registeredFactorOptions)) : // 방어적 복사
+                Collections.unmodifiableMap(new HashMap<>(builder.registeredFactorOptions)) :
                 Collections.emptyMap();
         this.defaultRetryPolicy = builder.defaultRetryPolicy;
         this.defaultAdaptiveConfig = builder.defaultAdaptiveConfig;
         this.defaultDeviceTrustEnabled = builder.defaultDeviceTrustEnabled;
+        this.mfaAsepAttributes = builder.mfaAsepAttributes; // <<-- 추가
         this.stepConfigs = builder.stepConfigs != null ?
-                Collections.unmodifiableList(new ArrayList<>(builder.stepConfigs)) : // 방어적 복사
+                Collections.unmodifiableList(new ArrayList<>(builder.stepConfigs)) :
                 Collections.emptyList();
     }
 
-
-    /**
-     * 현재 객체의 복사본을 만들되, StateConfig만 새로운 값으로 대체합니다.
-     * @param newStateConfig 새로운 StateConfig
-     * @return StateConfig가 변경된 새로운 AuthenticationFlowConfig 인스턴스
-     */
     public AuthenticationFlowConfig withStateConfig(StateConfig newStateConfig) {
         Builder builder = new Builder(this.typeName)
                 .order(this.order)
@@ -72,16 +70,15 @@ public final class AuthenticationFlowConfig {
                 .mfaContinuationHandler(this.mfaContinuationHandler)
                 .mfaFailureHandler(this.mfaFailureHandler)
                 .finalSuccessHandler(this.finalSuccessHandler)
-                // Map과 List는 새로운 컬렉션으로 복사하여 불변성 유지
                 .registeredFactorOptions(this.registeredFactorOptions != null ? new HashMap<>(this.registeredFactorOptions) : null)
                 .defaultRetryPolicy(this.defaultRetryPolicy)
                 .defaultAdaptiveConfig(this.defaultAdaptiveConfig)
                 .defaultDeviceTrustEnabled(this.defaultDeviceTrustEnabled)
+                .mfaAsepAttributes(this.mfaAsepAttributes) // <<-- 복사 시 추가
                 .stepConfigs(this.stepConfigs != null ? new ArrayList<>(this.stepConfigs) : null)
-                .stateConfig(newStateConfig); // 새 StateConfig 설정
-        return new AuthenticationFlowConfig(builder); // private 생성자 호출, build() 재호출 아님
+                .stateConfig(newStateConfig);
+        return new AuthenticationFlowConfig(builder);
     }
-
 
     public static Builder builder(String typeName) {
         return new Builder(typeName);
@@ -102,6 +99,7 @@ public final class AuthenticationFlowConfig {
         private RetryPolicy defaultRetryPolicy;
         private AdaptiveConfig defaultAdaptiveConfig;
         private boolean defaultDeviceTrustEnabled;
+        private MfaAsepAttributes mfaAsepAttributes; // <<-- 추가
         private List<AuthenticationStepConfig> stepConfigs = new ArrayList<>();
 
         public Builder(String typeName) {
@@ -142,18 +140,17 @@ public final class AuthenticationFlowConfig {
         public Builder defaultAdaptiveConfig(AdaptiveConfig config) { this.defaultAdaptiveConfig = config; return this; }
         public Builder defaultDeviceTrustEnabled(boolean enabled) { this.defaultDeviceTrustEnabled = enabled; return this; }
 
-        /**
-         * 최종 AuthenticationFlowConfig 객체를 생성합니다.
-         * 이 메소드는 각 Flow 설정이 완료된 후 단 한 번만 호출되어야 합니다.
-         * @return 구성된 AuthenticationFlowConfig 객체
-         */
+        public Builder mfaAsepAttributes(MfaAsepAttributes attributes) { // <<-- 추가
+            this.mfaAsepAttributes = attributes;
+            return this;
+        }
+
         public AuthenticationFlowConfig build() {
-            // 유효성 검사는 여기에 유지 (최종 빌드 시점에 검증)
             if (AuthType.MFA.name().equalsIgnoreCase(typeName)) {
                 Assert.notNull(primaryAuthenticationOptions, "PrimaryAuthenticationOptions must be set for MFA flow named '" + typeName + "'");
-                Assert.isTrue(registeredFactorOptions != null && !registeredFactorOptions.isEmpty(), "At least one Factor must be registered for MFA flow named '" + typeName + "'");
-                Assert.isTrue(this.stepConfigs != null && !this.stepConfigs.isEmpty(), "MFA flow must have its steps configured in stepConfigs field.");
-            } else { // 단일 인증 플로우
+                // Assert.isTrue(registeredFactorOptions != null && !registeredFactorOptions.isEmpty(), "At least one Factor must be registered for MFA flow named '" + typeName + "'"); // 이 조건은 policyProvider가 동적으로 결정할 수 있으므로 완화 가능
+                Assert.isTrue(this.stepConfigs != null && this.stepConfigs.size() > 1, "MFA flow must have its primary and at least one secondary factor step configured in stepConfigs field.");
+            } else {
                 Assert.isTrue(this.stepConfigs != null && !this.stepConfigs.isEmpty(),
                         "Non-MFA flow named '" + typeName + "' must have at least one step in stepConfigs.");
             }

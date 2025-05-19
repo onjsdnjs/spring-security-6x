@@ -6,77 +6,68 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslCo
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+// HttpSecurityBuilder, HttpSecurity, AbstractHttpConfigurer import 제거 (옵션 빌딩 시점에는 사용 안 함)
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 @Slf4j
-public final class RestDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
-        extends AbstractOptionsBuilderConfigurer<RestDslConfigurerImpl<H>, H, RestOptions, RestOptions.Builder, RestDslConfigurer>
+public final class RestDslConfigurerImpl // <H extends HttpSecurityBuilder<H>> 제네릭 제거 또는 유지
+        extends AbstractOptionsBuilderConfigurer<RestDslConfigurerImpl, RestOptions, RestOptions.Builder, RestDslConfigurer>
         implements RestDslConfigurer {
 
-    public RestDslConfigurerImpl(/* ApplicationContext context */) {
+    public RestDslConfigurerImpl() {
         super(RestOptions.builder());
     }
 
     @Override
     public RestDslConfigurer order(int order) {
-        getOptionsBuilder().order(order);
+        getOptionsBuilder().order(order); // AuthenticationProcessingOptions.Builder의 order 사용
         return self();
     }
 
     @Override
     public RestDslConfigurer loginProcessingUrl(String url) {
-        getOptionsBuilder().loginProcessingUrl(url);
+        super.loginProcessingUrl(url); // AbstractOptionsBuilderConfigurer의 메서드 호출
         return self();
     }
 
     @Override
     public RestDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        getOptionsBuilder().successHandler(handler);
+        super.successHandler(handler);
         return self();
     }
 
     @Override
     public RestDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        getOptionsBuilder().failureHandler(handler);
+        super.failureHandler(handler);
         return self();
     }
 
     @Override
     public RestDslConfigurer securityContextRepository(SecurityContextRepository repository) {
-        getOptionsBuilder().securityContextRepository(repository);
+        super.securityContextRepository(repository);
         return self();
     }
-    // --- OptionsBuilderDsl 공통 메소드 구현 (disableCsrf, cors 등) ---
-    // 부모 AbstractOptionsBuilderConfigurer에서 이미 구현되어 self()를 통해 RestDslConfigurerImpl<H> 반환
-    // 인터페이스는 RestDslConfigurer를 반환하도록 되어 있으므로 호환됨.
 
     @Override
     public RestDslConfigurer asep(Customizer<RestAsepAttributes> restAsepAttributesCustomizer){
-        H builder = getBuilder();
-        RestAsepAttributes attributes = builder.getSharedObject(RestAsepAttributes.class);
-        if (attributes == null) {
-            attributes = new RestAsepAttributes();
-        }
+        // H builder = getBuilder(); // 제거
+        RestAsepAttributes attributes = new RestAsepAttributes();
         if (restAsepAttributesCustomizer != null) {
             restAsepAttributesCustomizer.customize(attributes);
         }
-        builder.setSharedObject(RestAsepAttributes.class, attributes);
-        log.debug("ASEP: RestAsepAttributes stored/updated in sharedObjects for builder hash: {}", System.identityHashCode(builder));
+        // builder.setSharedObject(RestAsepAttributes.class, attributes); // 제거
+        getOptionsBuilder().asepAttributes(attributes); // RestOptions.Builder에 저장
+        log.debug("ASEP: RestAsepAttributes configured and will be stored within RestOptions.");
         return self();
     }
 
     @Override
-    protected RestDslConfigurerImpl<H> self() {
+    protected RestDslConfigurerImpl self() {
         return this;
     }
 
-    @Override
-    public void configure(H builder) throws Exception {
-    }
+    // configure(H builder) 메서드는 AbstractOptionsBuilderConfigurer에서 제거되었으므로 여기서도 불필요
 }
 

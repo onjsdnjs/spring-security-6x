@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions; // 변경
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
@@ -10,21 +10,26 @@ import org.springframework.security.config.annotation.web.configurers.SessionMan
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
+import java.util.List;
 
 // O: Options 타입, S: DSL Configurer 자신의 타입
-public interface OptionsBuilderDsl<O extends AuthenticationProcessingOptions, S extends OptionsBuilderDsl<O, S>> {
+public interface OptionsBuilderDsl<O extends AbstractOptions, S extends OptionsBuilderDsl<O, S>> { // O extends AbstractOptions로 변경
 
+    // AuthenticationProcessingOptions에 특화된 메서드들
+    S loginProcessingUrl(String url);
+    S successHandler(AuthenticationSuccessHandler handler);
+    S failureHandler(AuthenticationFailureHandler handler);
+    S securityContextRepository(SecurityContextRepository repository);
+
+    // AbstractOptions (공통 HttpSecurity 설정) 관련 메서드들
     S disableCsrf();
     S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer);
     S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer);
     S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
     S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
-    S rawHttp(SafeHttpCustomizer<HttpSecurity> customizer); // 플랫폼 고유 Customizer
-
-    S loginProcessingUrl(String url);
-    S successHandler(AuthenticationSuccessHandler handler);
-    S failureHandler(AuthenticationFailureHandler handler);
-    S securityContextRepository(SecurityContextRepository repository);
+    S rawHttp(SafeHttpCustomizer<HttpSecurity> customizer);
+    S authorizeStaticPermitAll(List<String> patterns); // 추가
+    S authorizeStaticPermitAll(String... patterns); // 추가
 
     O buildConcreteOptions();
 }

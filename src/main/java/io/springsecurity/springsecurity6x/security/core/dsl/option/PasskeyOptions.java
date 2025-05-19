@@ -1,5 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.FormAsepAttributes;
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttributes;
 import lombok.Getter;
 import org.springframework.util.Assert;
 import java.util.*;
@@ -10,7 +12,8 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions { // f
     private final String assertionOptionsEndpoint; // 필수
     private final String rpName; // 필수
     private final String rpId;   // 필수
-    private final Set<String> allowedOrigins; // null이 아닌 빈 Set일 수 있음
+    private final Set<String> allowedOrigins;
+    private final PasskeyAsepAttributes asepAttributes;
 
     private PasskeyOptions(Builder builder) {
         super(builder);
@@ -19,6 +22,7 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions { // f
         this.rpId = Objects.requireNonNull(builder.rpId, "rpId cannot be null");
         this.allowedOrigins = builder.allowedOrigins != null ?
                 Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins)) : Collections.emptySet();
+        this.asepAttributes = builder.asepAttributes;
     }
 
     public static Builder builder() {
@@ -30,6 +34,7 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions { // f
         private String rpName = "My Application";
         private String rpId;
         private Set<String> allowedOrigins = new HashSet<>();
+        private PasskeyAsepAttributes asepAttributes;
 
         public Builder() {
             super.loginProcessingUrl("/login/webauthn"); // Passkey 인증 처리 URL 기본값
@@ -71,6 +76,11 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions { // f
         public Builder allowedOrigins(String... origins) {
             this.allowedOrigins = (origins != null && origins.length > 0) ?
                     new HashSet<>(Arrays.asList(origins)) : new HashSet<>();
+            return this;
+        }
+
+        public Builder asepAttributes(PasskeyAsepAttributes attributes) {
+            this.asepAttributes = attributes;
             return this;
         }
 

@@ -1,5 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.OttAsepAttributes;
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttributes;
 import lombok.Getter;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
@@ -14,7 +16,8 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
     private final String defaultSubmitPageUrl; // null 가능 (showDefaultSubmitPage=false 시)
     private final boolean showDefaultSubmitPage;
     private final OneTimeTokenService oneTimeTokenService; // 필수
-    private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler; // null 가능
+    private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+    private final OttAsepAttributes asepAttributes;
 
     private OttOptions(Builder builder) {
         super(builder);
@@ -23,6 +26,7 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
         this.showDefaultSubmitPage = builder.showDefaultSubmitPage;
         this.oneTimeTokenService = Objects.requireNonNull(builder.oneTimeTokenService, "oneTimeTokenService cannot be null");
         this.tokenGenerationSuccessHandler = builder.tokenGenerationSuccessHandler;
+        this.asepAttributes = builder.asepAttributes;
 
         if (this.showDefaultSubmitPage) {
             Assert.hasText(this.defaultSubmitPageUrl, "defaultSubmitPageUrl must be set if showDefaultSubmitPage is true");
@@ -39,6 +43,7 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
         private boolean showDefaultSubmitPage = true; // 기본값
         private OneTimeTokenService oneTimeTokenService; // 생성자에서 주입
         private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
+        private OttAsepAttributes asepAttributes;
 
         public Builder(ApplicationContext applicationContext) {
             Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null for OttOptions.Builder");
@@ -75,6 +80,11 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
 
         public Builder tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) {
             this.tokenGenerationSuccessHandler = handler; // null 허용 가능 (기본 동작)
+            return this;
+        }
+
+        public Builder asepAttributes(OttAsepAttributes attributes) {
+            this.asepAttributes = attributes;
             return this;
         }
 

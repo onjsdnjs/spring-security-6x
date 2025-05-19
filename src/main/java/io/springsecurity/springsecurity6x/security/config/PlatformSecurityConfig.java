@@ -56,7 +56,7 @@ public class PlatformSecurityConfig {
         String rpId = applicationContext.getEnvironment().getProperty("spring.security.webauthn.relyingparty.id", "localhost");
 
         return registry
-                .global(http -> http // HttpSecurity -> HttpSecurity
+                .global(http -> http
                                 .csrf(AbstractHttpConfigurer::disable)
                                 .authorizeHttpRequests(authReq -> authReq
                                         .requestMatchers(

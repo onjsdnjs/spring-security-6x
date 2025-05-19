@@ -1,11 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.RestAsepAttributes;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RecoveryCodeDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RecoveryCodeOptions;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 
-public class RecoveryCodeDslConfigurerImpl
-        extends AbstractOptionsBuilderConfigurer<RecoveryCodeOptions, RecoveryCodeOptions.Builder, RecoveryCodeDslConfigurer>
+public class RecoveryCodeDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
+        extends AbstractOptionsBuilderConfigurer<RecoveryCodeDslConfigurerImpl<H>, H, RecoveryCodeOptions, RecoveryCodeOptions.Builder, RecoveryCodeDslConfigurer>
         implements RecoveryCodeDslConfigurer {
 
     public RecoveryCodeDslConfigurerImpl() {
@@ -13,10 +16,7 @@ public class RecoveryCodeDslConfigurerImpl
     }
 
 
-    @Override
-    protected RecoveryCodeDslConfigurer self() {
-        return this;
-    }
+
 
     @Override
     public RecoveryCodeDslConfigurer codeLength(int length) {
@@ -34,5 +34,20 @@ public class RecoveryCodeDslConfigurerImpl
     public RecoveryCodeDslConfigurer order(int order) {
         getOptionsBuilder().order(order);
         return  self();
+    }
+
+    @Override
+    public RecoveryCodeDslConfigurer asep(Customizer<RestAsepAttributes> asepAttributesCustomizer) throws Exception {
+        return null;
+    }
+
+    @Override
+    protected RecoveryCodeDslConfigurerImpl self() {
+        return this;
+    }
+
+    @Override
+    public void configure(H builder) throws Exception {
+
     }
 }

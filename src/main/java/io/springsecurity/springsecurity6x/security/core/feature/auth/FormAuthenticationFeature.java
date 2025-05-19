@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-public class FormAuthenticationFeature extends AbstractAuthenticationFeature<FormOptions> {
+public final class FormAuthenticationFeature extends AbstractAuthenticationFeature<FormOptions> {
 
     @Override
     public String getId() {
@@ -28,10 +28,7 @@ public class FormAuthenticationFeature extends AbstractAuthenticationFeature<For
                     .loginProcessingUrl(opts.getLoginProcessingUrl())
                     .usernameParameter(opts.getUsernameParameter())
                     .passwordParameter(opts.getPasswordParameter())
-                    // defaultSuccessUrl은 successHandler가 설정되면 일반적으로 무시됨.
-                    // 필요시 successHandler 내부에서 이 URL을 사용하도록 로직 추가 가능.
-                    // .defaultSuccessUrl(opts.getDefaultSuccessUrl(), opts.isAlwaysUseDefaultSuccessUrl())
-                    .failureUrl(opts.getFailureUrl()) // SimpleUrlAuthenticationFailureHandler가 사용
+                    .failureUrl(opts.getFailureUrl())
                     .permitAll(opts.isPermitAll())
                     .successHandler(successHandler)
                     .failureHandler(failureHandler);
@@ -40,7 +37,7 @@ public class FormAuthenticationFeature extends AbstractAuthenticationFeature<For
                 form.securityContextRepository(opts.getSecurityContextRepository());
             }
 
-            SafeHttpFormLoginCustomizer rawLogin = opts.getRawFormLoginCustomizers();
+            SafeHttpFormLoginCustomizer rawLogin = opts.getRawFormLoginCustomizer();
             if (rawLogin != null) {
                 try {
                     rawLogin.customize(form);

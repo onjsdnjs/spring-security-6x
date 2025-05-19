@@ -11,9 +11,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher; // RequestMatcher import
+import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -22,104 +21,71 @@ import java.util.Objects;
 @Slf4j
 public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
-    private static final String ATTR_CURRENT_PROCESSING_FACTOR_TYPE = "currentProcessingFactorType"; // 속성명 변경
-
     private final FeatureRegistry featureRegistry;
-    private final ContextPersistence ctxPersistence;
-
-    // 이 필터는 특정 Factor에 대한 실제 인증 처리가 필요한 요청(예: Factor 검증 URL)을 처리해야 함.
-    // RequestMatcher는 이를 반영해야 함.
-    private final RequestMatcher requestMatcher;
+    private final ContextPersistence contextPersistence;
+    private final RequestMatcher mfaFactorProcessingMatcher; // 이 필터가 처리할 Factor 검증 URL들의 Matcher
 
     public MfaStepFilterWrapper(FeatureRegistry featureRegistry,
-                                ContextPersistence ctxPersistence,
-                                RequestMatcher factorProcessingRequestMatcher) {
-        this.featureRegistry = Objects.requireNonNull(featureRegistry, "featureRegistry cannot be null");
-        this.ctxPersistence  = Objects.requireNonNull(ctxPersistence, "ctxPersistence cannot be null");
-        this.requestMatcher = Objects.requireNonNull(factorProcessingRequestMatcher, "factorProcessingRequestMatcher cannot be null");
-        log.info("MfaStepFilterWrapper initialized with provided request matcher.");
+                                ContextPersistence contextPersistence,
+                                RequestMatcher mfaFactorProcessingMatcher) {
+        this.featureRegistry = Objects.requireNonNull(featureRegistry);
+        this.contextPersistence = Objects.requireNonNull(contextPersistence);
+        this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher, "mfaFactorProcessingMatcher cannot be null for MfaStepFilterWrapper");
+        log.info("MfaStepFilterWrapper initialized. Will process requests matching: [configured matcher]");
     }
-    // 업로드된 코드의 기존 생성자 유지 (기본 Matcher 제공)
-    public MfaStepFilterWrapper(FeatureRegistry featureRegistry, ContextPersistence ctxPersistence) {
-        this.featureRegistry = Objects.requireNonNull(featureRegistry, "featureRegistry cannot be null");
-        this.ctxPersistence  = Objects.requireNonNull(ctxPersistence, "ctxPersistence cannot be null");
-        // 이 기본 Matcher는 각 Factor의 구체적인 처리 URL을 포함하도록 수정되어야 합니다.
-        // 예를 들어, 각 Factor의 DSL 에서 정의된 processingUrl을 기반으로 동적으로 구성될 수 있습니다.
-        // 현재는 이전 버전의 URL 들을 포함하고 있으므로, 새로운 MFA 흐름에 맞게 조정이 필요합니다.
-        this.requestMatcher = new OrRequestMatcher(
-                // new AntPathRequestMatcher("/api/auth/login", "POST"), // 1차 인증은 이 필터의 역할이 아님
-                new AntPathRequestMatcher("/api/mfa/verify/**", "POST") // 예: /api/mfa/verify/passkey, /api/mfa/verify/ott
-                // 이전: new AntPathRequestMatcher("/login/ott", "POST"),
-                // 이전: new AntPathRequestMatcher("/login/webauthn", "POST"),
-                // 이전: new AntPathRequestMatcher("/api/auth/mfa", "POST")
-        );
-        log.info("MfaStepFilterWrapper initialized with default request matchers. This likely needs to be more specific for production.");
-    }
-
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!requestMatcher.matches(req)) {
-            chain.doFilter(req, res);
+        if (!this.mfaFactorProcessingMatcher.matches(request)) {
+            chain.doFilter(request, response);
             return;
         }
 
-        log.debug("MfaStepFilterWrapper processing request: {} {}", req.getMethod(), req.getRequestURI());
+        log.debug("MfaStepFilterWrapper processing factor submission request: {}", request.getRequestURI());
 
-        FactorContext ctx = ctxPersistence.contextLoad(req);
-        if (ctx == null) {
-            log.warn("MfaStepFilterWrapper: FactorContext is null for request: {}. This should ideally be handled by MfaOrchestrationFilter or earlier.", req.getRequestURI());
-            // 오류 응답을 보내거나, 다음 체인으로 넘겨 다른 필터가 처리하도록 할 수 있음.
-            // MfaOrchestrationFilter 에서 이미 컨텍스트 로드 실패를 처리했을 가능성이 높음.
-            chain.doFilter(req, res); // 또는 오류 응답
+        FactorContext ctx = contextPersistence.contextLoad(request);
+
+        // FactorContext 유효성 검사 및 현재 처리 중인 Factor, 상태 확인
+        if (ctx == null || ctx.getCurrentProcessingFactor() == null ||
+                ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
+            log.warn("MfaStepFilterWrapper: Invalid attempt to process MFA factor. Context/State/Factor mismatch. URI: {}, State: {}, CurrentFactor: {}",
+                    request.getRequestURI(),
+                    (ctx != null ? ctx.getCurrentState() : "N/A"),
+                    (ctx != null ? ctx.getCurrentProcessingFactor() : "N/A"));
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid MFA step or session.");
             return;
         }
 
-        MfaState currentState = ctx.getCurrentState();
-        log.debug("Current MFA State: {}, Session ID: {}", currentState, ctx.getMfaSessionId());
-
-        // MfaState enum에 isTerminal() 메소드가 정의되어 있다고 가정
-        if (currentState == null || currentState.isTerminal()) {
-            log.debug("MFA state for session {} is null or terminal ({}). MfaStepFilterWrapper will not delegate.", ctx.getMfaSessionId(), currentState);
-            chain.doFilter(req, res);
-            return;
-        }
-
-        // FactorContext 에서 현재 처리 중인 Factor 타입을 직접 가져옴
         AuthType currentFactorType = ctx.getCurrentProcessingFactor();
+        String factorId = currentFactorType.name().toLowerCase();
 
-        if (currentFactorType != null &&
-                (currentState == MfaState.FACTOR_CHALLENGE_INITIATED || // 챌린지 후 사용자 입력 제출 시
-                        currentState == MfaState.FACTOR_VERIFICATION_PENDING || // 실제 검증 로직 실행 시
-                        currentState == MfaState.AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING) // 자동 시도 검증 로직 실행 시
-        ) {
-            String factorId = currentFactorType.name().toLowerCase(); // 예: AuthType.OTT -> "ott"
-            Filter delegate = featureRegistry.getFactorFilter(factorId);
+        // FeatureRegistry를 통해 해당 Factor를 처리하도록 "미리 설정된/등록된" 스프링 시큐리티 필터를 가져옴.
+        // 이 필터는 PlatformSecurityConfig에서 MFA 플로우의 각 Factor (.ott(), .passkey())를 설정할 때
+        // HttpSecurity에 추가된 해당 인증 방식의 표준 필터(예: AuthenticationFilter for OTT)여야 함.
+        // FeatureRegistry.registerFactorFilter()를 통해 이 매핑이 이루어져야 함 (SecurityFilterChainRegistrar에서 담당).
+        Filter delegateFactorFilter = featureRegistry.getFactorFilter(factorId);
 
-            if (delegate != null) {
-                log.debug("Delegating to factor filter: {} for state: {} and factor type: {} (Session: {})",
-                        delegate.getClass().getSimpleName(), currentState, currentFactorType, ctx.getMfaSessionId());
-                // 필요하다면 요청 속성에 현재 처리 중인 Factor 정보를 설정
-                req.setAttribute(ATTR_CURRENT_PROCESSING_FACTOR_TYPE, currentFactorType);
-                delegate.doFilter(req, res, chain);
-                // 대부분의 Spring Security 인증 필터는 요청 처리를 완료하고 응답을 커밋하므로,
-                // 여기서 return 하여 다음 필터 체인 실행을 막는 것이 일반적입니다.
-                // 만약 delegate 필터가 응답을 커밋하지 않고 다음 필터로 넘겨야 하는 특별한 경우가 있다면,
-                // 아래 return 문을 제거하고 chain.doFilter(req,res)를 호출해야 합니다.
-                return;
-            } else {
-                log.warn("No delegate filter found in FeatureRegistry for factorId: '{}' (derived from factor type: {}) for session {}. Proceeding with chain.",
-                        factorId, currentFactorType, ctx.getMfaSessionId());
-            }
+        if (delegateFactorFilter != null) {
+            log.info("MfaStepFilterWrapper: Delegating MFA step processing for factor '{}' to filter: {}. Session: {}",
+                    factorId, delegateFactorFilter.getClass().getName(), ctx.getMfaSessionId());
+
+            // 위임된 필터가 FactorContext에 접근해야 할 경우, 요청 속성으로 전달 가능 (선택적)
+            // request.setAttribute(FactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME, ctx); // 또는 mfaSessionId만 전달
+
+            // 스프링 시큐리티 인증 필터는 요청을 처리하고 응답을 직접 커밋하거나,
+            // 연결된 success/failure handler를 호출하여 응답을 위임함.
+            // 따라서 이 wrapper는 chain.doFilter()를 호출하지 않음.
+            delegateFactorFilter.doFilter(request, response, chain);
+            // 여기서 return 하여 추가 필터 체인 진행을 막는 것이 일반적.
+            return;
         } else {
-            log.debug("No current processing factor set in FactorContext, or current state ({}) is not suitable for factor filter delegation for session {}. Proceeding with chain.",
-                    currentState, ctx.getMfaSessionId());
+            log.error("MfaStepFilterWrapper: No delegate filter found in FeatureRegistry for MFA factor: {}. This indicates a critical configuration error. Session: {}",
+                    factorId, ctx.getMfaSessionId());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA factor processing misconfiguration for " + factorId);
+            return;
         }
-
-        chain.doFilter(req, res);
     }
 }
-
 

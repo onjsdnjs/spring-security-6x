@@ -3,15 +3,15 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
 import java.util.Objects;
 
+@Slf4j
 public class PlatformContextInitializer {
-
-    private static final Logger log = LoggerFactory.getLogger(PlatformContextInitializer.class);
 
     private final PlatformContext platformContext;
     private final SecretKey secretKey;

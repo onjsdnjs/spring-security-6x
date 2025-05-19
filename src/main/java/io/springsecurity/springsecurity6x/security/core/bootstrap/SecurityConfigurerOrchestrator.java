@@ -20,7 +20,6 @@ public class SecurityConfigurerOrchestrator {
 
         List<SecurityConfigurer> configurers = configurerProvider.getConfigurers(platformContext, platformConfig);
 
-        // 초기화
         configurers.stream()
                 .sorted(Comparator.comparingInt(SecurityConfigurer::getOrder))
                 .forEach(cfg -> {

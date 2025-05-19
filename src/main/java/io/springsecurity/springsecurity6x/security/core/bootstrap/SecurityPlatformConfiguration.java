@@ -151,10 +151,8 @@ public class SecurityPlatformConfiguration {
     public PlatformBootstrap platformBootstrap(SecurityPlatform securityPlatform,
                                                PlatformConfig platformConfig,
                                                FeatureRegistry registry,
-                                               DslValidatorService dslValidatorService,
-                                               FlowContextFactory flowContextFactory,
-                                               PlatformContext platformContext) {
-        return new PlatformBootstrap(securityPlatform, platformConfig, registry, dslValidatorService, flowContextFactory, platformContext);
+                                               DslValidatorService dslValidatorService) {
+        return new PlatformBootstrap(securityPlatform, platformConfig, registry, dslValidatorService);
     }
 }
 

@@ -24,20 +24,19 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import java.util.*;
 
-@AutoConfiguration // Spring Boot 2.7+ (이전 버전은 @Configuration)
+@AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@ConditionalOnClass({HttpSecurity.class}) // HttpSecurity 존재 조건
+@ConditionalOnClass({HttpSecurity.class})
 @Slf4j
 public class AsepAutoConfiguration {
 
-    private final HttpMessageConverters httpMessageConverters; // final로 변경
-    private final ConversionService conversionService; // final로 변경
+    private final HttpMessageConverters httpMessageConverters;
+    private final ConversionService conversionService;
 
-    // 생성자 주입을 통해 Spring Boot가 자동 구성한 빈들을 가져옴
     public AsepAutoConfiguration(ObjectProvider<HttpMessageConverters> httpMessageConvertersProvider,
                                  ObjectProvider<ConversionService> conversionServiceProvider) {
         this.httpMessageConverters = httpMessageConvertersProvider.getIfAvailable(() -> new HttpMessageConverters(Collections.emptyList()));
-        this.conversionService = conversionServiceProvider.getIfAvailable(FormattingConversionService::new); // 기본 FormattingConversionService
+        this.conversionService = conversionServiceProvider.getIfAvailable(FormattingConversionService::new);
         log.info("ASEP: AsepAutoConfiguration initialized. HttpMessageConverters count: {}, ConversionService: {}",
                 this.httpMessageConverters.getConverters().size(), this.conversionService.getClass().getSimpleName());
     }
@@ -46,7 +45,6 @@ public class AsepAutoConfiguration {
     @ConditionalOnMissingBean
     public SecurityExceptionHandlerMethodRegistry securityExceptionHandlerMethodRegistry() {
         log.debug("ASEP: Creating SecurityExceptionHandlerMethodRegistry bean.");
-        // ApplicationContextAware, InitializingBean 구현으로 Spring이 생명주기 관리
         return new SecurityExceptionHandlerMethodRegistry();
     }
 

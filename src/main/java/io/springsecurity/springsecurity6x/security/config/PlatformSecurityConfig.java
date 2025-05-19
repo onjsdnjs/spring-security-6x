@@ -132,15 +132,15 @@ public class PlatformSecurityConfig {
                             .loginProcessingUrl("/login")
                             .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                             .failureHandler(singleAuthFailureHandler("/loginForm?error"))
-                            .order(10)
+                            .order(10);
                             // FormLogin DSL에 ASEP 커스텀 설정 적용
-                            .asep(asepForm -> { /* FormAsepAttributes 커스터마이징 */
+                            /*.asep(asepForm -> { *//* FormAsepAttributes 커스터마이징 *//*
                                 // asepForm.exceptionArgumentResolver(customArgResolver);
                                 log.debug("PlatformSecurityConfig: Customizing ASEP for FormLogin.");
-                            });
+                            });*/
                 }).session(Customizer.withDefaults())
 
-                .ott(ott -> {
+               /* .ott(ott -> {
                     ott
                             .tokenService(emailOneTimeTokenService)
                             .tokenGeneratingUrl("/api/ott/generate")
@@ -148,7 +148,7 @@ public class PlatformSecurityConfig {
                             .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                             .failureHandler(singleAuthFailureHandler("/loginOtt?error"))
                             .order(20)
-                            .asep(asepOtt -> { /* OttAsepAttributes 커스터마이징 */
+                            .asep(asepOtt -> { *//* OttAsepAttributes 커스터마이징 *//*
                                 log.debug("PlatformSecurityConfig: Customizing ASEP for OTT.");
                             });
                 }).session(Customizer.withDefaults())
@@ -161,7 +161,7 @@ public class PlatformSecurityConfig {
                             .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                             .failureHandler(singleAuthFailureHandler("/loginPasskey?error"))
                             .order(30)
-                            .asep(asepPasskey -> { /* PasskeyAsepAttributes 커스터마이징 */
+                            .asep(asepPasskey -> { *//* PasskeyAsepAttributes 커스터마이징 *//*
                                 log.debug("PlatformSecurityConfig: Customizing ASEP for Passkey.");
                             });
                 }).session(Customizer.withDefaults())
@@ -172,14 +172,14 @@ public class PlatformSecurityConfig {
                             .successHandler(jwtEmittingAndMfaAwareSuccessHandler)
                             .failureHandler(singleAuthFailureHandler("/api/v2/auth/login?error")) // REST는 JSON 오류가 더 적합
                             .order(40)
-                            .asep(asepRest -> { /* RestAsepAttributes 커스터마이징 */
+                            .asep(asepRest -> { *//* RestAsepAttributes 커스터마이징 *//*
                                 log.debug("PlatformSecurityConfig: Customizing ASEP for REST.");
                             });
                 }).session(Customizer.withDefaults()) // REST는 보통 STATELESS
 
                 .mfa(mfa -> {
                     // MFA 전체 흐름에 대한 ASEP 설정
-                    mfa.asep(asepMfaGlobal -> { /* MfaAsepAttributes 커스터마이징 */
+                    mfa.asep(asepMfaGlobal -> { *//* MfaAsepAttributes 커스터마이징 *//*
                         log.debug("PlatformSecurityConfig: Customizing global ASEP for MFA flow.");
                     });
 
@@ -219,7 +219,7 @@ public class PlatformSecurityConfig {
                             .mfaFailureHandler(mfaAuthenticationFailureHandler)
                             .order(5); // MFA 플로우 자체의 순서
                 })
-                .jwt(Customizer.withDefaults()) // jwt는 JwtStateConfigurer를 적용
+                .jwt(Customizer.withDefaults()) // jwt는 JwtStateConfigurer를 적용*/
                 // .jwt(jwt -> jwt.stateAsep(asepJwtState -> { /* JWT 상태 관리 관련 예외 ASEP */ })) // 만약 StateFeature도 ASEP를 갖는다면
                 .build();
     }

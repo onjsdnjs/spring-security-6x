@@ -37,7 +37,7 @@ public class RecoveryCodeDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public RecoveryCodeDslConfigurer asep(Customizer<RestAsepAttributes> asepAttributesCustomizer) throws Exception {
+    public RecoveryCodeDslConfigurer asep(Customizer<RestAsepAttributes> asepAttributesCustomizer){
         return null;
     }
 

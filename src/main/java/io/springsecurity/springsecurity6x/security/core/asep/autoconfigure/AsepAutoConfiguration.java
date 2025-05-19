@@ -71,7 +71,6 @@ public class AsepAutoConfiguration {
     @ConditionalOnMissingBean(name = "asepDefaultReturnValueHandlers")
     public List<SecurityHandlerMethodReturnValueHandler> asepDefaultReturnValueHandlers() {
         List<SecurityHandlerMethodReturnValueHandler> handlers = new ArrayList<>();
-        // 우선순위 고려: ResponseEntity가 다른 @ResponseBody보다 먼저 처리되도록 리스트 순서 조정 가능
         handlers.add(new ResponseEntityReturnValueHandler(this.httpMessageConverters.getConverters()));
         handlers.add(new SecurityResponseBodyReturnValueHandler(this.httpMessageConverters.getConverters()));
         handlers.add(new RedirectReturnValueHandler());
@@ -107,13 +106,13 @@ public class AsepAutoConfiguration {
             SecurityExceptionHandlerMethodRegistry methodRegistry,
             @Qualifier("asepDefaultArgumentResolvers") List<SecurityHandlerMethodArgumentResolver> defaultArgumentResolvers,
             @Qualifier("asepDefaultReturnValueHandlers") List<SecurityHandlerMethodReturnValueHandler> defaultReturnValueHandlers,
-            HttpMessageConverters httpMessageConverters, // HttpMessageConverters 빈 직접 주입
+            HttpMessageConverters httpMessageConverters,
             @Qualifier("asepDslAttributesMapping") Map<String, Class<? extends BaseAsepAttributes>> dslAttributesMapping) {
         AsepConfigurer configurer = new AsepConfigurer(
                 methodRegistry,
                 defaultArgumentResolvers,
                 defaultReturnValueHandlers,
-                httpMessageConverters, // AsepConfigurer 생성자에 HttpMessageConverters 객체 전달
+                httpMessageConverters,
                 dslAttributesMapping
         );
         // configurer.order(플랫폼_기본_순서); // AsepConfigurer에 order 설정 메소드가 있다면 여기서 기본값 설정

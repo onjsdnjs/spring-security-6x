@@ -8,10 +8,10 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.core.MethodParameter;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-public class SecuritySessionAttributeArgumentResolver implements SecurityHandlerMethodArgumentResolver {
-
+public final class SecuritySessionAttributeArgumentResolver implements SecurityHandlerMethodArgumentResolver {
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(SecuritySessionAttribute.class);
@@ -19,37 +19,30 @@ public class SecuritySessionAttributeArgumentResolver implements SecurityHandler
 
     @Override
     @Nullable
-    public Object resolveArgument(MethodParameter parameter,
-                                  HttpServletRequest request,
-                                  HttpServletResponse response,
-                                  @Nullable Authentication authentication,
-                                  @Nullable Throwable caughtException,
-                                  HandlerMethod handlerMethod) throws Exception {
-
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod) {
         SecuritySessionAttribute annotation = parameter.getParameterAnnotation(SecuritySessionAttribute.class);
-        if (annotation == null) { return null; }
+        Assert.state(annotation != null, "No SecuritySessionAttribute annotation");
 
         HttpSession session = request.getSession(false);
-        if (session == null && annotation.required()) {
-            throw new MissingSessionAttributeException(annotation.name(), parameter, "No HttpSession found");
-        } else if (session == null) {
+        if (session == null) {
+            if (annotation.required()) {
+                throw new MissingSessionAttributeException(annotation.name(), parameter, "No HttpSession exists.");
+            }
             return null;
         }
 
-        String attributeName = annotation.name();
-        if (!StringUtils.hasText(attributeName)) {
-            attributeName = parameter.getParameterName();
-            if (attributeName == null) {
-                throw new IllegalArgumentException("Session attribute name for argument type [" + parameter.getParameterType().getName() +
-                        "] not specified, and parameter name information not available.");
-            }
+        String attributeName = StringUtils.hasText(annotation.name()) ? annotation.name() : parameter.getParameterName();
+        if (attributeName == null) {
+            throw new IllegalArgumentException("Session attribute name for argument type [" +
+                    parameter.getParameterType().getName() + "] not specified and parameter name information not available.");
         }
 
         Object attributeValue = session.getAttribute(attributeName);
 
         if (attributeValue == null) {
             if (annotation.required()) {
-                throw new MissingSessionAttributeException(attributeName, parameter, "Attribute not found in session");
+                throw new MissingSessionAttributeException(attributeName, parameter, "Attribute not found in session.");
             }
             return null;
         }
@@ -57,11 +50,12 @@ public class SecuritySessionAttributeArgumentResolver implements SecurityHandler
         if (parameter.getParameterType().isInstance(attributeValue)) {
             return attributeValue;
         }
-        throw new IllegalArgumentException("Session attribute '" + attributeName + "' is of type [" + attributeValue.getClass().getName() +
-                "] but method parameter type is [" + parameter.getParameterType().getName() + "]");
+        throw new ClassCastException("ASEP: Session attribute '" + attributeName + "' is of type [" +
+                attributeValue.getClass().getName() + "] but @SecuritySessionAttribute parameter type is [" +
+                parameter.getParameterType().getName() + "]");
     }
 
-    public static class MissingSessionAttributeException extends RuntimeException {
+    public static final class MissingSessionAttributeException extends RuntimeException {
         private final String attributeName;
         private final MethodParameter parameter;
         public MissingSessionAttributeException(String attributeName, MethodParameter parameter, String reason) {

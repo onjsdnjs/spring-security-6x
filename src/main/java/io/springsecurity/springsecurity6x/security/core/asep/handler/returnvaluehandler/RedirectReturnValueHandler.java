@@ -3,76 +3,76 @@ package io.springsecurity.springsecurity6x.security.core.asep.handler.returnvalu
 import io.springsecurity.springsecurity6x.security.core.asep.handler.model.HandlerMethod;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.util.UriComponentsBuilder; // URL 처리를 위해
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 
-public class RedirectReturnValueHandler implements SecurityHandlerMethodReturnValueHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(RedirectReturnValueHandler.class);
+@Slf4j
+public final class RedirectReturnValueHandler implements SecurityHandlerMethodReturnValueHandler {
     private static final String REDIRECT_URL_PREFIX = "redirect:";
 
     @Override
     public boolean supportsReturnType(MethodParameter returnType) {
-        // String 타입을 반환하고, 실제 값이 "redirect:"로 시작하는 경우 이 핸들러가 처리
+        // String 타입을 반환하는 경우 우선 지원 대상으로 간주.
+        // 실제 redirect 처리는 handleReturnValue에서 값 확인 후 결정.
         return String.class.isAssignableFrom(returnType.getParameterType());
     }
 
     @Override
-    public void handleReturnValue(@Nullable Object returnValue,
-                                  MethodParameter returnType,
-                                  HttpServletRequest request,
-                                  HttpServletResponse response,
-                                  @Nullable Authentication authentication,
-                                  HandlerMethod handlerMethod,
+    public void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+                                  HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, HandlerMethod handlerMethod,
                                   @Nullable MediaType resolvedMediaType) throws IOException {
-
         if (returnValue == null) {
-            logger.debug("Redirect target URL is null, nothing to do.");
+            log.debug("ASEP: Redirect target URL is null for method [{}], nothing to do.", handlerMethod.getMethod().getName());
             return;
         }
 
         String url = returnValue.toString();
         if (!url.startsWith(REDIRECT_URL_PREFIX)) {
-            // 이 핸들러는 "redirect:"로 시작하는 문자열만 처리해야 함.
-            // supportsReturnType에서 String만 체크했으므로, 실제 값은 여기서 확인.
-            // 만약 다른 String 반환 값 핸들러(예: 뷰 이름 처리)가 있다면, 그 핸들러가 처리하도록 여기서는 아무것도 하지 않거나 예외를 던져야 함.
-            // 현재 설계에서는 리다이렉션이 아닌 String은 다른 핸들러가 없으므로, 문제가 될 수 있음.
-            // 따라서 supportsReturnType에서 실제 값까지 확인하거나, 이 핸들러의 우선순위를 매우 낮게 설정해야 함.
-            // 또는, String을 반환하는 다른 기본 핸들러(예: 뷰 이름 처리)를 추가하고 이 핸들러보다 우선순위를 높게 설정.
-            // 여기서는 일단 리다이렉션이 아니면 아무것도 하지 않는 것으로 가정.
-            // (실제로는 이 경우, Invoker에서 다음 ReturnValueHandler를 찾도록 해야 함)
-            // --> invokeAndHandle 로직에서 supportsReturnType을 먼저 호출하므로,
-            //     여기서는 returnValue가 redirect: 로 시작하지 않으면 문제가 될 수 있다.
-            //     String을 반환하지만 redirect가 아닌 경우는 다른 ReturnValueHandler가 처리해야 한다.
-            //     현재로서는 이 핸들러가 String 타입에 대해 너무 광범위하게 매칭될 수 있으므로,
-            //     supportsReturnType을 더 정교하게 만들거나, 다른 String 처리 핸들러를 추가해야 함.
-            //     우선은 String 타입이고, redirect: 로 시작할 때만 동작하도록 handleReturnValue 내부에서 한번 더 체크.
-            logger.trace("Return value does not start with 'redirect:', RedirectReturnValueHandler will not process it.");
-            return; // 다른 String 처리 핸들러에게 기회를 넘겨야 함 (현재 Invoker 구조에서는 다음 핸들러를 찾지 않음 - 개선 필요)
-        }
-
-        String redirectUrl = url.substring(REDIRECT_URL_PREFIX.length());
-
-        if (response.isCommitted()) {
-            logger.warn("Response already committed. Ignoring redirect to [{}].", redirectUrl);
+            // 이 핸들러는 "redirect:"로 시작하는 문자열만 처리.
+            // 만약 다른 String 반환 값 핸들러가 우선순위가 낮게 설정되어 있다면,
+            // 이 핸들러가 먼저 호출될 수 있으므로, 여기서 실제 처리를 하지 않고 반환해야 함.
+            // AsepHandlerAdapter는 첫 번째 supportsReturnType=true인 핸들러를 사용하므로,
+            // 이 핸들러의 우선순위가 다른 String 처리 핸들러보다 낮거나,
+            // supportsReturnType에서 더 정확한 조건(예: 어노테이션)을 확인해야 함.
+            // 현재는 "redirect:"가 아니면 아무것도 하지 않음 (문제가 될 수 있음).
+            log.trace("ASEP: Return value for method [{}] does not start with 'redirect:'. RedirectReturnValueHandler will not process it.",
+                    handlerMethod.getMethod().getName());
+            // 이 경우, AsepHandlerAdapter는 다른 핸들러를 찾지 않고 여기서 종료될 수 있으므로,
+            // 만약 다른 String 반환 (예: view name)을 지원하려면 별도의 핸들러와 우선순위 관리가 필요.
+            // 또는 이 핸들러의 우선순위를 매우 낮게 설정.
+            // 여기서는 다른 String 핸들러가 없다고 가정하고, redirect 아니면 무시.
             return;
         }
 
-        // URL 재작성 (컨텍스트 패스 등 고려) 및 인코딩
-        // HttpServletResponse.encodeRedirectURL 사용
-        String encodedRedirectUrl = response.encodeRedirectURL(
-                UriComponentsBuilder.fromUriString(redirectUrl).build().toUriString()
-        );
+        String redirectUrl = url.substring(REDIRECT_URL_PREFIX.length());
+        if (response.isCommitted()) {
+            log.warn("ASEP: Response already committed. Ignoring redirect to [{}] for method [{}].",
+                    redirectUrl, handlerMethod.getMethod().getName());
+            return;
+        }
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("Redirecting to [{}]", encodedRedirectUrl);
+        // URL 재작성 및 인코딩 (컨텍스트 패스 등 고려)
+        String encodedRedirectUrl;
+        try {
+            encodedRedirectUrl = response.encodeRedirectURL(
+                    UriComponentsBuilder.fromUriString(redirectUrl).build().toUriString()
+            );
+        } catch (IllegalArgumentException e) {
+            log.error("ASEP: Invalid redirect URL string [{}]. Cannot encode.", redirectUrl, e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Invalid redirect URL format");
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("ASEP: Redirecting from method [{}] to [{}].",
+                    handlerMethod.getMethod().getName(), encodedRedirectUrl);
         }
         response.sendRedirect(encodedRedirectUrl);
     }

@@ -1,83 +1,56 @@
 package io.springsecurity.springsecurity6x.security.core.asep.handler.model;
 
+import lombok.Data;
+import lombok.ToString;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
-public class HandlerMethod {
+import java.lang.reflect.Method;
+import java.util.*;
+
+@Data
+@ToString
+public final class HandlerMethod { // final class
 
     private final Object bean;
     private final Method method;
-    private final Class<? extends Throwable>[] exceptionTypes;
-    private final int priority;
-    private final List<String> produces;
+    private final Class<? extends Throwable>[] exceptionTypes; // 처리 대상 예외 타입들
+    private final int priority; // 핸들러 우선순위 (낮을수록 높음)
+    private final List<String> produces; // Content Negotiation을 위한 produces MediaType 문자열 리스트
 
-    public HandlerMethod(Object bean, Method method, Class<? extends Throwable>[] exceptionTypes, int priority, String[] produces) {
-        Assert.notNull(bean, "Bean is required");
-        Assert.notNull(method, "Method is required");
+    public HandlerMethod(Object bean, Method method,
+                         @Nullable Class<? extends Throwable>[] declaredExceptionTypes,
+                         int priority, @Nullable String[] producesMediaTypes) {
+        Assert.notNull(bean, "Bean instance is required");
+        Assert.notNull(method, "Handler method is required");
 
         this.bean = bean;
         this.method = method;
-        this.exceptionTypes = (exceptionTypes != null && exceptionTypes.length > 0) ? exceptionTypes : inferExceptionTypes(method);
         this.priority = priority;
-        this.produces = (produces != null && produces.length > 0) ? Arrays.asList(produces) : Collections.emptyList();
-    }
 
-    @SuppressWarnings("unchecked")
-    private Class<? extends Throwable>[] inferExceptionTypes(Method method) {
-        for (Class<?> paramType : method.getParameterTypes()) {
-            if (Throwable.class.isAssignableFrom(paramType)) {
-                return new Class[]{ (Class<? extends Throwable>) paramType };
+        if (declaredExceptionTypes != null && declaredExceptionTypes.length > 0) {
+            this.exceptionTypes = declaredExceptionTypes;
+        } else {
+            // 어노테이션에 명시된 예외 없으면 파라미터에서 추론 (첫 번째 Throwable 타입)
+            List<Class<? extends Throwable>> inferredTypes = new ArrayList<>();
+            for (Class<?> paramType : method.getParameterTypes()) {
+                if (Throwable.class.isAssignableFrom(paramType)) {
+                    inferredTypes.add((Class<? extends Throwable>) paramType);
+                    // 일반적으로 @ExceptionHandler는 하나의 예외 파라미터만 받음. 첫 번째 것만 사용.
+                    // 또는 여러 개를 지원하려면 HandlerMethod가 List<Class<? extends Throwable>>을 직접 받도록 수정.
+                    // 여기서는 첫 번째 Throwable 파라미터 타입을 대표로 사용하거나, 명시되지 않으면 Throwable.class로.
+                    break;
+                }
+            }
+            if (inferredTypes.isEmpty()) {
+                // 명시도, 파라미터도 없으면 모든 예외(Throwable) 처리로 간주 (가장 낮은 우선순위)
+                this.exceptionTypes = new Class[]{Throwable.class};
+            } else {
+                this.exceptionTypes = inferredTypes.toArray(new Class[0]);
             }
         }
-        return new Class[]{ Throwable.class };
-    }
 
-    public Object getBean() { return bean; }
-    public Method getMethod() { return method; }
-    public Class<? extends Throwable>[] getExceptionTypes() { return exceptionTypes; }
-    public int getPriority() { return priority; }
-    public List<String> getProduces() { return produces; }
-
-    public boolean canHandle(Class<? extends Throwable> exceptionType) {
-        for (Class<? extends Throwable> supportedType : this.exceptionTypes) {
-            if (supportedType.isAssignableFrom(exceptionType)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public String toString() {
-        return "HandlerMethod{" +
-                "bean=" + bean.getClass().getName() +
-                ", method=" + method.getName() +
-                ", exceptionTypes=" + Arrays.toString(exceptionTypes) +
-                ", priority=" + priority +
-                ", produces=" + produces +
-                '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        HandlerMethod that = (HandlerMethod) o;
-        return priority == that.priority &&
-                bean.equals(that.bean) &&
-                method.equals(that.method) &&
-                Arrays.equals(exceptionTypes, that.exceptionTypes) &&
-                produces.equals(that.produces);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = Objects.hash(bean, method, priority, produces);
-        result = 31 * result + Arrays.hashCode(exceptionTypes);
-        return result;
+        this.produces = (producesMediaTypes != null && producesMediaTypes.length > 0) ?
+                List.of(producesMediaTypes) : Collections.emptyList();
     }
 }

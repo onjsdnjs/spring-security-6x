@@ -14,13 +14,13 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.ValueConstants;
 
-public class SecurityCookieValueArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+import java.util.Objects;
 
+public final class SecurityCookieValueArgumentResolver implements SecurityHandlerMethodArgumentResolver {
     private final ConversionService conversionService;
 
     public SecurityCookieValueArgumentResolver(ConversionService conversionService) {
-        Assert.notNull(conversionService, "ConversionService must not be null");
-        this.conversionService = conversionService;
+        this.conversionService = Objects.requireNonNull(conversionService, "ConversionService must not be null");
     }
 
     @Override
@@ -30,23 +30,15 @@ public class SecurityCookieValueArgumentResolver implements SecurityHandlerMetho
 
     @Override
     @Nullable
-    public Object resolveArgument(MethodParameter parameter,
-                                  HttpServletRequest request,
-                                  HttpServletResponse response,
-                                  @Nullable Authentication authentication,
-                                  @Nullable Throwable caughtException,
-                                  HandlerMethod handlerMethod) throws Exception {
-
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod) {
         SecurityCookieValue annotation = parameter.getParameterAnnotation(SecurityCookieValue.class);
-        if (annotation == null) { return null; }
+        Assert.state(annotation != null, "No SecurityCookieValue annotation");
 
-        String cookieName = annotation.name();
-        if (!StringUtils.hasText(cookieName)) {
-            cookieName = parameter.getParameterName();
-            if (cookieName == null) {
-                throw new IllegalArgumentException("Cookie name for argument type [" + parameter.getParameterType().getName() +
-                        "] not specified, and parameter name information not available.");
-            }
+        String cookieName = StringUtils.hasText(annotation.name()) ? annotation.name() : parameter.getParameterName();
+        if (cookieName == null) {
+            throw new IllegalArgumentException("Cookie name for argument type [" +
+                    parameter.getParameterType().getName() + "] not specified and parameter name information not available.");
         }
 
         Cookie foundCookie = null;
@@ -74,29 +66,39 @@ public class SecurityCookieValueArgumentResolver implements SecurityHandlerMetho
             }
             String defaultValue = annotation.defaultValue();
             if (!ValueConstants.DEFAULT_NONE.equals(defaultValue)) {
-                resolvedValue = convertValue(defaultValue, parameter);
+                resolvedValue = convertValue(defaultValue, parameter, "default value");
             }
         } else {
-            resolvedValue = convertValue(foundCookie.getValue(), parameter);
+            resolvedValue = convertValue(foundCookie.getValue(), parameter, "cookie '" + cookieName + "'");
         }
         return resolvedValue;
     }
 
-    private Object convertValue(@Nullable String value, MethodParameter parameter) {
-        if (value == null) { return null; }
+    @Nullable
+    private Object convertValue(@Nullable String value, MethodParameter parameter, String valueSourceDescription) {
+        if (value == null) {
+            return null;
+        }
         TypeDescriptor sourceType = TypeDescriptor.valueOf(String.class);
         TypeDescriptor targetType = new TypeDescriptor(parameter);
 
         if (this.conversionService.canConvert(sourceType, targetType)) {
-            return this.conversionService.convert(value, sourceType, targetType);
+            try {
+                return this.conversionService.convert(value, sourceType, targetType);
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Failed to convert " + valueSourceDescription +
+                        " value [" + value + "] to target type [" + parameter.getParameterType().getName() + "]", ex);
+            }
         } else if (String.class.isAssignableFrom(parameter.getParameterType()) && parameter.getParameterType().isInstance(value)) {
             return value;
         }
-        throw new IllegalStateException("Cannot convert String [" + value + "] to target type [" +
-                parameter.getParameterType().getName() + "] for parameter [" + parameter.getParameterName() + "]");
+        throw new IllegalStateException("ASEP: Cannot convert " + valueSourceDescription + " String [" + value +
+                "] to target type [" + parameter.getParameterType().getName() + "] for parameter [" +
+                parameter.getParameterName() + "]. No suitable converter found.");
     }
 
-    public static class MissingCookieException extends RuntimeException {
+    @SuppressWarnings("serial")
+    public static final class MissingCookieException extends RuntimeException {
         private final String cookieName;
         private final MethodParameter parameter;
         public MissingCookieException(String cookieName, MethodParameter parameter) {

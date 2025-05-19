@@ -1,8 +1,7 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth.rest;
+package io.springsecurity.springsecurity6x.security.core.feature.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;

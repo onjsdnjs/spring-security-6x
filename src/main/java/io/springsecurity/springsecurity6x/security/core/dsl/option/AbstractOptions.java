@@ -4,37 +4,46 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCusto
 import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
-import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.config.annotation.web.configurers.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * 모든 인증 방식 옵션 클래스들의 공통된 기본 설정을 제공하는 추상 클래스입니다.
+ * CSRF, CORS, Headers, Session Management, Logout 등 공통 보안 설정을 포함합니다.
+ */
 @Getter
 public abstract class AbstractOptions {
     private final boolean csrfDisabled;
     private final Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer;
     private final Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
     private final Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
-    private final Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer; // 추가
-    private final List<String> staticMatchers;
-    private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers;
+    private final Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer;
+    private final List<String> staticMatchers; // 정적 리소스 허용 패턴
+    private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers; // 플랫폼 고유 HttpSecurity 커스터마이저
 
-    protected AbstractOptions(Builder<?, ?> b) {
-        this.csrfDisabled = b.csrfDisabled;
-        this.corsCustomizer = b.corsCustomizer;
-        this.headersCustomizer = b.headersCustomizer;
-        this.sessionManagementCustomizer = b.sessionManagementCustomizer;
-        this.logoutCustomizer = b.logoutCustomizer; // 추가
-        this.staticMatchers = List.copyOf(b.staticMatchers);
-        this.rawHttpCustomizers = List.copyOf(b.rawHttpCustomizers);
+    protected AbstractOptions(Builder<?, ?> builder) {
+        Objects.requireNonNull(builder, "Builder cannot be null");
+        this.csrfDisabled = builder.csrfDisabled;
+        this.corsCustomizer = builder.corsCustomizer; // Optional.ofNullable(builder.corsCustomizer);
+        this.headersCustomizer = builder.headersCustomizer;
+        this.sessionManagementCustomizer = builder.sessionManagementCustomizer;
+        this.logoutCustomizer = builder.logoutCustomizer;
+        this.staticMatchers = List.copyOf(builder.staticMatchers); // Java 10+
+        this.rawHttpCustomizers = List.copyOf(builder.rawHttpCustomizers); // Java 10+
     }
 
-    public void applyCommon(HttpSecurity http) throws Exception {
+    /**
+     * 이 옵션 객체에 정의된 공통 보안 설정을 주어진 HttpSecurity에 적용합니다.
+     * @param http HttpSecurity 객체 (null이 아니어야 함)
+     * @throws Exception 설정 중 발생할 수 있는 예외
+     */
+    public void applyCommonSecurityConfigs(HttpSecurity http) throws Exception {
+        Objects.requireNonNull(http, "HttpSecurity cannot be null");
+
         if (csrfDisabled) {
             http.csrf(AbstractHttpConfigurer::disable);
         }
@@ -47,65 +56,79 @@ public abstract class AbstractOptions {
         if (sessionManagementCustomizer != null) {
             http.sessionManagement(sessionManagementCustomizer);
         }
-        if (logoutCustomizer != null) { // 추가
+        if (logoutCustomizer != null) {
             http.logout(logoutCustomizer);
         }
         if (!staticMatchers.isEmpty()) {
-            http.authorizeHttpRequests(a -> {
+            http.authorizeHttpRequests(authorizeRequests -> {
                 for (String matcher : staticMatchers) {
-                    a.requestMatchers(matcher).permitAll();
+                    authorizeRequests.requestMatchers(matcher).permitAll();
                 }
             });
         }
-        for (SafeHttpCustomizer<HttpSecurity> raw : rawHttpCustomizers) {
-            raw.customize(http);
+        for (SafeHttpCustomizer<HttpSecurity> rawCustomizer : rawHttpCustomizers) {
+            // SafeHttpCustomizer는 예외를 던지지 않도록 설계되었다고 가정,
+            // 또는 여기서 try-catch로 감싸거나 customizer.customize가 throws Exception을 선언했다면 전파
+            rawCustomizer.customize(http);
         }
     }
 
+    /**
+     * AbstractOptions를 빌드하기 위한 추상 빌더 클래스입니다.
+     * @param <O> 빌드될 Options의 구체적인 타입
+     * @param <B> 빌더 자신의 구체적인 타입 (Self-referential)
+     */
     public abstract static class Builder<O extends AbstractOptions, B extends Builder<O, B>> {
         private boolean csrfDisabled = false;
-        private Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer;
-        private Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer;
-        private Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer;
-        private Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer; // 추가
-        private List<String> staticMatchers = List.of();
+        private Customizer<CorsConfigurer<HttpSecurity>> corsCustomizer = Customizer.withDefaults(); // 기본값 설정
+        private Customizer<HeadersConfigurer<HttpSecurity>> headersCustomizer = Customizer.withDefaults();
+        private Customizer<SessionManagementConfigurer<HttpSecurity>> sessionManagementCustomizer = Customizer.withDefaults();
+        private Customizer<LogoutConfigurer<HttpSecurity>> logoutCustomizer = Customizer.withDefaults();
+        private List<String> staticMatchers = Collections.emptyList(); // 불변 기본값
         private final List<SafeHttpCustomizer<HttpSecurity>> rawHttpCustomizers = new ArrayList<>();
 
+        /**
+         * @return 빌더 자신 (타입 B)
+         */
         protected abstract B self();
 
-        public B disableCsrf() {
-            this.csrfDisabled = true;
+        public B csrfDisabled(boolean csrfDisabled) { // 명시적으로 boolean 받도록 변경
+            this.csrfDisabled = csrfDisabled;
             return self();
         }
 
         public B cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
-            this.corsCustomizer = customizer;
+            this.corsCustomizer = Objects.requireNonNull(customizer, "corsCustomizer cannot be null");
             return self();
         }
 
         public B headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
-            this.headersCustomizer = customizer;
+            this.headersCustomizer = Objects.requireNonNull(customizer, "headersCustomizer cannot be null");
             return self();
         }
 
         public B sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
-            this.sessionManagementCustomizer = customizer;
+            this.sessionManagementCustomizer = Objects.requireNonNull(customizer, "sessionManagementCustomizer cannot be null");
             return self();
         }
 
-        public B logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) { // 추가
-            this.logoutCustomizer = customizer;
+        public B logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
+            this.logoutCustomizer = Objects.requireNonNull(customizer, "logoutCustomizer cannot be null");
             return self();
         }
 
-        public B authorizeStatic(List<String> patterns) {
-            this.staticMatchers = List.copyOf(Objects.requireNonNull(patterns));
+        public B authorizeStaticPermitAll(List<String> patterns) { // 메소드명 변경 (permitAll 명시)
+            this.staticMatchers = List.copyOf(Objects.requireNonNull(patterns, "patterns cannot be null"));
             return self();
         }
+        public B authorizeStaticPermitAll(String... patterns) { // varargs 추가
+            this.staticMatchers = List.of(Objects.requireNonNull(patterns, "patterns cannot be null"));
+            return self();
+        }
+
 
         public B rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) {
-            Objects.requireNonNull(customizer, "rawHttp customizer must not be null");
-            this.rawHttpCustomizers.add(customizer);
+            this.rawHttpCustomizers.add(Objects.requireNonNull(customizer, "rawHttp customizer cannot be null"));
             return self();
         }
 

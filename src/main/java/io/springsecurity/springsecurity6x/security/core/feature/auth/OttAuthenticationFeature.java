@@ -1,7 +1,6 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth.ott;
+package io.springsecurity.springsecurity6x.security.core.feature.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;

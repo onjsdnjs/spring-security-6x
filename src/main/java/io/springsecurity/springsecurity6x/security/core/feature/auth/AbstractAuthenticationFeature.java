@@ -11,7 +11,6 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.ott.OttAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;

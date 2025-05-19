@@ -1,5 +1,5 @@
-io.springsecurity.springsecurity6x.security.core.feature.auth.form.FormAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.auth.rest.RestAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.auth.ott.OttAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.auth.passkey.PasskeyAuthenticationFeature
-io.springsecurity.springsecurity6x.security.core.feature.auth.mfa.MfaAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.auth.FormAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.auth.RestAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.auth.OttAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.auth.PasskeyAuthenticationFeature
+io.springsecurity.springsecurity6x.security.core.feature.auth.MfaAuthenticationFeature

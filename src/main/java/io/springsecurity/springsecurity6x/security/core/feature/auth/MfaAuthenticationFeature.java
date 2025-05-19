@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth.mfa;
+package io.springsecurity.springsecurity6x.security.core.feature.auth;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;

@@ -11,21 +11,21 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
+// O: Options 타입, S: DSL Configurer 자신의 타입
 public interface OptionsBuilderDsl<O extends AuthenticationProcessingOptions, S extends OptionsBuilderDsl<O, S>> {
 
-    // CommonSecurityDsl (AbstractOptions 관련)
     S disableCsrf();
     S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer);
     S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer);
     S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
     S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
-    S rawHttp(SafeHttpCustomizer<HttpSecurity> customizer);
+    S rawHttp(SafeHttpCustomizer<HttpSecurity> customizer); // 플랫폼 고유 Customizer
 
-    // AuthenticationProcessingOptions 관련 공통 설정
     S loginProcessingUrl(String url);
     S successHandler(AuthenticationSuccessHandler handler);
     S failureHandler(AuthenticationFailureHandler handler);
     S securityContextRepository(SecurityContextRepository repository);
-    O buildConcreteOptions(); // 최종 Option 객체 생성
+
+    O buildConcreteOptions();
 }
 

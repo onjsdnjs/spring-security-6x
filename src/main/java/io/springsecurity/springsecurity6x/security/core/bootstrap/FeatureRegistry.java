@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.core.feature.StateFeature;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.mfa.MfaAuthenticationFeature; // MfaAuthenticationFeature import
+import io.springsecurity.springsecurity6x.security.core.feature.auth.MfaAuthenticationFeature; // MfaAuthenticationFeature import
 import jakarta.servlet.Filter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

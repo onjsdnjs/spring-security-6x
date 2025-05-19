@@ -1,8 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.asep.autoconfigure;
 
 import io.springsecurity.springsecurity6x.security.core.asep.configurer.AsepConfigurer;
-import io.springsecurity.springsecurity6x.security.core.asep.dsl.BaseAsepAttributes;
-import io.springsecurity.springsecurity6x.security.core.asep.dsl.FormAsepAttributes;
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.*;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.SecurityExceptionHandlerMethodRegistry;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.argumentresolver.*;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.returnvaluehandler.RedirectReturnValueHandler;

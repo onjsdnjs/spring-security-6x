@@ -98,8 +98,10 @@ public final class ASEPFilter extends OncePerRequestFilter implements Ordered {
                 log.debug("ASEP: Found ASEP handler method [{}] in bean [{}] for exception [{}].",
                         handlerMethod.getMethod().getName(), handlerMethod.getBean().getClass().getSimpleName(),
                         exception.getClass().getSimpleName());
+
                 MediaType resolvedMediaType = determineResponseMediaType(request, handlerMethod);
                 this.handlerInvoker.invokeHandlerMethod(request, response, authentication, exception, handlerMethod, resolvedMediaType);
+
             } else {
                 log.debug("ASEP: No specific ASEP handler found for exception [{}]. Using centralized default error response.",
                         exception.getClass().getSimpleName());

@@ -1,98 +1,125 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
+
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
-import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer;
+import org.springframework.security.config.annotation.web.configurers.*;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.Objects;
 
+@Slf4j
 public abstract class AbstractOptionsBuilderConfigurer<
+        T extends AbstractOptionsBuilderConfigurer<T, B, O, OB, C>,
+        B extends HttpSecurityBuilder<B>, // HttpSecurityBuilder 타입
         O extends AuthenticationProcessingOptions,
-        B extends AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<O, B>,
-        S extends OptionsBuilderDsl<O, S>> implements OptionsBuilderDsl<O, S> {
+        OB extends AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<O, OB>,
+        C extends OptionsBuilderDsl<O, C> & SecurityConfigurerDsl>
+        extends AbstractHttpConfigurer<T, B> // AbstractHttpConfigurer의 T는 CfgImpl
+        implements OptionsBuilderDsl<O, C> { // OptionsBuilderDsl의 S는 CfgInterface
 
-    protected final B optionsBuilder;
+    protected final OB optionsBuilder;
+    @Setter
+    private ApplicationContext applicationContext;
 
-    protected AbstractOptionsBuilderConfigurer(B optionsBuilder) {
+    protected AbstractOptionsBuilderConfigurer(OB optionsBuilder) {
         this.optionsBuilder = Objects.requireNonNull(optionsBuilder, "optionsBuilder cannot be null");
     }
 
-    protected B getOptionsBuilder() {
+    protected final ApplicationContext getApplicationContext() {
+        if (this.applicationContext == null) {
+            B builder = getBuilder();
+            if (builder != null) {
+                this.applicationContext = builder.getSharedObject(ApplicationContext.class);
+            }
+            if (this.applicationContext == null) {
+                log.warn("ApplicationContext could not be retrieved from HttpSecurityBuilder for {}. ", this.getClass().getSimpleName());
+            }
+        }
+        return this.applicationContext;
+    }
+
+    protected OB getOptionsBuilder() {
         return this.optionsBuilder;
     }
 
-    protected abstract S self(); // 하위 클래스에서 구체적인 Configurer 타입을 반환하도록 강제
+    // 하위 클래스에서 self()를 CfgInterface 타입으로 반환하도록 구현해야 함
+    // 하지만 DSL 체이닝을 위해 실제로는 CfgImpl 타입을 반환하고 CfgInterface로 업캐스팅
+    protected abstract T self(); // 구체 구현체 반환용
 
     @Override
     public O buildConcreteOptions() {
         return this.optionsBuilder.build();
     }
 
-    // --- OptionsBuilderDsl Methods Implementation ---
+    // OptionsBuilderDsl 메소드들은 CfgInterface 타입을 반환
     @Override
-    public S loginProcessingUrl(String url) {
+    public C loginProcessingUrl(String url) {
         getOptionsBuilder().loginProcessingUrl(url);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S successHandler(AuthenticationSuccessHandler handler) {
+    public C successHandler(AuthenticationSuccessHandler handler) {
         getOptionsBuilder().successHandler(handler);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S failureHandler(AuthenticationFailureHandler handler) {
+    public C failureHandler(AuthenticationFailureHandler handler) {
         getOptionsBuilder().failureHandler(handler);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S securityContextRepository(SecurityContextRepository repository) {
+    public C securityContextRepository(SecurityContextRepository repository) {
         getOptionsBuilder().securityContextRepository(repository);
-        return self();
-    }
-
-    // --- CommonSecurityDsl Methods (from AbstractOptions.Builder) ---
-    @Override
-    public S disableCsrf() {
-        getOptionsBuilder().disableCsrf();
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
+    public C disableCsrf() {
+        getOptionsBuilder().csrfDisabled(true);
+        return (C) self();
+    }
+
+    @Override
+    public C cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) {
         getOptionsBuilder().cors(customizer);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
+    public C headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) {
         getOptionsBuilder().headers(customizer);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
+    public C sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) {
         getOptionsBuilder().sessionManagement(customizer);
-        return self();
+        return (C) self();
     }
 
     @Override
-    public S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
+    public C logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) {
         getOptionsBuilder().logout(customizer);
-        return self();
+        return (C) self();
     }
 
-    public S rawHttp(SafeHttpCustomizer customizer) {
+    @Override
+    public C rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) {
         getOptionsBuilder().rawHttp(customizer);
-        return self();
+        return (C) self();
     }
+
+    @Override
+    public abstract void configure(B builder) throws Exception;
 }

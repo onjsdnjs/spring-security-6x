@@ -13,22 +13,22 @@ public interface IdentityStateDsl {
 
     /**
      * 세션 기반 상태 유지 전략을 사용합니다.
-     *
-     * @return 상위 DSL 으로 복귀
+     * @param customizer SessionStateConfigurer를 커스터마이징합니다.
+     * @return 상위 DSL (IdentityAuthDsl) 으로 복귀하여 추가 인증 방식 또는 빌드 가능
      */
     IdentityAuthDsl session(Customizer<SessionStateConfigurer> customizer);
 
     /**
-     * 외부 JWT 라이브러리 기반 토큰 전략을 사용합니다.
-     *
-     * @return 상위 DSL 으로 복귀
+     * JWT 기반 토큰 전략을 사용합니다.
+     * @param customizer JwtStateConfigurer를 커스터마이징합니다.
+     * @return 상위 DSL (IdentityAuthDsl) 으로 복귀
      */
     IdentityAuthDsl jwt(Customizer<JwtStateConfigurer> customizer);
 
     /**
-     * Spring AuthorizationServer/ResourceServer(OAuth2) 기반 JWT 전략을 사용합니다.
-     *
-     * @return 상위 DSL 으로 복귀
+     * Spring AuthorizationServer/ResourceServer(OAuth2) 기반 JWT/Opaque Token 전략을 사용합니다.
+     * @param customizer OAuth2StateConfigurer를 커스터마イ징합니다.
+     * @return 상위 DSL (IdentityAuthDsl) 으로 복귀
      */
     IdentityAuthDsl oauth2(Customizer<OAuth2StateConfigurer> customizer);
 }

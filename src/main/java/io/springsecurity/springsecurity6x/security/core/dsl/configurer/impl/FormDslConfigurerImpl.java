@@ -1,16 +1,21 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.FormAsepAttributes;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-public class FormDslConfigurerImpl
-        extends AbstractOptionsBuilderConfigurer<FormOptions, FormOptions.Builder, FormDslConfigurer>
+@Slf4j
+public final class FormDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
+        extends AbstractOptionsBuilderConfigurer<FormDslConfigurerImpl<H>, H, FormOptions, FormOptions.Builder, FormDslConfigurer>
         implements FormDslConfigurer {
-
-    private int order;
 
     public FormDslConfigurerImpl() {
         super(FormOptions.builder());
@@ -19,17 +24,18 @@ public class FormDslConfigurerImpl
     @Override
     public FormDslConfigurer order(int order) {
         getOptionsBuilder().order(order);
-        return this;
-    }
-
-    @Override
-    protected FormDslConfigurer self() {
-        return this;
+        return self();
     }
 
     @Override
     public FormDslConfigurer loginPage(String loginPageUrl) {
         getOptionsBuilder().loginPage(loginPageUrl);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl<H> loginProcessingUrl(String loginProcessingUrl) {
+        getOptionsBuilder().loginProcessingUrl(loginProcessingUrl);
         return self();
     }
 
@@ -64,14 +70,56 @@ public class FormDslConfigurerImpl
     }
 
     @Override
-    public FormDslConfigurer securityContextRepository(SecurityContextRepository repository) {
+    public FormDslConfigurerImpl<H> successHandler(AuthenticationSuccessHandler successHandler) {
+        getOptionsBuilder().successHandler(successHandler);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl<H> failureHandler(AuthenticationFailureHandler failureHandler) {
+        getOptionsBuilder().failureHandler(failureHandler);
+        return self();
+    }
+
+    @Override
+    public FormDslConfigurerImpl<H> securityContextRepository(SecurityContextRepository repository) {
         getOptionsBuilder().securityContextRepository(repository);
         return self();
     }
 
     @Override
+    public void configure(HttpSecurityBuilder builder) throws Exception {
+
+    }
+
+    @Override
     public FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer) {
-        getOptionsBuilder().rawFormLogin(customizer);
+        getOptionsBuilder().rawFormLoginCustomizer(customizer);
         return self();
+    }
+
+    @Override
+    public FormDslConfigurer asep(Customizer<FormAsepAttributes> formAsepAttributesCustomizer) throws Exception {
+        H builder = (H) getBuilder();
+
+        FormAsepAttributes attributes = builder.getSharedObject(FormAsepAttributes.class);
+        if (attributes == null) {
+            attributes = new FormAsepAttributes();
+            log.debug("ASEP: Creating new FormAsepAttributes for HttpSecurityBuilder (hash: {})", System.identityHashCode(builder));
+        }
+
+        if (formAsepAttributesCustomizer != null) {
+            formAsepAttributesCustomizer.customize(attributes);
+            log.debug("ASEP: Customized FormAsepAttributes for HttpSecurityBuilder (hash: {})", System.identityHashCode(builder));
+        }
+
+        builder.setSharedObject(FormAsepAttributes.class, attributes);
+        log.debug("ASEP: FormAsepAttributes stored/updated in sharedObjects for HttpSecurityBuilder (hash: {})", System.identityHashCode(builder));
+
+        return self();
+    }
+
+    protected FormDslConfigurerImpl<H> self(){
+        return this;
     }
 }

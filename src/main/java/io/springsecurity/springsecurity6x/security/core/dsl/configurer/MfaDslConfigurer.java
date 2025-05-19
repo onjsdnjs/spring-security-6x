@@ -1,6 +1,9 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
 
+import io.springsecurity.springsecurity6x.security.core.asep.dsl.MfaAsepAttributes;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.SecurityConfigurer;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.SecurityConfigurerDsl;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.AdaptiveDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaContinuationHandler;
@@ -9,14 +12,16 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-public interface MfaDslConfigurer {
-
+public interface MfaDslConfigurer extends SecurityConfigurerDsl { // SecurityConfigurerDsl 마커 인터페이스 (선택적)
     MfaDslConfigurer order(int order);
-    MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurer);
-    MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer);
-    MfaDslConfigurer ott(Customizer<OttDslConfigurer> ottConfigurer);
-    MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> passkeyConfigurer);
-    MfaDslConfigurer recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer);
+
+    // 각 Factor DSL을 위한 메소드 (이 내부에서 각 Factor의 Configurer가 ASEP 설정을 가질 수 있도록 설계)
+    MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurer); // MFA의 한 단계로 Form 인증 사용
+    MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer); // MFA의 한 단계로 Rest 인증 사용
+    MfaDslConfigurer ott(Customizer<OttDslConfigurer> ottConfigurer);   // MFA의 한 단계로 OTT 인증 사용
+    MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> passkeyConfigurer); // MFA의 한 단계로 Passkey 인증 사용
+
+    MfaDslConfigurer recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer); // RecoveryCodeDslConfigurer 정의 필요
     MfaDslConfigurer mfaContinuationHandler(MfaContinuationHandler continuationHandler);
     MfaDslConfigurer mfaFailureHandler(MfaFailureHandler failureHandler);
     MfaDslConfigurer finalSuccessHandler(AuthenticationSuccessHandler handler);
@@ -24,10 +29,11 @@ public interface MfaDslConfigurer {
     MfaDslConfigurer defaultRetryPolicy(Customizer<RetryPolicyDslConfigurer> c);
     MfaDslConfigurer defaultAdaptivePolicy(Customizer<AdaptiveDslConfigurer> c);
     MfaDslConfigurer defaultDeviceTrustEnabled(boolean enable);
-    AuthenticationFlowConfig build();
+    AuthenticationFlowConfig build(); // 최종적으로 AuthenticationFlowConfig 객체 반환
 
-    // 이 메소드는 PlatformSecurityConfig.java의 DSL 에서는 직접 사용되지 않으나,
-    // 내부적으로 다른 방식으로 1차 인증을 설정할 경우를 위해 남겨둘 수 있습니다.
-    // 현재 DSL 흐름에서는 rest()가 그 역할을 대신하고 있습니다.
+    // MFA 플로우 전체에 대한 ASEP 설정을 위한 DSL 메소드
+    MfaDslConfigurer asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer) throws Exception;
+
+    // Primary Authentication (MFA 이전의 1차 인증) 설정
     MfaDslConfigurer primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfig);
 }

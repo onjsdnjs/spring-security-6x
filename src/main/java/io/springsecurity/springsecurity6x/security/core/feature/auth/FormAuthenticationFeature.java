@@ -1,8 +1,7 @@
-package io.springsecurity.springsecurity6x.security.core.feature.auth.form;
+package io.springsecurity.springsecurity6x.security.core.feature.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.AbstractAuthenticationFeature;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;

@@ -2,23 +2,23 @@ package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
 import lombok.Getter;
 import org.springframework.util.Assert;
-
 import java.util.*;
 
 @Getter
-public final class PasskeyOptions extends AuthenticationProcessingOptions {
+public final class PasskeyOptions extends AuthenticationProcessingOptions { // final class
 
-    private final String assertionOptionsEndpoint;
-    private final String rpName;
-    private final String rpId;
-    private final Set<String> allowedOrigins;
+    private final String assertionOptionsEndpoint; // 필수
+    private final String rpName; // 필수
+    private final String rpId;   // 필수
+    private final Set<String> allowedOrigins; // null이 아닌 빈 Set일 수 있음
 
     private PasskeyOptions(Builder builder) {
         super(builder);
-        this.assertionOptionsEndpoint = builder.assertionOptionsEndpoint;
-        this.rpName = builder.rpName;
-        this.rpId = builder.rpId;
-        this.allowedOrigins = builder.allowedOrigins != null ? Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins)) : Collections.emptySet();
+        this.assertionOptionsEndpoint = Objects.requireNonNull(builder.assertionOptionsEndpoint, "assertionOptionsEndpoint cannot be null");
+        this.rpName = Objects.requireNonNull(builder.rpName, "rpName cannot be null");
+        this.rpId = Objects.requireNonNull(builder.rpId, "rpId cannot be null");
+        this.allowedOrigins = builder.allowedOrigins != null ?
+                Collections.unmodifiableSet(new HashSet<>(builder.allowedOrigins)) : Collections.emptySet();
     }
 
     public static Builder builder() {
@@ -26,13 +26,13 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions {
     }
 
     public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<PasskeyOptions, Builder> {
-        private String assertionOptionsEndpoint = "/webauthn/assertion/options";
+        private String assertionOptionsEndpoint = "/webauthn/assertion/options"; // 기본값
         private String rpName = "My Application";
         private String rpId;
-        private Set<String> allowedOrigins = new HashSet<>(); // Builder에서는 List로 관리
+        private Set<String> allowedOrigins = new HashSet<>();
 
         public Builder() {
-            super.loginProcessingUrl("/login/webauthn");
+            super.loginProcessingUrl("/login/webauthn"); // Passkey 인증 처리 URL 기본값
         }
 
         @Override
@@ -41,25 +41,25 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions {
         }
 
         public Builder assertionOptionsEndpoint(String url) {
-            Assert.hasText(url, "assertionOptionsEndpoint cannot be empty");
+            Assert.hasText(url, "assertionOptionsEndpoint cannot be empty or null");
             this.assertionOptionsEndpoint = url;
             return this;
         }
 
         public Builder rpName(String rpName) {
-            Assert.hasText(rpName, "rpName cannot be empty");
+            Assert.hasText(rpName, "rpName cannot be empty or null");
             this.rpName = rpName;
             return this;
         }
 
         public Builder rpId(String rpId) {
-            Assert.hasText(rpId, "rpId cannot be empty");
+            Assert.hasText(rpId, "rpId cannot be empty or null");
             this.rpId = rpId;
             return this;
         }
 
         public Builder allowedOrigins(Set<String> origins) {
-            this.allowedOrigins = (origins != null) ? origins : new HashSet<>();
+            this.allowedOrigins = (origins != null) ? new HashSet<>(origins) : new HashSet<>();
             return this;
         }
 
@@ -69,13 +69,17 @@ public final class PasskeyOptions extends AuthenticationProcessingOptions {
         }
 
         public Builder allowedOrigins(String... origins) {
-            this.allowedOrigins = (origins != null) ? new HashSet<>(Arrays.asList(origins)) : new HashSet<>();
+            this.allowedOrigins = (origins != null && origins.length > 0) ?
+                    new HashSet<>(Arrays.asList(origins)) : new HashSet<>();
             return this;
         }
 
-
         @Override
         public PasskeyOptions build() {
+            Assert.hasText(loginProcessingUrl, "loginProcessingUrl must be set for PasskeyOptions");
+            Assert.hasText(assertionOptionsEndpoint, "assertionOptionsEndpoint must be set for PasskeyOptions");
+            Assert.hasText(rpName, "rpName must be set for PasskeyOptions");
+            Assert.hasText(rpId, "rpId must be set for PasskeyOptions");
             return new PasskeyOptions(this);
         }
     }

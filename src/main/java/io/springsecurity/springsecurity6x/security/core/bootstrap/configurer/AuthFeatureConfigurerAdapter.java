@@ -5,7 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.feature.AuthenticationFeature;
-import io.springsecurity.springsecurity6x.security.core.feature.auth.mfa.MfaAuthenticationFeature;
+import io.springsecurity.springsecurity6x.security.core.feature.auth.MfaAuthenticationFeature;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;

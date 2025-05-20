@@ -273,6 +273,6 @@ public class MfaApiController {
     }
 
     private record SelectFactorRequestDto(String factorType, @Nullable String username) {}
-    private record OttCodeRequestDto(@Nullable String username, @Nullable String factorType) {} // factorType 추가 (서버에서 현재 처리 Factor와 비교용)
+    private record OttCodeRequestDto(@Nullable String username) {} // username은 FactorContext에서 가져오므로 API 요청 시에는 불필요할 수 있음
     private record PasskeyOptionsRequestDto(@Nullable String username) {}
 }

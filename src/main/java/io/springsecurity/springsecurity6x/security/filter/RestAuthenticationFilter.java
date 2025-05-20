@@ -2,15 +2,21 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.domain.LoginRequest;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.enums.AuthType; // AuthType 추가
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,11 +33,13 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 public class RestAuthenticationFilter extends OncePerRequestFilter {
@@ -47,56 +55,64 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private final AuthenticationManager authenticationManager;
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
+    private final ApplicationContext applicationContext;
+    // private final String mfaInitiateUrl; // 더 이상 이 필터에서 직접 사용하지 않음 (SuccessHandler 역할)
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
                                     MfaPolicyProvider mfaPolicyProvider,
                                     RequestMatcher requestMatcher,
-                                    String mfaInitiateUrl) { // mfaInitiateUrl 주입
+                                    // String mfaInitiateUrl, // 제거 또는 SuccessHandler로 이전
+                                    ApplicationContext applicationContext,
+                                    @Nullable AuthenticationSuccessHandler successHandler,
+                                    @Nullable AuthenticationFailureHandler failureHandler) {
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
         Assert.notNull(contextPersistence, "contextPersistence cannot be null");
         Assert.notNull(mfaPolicyProvider, "mfaPolicyProvider cannot be null");
         Assert.notNull(requestMatcher, "requestMatcher cannot be null");
-        Assert.hasText(mfaInitiateUrl, "mfaInitiateUrl cannot be empty");
+        // Assert.hasText(mfaInitiateUrl, "mfaInitiateUrl cannot be empty"); // 제거
+        Assert.notNull(applicationContext, "applicationContext cannot be null");
 
         this.authenticationManager = authenticationManager;
         this.contextPersistence = contextPersistence;
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.requestMatcher = requestMatcher;
-        this.successHandler = defaultSuccessHandler();
-        this.failureHandler = defaultFailureHandler();
+        // this.mfaInitiateUrl = mfaInitiateUrl;
+        this.applicationContext = applicationContext;
+
+        this.successHandler = (successHandler != null) ? successHandler : defaultSuccessHandler();
+        this.failureHandler = (failureHandler != null) ? failureHandler : defaultFailureHandler();
     }
 
     private AuthenticationSuccessHandler defaultSuccessHandler() {
         return (request, response, authentication) -> {
-            log.info("DefaultSuccessHandler: Primary authentication successful for user: {}. No MFA required or MFA flow handled separately.", authentication.getName());
-            // 실제 프로덕션에서는 JWT 토큰을 발급하거나, 적절한 성공 응답을 보내야 함.
-            // 여기서는 간단한 JSON 응답으로 대체.
+            log.warn("RestAuthenticationFilter: Using default success handler. MFA flow might not be initiated correctly if required. " +
+                    "Consider injecting a specific MFA-aware success handler (e.g., PrimaryAuthenticationSuccessHandler or MfaCapableRestSuccessHandler).");
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            Map<String, Object> successResponse = new HashMap<>();
-            successResponse.put("message", "Authentication successful.");
-            successResponse.put("username", authentication.getName());
-            // JWT 사용 시 여기에 토큰 정보 추가
-            // successResponse.put("accessToken", "your_issued_access_token");
-            // successResponse.put("refreshToken", "your_issued_refresh_token");
-            mapper.writeValue(response.getWriter(), successResponse);
+            Map<String, Object> body = new HashMap<>();
+            body.put("status", "SUCCESS_NO_MFA_HANDLED_BY_DEFAULT");
+            body.put("message", "Primary authentication successful. Default handler: No MFA check or token issuance implemented here.");
+            body.put("username", authentication.getName());
+            mapper.writeValue(response.getWriter(), body);
         };
     }
 
-    // 기본 실패 핸들러
     private AuthenticationFailureHandler defaultFailureHandler() {
         return (request, response, exception) -> {
-            log.warn("DefaultFailureHandler: Authentication failed: {}", exception.getMessage(), exception);
+            log.warn("RestAuthenticationFilter: Using default failure handler for exception: {}", exception.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            Map<String, Object> errorResponse = Map.of(
-                    "error", "Authentication Failed",
-                    "message", exception.getMessage() != null ? exception.getMessage() : "Invalid credentials or authentication error."
+            Map<String, Object> body = Map.of(
+                    "timestamp", System.currentTimeMillis(),
+                    "status", HttpServletResponse.SC_UNAUTHORIZED,
+                    "error", "Unauthorized",
+                    "message", exception.getMessage() != null ? exception.getMessage() : "Authentication failed."
             );
-            mapper.writeValue(response.getWriter(), errorResponse);
+            mapper.writeValue(response.getWriter(), body);
         };
     }
+
 
     public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
         Assert.notNull(successHandler, "successHandler cannot be null");
@@ -121,13 +137,13 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        log.debug("RestAuthenticationFilter: Processing request for {}", request.getRequestURI());
+        log.debug("RestAuthenticationFilter: Processing primary authentication request for {}", request.getRequestURI());
 
         try {
             Authentication authResult = attemptAuthentication(request);
             successfulAuthentication(request, response, filterChain, authResult);
         } catch (AuthenticationException ex) {
-            log.warn("RestAuthenticationFilter: Authentication attempt failed for {}: {}", request.getRequestURI(), ex.getMessage());
+            log.warn("RestAuthenticationFilter: Primary authentication attempt failed for {}: {}", request.getRequestURI(), ex.getMessage());
             unsuccessfulAuthentication(request, response, ex);
         }
     }
@@ -149,7 +165,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
         UsernamePasswordAuthenticationToken authRequest =
                 UsernamePasswordAuthenticationToken.unauthenticated(loginRequest.username(), loginRequest.password());
-        authRequest.setDetails(new WebAuthenticationDetails(request)); // 요청 상세 정보 설정
+        authRequest.setDetails(new WebAuthenticationDetails(request));
         return this.authenticationManager.authenticate(authRequest);
     }
 
@@ -157,52 +173,74 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
                                             Authentication authentication) throws IOException, ServletException {
         log.info("RestAuthenticationFilter: Primary authentication successful for user: {}", authentication.getName());
 
-        // SecurityContext에 인증 정보 저장 (세션 기반이거나, 후속 필터에서 필요시)
         SecurityContext context = securityContextHolderStrategy.createEmptyContext();
         context.setAuthentication(authentication);
         securityContextHolderStrategy.setContext(context);
-        securityContextRepository.saveContext(context, request, response); // 중요: SecurityContextRepository 사용
+        securityContextRepository.saveContext(context, request, response);
 
-        // 이전 MFA 세션 정보가 있다면 삭제 (새로운 1차 인증 성공이므로)
-        contextPersistence.deleteContext(request);
+        contextPersistence.deleteContext(request); // 이전 MFA 세션 정리
 
-        // FactorContext 생성 및 MFA 정책 평가 (MfaPolicyProvider를 통해)
-        // 생성자에서 초기 상태는 PRIMARY_AUTHENTICATION_COMPLETED로 설정됨.
         FactorContext mfaCtx = new FactorContext(authentication);
-        String deviceId = request.getHeader("X-Device-Id"); // 클라이언트에서 deviceId를 헤더로 보내준다고 가정
-        if (deviceId != null) {
-            mfaCtx.setAttribute("deviceId", deviceId); // FactorContext에 deviceId 저장
+        String deviceId = request.getHeader("X-Device-Id");
+        if (!StringUtils.hasText(deviceId)) {
+            deviceId = getOrCreateDeviceId(request);
         }
+        mfaCtx.setAttribute("deviceId", deviceId);
 
-        // MfaPolicyProvider가 mfaCtx의 mfaRequiredAsPerPolicy, registeredMfaFactors,
-        // currentProcessingFactor (첫 번째 Factor), currentMfaState 등을 설정.
+        // MfaPolicyProvider 호출 (mfaFlowConfig 인자 없이)
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, mfaCtx);
-        contextPersistence.saveContext(mfaCtx, request); // FactorContext 저장 (MFA 세션 시작)
 
-        if (mfaCtx.isMfaRequiredAsPerPolicy()) {
-            log.info("RestAuthenticationFilter: MFA is required for user: {}. Session ID: {}. Guiding to MFA initiation.",
-                    authentication.getName(), mfaCtx.getMfaSessionId());
-
-            // 클라이언트에게 MFA가 필요함을 알리고, 다음 단계를 안내하는 응답 전송
-            // MfaCapableRestSuccessHandler가 이 역할을 하도록 위임하거나, 여기서 직접 응답 생성
-            // PlatformSecurityConfig에서 RestAuthenticationFilter의 successHandler로
-            // MfaCapableRestSuccessHandler 또는 PrimaryAuthenticationSuccessHandler를 지정.
-            // 여기서는 해당 핸들러가 호출될 것을 기대하고, 직접 응답을 생성하지 않음.
-            // Spring Security 필터 표준에 따라, 성공 시 successHandler 호출.
-            this.successHandler.onAuthenticationSuccess(request, response, authentication);
-            // successHandler (예: MfaCapableRestSuccessHandler)가 응답을 커밋할 것임.
-        } else {
-            log.info("RestAuthenticationFilter: MFA is not required for user: {}. Proceeding with final token issuance.", authentication.getName());
-            // MFA가 필요 없는 경우, successHandler가 최종 토큰 발급 등의 로직을 수행.
-            this.successHandler.onAuthenticationSuccess(request, response, authentication);
+        // currentProcessingFactor에 대한 Options 설정
+        AuthType currentProcessingFactor = mfaCtx.getCurrentProcessingFactor();
+        if (currentProcessingFactor != null) {
+            AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
+            if (mfaFlowConfig != null && mfaFlowConfig.getRegisteredFactorOptions() != null) {
+                AuthenticationProcessingOptions factorOptions = mfaFlowConfig.getRegisteredFactorOptions().get(currentProcessingFactor);
+                mfaCtx.setCurrentFactorOptions(factorOptions);
+                if (factorOptions == null) {
+                    log.warn("RestAuthenticationFilter: No AuthenticationProcessingOptions found for currentProcessingFactor {} in MFA flow config for user {}.",
+                            currentProcessingFactor, authentication.getName());
+                }
+            } else {
+                log.warn("RestAuthenticationFilter: MFA FlowConfig or registeredFactorOptions not found. Cannot set currentFactorOptions for user {}.", authentication.getName());
+            }
         }
+
+        contextPersistence.saveContext(mfaCtx, request);
+        log.debug("RestAuthenticationFilter: Saved FactorContext (ID: {}) for user {} with initial MFA state: {}, current factor: {}, current options: {}",
+                mfaCtx.getMfaSessionId(), authentication.getName(), mfaCtx.getCurrentState(),
+                mfaCtx.getCurrentProcessingFactor(), mfaCtx.getCurrentFactorOptions() != null ? mfaCtx.getCurrentFactorOptions().getClass().getSimpleName() : "null");
+
+        this.successHandler.onAuthenticationSuccess(request, response, authentication);
     }
 
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationException exception) throws IOException, ServletException {
         securityContextHolderStrategy.clearContext();
-        contextPersistence.deleteContext(request); // 실패 시에도 세션의 MFA 컨텍스트 정리
+        contextPersistence.deleteContext(request);
         this.failureHandler.onAuthenticationFailure(request, response, exception);
     }
-}
 
+    @Nullable
+    private AuthenticationFlowConfig findMfaFlowConfig() {
+        try {
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            if (platformConfig != null && platformConfig.getFlows() != null) {
+                return platformConfig.getFlows().stream()
+                        .filter(flow -> "mfa".equalsIgnoreCase(flow.getTypeName()))
+                        .findFirst()
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("RestAuthenticationFilter: Could not retrieve PlatformConfig or find MFA flow configuration: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private String getOrCreateDeviceId(HttpServletRequest request) {
+        // 실제 구현에서는 더 견고한 방법 사용 (예: 세션 ID 기반, 암호화된 쿠키 등)
+        String deviceId = UUID.randomUUID().toString();
+        log.debug("RestAuthenticationFilter: Generated new deviceId: {}", deviceId);
+        return deviceId;
+    }
+}

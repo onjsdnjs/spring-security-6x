@@ -2,16 +2,12 @@ package io.springsecurity.springsecurity6x.security.core.mfa.policy;
 
 import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig; // 추가
-import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig; // 추가
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions; // 추가
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext; // 추가
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -28,7 +24,7 @@ import java.util.stream.Collectors;
 public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
-    private final ApplicationContext applicationContext; // AuthenticationFlowConfig 접근용
+    // ApplicationContext 의존성 제거
 
     @Override
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
@@ -36,7 +32,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Assert.notNull(ctx, "FactorContext cannot be null.");
         Assert.isTrue(Objects.equals(primaryAuthentication.getName(), ctx.getUsername()),
                 "Username in FactorContext must match primaryAuthentication's name.");
-        // 초기 상태는 PRIMARY_AUTHENTICATION_COMPLETED 여야 함.
         Assert.isTrue(ctx.getCurrentState() == MfaState.PRIMARY_AUTHENTICATION_COMPLETED,
                 "evaluateMfaRequirementAndDetermineInitialStep should be called when FactorContext state is PRIMARY_AUTHENTICATION_COMPLETED.");
 
@@ -46,7 +41,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (userOptional.isEmpty()) {
             log.warn("User {} not found. MFA policy evaluation cannot proceed.", username);
             ctx.setMfaRequiredAsPerPolicy(false);
-            ctx.changeState(MfaState.ALL_FACTORS_COMPLETED); // MFA 불필요
+            ctx.changeState(MfaState.ALL_FACTORS_COMPLETED);
             return;
         }
 
@@ -66,17 +61,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 AuthType initialFactor = determineNextFactorInternal(ctx.getRegisteredMfaFactors(), ctx.getCompletedMfaFactors());
                 if (initialFactor != null) {
                     ctx.setCurrentProcessingFactor(initialFactor);
-                    // 현재 MFA Flow의 AuthenticationFlowConfig를 찾아 해당 Factor의 Options 설정
-                    AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
-                    if (mfaFlowConfig != null && mfaFlowConfig.getRegisteredFactorOptions() != null) {
-                        AuthenticationProcessingOptions factorOptions = mfaFlowConfig.getRegisteredFactorOptions().get(initialFactor);
-                        ctx.setCurrentFactorOptions(factorOptions);
-                        if (factorOptions == null) {
-                            log.warn("No AuthenticationProcessingOptions found for initial factor {} in MFA flow config for user {}.", initialFactor, username);
-                        }
-                    } else {
-                        log.warn("MFA FlowConfig or registeredFactorOptions not found. Cannot set currentFactorOptions for user {}.", username);
-                    }
+                    // setCurrentFactorOptions는 이 메소드를 호출한 RestAuthenticationFilter 또는 그 SuccessHandler가 담당
                     ctx.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
                     log.info("MFA required for user {}. Initial factor set to: {}. New state: {}. Session: {}",
                             username, initialFactor, ctx.getCurrentState(), ctx.getMfaSessionId());
@@ -84,7 +69,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     log.warn("MFA required for user '{}', registered factors exist, but no initial factor determined. Proceeding to factor selection. Session: {}",
                             username, ctx.getMfaSessionId());
                     ctx.setCurrentProcessingFactor(null);
-                    ctx.setCurrentFactorOptions(null);
+                    ctx.setCurrentFactorOptions(null); // 다음 Factor가 없으므로 옵션도 null
                     ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
                 }
             }
@@ -94,7 +79,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
     }
 
-    // ... (parseRegisteredMfaFactorsFromUser, determineNextFactorInternal, getRetryPolicyForFactor, isFactorAvailableForUser는 이전과 유사하게 유지) ...
     private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) {
         String mfaFactorsString = user.getMfaFactors();
         if (StringUtils.hasText(mfaFactorsString)) {
@@ -119,9 +103,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (!ctx.isMfaRequiredAsPerPolicy() || CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
             return null;
         }
-        AuthType nextFactor = determineNextFactorInternal(ctx.getRegisteredMfaFactors(), ctx.getCompletedMfaFactors());
-        // 다음 Factor가 결정되면, FactorContext에 currentFactorOptions도 설정해야 함 (호출하는 쪽에서)
-        return nextFactor;
+        return determineNextFactorInternal(ctx.getRegisteredMfaFactors(), ctx.getCompletedMfaFactors());
     }
 
     @Nullable
@@ -158,17 +140,5 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 .orElse(false);
     }
 
-    @Nullable
-    private AuthenticationFlowConfig findMfaFlowConfig() {
-        try {
-            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
-            return platformConfig.getFlows().stream()
-                    .filter(flow -> "mfa".equalsIgnoreCase(flow.getTypeName()))
-                    .findFirst()
-                    .orElse(null);
-        } catch (Exception e) {
-            log.error("Could not retrieve PlatformConfig or MFA flow configuration for setting factor options.", e);
-            return null;
-        }
-    }
+    // findMfaFlowConfig() 메소드 제거 - 이 클래스는 더 이상 PlatformConfig/AuthenticationFlowConfig에 직접 접근하지 않음
 }

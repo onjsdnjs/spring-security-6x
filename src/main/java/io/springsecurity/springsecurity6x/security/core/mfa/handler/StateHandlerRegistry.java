@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -12,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 
 @Slf4j // Slf4j 어노테이션으로 변경
-@Component // 스프링 빈으로 등록
 public class StateHandlerRegistry {
     // private static final Logger log = LoggerFactory.getLogger(StateHandlerRegistry.class); // Slf4j 사용 시 불필요
     private final Map<MfaState, MfaStateHandler> registry = new EnumMap<>(MfaState.class);

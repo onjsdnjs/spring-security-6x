@@ -5,7 +5,6 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistr
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.*;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import org.slf4j.Logger;
@@ -71,22 +70,12 @@ public class FlowContextFactory {
             setSharedObjectIfAbsent(http, ContextPersistence.class, () -> appContext.getBean(ContextPersistence.class));
             setSharedObjectIfAbsent(http, MfaPolicyProvider.class, () -> appContext.getBean(MfaPolicyProvider.class));
             /*flowConfig*/
-            setSharedObjectIfAbsent(http, StateMachineManager.class, StateMachineManager::new);
             setSharedObjectIfAbsent(http, ObjectMapper.class, ObjectMapper::new);
 
             if (http.getSharedObject(StateHandlerRegistry.class) == null) {
                 try {
                     MfaPolicyProvider policyProvider = appContext.getBean(MfaPolicyProvider.class);
                     List<MfaStateHandler> handlers = List.of(
-                            new PrimaryAuthCompletedStateHandler(),
-                            new AutoAttemptFactorStateHandler(),
-                            new FactorSelectionStateHandler(policyProvider),
-                            new ChallengeInitiatedStateHandler(),
-                            new VerificationPendingStateHandler(policyProvider),
-                            new OttStateHandler(),
-                            new PasskeyStateHandler(),
-                            new RecoveryStateHandler(),
-                            new TokenStateHandler()
                     );
                     http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers, policyProvider));
                 } catch (Exception e) { // NoSuchBeanDefinitionException 포함

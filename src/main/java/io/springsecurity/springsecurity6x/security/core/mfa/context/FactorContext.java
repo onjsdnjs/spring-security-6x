@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class FactorContext implements Serializable {
 
-    private static final long serialVersionUID = 20250521_01L; // 버전 업데이트
+    private static final long serialVersionUID = 20250522_01L; // 날짜 기반으로 버전 업데이트
 
     private final String mfaSessionId;
     private final AtomicReference<MfaState> currentMfaState;
@@ -34,12 +34,13 @@ public class FactorContext implements Serializable {
     @Setter private boolean mfaRequiredAsPerPolicy = false;
     @Setter private EnumSet<AuthType> registeredMfaFactors = EnumSet.noneOf(AuthType.class);
     @Setter @Nullable private AuthType currentProcessingFactor;
-    @Setter @Nullable private AuthenticationProcessingOptions currentFactorOptions; // 추가된 필드
+    @Setter @Nullable private AuthenticationProcessingOptions currentFactorOptions; // 현재 Factor의 상세 옵션
     private final Set<AuthType> completedMfaFactors = EnumSet.noneOf(AuthType.class);
 
-    @Setter @Nullable private AuthType preferredAutoAttemptFactor;
-    @Setter private boolean autoAttemptFactorSkippedOrFailed = false;
-    @Setter private boolean autoAttemptFactorSucceeded = false;
+    // 자동 인증 시도 관련 필드는 필요에 따라 유지 또는 제거
+    // @Setter @Nullable private AuthType preferredAutoAttemptFactor;
+    // @Setter private boolean autoAttemptFactorSkippedOrFailed = false;
+    // @Setter private boolean autoAttemptFactorSucceeded = false;
 
     private final Map<AuthType, Integer> factorAttemptCounts = new ConcurrentHashMap<>();
     private Instant lastActivityTimestamp;
@@ -52,6 +53,7 @@ public class FactorContext implements Serializable {
         this.mfaSessionId = UUID.randomUUID().toString();
         this.primaryAuthentication = primaryAuthentication;
         this.username = primaryAuthentication.getName();
+        // 초기 상태: 1차 인증은 성공했으나, MFA 정책 평가는 아직 이루어지지 않음.
         this.currentMfaState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
         this.lastActivityTimestamp = Instant.now();
         log.info("FactorContext created for user '{}'. Session ID: {}, Initial State: {}",
@@ -62,7 +64,6 @@ public class FactorContext implements Serializable {
         return currentMfaState.get();
     }
 
-    // currentFactorOptions getter (Lombok @Getter에 의해 자동 생성될 것이나 명시적으로 추가 가능)
     @Nullable
     public AuthenticationProcessingOptions getCurrentFactorOptions() {
         return currentFactorOptions;
@@ -74,10 +75,11 @@ public class FactorContext implements Serializable {
         if (oldState != newState) {
             this.version.incrementAndGet();
             updateLastActivityTimestamp();
-            log.info("FactorContext (ID: {}) state changed: {} -> {}", mfaSessionId, oldState, newState);
+            log.info("FactorContext (ID: {}) state changed: {} -> {} for user {}", mfaSessionId, oldState, newState, this.username);
         }
     }
 
+    // ... (compareAndSetState, addCompletedFactor, incrementAttemptCount, getAttemptCount, recordAttempt, getAttribute, setAttribute, updateLastActivityTimestamp, MfaAttemptDetail 등 이전과 유사하게 유지)
     public boolean compareAndSetState(MfaState expect, MfaState update) {
         Assert.notNull(expect, "Expected MfaState cannot be null.");
         Assert.notNull(update, "Update MfaState cannot be null.");
@@ -85,9 +87,9 @@ public class FactorContext implements Serializable {
         if (success) {
             this.version.incrementAndGet();
             updateLastActivityTimestamp();
-            log.info("FactorContext (ID: {}) state compareAndSet: {} -> {}. Success: {}", mfaSessionId, expect, update, true);
+            log.info("FactorContext (ID: {}) state compareAndSet: {} -> {}. Success: {} for user {}", mfaSessionId, expect, update, true, this.username);
         } else {
-            log.warn("FactorContext (ID: {}) state compareAndSet FAILED. Expected: {}, Actual: {}, UpdateTo: {}", mfaSessionId, expect, getCurrentState(), update);
+            log.warn("FactorContext (ID: {}) state compareAndSet FAILED. Expected: {}, Actual: {}, UpdateTo: {} for user {}", mfaSessionId, expect, getCurrentState(), update, this.username);
         }
         return success;
     }
@@ -98,18 +100,18 @@ public class FactorContext implements Serializable {
                 this.completedMfaFactors.add(factorType);
             }
             updateLastActivityTimestamp();
-            log.debug("FactorContext (ID: {}): Factor {} marked as completed.", mfaSessionId, factorType);
+            log.debug("FactorContext (ID: {}): Factor {} marked as completed for user {}.", mfaSessionId, factorType, this.username);
         }
     }
 
     public int incrementAttemptCount(@Nullable AuthType factorType) {
         if (factorType == null) {
-            log.warn("FactorContext (ID: {}): Attempted to increment attempt count for a null factorType.", mfaSessionId);
+            log.warn("FactorContext (ID: {}): Attempted to increment attempt count for a null factorType for user {}.", mfaSessionId, this.username);
             return 0;
         }
         int newCount = factorAttemptCounts.compute(factorType, (key, val) -> (val == null) ? 1 : val + 1);
         updateLastActivityTimestamp();
-        log.debug("FactorContext (ID: {}): Attempt count for {} incremented to {}.", mfaSessionId, factorType, newCount);
+        log.debug("FactorContext (ID: {}): Attempt count for {} incremented to {} for user {}.", mfaSessionId, factorType, newCount, this.username);
         return newCount;
     }
 
@@ -121,7 +123,7 @@ public class FactorContext implements Serializable {
     public void recordAttempt(@Nullable AuthType factorType, boolean success, String detail) {
         this.mfaAttemptHistory.add(new MfaAttemptDetail(factorType, success, detail));
         updateLastActivityTimestamp();
-        log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}'", mfaSessionId, factorType, success, detail);
+        log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}' for user {}", mfaSessionId, factorType, success, detail, this.username);
     }
 
     @Nullable
@@ -133,35 +135,21 @@ public class FactorContext implements Serializable {
         Assert.hasText(key, "Attribute key cannot be empty or null.");
         if (value == null) {
             this.attributes.remove(key);
-            log.debug("FactorContext (ID: {}): Attribute removed: Key='{}'", mfaSessionId, key);
+            log.debug("FactorContext (ID: {}): Attribute removed: Key='{}' for user {}", mfaSessionId, key, this.username);
         } else {
             this.attributes.put(key, value);
-            log.debug("FactorContext (ID: {}): Attribute set: Key='{}', Value type='{}'", mfaSessionId, key, value.getClass().getSimpleName());
+            log.debug("FactorContext (ID: {}): Attribute set: Key='{}', Value type='{}' for user {}", mfaSessionId, key, value.getClass().getSimpleName(), this.username);
         }
         updateLastActivityTimestamp();
     }
-
-    @Nullable
-    public AuthType getPreferredAutoAttemptFactor() {
-        return preferredAutoAttemptFactor;
-    }
-
-    public boolean isAutoAttemptFactorSkippedOrFailed() {
-        return autoAttemptFactorSkippedOrFailed;
-    }
-
-    public boolean isAutoAttemptFactorSucceeded() {
-        return autoAttemptFactorSucceeded;
-    }
-
     public void updateLastActivityTimestamp() {
         this.lastActivityTimestamp = Instant.now();
-        log.trace("FactorContext (ID: {}) lastActivityTimestamp updated to: {}", mfaSessionId, this.lastActivityTimestamp);
+        log.trace("FactorContext (ID: {}) lastActivityTimestamp updated to: {} for user {}", mfaSessionId, this.lastActivityTimestamp, this.username);
     }
 
     @Getter
     public static class MfaAttemptDetail implements Serializable {
-        private static final long serialVersionUID = 20250520_02L;
+        private static final long serialVersionUID = 20250522_02L;
         @Nullable
         private final AuthType factorType;
         private final boolean success;

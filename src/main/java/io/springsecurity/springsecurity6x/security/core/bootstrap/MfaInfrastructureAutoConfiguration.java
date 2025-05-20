@@ -20,6 +20,7 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -43,8 +44,8 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MfaPolicyProvider mfaPolicyProvider() {
-        return new DefaultMfaPolicyProvider(userRepository);
+    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext) {
+        return new DefaultMfaPolicyProvider(userRepository, applicationContext);
     }
 
     @Bean

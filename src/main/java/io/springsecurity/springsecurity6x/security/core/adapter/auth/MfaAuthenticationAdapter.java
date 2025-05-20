@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.handler.StateHandlerRegistry;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.MfaContinuationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
@@ -71,6 +72,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
         }
 
         ContextPersistence ctxPersistence = http.getSharedObject(ContextPersistence.class);
+        StateHandlerRegistry stateHandlerRegistry = http.getSharedObject(StateHandlerRegistry.class);
         FeatureRegistry featureRegistry = applicationContext.getBean(FeatureRegistry.class);
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         AuthContextProperties authContextProperties = applicationContext.getBean(AuthContextProperties.class);
@@ -93,7 +95,8 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
                 mfaPolicyProvider,
                 authContextProperties,
                 responseWriter,
-                emailOttService
+                emailOttService,
+                applicationContext
         );
         http.addFilterBefore(mfaContinuationFilter, LogoutFilter.class);
 
@@ -126,7 +129,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
         }
 
         MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence, mfaFactorProcessingMatcherForWrapper);
-        http.addFilterBefore(mfaStepFilterWrapper, MfaContinuationFilter.class);
+        http.addFilterBefore(mfaStepFilterWrapper, LogoutFilter.class);
 
         log.debug("MFA common filters (MfaContinuationFilter, MfaStepFilterWrapper) added for MFA flow.");
     }

@@ -4,58 +4,83 @@ import lombok.Getter;
 
 @Getter
 public enum MfaState {
+
     /** 초기 상태 또는 MFA 세션이 없는 상태 */
-    NONE("MFA 세션 없음"),
-    /** 1차 인증 성공, MFA 정책 평가 및 다음 단계 결정 필요 */
+    NONE("MFA 세션 없음"), // 사용: FactorContext 로드 실패 시 또는 초기화 전
+
+    /** 1차 인증 성공, MFA 정책 평가 및 다음 단계 결정 필요.
+     * 1차 인증 성공 핸들러에서 이 상태를 거쳐 즉시 다음 상태로 전이되어야 함.
+     */
     PRIMARY_AUTHENTICATION_COMPLETED("1차 인증 완료"),
-    /** 사용자에게 2차 인증 수단 선택 UI 제공 필요 */
+
+    /** 사용자에게 2차 인증 수단 선택 UI 제공 필요.
+     * MfaContinuationFilter가 /mfa/select-factor 요청 처리 시 이 상태 확인.
+     * MfaApiController 에서 Factor 선택 후 AWAITING_FACTOR_CHALLENGE_INITIATION으로 전이.
+     */
     AWAITING_FACTOR_SELECTION("2차 인증 수단 선택 대기"),
-    /** 사용자가 특정 Factor를 선택했고, 해당 Factor에 대한 챌린지 시작/UI 로드 필요 */
+
+    /** 사용자가 특정 Factor를 선택했고, 해당 Factor에 대한 챌린지 시작/UI 로드 필요.
+     * MfaContinuationFilter가 /mfa/challenge/{factor} 요청 처리 시 이 상태 확인 및 챌린지 시작.
+     * 챌린지 시작 후 FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION 으로 전이.
+     */
     AWAITING_FACTOR_CHALLENGE_INITIATION("2차 인증 챌린지 시작 대기"),
-    /**
-     * 특정 Factor에 대한 챌린지가 사용자에게 제시되었고, 사용자의 응답(예: 코드 입력, Passkey 사용)을
-     * Spring Security의 해당 Factor 처리 URL로 전송하여 검증 대기 중임을 나타냄.
-     * 이 상태는 플랫폼이 직접 관리하기보다는, 사용자가 해당 Factor의 검증 페이지에 있음을 의미.
+
+    /** 특정 Factor에 대한 챌린지가 사용자에게 제시되었고, 사용자의 응답(검증 정보 제출)을 기다리는 상태.
+     * MfaContinuationFilter가 챌린지 UI로 안내 후 이 상태로 설정.
+     * MfaStepFilterWrapper는 이 상태일 때 Factor 검증 필터로 위임.
      */
     FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION("2차 인증 검증 대기"),
 
+    /** [사용 빈도 낮음/재검토] 실제 챌린지가 발송/생성 완료된 특정 시점을 나타낼 수 있으나,
+     * AWAITING_FACTOR_CHALLENGE_INITIATION 후 바로 FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION 으로
+     * 전이하는 것이 더 일반적일 수 있음. 현재는 유지.
+     */
     FACTOR_CHALLENGE_INITIATED("실제 챌린지 발송"),
 
-    // 아래는 이전 제안에서 누락되었던, 중요한 추가 상태들입니다.
-    // 실제 프로젝트의 MfaState.java 파일에 아래와 유사한 상태들이 정의되어 있다고 가정합니다.
-    // (사용자가 제공한 파일 내용을 기반으로 아래 내용을 보완 또는 대체해야 합니다.)
+    /** [삭제 또는 통합 고려] Passkey Conditional UI와 같은 자동 인증 시도 기능 구현 시 필요.
+     * 현재 핵심 MFA 흐름에서는 사용되지 않을 수 있음.
+     */
+    AUTO_ATTEMPT_FACTOR_PENDING("자동 인증 시도 대기"),
+    /** [삭제 또는 통합 고려] Passkey Conditional UI와 같은 자동 인증 시도 기능 구현 시 필요. */
+    AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING("자동 인증 시도 검증 중"),
 
-    /** MFA가 필요하며, 자동 시도 가능한 Factor가 있는 경우 (예: Passkey Conditional UI) */
-    AUTO_ATTEMPT_FACTOR_PENDING("자동 인증 시도 대기"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
-    /** 자동 시도 Factor에 대한 검증 진행 중 */
-    AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING("자동 인증 시도 검증 중"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
-
+    /** 사용자가 Factor 검증 정보를 제출했고, 시스템이 검증 중인 상태.
+     * MfaStepFilterWrapper가 실제 Factor 인증 필터로 위임하면, 해당 필터가 이 상태로 진입(또는 내부적으로 처리).
+     * Factor 인증 필터의 성공/실패 핸들러가 다음 상태(AWAITING_FACTOR_SELECTION, AWAITING_FACTOR_CHALLENGE_INITIATION, ALL_FACTORS_COMPLETED, MFA_FAILED_TERMINAL)로 전이.
+     */
     FACTOR_VERIFICATION_PENDING("Factor 검증 진행"),
-    /** (단일 또는 다중) Factor 검증 성공 후, 추가 Factor 필요 여부 또는 최종 완료 판단 대기 상태 */
-    FACTOR_VERIFICATION_COMPLETED("인증 요소 검증 완료"), // 이 부분은 ALL_FACTORS_COMPLETED와 유사/통합될 수 있습니다.
 
-    /** 모든 필수 MFA Factor 검증 완료, 최종 토큰 발급 또는 세션 완료 단계로 진행 */
-    ALL_FACTORS_COMPLETED("모든 2차 인증 완료"), // 사용자가 제공한 파일에 이미 존재
+    /** [ALL_FACTORS_COMPLETED와 통합 고려] 특정 Factor 하나가 성공적으로 검증된 직후의 상태.
+     * MFA Factor 성공 핸들러에서 이 상태를 거쳐 다음 Factor 또는 ALL_FACTORS_COMPLETED로 전이.
+     */
+    FACTOR_VERIFICATION_COMPLETED("인증 요소 검증 완료"),
 
-    /** 모든 인증(1차 및 모든 MFA) 완료 후 토큰 발급/세션 생성만 남은 상태 */
-    TOKEN_ISSUANCE_REQUIRED("최종 토큰 발급 대기"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
+    /** 모든 필수 MFA Factor 검증 완료, 최종 토큰 발급 또는 세션 완료 단계로 진행.
+     * 최종 성공 핸들러가 이 상태를 보고 토큰 발급 후 MFA_COMPLETED_TOKEN_ISSUED로 전이.
+     */
+    ALL_FACTORS_COMPLETED("모든 2차 인증 완료"),
 
-    /** MFA 흐름 최종 성공 (토큰 발급/세션 생성 완료) - 터미널 상태 */
-    MFA_FULLY_COMPLETED("MFA 최종 인증 성공"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
+    /** [ALL_FACTORS_COMPLETED로 통합 또는 MFA_COMPLETED_TOKEN_ISSUED로 대체 고려]
+     * 모든 인증(1차 및 모든 MFA) 완료 후 토큰 발급/세션 생성만 남은 상태.
+     */
+    TOKEN_ISSUANCE_REQUIRED("최종 토큰 발급 대기"),
+
+    /** [MFA_COMPLETED_TOKEN_ISSUED로 대체 고려] MFA 흐름 최종 성공 (토큰 발급/세션 생성 완료) - 터미널 상태 */
+    MFA_FULLY_COMPLETED("MFA 최종 인증 성공"),
 
     /** MFA 흐름 최종 실패 (재시도 초과 등) - 터미널 상태 */
-    MFA_FAILED_TERMINAL("MFA 최종 실패"), // 사용자가 제공한 파일에 이미 존재
+    MFA_FAILED_TERMINAL("MFA 최종 실패"),
     /** MFA 세션 시간 초과 - 터미널 상태 */
-    MFA_SESSION_EXPIRED("MFA 세션 만료"), // 사용자가 제공한 파일에 이미 존재
+    MFA_SESSION_EXPIRED("MFA 세션 만료"),
     /** MFA 세션이 유효하지 않거나 의도적으로 무효화된 경우 (예: 로그아웃, 다른 세션에서의 로그인) - 터미널 상태 */
-    MFA_SESSION_INVALIDATED("MFA 세션 무효화"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
+    MFA_SESSION_INVALIDATED("MFA 세션 무효화"),
     /** MFA 처리 중 예상치 못한 시스템 오류 발생 - 터미널 상태 */
     MFA_SYSTEM_ERROR("MFA 시스템 오류"),
 
-    MFA_VERIFICATION_COMPLETED("모든 MFA Factor 검증 완료"),
-    MFA_FAILURE_TERMINAL("MFA 최종 실패"), AWAITING_MFA_FACTOR_SELECTION(" 복구 코드 입력 UI 로드 실패");
-
-    // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
+    /** [ALL_FACTORS_COMPLETED와 중복] 모든 MFA Factor 검증 완료. 삭제 또는 ALL_FACTORS_COMPLETED로 통일 권장. */
+    MFA_VERIFICATION_COMPLETED("모든 MFA Factor 검증 완료"), // 설명 중복
+    /** [MFA_FAILED_TERMINAL과 중복] MFA 최종 실패. 삭제 또는 MFA_FAILED_TERMINAL로 통일 권장. */
+    MFA_FAILURE_TERMINAL("MFA 최종 실패"); // 설명 중복 및 이름 중복
 
 
     private final String description;
@@ -65,12 +90,15 @@ public enum MfaState {
     }
 
     public boolean isTerminal() {
-        return this == MFA_FULLY_COMPLETED ||
-                this == MFA_FAILURE_TERMINAL ||
+        return this == MFA_FULLY_COMPLETED || // MFA_COMPLETED_TOKEN_ISSUED로 대체되면 해당 값 사용
+                this == MFA_FAILURE_TERMINAL || // MFA_FAILED_TERMINAL과 동일
                 this == MFA_FAILED_TERMINAL ||
                 this == MFA_SESSION_EXPIRED ||
                 this == MFA_SESSION_INVALIDATED ||
                 this == MFA_SYSTEM_ERROR ||
-                this == ALL_FACTORS_COMPLETED; // ALL_FACTORS_COMPLETED도 최종 성공으로 간주 시 터미널
+                this == ALL_FACTORS_COMPLETED; // ALL_FACTORS_COMPLETED는 최종 성공 직전 상태이므로 터미널이 아님.
+        // MFA_COMPLETED_TOKEN_ISSUED 가 터미널.
     }
+
+    // isChallengePhase(), isVerificationPhase() 등 헬퍼 메소드 추가 가능
 }

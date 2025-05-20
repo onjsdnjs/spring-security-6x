@@ -175,7 +175,7 @@ public class LoginController {
     // MFA OTT 코드 "입력" UI
     @GetMapping("/mfa/challenge/ott")
     public String mfaVerifyOttPage(Model model, HttpServletRequest request, @RequestParam(value = "resend_success", required = false) String resendSuccess) {
-        FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
+        /*FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
         if (ctx == null || !StringUtils.hasText(ctx.getUsername()) || ctx.getCurrentProcessingFactor() != AuthType.OTT) {
             log.warn("MFA OTT Challenge UI: Invalid FactorContext or not an OTT factor. Redirecting. Context: {}", ctx);
             return "redirect:" + request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl() + "?error=invalid_ott_challenge_context";
@@ -198,8 +198,9 @@ public class LoginController {
         model.addAttribute("mfaResendOttUrl", request.getContextPath() + authContextProperties.getMfa().getInitiateUrl() + "/resend-ott"); // 재전송 URL
         if (resendSuccess != null) {
             model.addAttribute("successMessage", "인증 코드가 재전송되었습니다.");
-        }
-        return "login-mfa-verify-ott";
+        }*/
+//        return "login-mfa-verify-ott";
+        return "login-ott-verify-code";
     }
 
     // MFA Passkey 챌린지 UI

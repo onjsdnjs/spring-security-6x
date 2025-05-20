@@ -3,11 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OTT 코드 입력</title>
-    <th:block th:replace="~{fragments/common-head :: common-head-links}"></th:block>
+    <title>MFA - OTT 코드 입력</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
+                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
+                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
+                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script th:src="@{/js/toast.js}"></script>
+    <th:block th:if="${_csrf != null}">
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    </th:block>
 </head>
-<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray"
-      th:attr="data-ott-processing-url=${ottProcessingUrl != null ? ottProcessingUrl : '/login/ott'}">
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
 <div th:insert="~{fragments/header :: header}"></div>
 <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
@@ -17,41 +38,43 @@
 
     <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
         <div class="w-full max-w-md bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
-            <div class="text-center mb-6">
+            <div class="text-center mb-8">
                 <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-auto text-app-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 9v.906a2.25 2.25 0 01-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 001.183 1.981l6.478 3.488m8.839 2.51l-8.84-4.755a2.25 2.25 0 010-4.132l8.84-4.755a2.25 2.25 0 012.25 0v12.032a2.25 2.25 0 01-2.25 0z" />
                 </svg>
-                <h2 class="mt-4 text-3xl font-bold text-app-primary">이메일 코드 인증</h2>
+                <h2 class="mt-4 text-3xl font-bold text-app-primary">OTT 로그인</h2>
             </div>
-            <p class="text-center text-slate-600 mb-8">
-                <span th:if="${emailForVerification}" th:text="${emailForVerification}" class="font-semibold text-app-accent"></span>
-                (으)로 전송된 일회용 인증 코드를 입력해주세요.
+            <p class="text-center text-slate-600 mb-6">
+                이메일 주소를 입력하시면 인증 방법을 선택할 수 있습니다.
             </p>
-            <form id="singleOttVerifyForm" method="POST" th:action="@{${ottProcessingUrl != null ? ottProcessingUrl : '/login/ott'}}" class="space-y-6">
-                <input type="hidden" name="username" th:value="${emailForVerification}" />
+            <form id="singleOttRequestForm" class="space-y-6">
                 <div>
-                    <label for="ottCode" class="block text-sm font-medium text-app-dark-gray">인증 코드:</label>
-                    <input type="text" id="ottCode" name="token" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 tracking-[.25em] text-center text-lg focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm"
-                           placeholder="6자리 숫자" required maxlength="6" pattern="\d{6}" inputmode="numeric" />
+                    <label for="email" class="block text-sm font-medium text-app-dark-gray">이메일 주소:</label>
+                    <input type="email" id="email" name="email" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" placeholder="you@example.com" required autocomplete="email"/>
                 </div>
-                <div id="ottVerifyMessage" class="text-sm text-error text-center min-h-[1.25rem]">
-                    <p th:if="${param.error}" class="text-error font-medium">
-                        인증 코드가 잘못되었거나 만료되었습니다.
-                    </p>
-                </div>
-                <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <div>
-                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">인증 확인</button>
+                <div id="ottRequestMessage" class="text-sm text-center min-h-[1.25rem]"></div>
+                <div class="flex space-x-4">
+                    <button type="button" id="sendOtpCodeBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        인증 코드 받기
+                    </button>
+                    <button type="button" id="sendMagicLinkBtn" class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-app-dark-gray bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        매직 링크 받기
+                    </button>
                 </div>
             </form>
-            <div class="mt-6 text-center space-y-2">
-                <a th:href="@{/loginOtt}" class="text-sm text-slate-600 hover:text-app-accent hover:underline">이메일 다시 입력</a>
+            <div class="mt-6 text-center">
+                <a th:href="@{/loginForm}" class="text-sm text-app-accent hover:text-app-accent-hover font-medium hover:underline">
+                    다른 방법으로 로그인
+                </a>
             </div>
         </div>
     </main>
 </div>
 
 <div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
 <script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:src="@{/js/mfa-verify-ott.js}"></script>
 </body>
 </html>

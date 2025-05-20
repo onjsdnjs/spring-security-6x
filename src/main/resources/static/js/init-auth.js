@@ -1,3 +1,4 @@
+/*
 // init-auth.js
 (async function initAuthFlow() {
     const authMode = localStorage.getItem("authMode") || "header";
@@ -7,7 +8,7 @@
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute("content") : null;
     const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
 
-    function updateLoginUi() { /* ...이전과 동일... */ }
+    function updateLoginUi() { /!* ...이전과 동일... *!/ }
 
     if (authMode === "header" || authMode === "header_cookie") {
         const headers = { "Content-Type": "application/json" }; // POST 요청 본문이 없어도 Content-Type 명시 가능
@@ -74,4 +75,4 @@
         }
     }
     updateLoginUi();
-})();
+})();*/

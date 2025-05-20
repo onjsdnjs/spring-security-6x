@@ -80,7 +80,7 @@ public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
             }
         } else {
             log.warn("No refresh token found in POST request to {}", refreshUri);
-            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "missing_refresh_token", "요청에 리프레시 토큰이 없습니다.", request.getRequestURI());
+//            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_NO_CONTENT, "missing_refresh_token", "요청에 리프레시 토큰이 없습니다.", request.getRequestURI());
             return;
         }
     }

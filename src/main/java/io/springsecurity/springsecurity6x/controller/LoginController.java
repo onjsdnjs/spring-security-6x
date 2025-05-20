@@ -75,6 +75,16 @@ public class LoginController {
         return "login-mfa-select-factor";
     }
 
+    @GetMapping("/mfa/challenge/ott")
+    public String mfaChallengeOttPage(Model model, HttpSession session) {
+        return "login-mfa-verify-ott";
+    }
+
+    @GetMapping("/mfa/challenge/passkey")
+    public String mfaChallengePasskeyPage(Model model, HttpSession session) {
+        return "login-mfa-verify-passkey";
+    }
+
     @GetMapping("/mfa/verify/ott")
     public String mfaVerifyOttPage(Model model, HttpSession session) {
         // String username = (String) session.getAttribute("mfaUsername");

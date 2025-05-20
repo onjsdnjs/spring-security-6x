@@ -131,7 +131,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             }
             else if (requestUri.equals(selectFactorFullUiUrl)) {
                 if (ctx.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION) {
-                    // MfaApiController에서 Factor 선택 후, 이 페이지로 GET 리다이렉션 된 것이 아니므로,
+                    // MfaApiController 에서 Factor 선택 후, 이 페이지로 GET 리다이렉션 된 것이 아니므로,
                     // currentProcessingFactor, currentStepId, currentFactorOptions는 아직 설정되지 않았거나 null 이어야 함.
                     ctx.setCurrentProcessingFactor(null);
                     ctx.setCurrentFactorOptions(null);
@@ -233,7 +233,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                     emailOttService.generate(new GenerateOneTimeTokenRequest(ctx.getUsername()));
                     log.info("MFA OTT code generation requested for user {} (session {}) before rendering OTT challenge UI.", ctx.getUsername(), ctx.getMfaSessionId());
                 } catch (Exception e) {
-                    // ... (기존 OTT 발송 실패 처리) ...
                     log.error("MfaContinuationFilter: Failed to request OTT code generation for user {} (session {}): {}", ctx.getUsername(), ctx.getMfaSessionId(), e.getMessage(), e);
                     response.sendRedirect(request.getContextPath() + "/mfa/select-factor?error=ott_send_failure");
                     return;

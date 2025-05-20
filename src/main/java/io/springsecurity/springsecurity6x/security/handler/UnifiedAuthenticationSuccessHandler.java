@@ -54,10 +54,10 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
     }
 
     // OTT 토큰 생성 성공 시 (단일 OTT 로그인 시 이메일 발송 후 MagicLinkHandler가 호출)
-    // 또는 MFA 플로우 내 OTT Factor 성공 시 MfaStepFactorSuccessHandler가 processMfaStepSuccess 호출
+    // 또는 MFA 플로우 내 OTT Factor 성공 시 MfaFactorProcessingSuccessHandler processFactorSuccess 호출
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken oneTimeToken)
-            throws IOException, ServletException {
+            throws IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || !Objects.equals(authentication.getName(), oneTimeToken.getUsername())) {
             log.warn("UnifiedAuthSuccessHandler (OTT): Auth mismatch or not found after OTT. OTT User: {}. Auth User: {}",

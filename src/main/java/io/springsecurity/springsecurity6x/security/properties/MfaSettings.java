@@ -21,4 +21,8 @@ public class MfaSettings {
      * MFA OTT 코드의 유효 시간 (초 단위)
      */
     private int otpTokenValiditySeconds = 300; // 기본 5분
+
+    public String getSelectFactorUrl() {
+        return null;
+    }
 }

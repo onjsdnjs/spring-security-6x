@@ -13,25 +13,32 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
+import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
+import io.springsecurity.springsecurity6x.security.service.ott.EmailService;
 import jakarta.servlet.Filter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 @Configuration
 @EnableConfigurationProperties(AuthContextProperties.class)
+@Slf4j
 public class SecurityPlatformConfiguration {
 
     @Bean
@@ -58,6 +65,29 @@ public class SecurityPlatformConfiguration {
     @Bean
     public ConfiguredFactorFilterProvider factorFilterProvider() {
         return new ConfiguredFactorFilterProvider();
+    }
+
+    @Bean
+    public InMemoryOneTimeTokenService inMemoryOneTimeTokenService(AuthContextProperties authContextProperties) {
+        InMemoryOneTimeTokenService tokenService = new InMemoryOneTimeTokenService();
+        // application.yml 또는 AuthContextProperties에 설정된 값을 사용
+        long validitySeconds = authContextProperties.getMfa().getOtpTokenValiditySeconds(); // 또는 authContextProperties.getOttFactor().getTokenValiditySeconds() 등 적절한 프로퍼티 사용
+        if (validitySeconds <= 0) {
+            validitySeconds = 300; // 기본값 5분
+            log.warn("InMemoryOneTimeTokenService: OTP token validity not configured or invalid, defaulting to {} seconds.", validitySeconds);
+        }
+        tokenService.setTokenValidity(Duration.ofSeconds(validitySeconds));
+        log.info("InMemoryOneTimeTokenService configured with token validity: {} seconds", validitySeconds);
+        return tokenService;
+    }
+
+    // EmailOneTimeTokenService 빈 정의 시, 위에서 생성한 InMemoryOneTimeTokenService 주입
+    @Bean
+    public EmailOneTimeTokenService emailOneTimeTokenService(EmailService emailService,
+                                                             CodeStore codeStore,
+                                                             AuthContextProperties authContextProperties,
+                                                             InMemoryOneTimeTokenService inMemoryOneTimeTokenService) { // 주입 추가
+        return new EmailOneTimeTokenService(emailService, codeStore, authContextProperties, inMemoryOneTimeTokenService);
     }
 
     @Bean

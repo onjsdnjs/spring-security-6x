@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -47,8 +48,7 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
 
         // 현재 HttpSecurity 객체가 MFA 플로우에 대한 것인지 확인하는 로직 필요
         // 예: HttpSecurity 공유 객체나 현재 구성 중인 AuthenticationFlowConfig의 typeName을 확인
-        io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig currentFlow =
-                http.getSharedObject(io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig.class);
+        AuthenticationFlowConfig currentFlow = http.getSharedObject(AuthenticationFlowConfig.class);
 
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
             isMfaFlow = true;

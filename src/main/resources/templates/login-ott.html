@@ -4,29 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OTT 로그인 (이메일)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
-                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
-                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
-                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
-                    }
-                }
-            }
-        }
-    </script>
-    <script th:src="@{/js/toast.js}"></script>
-    <th:block th:if="${_csrf != null}">
-        <meta name="_csrf" th:content="${_csrf.token}" />
-        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
-    </th:block>
+    <th:block th:replace="~{fragments/common-head :: common-head-links}"></th:block>
 </head>
 <body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
@@ -44,16 +22,22 @@
                 </svg>
                 <h2 class="mt-4 text-3xl font-bold text-app-primary">OTT 로그인</h2>
             </div>
-            <p class="text-center text-slate-600 mb-6">이메일 주소를 입력하시면 로그인 링크를 발송해 드립니다.</p>
-            <form id="ottForm" class="space-y-6">
+            <p class="text-center text-slate-600 mb-6">
+                이메일 주소를 입력하시면 인증 방법을 선택할 수 있습니다.
+            </p>
+            <form id="singleOttRequestForm" class="space-y-6">
                 <div>
                     <label for="email" class="block text-sm font-medium text-app-dark-gray">이메일 주소:</label>
                     <input type="email" id="email" name="email" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" placeholder="you@example.com" required autocomplete="email"/>
                 </div>
-                <div id="messageContainer" class="text-sm text-center min-h-[1.25rem]">
-                </div>
-                <div>
-                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105">인증 메일 요청</button>
+                <div id="ottRequestMessage" class="text-sm text-center min-h-[1.25rem]"></div>
+                <div class="flex space-x-4">
+                    <button type="button" id="sendOtpCodeBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        인증 코드 받기
+                    </button>
+                    <button type="button" id="sendMagicLinkBtn" class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-app-dark-gray bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent">
+                        매직 링크 받기
+                    </button>
                 </div>
             </form>
             <div class="mt-6 text-center">
@@ -68,7 +52,6 @@
 <div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
 
 <script th:src="@{/js/token-holder.js}"></script>
-<script th:src="@{/js/init-auth.js}"></script>
 <script th:src="@{/js/ott-login.js}"></script>
 </body>
 </html>

@@ -5,7 +5,6 @@ import io.springsecurity.springsecurity6x.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,14 +23,13 @@ import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,13 +42,11 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
-    private SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+    private SecurityContextRepository securityContextRepository = new RequestAttributeSecurityContextRepository();
 
     private final AuthenticationManager authenticationManager;
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
-
-    private final String mfaInitiateUrl;
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
@@ -67,8 +63,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.contextPersistence = contextPersistence;
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.requestMatcher = requestMatcher;
-        this.mfaInitiateUrl = mfaInitiateUrl;
-
         this.successHandler = defaultSuccessHandler();
         this.failureHandler = defaultFailureHandler();
     }
@@ -159,7 +153,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         return this.authenticationManager.authenticate(authRequest);
     }
 
-    @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
                                             Authentication authentication) throws IOException, ServletException {
         log.info("RestAuthenticationFilter: Primary authentication successful for user: {}", authentication.getName());

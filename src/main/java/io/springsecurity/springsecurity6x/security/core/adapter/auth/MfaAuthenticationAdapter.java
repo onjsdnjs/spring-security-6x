@@ -1,21 +1,29 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
-import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.StateMachineManager;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.MfaContinuationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
+import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.logout.LogoutFilter; // 정확한 위치로 LogoutFilter import
+import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,12 +31,16 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(MfaAuthenticationAdapter.class);
     private static final String ID = "mfa";
-    private ApplicationContext applicationContext;
+    private ApplicationContext applicationContext; // 생성자 주입으로 변경 권장
 
-    public MfaAuthenticationAdapter() {}
+    public MfaAuthenticationAdapter() {
+        // 기본 생성자는 ServiceLoader에 의해 사용될 수 있으나,
+        // ApplicationContext가 필요하므로 사용 시 주의
+        log.warn("MfaAuthenticationAdapter created using default constructor. ApplicationContext might not be available.");
+    }
 
     public MfaAuthenticationAdapter(ApplicationContext applicationContext) {
-        this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null for MfaAuthenticationFeature");
+        this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null for MfaAuthenticationAdapter");
     }
 
     @Override
@@ -38,55 +50,85 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
 
     @Override
     public int getOrder() {
-        // MFA 공통 필터는 다른 개별 인증 필터들보다 먼저 또는 특정 위치에 적용될 수 있도록 order 조정
-        return 10; // 예시: 다른 인증 Feature(100단위)들 보다 먼저 실행되도록
+        return 10;
     }
 
     @Override
     public void apply(HttpSecurity http, List<AuthenticationStepConfig> allStepsInCurrentFlow, StateConfig stateConfig) throws Exception {
-        // 이 apply 메서드는 현재 HttpSecurity가 "mfa" 타입의 AuthenticationFlowConfig에 대한 것일 때 호출됨.
         AuthenticationFlowConfig currentFlow = http.getSharedObject(AuthenticationFlowConfig.class);
 
-        // 이 Feature는 "mfa" 타입의 flow에만 적용되어야 함.
-        // FeatureRegistry.getAuthFeaturesFor에서 "mfa" flow일 때 이 Feature를 반환하도록 했으므로,
-        // 여기서 다시 flow type을 체크하는 것은 중복일 수 있으나, 안전장치로 둘 수 있음.
         if (currentFlow == null || !ID.equalsIgnoreCase(currentFlow.getTypeName())) {
-            // AbstractAuthenticationFeature.apply에서 자신의 ID와 step.getType()을 비교하므로,
-            // MfaAuthenticationFeature는 step type이 "mfa"인 경우에만 이 로직이 실행되도록 설계.
-            // 만약 MfaAuthenticationFeature가 flow type "mfa" 전체에 대한 설정이라면,
-            // AbstractAuthenticationFeature의 myRelevantStepConfig 필터링 로직을 타지 않도록 해야 함.
-            // -> 이전 답변에서 MfaAuthenticationFeature가 AbstractAuthenticationFeature를 상속하지 않도록 변경했으므로,
-            //    이 apply는 MfaAuthenticationFeature의 고유한 apply가 됨.
-            log.trace("MfaAuthenticationFeature.apply() called, but current flow is not 'mfa' or FlowConfig not shared. Skipping MFA common filter setup.");
+            log.trace("MfaAuthenticationAdapter.apply() called, but current flow is not 'mfa' or FlowConfig not shared. Skipping MFA common filter setup.");
             return;
         }
 
-        log.info("MfaAuthenticationFeature: Applying MFA common filters for flow '{}'.", currentFlow.getTypeName());
+        log.info("MfaAuthenticationAdapter: Applying MFA common filters for flow '{}'.", currentFlow.getTypeName());
+
+        // ApplicationContext가 생성자에서 주입되지 않았다면 HttpSecurity의 공유 객체에서 가져오기 시도
+        if (this.applicationContext == null) {
+            this.applicationContext = http.getSharedObject(ApplicationContext.class);
+            Assert.notNull(this.applicationContext, "ApplicationContext not found in HttpSecurity sharedObjects and was not provided via constructor.");
+        }
 
         ContextPersistence ctxPersistence = http.getSharedObject(ContextPersistence.class);
-        StateMachineManager stateMachine = http.getSharedObject(StateMachineManager.class);
         FeatureRegistry featureRegistry = applicationContext.getBean(FeatureRegistry.class);
+        MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
+        AuthContextProperties authContextProperties = applicationContext.getBean(AuthContextProperties.class);
+        AuthResponseWriter responseWriter = applicationContext.getBean(AuthResponseWriter.class);
+        EmailOneTimeTokenService emailOttService = null;
+        try {
+            emailOttService = applicationContext.getBean(EmailOneTimeTokenService.class);
+        } catch (Exception e) {
+            log.warn("EmailOneTimeTokenService bean not found, MfaContinuationFilter will be created without it (some features like OTT challenge initiation might be affected).");
+        }
 
         Assert.notNull(ctxPersistence, "ContextPersistence not found for MFA flow.");
-        Assert.notNull(stateMachine, "StateMachineManager not found for MFA flow."); // 이 시점에는 이미 공유되어 있어야 함
+        Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider not found for MFA flow.");
+        Assert.notNull(authContextProperties, "AuthContextProperties not found for MFA flow.");
+        Assert.notNull(responseWriter, "AuthResponseWriter not found for MFA flow.");
         Assert.notNull(featureRegistry, "FeatureRegistry bean not found.");
 
-        // 1. MFA 흐름 제어 공통 필터 추가
-        // MfaOrchestrationFilter의 RequestMatcher는 해당 MFA 플로우 내의 특정 API 경로들을 포함해야 함.
-        // SecurityConfig 에서 HttpSecurity 객체에 requestMatcher()를 통해 이 MFA FilterChain이 적용될 경로를 지정.
-        // 따라서 MfaOrchestrationFilter는 해당 FilterChain 내에서 모든 요청에 대해 동작하게 됨 (내부에서 다시 requestMatcher로 거름).
-        MfaContinuationFilter mfaContinuationFilter = new MfaContinuationFilter(ctxPersistence, stateMachine);
-        http.addFilterBefore(mfaContinuationFilter, LogoutFilter.class); // 예시 위치
+        MfaContinuationFilter mfaContinuationFilter = new MfaContinuationFilter(
+                ctxPersistence,
+                mfaPolicyProvider,
+                authContextProperties,
+                responseWriter,
+                emailOttService
+        );
+        http.addFilterBefore(mfaContinuationFilter, LogoutFilter.class);
 
-        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence);
-        http.addFilterBefore(mfaStepFilterWrapper, MfaContinuationFilter.class); // Orchestration 필터보다 먼저 특정 factor 처리 시도
+        // MfaStepFilterWrapper에 필요한 RequestMatcher 생성
+        List<RequestMatcher> factorProcessingMatchers = new ArrayList<>();
+        if (currentFlow.getStepConfigs() != null) {
+            for (AuthenticationStepConfig step : currentFlow.getStepConfigs()) {
+                // 1차 인증 단계(order 0)는 제외하고, 2차 인증 요소들의 처리 URL만 포함
+                if (step.getOrder() > 0) {
+                    Object optionsObj = step.getOptions().get("_options");
+                    if (optionsObj instanceof AuthenticationProcessingOptions procOpts) {
+                        String processingUrl = procOpts.getLoginProcessingUrl();
+                        if (processingUrl != null) {
+                            // 일반적으로 MFA Factor 검증은 POST 요청
+                            factorProcessingMatchers.add(new AntPathRequestMatcher(processingUrl, "POST"));
+                            log.debug("MfaAuthenticationAdapter: Added AntPathRequestMatcher for MFA factor processing URL: POST {}", processingUrl);
+                        }
+                    }
+                }
+            }
+        }
 
-        log.debug("MFA common filters (MfaOrchestrationFilter, MfaStepFilterWrapper) added for MFA flow.");
+        RequestMatcher mfaFactorProcessingMatcherForWrapper;
+        if (factorProcessingMatchers.isEmpty()) {
+            log.warn("MfaAuthenticationAdapter: No specific factor processing URLs found for MfaStepFilterWrapper in flow '{}'. The wrapper might not match any requests.", currentFlow.getTypeName());
+            // 매칭할 URL이 없으면 어떤 요청도 처리하지 않도록 설정
+            mfaFactorProcessingMatcherForWrapper = request -> false;
+        } else {
+            mfaFactorProcessingMatcherForWrapper = new OrRequestMatcher(factorProcessingMatchers);
+        }
 
-        // 1차 인증 및 각 2차 인증 Factor에 대한 구체적인 필터 설정은
-        // 이 HttpSecurity 객체에 대해 이어서 호출될 다른 개별 AuthenticationFeature들의 apply 메서드에서 담당함.
-        // (예: RestAuthenticationFeature.apply(), OttAuthenticationFeature.apply() 등)
-        // 그들은 AbstractAuthenticationFeature.apply()의 로직에 따라 자신과 관련된 stepConfig를 찾아 설정을 적용할 것임.
+        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence, mfaFactorProcessingMatcherForWrapper);
+        http.addFilterBefore(mfaStepFilterWrapper, MfaContinuationFilter.class);
+
+        log.debug("MFA common filters (MfaContinuationFilter, MfaStepFilterWrapper) added for MFA flow.");
     }
 }
 

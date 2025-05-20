@@ -68,10 +68,11 @@ public class MfaInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean
     public MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler(ContextPersistence contextPersistence,
                                                                            MfaPolicyProvider mfaPolicyProvider,
-                                                                           AuthResponseWriter authResponseWriter) {
+                                                                           AuthResponseWriter authResponseWriter,
+                                                                           AuthContextProperties properties) {
         String failureUrl = authContextProperties.getMfa() != null && authContextProperties.getMfa().getFailureUrl() != null ?
                 authContextProperties.getMfa().getFailureUrl() : "/mfa/failure";
-        return new MfaAuthenticationFailureHandler(contextPersistence, mfaPolicyProvider, authResponseWriter);
+        return new MfaAuthenticationFailureHandler(contextPersistence, mfaPolicyProvider, authResponseWriter, properties);
     }
 
     @Bean

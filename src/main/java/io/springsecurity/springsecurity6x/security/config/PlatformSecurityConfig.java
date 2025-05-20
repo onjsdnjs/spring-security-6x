@@ -37,14 +37,9 @@ public class PlatformSecurityConfig {
 
     private final ApplicationContext applicationContext;
     private final AuthContextProperties authContextProperties;
-    private final ObjectMapper objectMapper; // 기본 ObjectMapper 사용
-    private final AuthResponseWriter authResponseWriter; // JSON 응답용
-
-    // MFA Factor 관련 스프링 시큐리티 서비스/컴포넌트 주입 (필요시)
-    private final EmailOneTimeTokenService emailOneTimeTokenService; // 플랫폼이 관리하는 OTT 서비스 (내부적으로 Spring 사용)
-
-
-    // MFA 플로우 핸들러 주입
+    private final ObjectMapper objectMapper;
+    private final AuthResponseWriter authResponseWriter;
+    private final EmailOneTimeTokenService emailOneTimeTokenService;
     private final MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler;
     private final MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler;
     private final MfaAuthenticationFailureHandler mfaAuthenticationFailureHandler;

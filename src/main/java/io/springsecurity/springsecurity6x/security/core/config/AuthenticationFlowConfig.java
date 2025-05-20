@@ -50,8 +50,7 @@ public final class AuthenticationFlowConfig {
         this.mfaContinuationHandler = builder.mfaContinuationHandler;
         this.mfaFailureHandler = builder.mfaFailureHandler;
         this.finalSuccessHandler = builder.finalSuccessHandler;
-        this.registeredFactorOptions = builder.registeredFactorOptions != null ?
-                Collections.unmodifiableMap(new HashMap<>(builder.registeredFactorOptions)) :
+        this.registeredFactorOptions = builder.registeredFactorOptions != null ? Map.copyOf(builder.registeredFactorOptions) :
                 Collections.emptyMap();
         this.defaultRetryPolicy = builder.defaultRetryPolicy;
         this.defaultAdaptiveConfig = builder.defaultAdaptiveConfig;

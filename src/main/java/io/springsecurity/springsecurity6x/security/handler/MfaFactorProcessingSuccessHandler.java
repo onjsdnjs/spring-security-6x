@@ -49,8 +49,9 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
-            throws IOException, ServletException {
+            throws IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
         if (authentication == null || !authentication.isAuthenticated() || !Objects.equals(authentication.getName(), token.getUsername())) {
             log.warn("MfaFactorProcessingSuccessHandler (OTT): Auth mismatch or not found after OTT Factor. OTT User: {}, Auth User: {}",
                     token.getUsername(), (authentication != null ? authentication.getName() : "N/A"));

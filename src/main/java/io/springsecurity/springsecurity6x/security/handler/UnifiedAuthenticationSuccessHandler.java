@@ -127,12 +127,10 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         // 이것이 2차 인증 요소라면 해당 Factor의 옵션과 stepId를 설정해야 함.
         if (factorContext.isMfaRequiredAsPerPolicy() && factorContext.getCurrentProcessingFactor() != null && currentFlowConfig != null) {
             AuthType initialFactorType = factorContext.getCurrentProcessingFactor();
-            // registeredFactorOptions에서 옵션 가져오기
-            if (currentFlowConfig.getRegisteredFactorOptions() != null) {
-                AuthenticationProcessingOptions factorOptions = currentFlowConfig.getRegisteredFactorOptions().get(initialFactorType);
-                factorContext.setCurrentFactorOptions(factorOptions);
-            }
-            // stepConfigs에서 stepId 가져오기
+            // registeredFactorOptions 에서 옵션 가져오기
+            AuthenticationProcessingOptions factorOptions = currentFlowConfig.getRegisteredFactorOptions().get(initialFactorType);
+            factorContext.setCurrentFactorOptions(factorOptions);
+            // stepConfigs 에서 stepId 가져오기
             // MFA 플로우에서 1차 인증은 order 0, 2차 인증은 order > 0
             Optional<AuthenticationStepConfig> initialStepOpt = findStepConfigByFactorTypeAndMinOrder(currentFlowConfig, initialFactorType, 0);
             if (initialStepOpt.isPresent()) {

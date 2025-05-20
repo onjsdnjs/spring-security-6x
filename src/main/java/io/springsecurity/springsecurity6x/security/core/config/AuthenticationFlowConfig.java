@@ -12,6 +12,7 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import lombok.Getter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.util.Assert;
 
@@ -29,7 +30,7 @@ public final class AuthenticationFlowConfig {
     private final PrimaryAuthenticationOptions primaryAuthenticationOptions;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final MfaContinuationHandler mfaContinuationHandler;
-    private final MfaFailureHandler mfaFailureHandler;
+    private final AuthenticationFailureHandler mfaFailureHandler;
     private final AuthenticationSuccessHandler finalSuccessHandler;
     private final Map<AuthType, AuthenticationProcessingOptions> registeredFactorOptions;
     private final RetryPolicy defaultRetryPolicy;
@@ -93,7 +94,7 @@ public final class AuthenticationFlowConfig {
         private PrimaryAuthenticationOptions primaryAuthenticationOptions;
         private MfaPolicyProvider mfaPolicyProvider;
         private MfaContinuationHandler mfaContinuationHandler;
-        private MfaFailureHandler mfaFailureHandler;
+        private AuthenticationFailureHandler mfaFailureHandler;
         private AuthenticationSuccessHandler finalSuccessHandler;
         private Map<AuthType, AuthenticationProcessingOptions> registeredFactorOptions = new HashMap<>();
         private RetryPolicy defaultRetryPolicy;
@@ -134,7 +135,7 @@ public final class AuthenticationFlowConfig {
         }
         public Builder mfaPolicyProvider(MfaPolicyProvider provider) { this.mfaPolicyProvider = provider; return this; }
         public Builder mfaContinuationHandler(MfaContinuationHandler handler) { this.mfaContinuationHandler = handler; return this; }
-        public Builder mfaFailureHandler(MfaFailureHandler handler) { this.mfaFailureHandler = handler; return this; }
+        public Builder mfaFailureHandler(AuthenticationFailureHandler handler) { this.mfaFailureHandler = handler; return this; }
         public Builder finalSuccessHandler(AuthenticationSuccessHandler handler) { this.finalSuccessHandler = handler; return this; }
         public Builder defaultRetryPolicy(RetryPolicy policy) { this.defaultRetryPolicy = policy; return this; }
         public Builder defaultAdaptiveConfig(AdaptiveConfig config) { this.defaultAdaptiveConfig = config; return this; }

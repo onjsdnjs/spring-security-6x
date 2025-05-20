@@ -8,26 +8,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
-import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
 public class OneTimeRedirectSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
 
     private final String targetUrl;
-    private final AuthResponseWriter responseWriter; // AuthResponseWriter 주입
+    private final AuthResponseWriter responseWriter; // final로 변경
 
-    // 기존 생성자는 Assert 때문에 남겨두거나, responseWriter를 받는 생성자만 사용하도록 통일
-    public OneTimeRedirectSuccessHandler(String targetUrl) {
-        Assert.hasText(targetUrl, "targetUrl cannot be empty");
-        this.targetUrl = targetUrl;
-        this.responseWriter = null; // 이 경우 responseWriter가 없으므로 문제가 될 수 있음
-        log.warn("OneTimeRedirectSuccessHandler created via single-arg constructor. AuthResponseWriter is not set!");
-    }
-
+    // 이 생성자는 AuthResponseWriter를 주입받지 않아 문제가 될 수 있으므로,
+    // @Component로 만들고 생성자 주입을 사용하거나, 설정 시 명시적으로 주입해야 함.
+    // 여기서는 @RequiredArgsConstructor를 사용하므로 responseWriter도 final 이어야 함.
+    // public OneTimeRedirectSuccessHandler(String targetUrl) { ... } // 이 생성자 제거 또는 수정
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
@@ -36,14 +32,13 @@ public class OneTimeRedirectSuccessHandler implements OneTimeTokenGenerationSucc
             log.debug("Response has already been committed. Unable to send JSON redirect for target: {}", targetUrl);
             return;
         }
-        if (this.responseWriter == null) {
-            log.error("AuthResponseWriter is null in OneTimeRedirectSuccessHandler. Cannot send JSON redirect. Target: {}", targetUrl);
-            // 비상 리다이렉션 또는 오류 처리
-            response.sendRedirect(targetUrl); // 최후의 수단
-            return;
-        }
+        // responseWriter가 null이 아님을 보장 (생성자에서 주입받으므로)
+        Objects.requireNonNull(responseWriter, "AuthResponseWriter must be configured for OneTimeRedirectSuccessHandler.");
 
-        log.debug("Sending JSON redirect to {} after OTT step (User: {})", targetUrl, token != null ? token.getUsername() : "N/A");
-        responseWriter.writeSuccessResponse(response, Map.of("status", "REDIRECT_REQUIRED_OTT", "redirectUrl", targetUrl), HttpServletResponse.SC_OK);
+        String usernameForLog = (token != null && token.getUsername() != null) ? token.getUsername() : "N/A";
+        log.debug("OneTimeRedirectSuccessHandler: Sending JSON redirect to {} after OTT generation for user {}", targetUrl, usernameForLog);
+        responseWriter.writeSuccessResponse(response,
+                Map.of("status", "OTT_GENERATED_REDIRECT_REQUIRED", "message", "OTT가 생성되었습니다. 지정된 페이지로 이동합니다.", "redirectUrl", targetUrl),
+                HttpServletResponse.SC_OK);
     }
 }

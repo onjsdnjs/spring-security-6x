@@ -29,17 +29,30 @@ public class JsonAuthResponseWriter implements AuthResponseWriter {
 
     @Override
     public void writeErrorResponse(HttpServletResponse response, int status, String errorCode, String errorMessage, String path) throws IOException {
+
+        writeError(response, status, errorCode, errorMessage, path, new HashMap<>());
+    }
+
+    @Override
+    public void writeErrorResponse(HttpServletResponse response, int status, String errorCode, String errorMessage, String path, Map<String, Object> errorDetails) throws IOException{
+        writeError(response, status, errorCode, errorMessage, path, errorDetails);
+    }
+
+    private void writeError(HttpServletResponse response, int status, String path, String errorCode, String errorMessage, Map<String, Object> errorDetails) throws IOException {
+
+
+        errorDetails.put("timestamp", Instant.now().toString());
+        errorDetails.put("status", status);
+        errorDetails.put("error", errorCode);
+        errorDetails.put("message", errorMessage);
+
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        Map<String, Object> errorBody = new HashMap<>();
-        errorBody.put("timestamp", Instant.now().toString());
-        errorBody.put("status", status);
-        errorBody.put("error", errorCode);
-        errorBody.put("message", errorMessage);
+
         if (path != null) {
-            errorBody.put("path", path);
+            errorDetails.put("path", path);
         }
-        objectMapper.writeValue(response.getWriter(), errorBody);
+        objectMapper.writeValue(response.getWriter(), errorDetails);
     }
 }

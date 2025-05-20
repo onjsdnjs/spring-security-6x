@@ -17,7 +17,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.configurer.AdaptiveD
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaContinuationHandler;
-import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaFailureHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.PrimaryAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -26,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.util.Assert;
 
@@ -41,7 +41,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     private MfaPolicyProvider policyProvider;
     private MfaContinuationHandler continuationHandler;
-    private MfaFailureHandler mfaFailureHandler;
+    private AuthenticationFailureHandler mfaFailureHandler;
     private AuthenticationSuccessHandler finalSuccessHandler;
     private RetryPolicy defaultRetryPolicy;
     private AdaptiveConfig defaultAdaptiveConfig;
@@ -148,7 +148,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public MfaDslConfigurerImpl<H> mfaFailureHandler(MfaFailureHandler failureHandler) {
+    public MfaDslConfigurerImpl<H> mfaFailureHandler(AuthenticationFailureHandler failureHandler) {
         this.mfaFailureHandler = failureHandler;
         return this;
     }

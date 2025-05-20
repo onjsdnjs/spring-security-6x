@@ -9,9 +9,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.Authenticatio
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
-import io.springsecurity.springsecurity6x.security.handler.MfaAuthenticationFailureHandler;
-import io.springsecurity.springsecurity6x.security.handler.MfaCapableRestSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.MfaStepBasedSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -145,14 +144,14 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
 
             if (isFirstStepInMfaFlow) {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA primary step.", getId());
-                return appContext.getBean(MfaCapableRestSuccessHandler.class);
+                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
             } else if (isLastStepInMfaFlow) {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA final factor step.", getId());
                 return Optional.ofNullable(currentFlow.getFinalSuccessHandler())
-                        .orElseGet(() -> appContext.getBean(MfaStepBasedSuccessHandler.class));
+                        .orElseGet(() -> appContext.getBean(UnifiedAuthenticationSuccessHandler.class));
             } else {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
-                return appContext.getBean(MfaStepBasedSuccessHandler.class);
+                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
@@ -176,10 +175,10 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             } else if (mfaSpecificFailureHandler != null) {
                 log.warn("AuthenticationFeature [{}]: MfaFailureHandler in MFA flow config is not an instance of Spring Security AuthenticationFailureHandler. Type: {}. Using platform default.",
                         getId(), mfaSpecificFailureHandler.getClass().getName());
-                return appContext.getBean(MfaAuthenticationFailureHandler.class);
+                return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
             } else {
                 log.debug("AuthenticationFeature [{}]: No MfaFailureHandler set in MFA flow config. Using platform default MfaAuthenticationFailureHandler.", getId());
-                return appContext.getBean(MfaAuthenticationFailureHandler.class);
+                return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default failureHandler.", getId());

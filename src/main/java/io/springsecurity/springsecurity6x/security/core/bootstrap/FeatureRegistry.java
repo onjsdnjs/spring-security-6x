@@ -1,117 +1,174 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter; // MfaAuthenticationFeature import
-import jakarta.servlet.Filter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
+import org.springframework.lang.Nullable;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class FeatureRegistry {
-    private static final Logger log = LoggerFactory.getLogger(FeatureRegistry.class);
 
     private final Map<String, AuthenticationAdapter> authFeatures = new HashMap<>();
     private final Map<String, StateAdapter> stateFeatures = new HashMap<>();
-    private final Map<String, Filter> factorFilters = new HashMap<>();
+
     private final ApplicationContext applicationContext;
 
     public FeatureRegistry(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+        this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null.");
         ServiceLoader.load(AuthenticationAdapter.class, getClass().getClassLoader())
                 .forEach(f -> {
                     AuthenticationAdapter featureInstance = f;
+                    // MfaAuthenticationAdapter는 ApplicationContext를 받는 생성자가 있을 수 있음
                     if (f instanceof MfaAuthenticationAdapter) {
                         try {
                             featureInstance = f.getClass()
                                     .asSubclass(AuthenticationAdapter.class)
                                     .getConstructor(ApplicationContext.class)
                                     .newInstance(this.applicationContext);
-                            log.debug("Instantiated MfaAuthenticationFeature with ApplicationContext: {}", featureInstance.getClass().getName());
+                            log.debug("Instantiated MfaAuthenticationAdapter with ApplicationContext: {}", featureInstance.getClass().getName());
                         } catch (NoSuchMethodException nsme) {
-                            log.warn("MfaAuthenticationFeature (id: 'mfa') does not have a constructor accepting ApplicationContext. Using default instance.", nsme);
+                            log.warn("MfaAuthenticationAdapter (id: 'mfa') does not have a constructor accepting ApplicationContext. Using default instance from ServiceLoader.");
                         } catch (Exception e) {
-                            log.error("Error instantiating MfaAuthenticationFeature (id: 'mfa') with ApplicationContext. Using default instance.", e);
+                            log.error("Error instantiating MfaAuthenticationAdapter (id: 'mfa') with ApplicationContext. Using default instance from ServiceLoader.", e);
                         }
                     }
-                    authFeatures.put(f.getId().toLowerCase(), featureInstance);
-                    log.debug("Loaded AuthenticationFeature: ID='{}', Class='{}'", featureInstance.getId().toLowerCase(), featureInstance.getClass().getName());
+                    String featureId = featureInstance.getId().toLowerCase();
+                    if (authFeatures.containsKey(featureId)) {
+                        log.warn("Duplicate AuthenticationAdapter ID '{}' found. Overwriting with instance of {}. Previous was {}.",
+                                featureId, featureInstance.getClass().getName(), authFeatures.get(featureId).getClass().getName());
+                    }
+                    authFeatures.put(featureId, featureInstance);
+                    log.debug("Loaded AuthenticationAdapter: ID='{}', Class='{}'", featureId, featureInstance.getClass().getName());
                 });
 
         ServiceLoader.load(StateAdapter.class, getClass().getClassLoader())
                 .forEach(f -> {
-                    stateFeatures.put(f.getId().toLowerCase(), f);
-                    log.debug("Loaded StateFeature: ID='{}', Class='{}'", f.getId().toLowerCase(), f.getClass().getName());
+                    String stateId = f.getId().toLowerCase();
+                    if (stateFeatures.containsKey(stateId)) {
+                        log.warn("Duplicate StateAdapter ID '{}' found. Overwriting with instance of {}. Previous was {}.",
+                                stateId, f.getClass().getName(), stateFeatures.get(stateId).getClass().getName());
+                    }
+                    stateFeatures.put(stateId, f);
+                    log.debug("Loaded StateAdapter: ID='{}', Class='{}'", stateId, f.getClass().getName());
                 });
+        log.info("FeatureRegistry initialized with {} AuthenticationAdapter(s) and {} StateAdapter(s).", authFeatures.size(), stateFeatures.size());
     }
 
     public List<AuthenticationAdapter> getAuthFeaturesFor(List<AuthenticationFlowConfig> flows) {
-        if (flows == null || flows.isEmpty()) {
+        if (CollectionUtils.isEmpty(flows)) {
             return Collections.emptyList();
         }
 
         Set<AuthenticationAdapter> featuresToApply = new LinkedHashSet<>();
 
         for (AuthenticationFlowConfig flow : flows) {
+            if (flow == null || flow.getTypeName() == null) {
+                log.warn("Encountered a null flow or flow with null typeName. Skipping.");
+                continue;
+            }
             String flowTypeNameLower = flow.getTypeName().toLowerCase();
 
-            if ("mfa".equals(flowTypeNameLower)) {
-                AuthenticationAdapter mfaBaseFeature = authFeatures.get("mfa");
-                if (mfaBaseFeature != null) {
-                    featuresToApply.add(mfaBaseFeature);
-                    log.debug("Added MfaAuthenticationFeature for MFA flow '{}'", flow.getTypeName());
+            if ("mfa".equals(flowTypeNameLower)) { // MFA 플로우 처리
+                AuthenticationAdapter mfaBaseAdapter = authFeatures.get("mfa"); // "mfa" 어댑터는 항상 추가
+                if (mfaBaseAdapter != null) {
+                    featuresToApply.add(mfaBaseAdapter);
+                    log.debug("Added MfaAuthenticationAdapter for MFA flow '{}'", flow.getTypeName());
                 } else {
-                    log.warn("MfaAuthenticationFeature (id: 'mfa') not found. MFA flow '{}' might not be fully configured.", flow.getTypeName());
+                    log.warn("MfaAuthenticationAdapter (id: 'mfa') not found. MFA flow '{}' might not be fully configured.", flow.getTypeName());
                 }
 
-                if (flow.getStepConfigs() != null) {
+                // MFA 플로우 내의 각 2차 인증 단계에 대한 Adapter 추가
+                if (!CollectionUtils.isEmpty(flow.getStepConfigs())) {
                     for (AuthenticationStepConfig step : flow.getStepConfigs()) {
+                        if (step == null || step.getType() == null) {
+                            log.warn("MFA flow '{}' contains a null step or step with null type. Skipping this step's adapter.", flow.getTypeName());
+                            continue;
+                        }
+                        // MFA의 1차 인증 스텝(order 0)은 mfaBaseAdapter가 처리하거나,
+                        // 또는 해당 1차 인증 타입(form, rest)의 Adapter가 처리해야 함.
+                        // MfaAuthenticationAdapter의 apply 로직에서 1차 인증 설정을 담당하는 부분을 확인해야 함.
+                        // 여기서는 2차 인증 요소(order > 0)에 대한 Adapter만 추가한다고 가정하거나,
+                        // MfaAuthenticationAdapter가 모든 것을 처리하면 이 루프는 불필요할 수 있음.
+                        // 현재 로직은 모든 step.getType()에 대해 Adapter를 찾으려 함.
+                        if (step.getOrder() == 0) { // 1차 인증 스텝은 건너뛰거나, 해당 타입의 Adapter를 추가
+                            // 예: Form 또는 Rest Adapter를 찾아서 추가할 수 있음.
+                            // AuthenticationAdapter primaryAuthStepAdapter = authFeatures.get(step.getType().toLowerCase());
+                            // if (primaryAuthStepAdapter != null) featuresToApply.add(primaryAuthStepAdapter);
+                            // 여기서는 1차 인증 스텝 어댑터는 MfaAuthenticationAdapter가 내부적으로 처리하거나
+                            // 별도 로직으로 추가된다고 가정하고, 2차 인증 요소 어댑터만 고려.
+                            // 또는, MfaAuthenticationAdapter가 MfaDslConfigurerImpl에서 추가한
+                            // Form/Rest Adapter의 설정을 HttpSecurity에 적용하는 역할을 할 수도 있음.
+                            // 이 부분은 MfaAuthenticationAdapter.apply()의 구현에 따라 달라짐.
+                            // 현재 코드에서는 1차 인증 step에 대한 feature도 여기서 찾으려고 시도함.
+                        }
+
                         String stepTypeNameLower = step.getType().toLowerCase();
-                        AuthenticationAdapter stepFeature = authFeatures.get(stepTypeNameLower);
-                        if (stepFeature != null) {
-                            // MfaAuthenticationFeature 자체를 스텝 Feature로 다시 추가하지 않도록 방지
-                            if (!stepFeature.getId().equalsIgnoreCase("mfa")) {
-                                featuresToApply.add(stepFeature);
-                                log.debug("Added step-specific AuthenticationFeature '{}' for step type '{}' in MFA flow '{}'",
-                                        stepFeature.getClass().getSimpleName(), stepTypeNameLower, flow.getTypeName());
+                        AuthenticationAdapter stepAdapter = authFeatures.get(stepTypeNameLower);
+                        if (stepAdapter != null) {
+                            // MfaAuthenticationAdapter 자체를 스텝 Adapter로 다시 추가하지 않도록 방지 (무한 루프 또는 중복 설정 방지)
+                            if (!stepAdapter.getId().equalsIgnoreCase("mfa")) {
+                                featuresToApply.add(stepAdapter);
+                                log.debug("Added step-specific AuthenticationAdapter '{}' for step type '{}' in MFA flow '{}'",
+                                        stepAdapter.getClass().getSimpleName(), stepTypeNameLower, flow.getTypeName());
                             }
                         } else {
-                            log.warn("No AuthenticationFeature found for step type '{}' in MFA flow '{}'", stepTypeNameLower, flow.getTypeName());
+                            // 1차 인증 스텝(form, rest)은 adapter가 있을 수 있음.
+                            // 2차 인증 요소(ott, passkey)는 반드시 adapter가 있어야 함.
+                            if (step.getOrder() > 0) { // 2차 인증 요소인데 어댑터가 없으면 경고
+                                log.warn("No AuthenticationAdapter found for 2FA step type '{}' in MFA flow '{}'", stepTypeNameLower, flow.getTypeName());
+                            }
                         }
                     }
                 }
-            } else { // 단일 인증 플로우
-                AuthenticationAdapter singleAuthFeature = authFeatures.get(flowTypeNameLower);
-                if (singleAuthFeature != null) {
-                    featuresToApply.add(singleAuthFeature);
-                    log.debug("Added AuthenticationFeature '{}' for single auth flow '{}'",
-                            singleAuthFeature.getClass().getSimpleName(), flowTypeNameLower);
+            } else { // 단일 인증 플로우 처리
+                // 단일 인증 플로우는 하나의 주요 인증 단계(step)를 가짐.
+                // 해당 플로우의 typeName은 AbstractFlowRegistrar에서 "factorType_flow" 등으로 생성됨.
+                // 우리는 여기서 flow.getStepConfigs().get(0).getType()을 사용해야 함.
+                if (!CollectionUtils.isEmpty(flow.getStepConfigs())) {
+                    AuthenticationStepConfig singleAuthStep = flow.getStepConfigs().getFirst();
+                    if (singleAuthStep != null && singleAuthStep.getType() != null) {
+                        String actualFactorType = singleAuthStep.getType().toLowerCase(); // 예: "form", "ott"
+                        AuthenticationAdapter singleAuthAdapter = authFeatures.get(actualFactorType);
+                        if (singleAuthAdapter != null) {
+                            featuresToApply.add(singleAuthAdapter);
+                            log.debug("Added AuthenticationAdapter '{}' for single auth flow '{}' (actual factor type: '{}')",
+                                    singleAuthAdapter.getClass().getSimpleName(), flowTypeNameLower, actualFactorType);
+                        } else {
+                            log.warn("No AuthenticationAdapter found for actual factor type: '{}' in single auth flow type: '{}'",
+                                    actualFactorType, flowTypeNameLower);
+                        }
+                    } else {
+                        log.warn("Single auth flow '{}' has no steps or step type is null. Cannot determine AuthenticationAdapter.", flowTypeNameLower);
+                    }
                 } else {
-                    log.warn("No AuthenticationFeature found for single auth flow type: {}", flowTypeNameLower);
+                    log.warn("Single auth flow '{}' has no stepConfigs. Cannot determine AuthenticationAdapter.", flowTypeNameLower);
                 }
             }
         }
 
-        List<AuthenticationAdapter> sortedFeatures = new ArrayList<>(featuresToApply);
-        sortedFeatures.sort(Comparator.comparingInt(AuthenticationAdapter::getOrder));
+        List<AuthenticationAdapter> sortedAdapters = new ArrayList<>(featuresToApply);
+        sortedAdapters.sort(Comparator.comparingInt(AuthenticationAdapter::getOrder));
 
-        log.info("Final sorted list of AuthenticationFeatures to be applied: {}",
-                sortedFeatures.stream().map(f -> f.getId() + "(" + f.getClass().getSimpleName() + ")").collect(Collectors.toList()));
-        return sortedFeatures;
+        log.info("Final sorted list of AuthenticationAdapters to be applied: {}",
+                sortedAdapters.stream().map(f -> String.format("%s(id:%s, order:%d)", f.getClass().getSimpleName(), f.getId(), f.getOrder())).collect(Collectors.toList()));
+        return sortedAdapters;
     }
 
     public List<StateAdapter> getStateFeaturesFor(List<AuthenticationFlowConfig> flows) {
-        if (flows == null || flows.isEmpty()) {
+        if (CollectionUtils.isEmpty(flows)) {
             return Collections.emptyList();
         }
         Set<String> stateIds = new HashSet<>();
         for (AuthenticationFlowConfig f : flows) {
-            if (f.getStateConfig() != null && f.getStateConfig().state() != null) {
+            if (f != null && f.getStateConfig() != null && f.getStateConfig().state() != null) { // null 체크 추가
                 stateIds.add(f.getStateConfig().state().toLowerCase());
             }
         }
@@ -122,28 +179,23 @@ public class FeatureRegistry {
             if (sf != null) {
                 list.add(sf);
             } else {
-                log.warn("StateFeature not found in registry for state ID: {}", id);
+                log.warn("StateAdapter not found in registry for state ID: {}", id);
             }
         }
-        log.info("Selected StateFeatures to apply: {}",
-                list.stream().map(f -> f.getId() + "(" + f.getClass().getSimpleName() + ")").collect(Collectors.toList()));
+        log.info("Selected StateAdapters to apply: {}",
+                list.stream().map(f -> String.format("%s(id:%s)",f.getClass().getSimpleName(), f.getId())).collect(Collectors.toList()));
         return list;
     }
 
-    public void registerFactorFilter(String factorType, Filter filter) {
-        factorFilters.put(factorType.toLowerCase(), filter);
-        log.debug("Registered factor filter: Type='{}', Filter='{}'", factorType.toLowerCase(), filter.getClass().getName());
-    }
+    // registerFactorFilter 와 getFactorFilter는 ConfiguredFactorFilterProvider로 이전되었으므로 여기서는 삭제
+    // public void registerFactorFilter(FactorIdentifier key, Filter filter) { ... }
+    // public Filter getFactorFilter(FactorIdentifier key) { ... }
 
-    public Filter getFactorFilter(String factorType) {
-        Filter filter = factorFilters.get(factorType.toLowerCase());
-        if (filter == null) {
-            log.warn("No factor filter found for type: {}", factorType.toLowerCase());
-        }
-        return filter;
-    }
 
+    // 이 메소드는 유지 (다른 곳에서 사용될 수 있음)
+    @Nullable
     public AuthenticationAdapter getAuthenticationFeature(String featureId) {
+        if (featureId == null) return null;
         return authFeatures.get(featureId.toLowerCase());
     }
 }

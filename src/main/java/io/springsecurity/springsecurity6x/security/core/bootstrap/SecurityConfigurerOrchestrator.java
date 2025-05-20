@@ -90,8 +90,7 @@ public final class SecurityConfigurerOrchestrator {
 
             for (SecurityConfigurer cfg : finalConfigurersForFlow) {
                 try {
-                    log.trace("    Configuring flow {} with configurer: {}",
-                            flowTypeName, cfg.getClass().getSimpleName());
+                    log.trace("    Configuring flow {} with configurer: {}", flowTypeName, cfg.getClass().getSimpleName());
                     cfg.configure(fc);
                 } catch (Exception e) {
                     String errorMessage = String.format(

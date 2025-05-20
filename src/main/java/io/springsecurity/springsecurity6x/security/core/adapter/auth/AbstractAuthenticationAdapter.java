@@ -89,7 +89,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
         AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
 
-        if (this instanceof OttAuthenticationAdapter ottFeature) {
+        if (this instanceof OttAuthenticationAdapter ottAdapter) {
             OneTimeTokenGenerationSuccessHandler resolvedOttSuccessHandler; // 변수 선언만
 
             if (successHandler instanceof OneTimeTokenGenerationSuccessHandler) {
@@ -114,7 +114,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                 }
             }
             // 이 시점에서 resolvedOttSuccessHandler는 null이 아님을 보장.
-            ottFeature.configureHttpSecurityForOtt(http, (OttOptions)options, resolvedOttSuccessHandler, failureHandler);
+            ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, resolvedOttSuccessHandler, failureHandler);
         } else {
             configureHttpSecurity(http, options, successHandler, failureHandler);
         }

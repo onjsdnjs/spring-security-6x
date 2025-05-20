@@ -159,7 +159,7 @@ public class PlatformSecurityConfig {
                                 .tokenService(emailOneTimeTokenService) // Spring Security OneTimeTokenService 사용
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
                                 // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.
-                                .loginProcessingUrl("/login/mfa-ott")
+                                .loginProcessingUrl("/mfa/challenge/ott")
                                 .successHandler(mfaStepBasedSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리
                                 .failureHandler(mfaAuthenticationFailureHandler) // OTT Factor 실패 시
                         )
@@ -170,7 +170,7 @@ public class PlatformSecurityConfig {
                                 // Passkey Assertion Options 요청은 클라이언트 JS가 /api/mfa/assertion/options API를 호출하도록 함.
                                 .assertionOptionsEndpoint("/api/mfa/assertion/options")
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 WebAuthnAuthenticationFilter로 위임됨.
-                                .loginProcessingUrl("/login/mfa-passkey")
+                                .loginProcessingUrl("/mfa/challenge/passkey")
                                 .successHandler(mfaStepBasedSuccessHandler) // Passkey Factor 성공 시 다음 단계 또는 최종 완료 처리
                                 .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
                         )

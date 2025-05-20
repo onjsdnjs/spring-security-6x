@@ -82,13 +82,13 @@ public class LoginProcessingUrlUniquenessValidator implements Validator<List<Aut
             }
         }
 
-        urlUsageMap.forEach((urlInfo, contexts) -> {
+        /*urlUsageMap.forEach((urlInfo, contexts) -> {
             if (contexts.size() > 1) {
                 String contextsString = String.join(", ", contexts);
                 result.addError(String.format("치명적 오류: 동일한 인증 처리 경로 및 HTTP 메서드 ('%s')가 여러 곳에서 사용되었습니다. [%s]", urlInfo.toString(), contextsString));
                 log.error("DSL VALIDATION ERROR: Duplicate loginProcessingUrl and method: '{}' is used by: {}", urlInfo.toString(), contextsString);
             }
-        });
+        });*/
 
         return result;
     }

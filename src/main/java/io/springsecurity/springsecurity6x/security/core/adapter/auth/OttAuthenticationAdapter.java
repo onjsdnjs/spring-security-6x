@@ -20,7 +20,6 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
         return 300;
     }
 
-    // 이 메소드는 OttAuthenticationFeature 에서 직접 사용되지 않음.
     @Override
     protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
                                          AuthenticationSuccessHandler successHandler, // 사용 안 함

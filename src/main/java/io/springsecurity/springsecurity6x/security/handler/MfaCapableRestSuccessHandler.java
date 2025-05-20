@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
@@ -36,7 +37,7 @@ public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandle
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
 
-        // RestAuthenticationFilter에서 이미 FactorContext를 생성하고 MFA 정책 평가 및 저장을 완료했으므로,
+        // RestAuthenticationFilter 에서 이미 FactorContext를 생성하고 MFA 정책 평가 및 저장을 완료했으므로,
         // 여기서는 저장된 FactorContext를 로드하여 사용합니다.
         FactorContext mfaCtx = contextPersistence.contextLoad(request);
 
@@ -55,7 +56,7 @@ public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandle
 
         if (mfaCtx.isMfaRequiredAsPerPolicy()) {
             log.info("MFA is required for user: {}. Guiding to MFA selection/initiation.", authentication.getName());
-            // FactorContext에는 이미 mfaPolicyProvider에 의해 nextStepUrl 결정에 필요한 정보
+            // FactorContext 에는 이미 mfaPolicyProvider에 의해 nextStepUrl 결정에 필요한 정보
             // (currentProcessingFactor, currentMfaState 등)가 설정되어 있어야 함.
             Map<String, Object> mfaRequiredDetails = new HashMap<>();
             mfaRequiredDetails.put("status", "MFA_REQUIRED");
@@ -65,8 +66,8 @@ public class MfaCapableRestSuccessHandler implements AuthenticationSuccessHandle
             // nextStepUrl 결정: FactorContext의 상태와 currentProcessingFactor를 기반으로 결정
             String nextStepUrl;
             if (mfaCtx.getCurrentProcessingFactor() != null &&
-                    (mfaCtx.getCurrentState() == io.springsecurity.springsecurity6x.security.enums.MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
-                            mfaCtx.getCurrentState() == io.springsecurity.springsecurity6x.security.enums.MfaState.FACTOR_CHALLENGE_INITIATED)) {
+                    (mfaCtx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
+                            mfaCtx.getCurrentState() == MfaState.FACTOR_CHALLENGE_INITIATED)) {
                 nextStepUrl = request.getContextPath() + "/mfa/challenge/" + mfaCtx.getCurrentProcessingFactor().name().toLowerCase();
             } else {
                 // 기본적으로는 Factor 선택 페이지로 유도하거나, AuthContextProperties의 initiateUrl 사용

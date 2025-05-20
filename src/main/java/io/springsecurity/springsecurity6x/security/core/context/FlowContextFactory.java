@@ -71,17 +71,6 @@ public class FlowContextFactory {
             setSharedObjectIfAbsent(http, MfaPolicyProvider.class, () -> appContext.getBean(MfaPolicyProvider.class));
             /*flowConfig*/
             setSharedObjectIfAbsent(http, ObjectMapper.class, ObjectMapper::new);
-
-            if (http.getSharedObject(StateHandlerRegistry.class) == null) {
-                try {
-                    MfaPolicyProvider policyProvider = appContext.getBean(MfaPolicyProvider.class);
-                    List<MfaStateHandler> handlers = List.of(
-                    );
-                    http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers, policyProvider));
-                } catch (Exception e) { // NoSuchBeanDefinitionException 포함
-                    log.error("Failed to get MfaPolicyProvider bean for StateHandlerRegistry setup in flow: {}. Error: {}", flowConfig.getTypeName(), e.getMessage());
-                }
-            }
         }
     }
     private <T> void setSharedObjectIfAbsent(HttpSecurity http, Class<T> type, Supplier<T> supplier) {

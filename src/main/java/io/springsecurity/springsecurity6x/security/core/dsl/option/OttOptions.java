@@ -13,7 +13,9 @@ import java.util.Objects;
 public final class OttOptions extends AuthenticationProcessingOptions { // final class
 
     private final String tokenGeneratingUrl;
-    private final String defaultSubmitPageUrl; // null 가능 (showDefaultSubmitPage=false 시)
+    private final String defaultSubmitPageUrl;
+    private final String usernameParameter;
+    private final String tokenParameter;
     private final boolean showDefaultSubmitPage;
     private final OneTimeTokenService oneTimeTokenService; // 필수
     private final OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
@@ -24,6 +26,8 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
         this.tokenGeneratingUrl = Objects.requireNonNull(builder.tokenGeneratingUrl, "tokenGeneratingUrl cannot be null");
         this.defaultSubmitPageUrl = builder.defaultSubmitPageUrl;
         this.showDefaultSubmitPage = builder.showDefaultSubmitPage;
+        this.usernameParameter = builder.usernameParameter;
+        this.tokenParameter = builder.tokenParameter;
         this.oneTimeTokenService = Objects.requireNonNull(builder.oneTimeTokenService, "oneTimeTokenService cannot be null");
         this.tokenGenerationSuccessHandler = builder.tokenGenerationSuccessHandler;
         this.asepAttributes = builder.asepAttributes;
@@ -37,9 +41,13 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
         return new Builder(applicationContext);
     }
 
+
+
     public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<OttOptions, Builder> {
         private String tokenGeneratingUrl = "/ott/generate"; // 기본값
         private String defaultSubmitPageUrl = "/login-ott"; // 기본값
+        private String usernameParameter = "username"; // 기본값
+        private String tokenParameter = "token"; // 기본값
         private boolean showDefaultSubmitPage = true; // 기본값
         private OneTimeTokenService oneTimeTokenService; // 생성자에서 주입
         private OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler;
@@ -63,8 +71,27 @@ public final class OttOptions extends AuthenticationProcessingOptions { // final
         }
 
         public Builder defaultSubmitPageUrl(String url) {
-            // Assert.hasText(url, "defaultSubmitPageUrl cannot be empty or null"); // showDefaultSubmitPage가 false면 필요 없을 수 있음
             this.defaultSubmitPageUrl = url;
+            return this;
+        }
+
+        public Builder getUsernameParameter() {
+            this.usernameParameter = usernameParameter;
+            return this;
+        }
+
+        public Builder getTokenParameter() {
+            this.tokenParameter = tokenParameter;
+            return this;
+        }
+
+        public Builder usernameParameter(String usernameParameter) {
+            this.usernameParameter = usernameParameter;
+            return this;
+        }
+
+        public Builder tokenParameter(String tokenParameter) {
+            this.tokenParameter = tokenParameter;
             return this;
         }
 

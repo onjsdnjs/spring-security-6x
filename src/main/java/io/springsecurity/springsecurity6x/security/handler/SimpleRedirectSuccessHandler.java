@@ -21,7 +21,6 @@ public class SimpleRedirectSuccessHandler implements AuthenticationSuccessHandle
         if (response.isCommitted()) {
             return;
         }
-        // JSON으로 redirectUrl 응답
         responseWriter.writeSuccessResponse(response, Map.of("status", "REDIRECT_REQUIRED", "redirectUrl", targetUrl), HttpServletResponse.SC_OK);
     }
 }

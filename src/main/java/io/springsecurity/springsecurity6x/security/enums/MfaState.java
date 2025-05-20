@@ -53,7 +53,7 @@ public enum MfaState {
     MFA_SYSTEM_ERROR("MFA 시스템 오류"),
 
     MFA_VERIFICATION_COMPLETED("모든 MFA Factor 검증 완료"),
-    MFA_FAILURE_TERMINAL("MFA 최종 실패");
+    MFA_FAILURE_TERMINAL("MFA 최종 실패"), AWAITING_MFA_FACTOR_SELECTION(" 복구 코드 입력 UI 로드 실패");
 
     // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
 

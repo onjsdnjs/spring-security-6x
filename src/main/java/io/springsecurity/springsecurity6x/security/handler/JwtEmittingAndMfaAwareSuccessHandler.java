@@ -68,13 +68,14 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
         Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        // MfaCapableRestSuccessHandler와 동일한 로직으로 MFA 필요 여부 판단 및 FactorContext 생성
         FactorContext mfaCtx = new FactorContext(authentication);
-        String deviceId = getEffectiveDeviceId(request, mfaCtx); // deviceId 먼저 결정
+        String deviceId = getEffectiveDeviceId(request, mfaCtx);
         mfaCtx.setAttribute("deviceId", deviceId);
-        mfaPolicyProvider.evaluateMfaPolicy(mfaCtx); // MfaPolicyProvider 사용
 
-        if (mfaCtx.isMfaRequired()) {
+        // 수정된 부분: evaluateMfaPolicy 대신 evaluateMfaRequirementAndDetermineInitialStep 사용
+        mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, mfaCtx);
+
+        if (mfaCtx.isMfaRequiredAsPerPolicy()) { // isMfaRequired() -> isMfaRequiredAsPerPolicy()
             log.info("MFA is required for user: {}. Initiating MFA flow.", username);
             contextPersistence.saveContext(mfaCtx, request);
 
@@ -87,7 +88,6 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
 
         } else {
             log.info("MFA is not required for user: {}. Issuing tokens directly.", username);
-            // deviceId는 위에서 이미 결정됨
             String accessToken = tokenService.createAccessToken(authentication, deviceId);
             String refreshToken = null;
             if (tokenService.properties().isEnableRefreshToken()) {
@@ -101,7 +101,8 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
                 }
             }
             Map<String, Object> responseBody = new HashMap<>(transportResult.getBody());
-            // 단일 인증 성공 시 redirectUrl을 포함하도록 확장 (선택적)
+            responseBody.put("status", "SUCCESS"); // 명시적 성공 상태 추가
+            responseBody.put("message", "Authentication successful.");
             responseBody.put("redirectUrl", determineTargetUrl(request, response, authentication));
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
@@ -109,23 +110,37 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
         }
     }
 
-    private String getEffectiveDeviceId(HttpServletRequest request, FactorContext factorContext) { /* ... 이전 MfaCapableRestSuccessHandler와 동일 ... */
+    // getEffectiveDeviceId 메소드는 FactorContext를 파라미터로 받는 버전 유지
+    private String getEffectiveDeviceId(HttpServletRequest request, FactorContext factorContext) {
         String deviceId = request.getHeader("X-Device-Id");
+        // FactorContext가 null이 아니고, 해당 컨텍스트에 이미 deviceId가 있다면 그것을 사용
         if (factorContext != null && StringUtils.hasText((String) factorContext.getAttribute("deviceId"))) {
             deviceId = (String) factorContext.getAttribute("deviceId");
-        } else if (!StringUtils.hasText(deviceId)) {
-            HttpSession session = request.getSession(true);
+            log.debug("Using deviceId from provided FactorContext: {}", deviceId);
+        } else if (!StringUtils.hasText(deviceId)) { // 요청 헤더에도 없고, FactorContext에도 없을 경우
+            HttpSession session = request.getSession(true); // 세션이 없다면 생성
             deviceId = (String) session.getAttribute("sessionDeviceIdForAuth");
             if (deviceId == null) {
                 deviceId = UUID.randomUUID().toString();
                 session.setAttribute("sessionDeviceIdForAuth", deviceId);
+                log.debug("Generated and stored new sessionDeviceIdForAuth: {}", deviceId);
+            } else {
+                log.debug("Using deviceId from sessionDeviceIdForAuth: {}", deviceId);
             }
+        } else {
+            log.debug("Using deviceId from request header 'X-Device-Id': {}", deviceId);
         }
-        if (deviceId == null) deviceId = UUID.randomUUID().toString(); // 최종 fallback
+
+        if (deviceId == null) { // 최종 fallback
+            deviceId = UUID.randomUUID().toString();
+            log.warn("No deviceId found from header, FactorContext, or session. Generated a new transient one: {}", deviceId);
+        }
+        // 사용자 이름을 로그에 남길 때, FactorContext가 null이 아닐 경우 해당 컨텍스트의 사용자 이름을 사용
         log.debug("Effective Device ID for {}: {}", (factorContext != null ? factorContext.getUsername() : "N/A"), deviceId);
         return deviceId;
     }
 
+    // determineTargetUrl 메소드는 기존 로직 유지
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         HttpSession session = request.getSession(false);
         if (session != null) {
@@ -136,6 +151,6 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
                 return savedRequest.getRedirectUrl();
             }
         }
-        return this.defaultTargetUrl; // 생성자에서 주입받은 기본 URL
+        return this.defaultTargetUrl;
     }
 }

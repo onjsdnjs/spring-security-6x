@@ -2,9 +2,14 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.filter.OttForwardingFilter;
+import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 
 
@@ -34,6 +39,11 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
     public void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
                                                OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
                                                AuthenticationFailureHandler failureHandler) throws Exception {
+
+        ApplicationContext applicationContext = http.getSharedObject(ApplicationContext.class);
+        OttForwardingFilter ottForwardingFilter = new OttForwardingFilter(applicationContext.getBean(CodeStore.class), opts.getLoginProcessingUrl(), determineDefaultFailureUrl(opts));
+        http.addFilterBefore(ottForwardingFilter, AuthenticationFilter.class);
+
         http.oneTimeTokenLogin(ott -> {
             ott.defaultSubmitPageUrl(opts.getDefaultSubmitPageUrl())
                     .loginProcessingUrl(opts.getLoginProcessingUrl())

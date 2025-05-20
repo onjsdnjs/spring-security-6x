@@ -62,7 +62,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
-        // FactorContext 에서 flowTypeName과 currentStepId를 가져와 FactorIdentifier 생성
         FactorIdentifier factorIdentifier = FactorIdentifier.of(ctx.getFlowTypeName(), ctx.getCurrentStepId());
 
         Filter delegateFactorFilter = configuredFactorFilterProvider.getFilter(factorIdentifier);

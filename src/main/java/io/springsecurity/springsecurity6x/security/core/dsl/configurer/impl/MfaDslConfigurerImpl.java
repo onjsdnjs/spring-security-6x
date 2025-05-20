@@ -78,6 +78,16 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     @Override
     public MfaDslConfigurerImpl<H> form(Customizer<FormDslConfigurer> formConfigurerCustomizer) {
+        throw new UnsupportedOperationException("Use .primaryAuthentication(primary -> primary.formLogin(...)) for MFA flow's primary auth.");
+    }
+
+    @Override
+    public MfaDslConfigurerImpl<H> rest(Customizer<RestDslConfigurer> restConfigurerCustomizer) {
+        throw new UnsupportedOperationException("Use .primaryAuthentication(primary -> primary.restLogin(...)) for MFA flow's primary auth.");
+    }
+
+    /*@Override
+    public MfaDslConfigurerImpl<H> form(Customizer<FormDslConfigurer> formConfigurerCustomizer) {
         this.primaryAuthConfigurer.formLogin(formConfigurerCustomizer);
         return this;
     }
@@ -86,7 +96,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     public MfaDslConfigurerImpl<H> rest(Customizer<RestDslConfigurer> restConfigurerCustomizer) {
         this.primaryAuthConfigurer.restLogin(restConfigurerCustomizer);
         return this;
-    }
+    }*/
 
     private <O_FACTOR extends AuthenticationProcessingOptions,
             A_FACTOR extends BaseAsepAttributes,
@@ -192,38 +202,48 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     public AuthenticationFlowConfig build() {
         PrimaryAuthenticationOptions primaryAuthOptionsForFlow = null;
 
-        if (this.primaryAuthConfigurer != null &&
-                (this.primaryAuthConfigurer.getFormLoginCustomizer() != null || this.primaryAuthConfigurer.getRestLoginCustomizer() != null)) {
-            try {
-                primaryAuthOptionsForFlow = this.primaryAuthConfigurer.buildOptions();
+        if (this.primaryAuthConfigurer.getFormLoginCustomizer() != null || this.primaryAuthConfigurer.getRestLoginCustomizer() != null) {
+            primaryAuthOptionsForFlow = this.primaryAuthConfigurer.buildOptions();
+            AuthenticationProcessingOptions primaryConcreteOptions = primaryAuthOptionsForFlow.isFormLogin() ?
+                    primaryAuthOptionsForFlow.getFormOptions() : primaryAuthOptionsForFlow.getRestOptions();
+            AuthType primaryAuthType = primaryAuthOptionsForFlow.isFormLogin() ? AuthType.FORM : AuthType.REST;
 
-                AuthenticationProcessingOptions firstStepAuthOptions = primaryAuthOptionsForFlow.getFormOptions() != null ?
-                        primaryAuthOptionsForFlow.getFormOptions() :
-                        primaryAuthOptionsForFlow.getRestOptions();
-                AuthType firstStepAuthType = primaryAuthOptionsForFlow.isFormLogin() ? AuthType.FORM : AuthType.REST;
+            // 기존 order 0 스텝 제거 (중복 방지)
+            configuredSteps.removeIf(s -> s.getOrder() == 0);
 
-                configuredSteps.removeIf(s -> s.getOrder() == 0); // 기존 0번 스텝이 있다면 제거
-                AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig(this.mfaFlowTypeName, firstStepAuthType.name(), 0);
-                primaryAuthStep.getOptions().put("_options", firstStepAuthOptions);
-                configuredSteps.addFirst(primaryAuthStep);
-                log.debug("MFA Flow: Added primary authentication step (type: {}) from primaryAuthentication() DSL.", firstStepAuthType);
-
-            } catch (Exception e) {
-                log.error("MFA primary authentication options building failed: {}", e.getMessage(), e);
-                throw new DslConfigurationException("Failed to build primary authentication options for MFA flow.", e);
+            // 1차 인증 스텝 생성 및 configuredSteps 리스트의 맨 앞에 추가
+            AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig(this.mfaFlowTypeName, primaryAuthType.name(), 0);
+            primaryAuthStep.getOptions().put("_options", primaryConcreteOptions);
+            configuredSteps.addFirst(primaryAuthStep);
+            log.debug("MFA Flow [{}]: Added primary authentication step (id='{}', type: {}) from primaryAuthentication() DSL.",
+                    this.mfaFlowTypeName, primaryAuthStep.getStepId(), primaryAuthType);
+        } else {
+            // primaryAuthentication() DSL이 호출되지 않은 경우, 첫번째로 추가된 step (order 0)이 1차 인증으로 간주되어야 함.
+            // 또는, primaryAuthentication()을 필수로 만들 수 있음.
+            // 여기서는 configuredSteps의 첫번째가 1차 인증이라고 가정 (만약 있다면).
+            if (configuredSteps.isEmpty() || configuredSteps.getFirst().getOrder() != 0) {
+                throw new DslConfigurationException("MFA flow [" + this.mfaFlowTypeName + "] must have a primary authentication step (order 0) or use .primaryAuthentication() DSL.");
+            }
+            Object firstStepOptionsObj = configuredSteps.getFirst().getOptions().get("_options");
+            if (firstStepOptionsObj instanceof FormOptions fo) {
+                primaryAuthOptionsForFlow = PrimaryAuthenticationOptions.builder().formOptions(fo).loginProcessingUrl(fo.getLoginProcessingUrl()).build();
+            } else if (firstStepOptionsObj instanceof RestOptions ro) {
+                primaryAuthOptionsForFlow = PrimaryAuthenticationOptions.builder().restOptions(ro).loginProcessingUrl(ro.getLoginProcessingUrl()).build();
+            } else {
+                throw new DslConfigurationException("Could not determine PrimaryAuthenticationOptions from the first step of MFA flow ["+ this.mfaFlowTypeName +"].");
             }
         }
 
         Assert.isTrue(!configuredSteps.isEmpty(), "MFA flow ["+ this.mfaFlowTypeName +"] must have at least one authentication step (primary).");
         configuredSteps.sort(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
 
-        AuthenticationStepConfig firstConfiguredStep = configuredSteps.get(0);
+        AuthenticationStepConfig firstConfiguredStep = configuredSteps.getFirst();
         Assert.isTrue(firstConfiguredStep.getOrder() == 0, "MFA flow's first step must have order 0.");
         Assert.isTrue(AuthType.FORM.name().equalsIgnoreCase(firstConfiguredStep.getType()) || AuthType.REST.name().equalsIgnoreCase(firstConfiguredStep.getType()),
                 "MFA flow must start with a FORM or REST primary authentication step. Current first step: " + firstConfiguredStep.getType());
         Assert.isTrue(configuredSteps.size() > 1, "MFA flow must have at least one secondary authentication factor.");
 
-        if (primaryAuthOptionsForFlow == null) { // primaryAuthentication() DSL이 명시적으로 사용되지 않은 경우
+        if (primaryAuthOptionsForFlow == null) {
             Object firstStepRawOptions = firstConfiguredStep.getOptions().get("_options");
             if (firstStepRawOptions instanceof FormOptions fo) {
                 primaryAuthOptionsForFlow = PrimaryAuthenticationOptions.builder().formOptions(fo).loginProcessingUrl(fo.getLoginProcessingUrl()).build();

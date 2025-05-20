@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
@@ -13,6 +14,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
@@ -37,9 +39,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 public class RestAuthenticationFilter extends OncePerRequestFilter {
@@ -170,40 +170,72 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         securityContextHolderStrategy.setContext(context);
         securityContextRepository.saveContext(context, request, response);
 
-        contextPersistence.deleteContext(request); // 이전 MFA 세션 정리
+        contextPersistence.deleteContext(request);
 
-        FactorContext mfaCtx = new FactorContext(authentication);
+        // FactorContext 생성 시 현재 flowTypeName 전달
+        AuthenticationFlowConfig currentFlow = findCurrentFlowConfig(request); // 현재 요청에 매칭된 FlowConfig를 찾는 로직 필요
+        String flowTypeNameForContext = (currentFlow != null && currentFlow.getTypeName() != null) ?
+                currentFlow.getTypeName() : "unknown_flow"; // 기본값 또는 예외처리
+
+        FactorContext mfaCtx = new FactorContext(authentication, flowTypeNameForContext); // flowTypeName 전달
         String deviceId = request.getHeader("X-Device-Id");
         if (!StringUtils.hasText(deviceId)) {
-            deviceId = getOrCreateDeviceId(request);
+            deviceId = getOrCreateDeviceId(request); // 이 메소드는 프로젝트 내에 존재한다고 가정
         }
         mfaCtx.setAttribute("deviceId", deviceId);
 
-        // MfaPolicyProvider 호출 (mfaFlowConfig 인자 없이)
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, mfaCtx);
 
         // currentProcessingFactor에 대한 Options 설정
         AuthType currentProcessingFactor = mfaCtx.getCurrentProcessingFactor();
-        if (currentProcessingFactor != null) {
-            AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
-            if (mfaFlowConfig != null && mfaFlowConfig.getRegisteredFactorOptions() != null) {
-                AuthenticationProcessingOptions factorOptions = mfaFlowConfig.getRegisteredFactorOptions().get(currentProcessingFactor);
-                mfaCtx.setCurrentFactorOptions(factorOptions);
-                if (factorOptions == null) {
-                    log.warn("RestAuthenticationFilter: No AuthenticationProcessingOptions found for currentProcessingFactor {} in MFA flow config for user {}.",
-                            currentProcessingFactor, authentication.getName());
-                }
-            } else {
-                log.warn("RestAuthenticationFilter: MFA FlowConfig or registeredFactorOptions not found. Cannot set currentFactorOptions for user {}.", authentication.getName());
+        if (currentProcessingFactor != null && currentFlow != null) { // currentFlow null 체크 추가
+            AuthenticationProcessingOptions factorOptions = currentFlow.getRegisteredFactorOptions().get(currentProcessingFactor);
+            mfaCtx.setCurrentFactorOptions(factorOptions);
+            if (factorOptions == null) {
+                log.warn("RestAuthenticationFilter: No AuthenticationProcessingOptions found for currentProcessingFactor {} in flow {} for user {}.",
+                        currentProcessingFactor, flowTypeNameForContext, authentication.getName());
             }
+            // 첫 번째 2FA 단계의 stepId 설정
+            Optional<AuthenticationStepConfig> firstMfaStepOpt = currentFlow.getStepConfigs().stream()
+                    .filter(s -> s.getOrder() > 0 && s.getType().equalsIgnoreCase(currentProcessingFactor.name())) // order > 0 이 2차 인증 요소
+                    .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder)); // 가장 먼저 나오는 해당 타입의 스텝
+            firstMfaStepOpt.ifPresent(step -> mfaCtx.setCurrentStepId(step.getStepId()));
         }
 
         contextPersistence.saveContext(mfaCtx, request);
-        log.debug("RestAuthenticationFilter: Saved FactorContext (ID: {}) for user {} with initial MFA state: {}, current factor: {}, current options: {}",
-                mfaCtx.getMfaSessionId(), authentication.getName(), mfaCtx.getCurrentState(),
-                mfaCtx.getCurrentProcessingFactor(), mfaCtx.getCurrentFactorOptions() != null ? mfaCtx.getCurrentFactorOptions().getClass().getSimpleName() : "null");
+        log.debug("RestAuthenticationFilter: Saved FactorContext (ID: {}, Flow: {}) for user {} with initial MFA state: {}, current factor: {}, current stepId: {}",
+                mfaCtx.getMfaSessionId(), mfaCtx.getFlowTypeName(), authentication.getName(), mfaCtx.getCurrentState(),
+                mfaCtx.getCurrentProcessingFactor(), mfaCtx.getCurrentStepId());
 
         this.successHandler.onAuthenticationSuccess(request, response, authentication);
+    }
+
+    // findCurrentFlowConfig는 실제 HttpSecurity와 현재 요청을 매핑하여 FlowConfig를 찾는 로직 필요
+// (PlatformContext 또는 HttpSecurity의 sharedObject를 통해 가져올 수 있음)
+    @Nullable
+    private AuthenticationFlowConfig findCurrentFlowConfig(HttpServletRequest request) {
+        // 이 메소드는 현재 요청에 대해 어떤 AuthenticationFlowConfig가 매칭되는지를 결정해야 합니다.
+        // 예를 들어, PlatformContext에 현재 요청을 처리하는 SecurityFilterChain과 매핑된
+        // AuthenticationFlowConfig 정보를 저장해두고 가져올 수 있습니다.
+        // 또는 Spring Security의 FilterChainProxy 등을 통해 현재 적용된 SecurityFilterChain을 얻고,
+        // 그 SecurityFilterChain과 연관된 AuthenticationFlowConfig를 찾는 더 복잡한 메커니즘이 필요할 수 있습니다.
+        // 여기서는 ApplicationContext를 통해 PlatformConfig 빈을 가져와서,
+        // 요청 URI와 가장 잘 맞는 (또는 "mfa" 타입의) FlowConfig를 찾는 단순화된 예시를 사용합니다.
+        // 실제로는 더 정교한 매칭 로직이 필요합니다.
+        try {
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            if (platformConfig.getFlows() != null) {
+                // 예시: /api/auth/login 요청이 MFA 플로우에 속한다고 가정하고 "mfa" 타입의 플로우를 찾음
+                // 실제로는 RequestMatcher를 사용하여 현재 요청 URI와 각 FlowConfig의 RequestMatcher를 비교해야 함.
+                return platformConfig.getFlows().stream()
+                        .filter(flow -> "mfa".equalsIgnoreCase(flow.getTypeName())) // 임시로 MFA 플로우만 고려
+                        .findFirst()
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("RestAuthenticationFilter: Could not retrieve PlatformConfig or find current flow configuration: {}", e.getMessage());
+        }
+        return null; // 실제로는 null을 반환하지 않도록 설계해야 함
     }
 
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
@@ -230,9 +262,17 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String getOrCreateDeviceId(HttpServletRequest request) {
-        // 실제 구현에서는 더 견고한 방법 사용 (예: 세션 ID 기반, 암호화된 쿠키 등)
-        String deviceId = UUID.randomUUID().toString();
-        log.debug("RestAuthenticationFilter: Generated new deviceId: {}", deviceId);
+        String deviceId = request.getHeader("X-Device-Id");
+        if (StringUtils.hasText(deviceId)) {
+            return deviceId;
+        }
+        HttpSession session = request.getSession(true);
+        deviceId = (String) session.getAttribute("transientDeviceId");
+        if (!StringUtils.hasText(deviceId)) {
+            deviceId = UUID.randomUUID().toString();
+            session.setAttribute("transientDeviceId", deviceId);
+            log.debug("Generated and stored new transient deviceId in session: {}", deviceId);
+        }
         return deviceId;
     }
 }

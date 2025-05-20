@@ -19,7 +19,7 @@ public class RedisContextPersistence implements ContextPersistence {
         }
         return store.computeIfAbsent(sid, k -> {
             Authentication authentication = SecurityContextHolder.getContextHolderStrategy().getContext().getAuthentication();
-            FactorContext ctx = new FactorContext(authentication);
+            FactorContext ctx = new FactorContext(authentication, null);
             ctx.getMfaSessionId();
             return ctx;
         });

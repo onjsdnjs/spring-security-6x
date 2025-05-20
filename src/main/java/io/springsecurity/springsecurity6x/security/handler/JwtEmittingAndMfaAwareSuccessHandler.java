@@ -67,8 +67,8 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
 
         Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
-
-        FactorContext mfaCtx = new FactorContext(authentication);
+        String flowTypeName = determineCurrentFlowTypeName(request);
+        FactorContext mfaCtx = new FactorContext(authentication, flowTypeName);
         String deviceId = getEffectiveDeviceId(request, mfaCtx);
         mfaCtx.setAttribute("deviceId", deviceId);
 
@@ -108,6 +108,19 @@ public class JwtEmittingAndMfaAwareSuccessHandler implements AuthenticationSucce
 
             contextPersistence.deleteContext(request);
         }
+    }
+
+    private String determineCurrentFlowTypeName(HttpServletRequest request) {
+        // TODO: 요청 URI 또는 다른 식별자를 기반으로 현재 활성화된 AuthenticationFlowConfig의 typeName을 결정하는 로직 구현.
+        //       예를 들어, /api/auth/login이면 "mfa", /login이면 "single-form" 등.
+        //       또는 SecurityFilterChain 빌드 시 HttpSecurity 공유 객체에 flowTypeName 저장 후 조회.
+        if (request.getRequestURI().startsWith("/api/auth/login")) { // 이 URL은 RestAuthenticationFilter가 처리하므로
+            return "mfa"; // RestAuthenticationFilter가 MFA 플로우의 1차 인증을 담당한다고 가정
+        }
+        // 다른 단일 인증 플로우에 대한 처리 경로에 따라 다른 flowTypeName 반환
+        // 예: if (request.getRequestURI().startsWith("/login")) return "form"; (만약 form 이라는 이름의 단일 인증 플로우가 있다면)
+        log.warn("Could not determine flowTypeName from request URI: {}. Defaulting to 'mfa'. This might be incorrect.", request.getRequestURI());
+        return "mfa"; // 기본값 또는 가장 일반적인 MFA 플로우 이름
     }
 
     // getEffectiveDeviceId 메소드는 FactorContext를 파라미터로 받는 버전 유지

@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl;
 
+import io.springsecurity.springsecurity6x.security.core.adapter.state.jwt.JwtStateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.OAuth2StateConfigurer;
+import io.springsecurity.springsecurity6x.security.core.adapter.state.session.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.core.asep.dsl.BaseAsepAttributes;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
@@ -10,11 +13,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.configurer.Authentic
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.MfaDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.MfaDslConfigurerImpl;
 import io.springsecurity.springsecurity6x.security.core.dsl.factory.AuthMethodConfigurerFactory;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
-import io.springsecurity.springsecurity6x.security.core.adapter.state.jwt.JwtStateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.adapter.state.oauth2.OAuth2StateConfigurer;
-import io.springsecurity.springsecurity6x.security.core.adapter.state.session.SessionStateConfigurer;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import lombok.extern.slf4j.Slf4j;
@@ -26,16 +25,15 @@ import java.util.List;
 import java.util.Objects;
 
 @Slf4j
-public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> implements IdentityAuthDsl { // H 제네릭 유지
+public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> implements IdentityAuthDsl {
 
     protected final PlatformConfig.Builder platformBuilder;
     private final StateSetter stateSetter;
     protected final ApplicationContext applicationContext;
     private final AuthMethodConfigurerFactory authMethodConfigurerFactory;
-    // httpSecurityBuilder 필드 제거
 
     protected AbstractFlowRegistrar(PlatformConfig.Builder platformBuilder,
-                                    ApplicationContext applicationContext) { // httpSecurityBuilder 인자 제거
+                                    ApplicationContext applicationContext) {
         this.platformBuilder = Objects.requireNonNull(platformBuilder, "platformBuilder cannot be null");
         this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext cannot be null");
         this.stateSetter = new StateSetter();
@@ -45,62 +43,81 @@ public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> im
     protected <O extends AuthenticationProcessingOptions,
             A extends BaseAsepAttributes,
             S extends AuthenticationFactorConfigurer<O, A, S>> IdentityStateDsl registerAuthenticationMethod(
-            AuthType authType,
+            AuthType authType, // 순수 Factor 타입 (예: FORM, OTT)
             Customizer<S> configurerCustomizer,
             int defaultOrder,
             Class<S> configurerInterfaceType) {
 
-        // AuthMethodConfigurerFactory는 이제 ApplicationContext만으로 Configurer 생성
         S configurer = authMethodConfigurerFactory.createFactorConfigurer(
                 authType,
                 configurerInterfaceType
         );
 
         if (configurer instanceof AbstractOptionsBuilderConfigurer) {
-            ((AbstractOptionsBuilderConfigurer<?, ?, ?, ?>) configurer).setApplicationContext(this.applicationContext);
+            ((AbstractOptionsBuilderConfigurer<?, O, ?, S>) configurer).setApplicationContext(this.applicationContext);
         }
 
         Objects.requireNonNull(configurerCustomizer, "configurerCustomizer cannot be null").customize(configurer);
         O options = configurer.buildConcreteOptions();
 
         int actualOrder = defaultOrder;
-        if (options instanceof AuthenticationProcessingOptions && ((AuthenticationProcessingOptions) options).getOrder() != 0) {
-            actualOrder = ((AuthenticationProcessingOptions) options).getOrder();
+        if (options.getOrder() != 0) { // AuthenticationProcessingOptions 에서 getOrder() 사용
+            actualOrder = options.getOrder();
         }
 
-        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig();
-        stepConfig.setType(authType.name().toLowerCase());
-        stepConfig.getOptions().put("_options", options);
-        stepConfig.setOrder(actualOrder);
+        // 단일 인증 플로우의 typeName은 authType.name()을 기반으로 생성 (예: "form_login", "ott_email")
+        // 또는 더 구체적인 이름을 사용자가 DSL 에서 지정할 수 있도록 확장 가능
+        String flowTypeName = authType.name().toLowerCase() + "_flow"; // 예시: "form_flow"
+        String finalFlowTypeName = flowTypeName;
+        if (platformBuilder.getModifiableFlows().stream().anyMatch(f -> f.getTypeName().equalsIgnoreCase(finalFlowTypeName))) {
+            String finalFlowTypeName1 = flowTypeName;
+            long count = platformBuilder.getModifiableFlows().stream().filter(f -> f.getTypeName().startsWith(finalFlowTypeName1)).count();
+            flowTypeName = flowTypeName + "_" + (count + 1);
+        }
 
-        AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(authType.name().toLowerCase())
+
+        // AuthenticationStepConfig 생성 시 flowTypeName, authType.name(), actualOrder 전달
+        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig(flowTypeName, authType.name(), actualOrder);
+        stepConfig.getOptions().put("_options", options);
+        // stepConfig.setOrder(actualOrder); // 생성자에서 설정됨
+
+        AuthenticationFlowConfig.Builder flowBuilder = AuthenticationFlowConfig.builder(flowTypeName)
                 .stepConfigs(List.of(stepConfig))
-                .stateConfig(null)
+                .stateConfig(null) // 상태는 이후 .jwt(), .session() 등으로 설정됨
                 .order(actualOrder);
 
+        // AuthenticationProcessingOptions에서 successHandler, failureHandler를 가져와 FlowConfig에 설정 (선택적)
+        if (options.getSuccessHandler() != null) {
+            flowBuilder.finalSuccessHandler(options.getSuccessHandler()); // 단일 스텝 플로우이므로 finalSuccessHandler로 간주
+        }
+        // if (options.getFailureHandler() != null) {
+        //     // flowBuilder.mfaFailureHandler(options.getFailureHandler()); // 단일 인증에는 mfaFailureHandler가 아님.
+        //     // 필요시 AuthenticationFlowConfig에 일반 failureHandler 필드 추가
+        // }
+
+
         platformBuilder.addFlow(flowBuilder.build());
-        log.info("AbstractFlowRegistrar: Registered authentication options for method: {}, Order: {}", authType, actualOrder);
+        log.info("AbstractFlowRegistrar: Registered single-step authentication flow: '{}' (stepId: '{}'), Order: {}",
+                flowTypeName, stepConfig.getStepId(), actualOrder);
         return this.stateSetter;
     }
 
     protected IdentityStateDsl registerMultiStepFlow(
             Customizer<MfaDslConfigurer> customizer) {
-
-        // MfaDslConfigurerImpl 생성 시 ApplicationContext만 전달
-        MfaDslConfigurerImpl<H> mfaDslConfigurer = // H 제네릭은 형식상 유지
+        MfaDslConfigurerImpl<H> mfaDslConfigurer =
                 authMethodConfigurerFactory.createMfaConfigurer(this.applicationContext);
-        // mfaDslConfigurer.setApplicationContext(this.applicationContext); // 생성자에서 처리
-
         Objects.requireNonNull(customizer, "mfa customizer cannot be null").customize(mfaDslConfigurer);
-        AuthenticationFlowConfig mfaFlow = mfaDslConfigurer.build();
+        AuthenticationFlowConfig mfaFlow = mfaDslConfigurer.build(); // 이 내부에서 stepId들이 설정됨
 
         platformBuilder.addFlow(mfaFlow);
-        log.info("AbstractFlowRegistrar: Registered MFA flow options. Order: {}. Steps: {}", mfaFlow.getOrder(), mfaFlow.getStepConfigs().size());
+        log.info("AbstractFlowRegistrar: Registered MFA flow options. Flow TypeName: '{}', Order: {}. Steps: {}",
+                mfaFlow.getTypeName(), mfaFlow.getOrder(), mfaFlow.getStepConfigs().size());
         return this.stateSetter;
     }
 
-    // StateSetter 내부 클래스 (변경 없음)
+    // StateSetter 내부 클래스 (기존과 동일)
     private final class StateSetter implements IdentityStateDsl {
+        // ... (이전 답변의 StateSetter 코드와 동일)
         private void replaceLastState(StateType stateType) {
             List<AuthenticationFlowConfig> currentFlows = platformBuilder.getModifiableFlows();
             if (currentFlows.isEmpty()) {

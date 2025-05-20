@@ -59,8 +59,10 @@ public class MfaInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean
     public MfaStepBasedSuccessHandler mfaStepBasedSuccessHandler(MfaPolicyProvider mfaPolicyProvider,
                                                                  ContextPersistence contextPersistence,
-                                                                 AuthResponseWriter authResponseWriter) {
-        return new MfaStepBasedSuccessHandler(tokenService, mfaPolicyProvider, contextPersistence, authResponseWriter);
+                                                                 AuthResponseWriter authResponseWriter,
+                                                                 ApplicationContext applicationContext) {
+        return new MfaStepBasedSuccessHandler(tokenService, mfaPolicyProvider,
+                contextPersistence, authResponseWriter, applicationContext);
     }
 
     @Bean

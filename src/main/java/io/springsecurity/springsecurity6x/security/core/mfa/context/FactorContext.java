@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -50,22 +51,35 @@ public class FactorContext implements Serializable {
     private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
 
-    public FactorContext(Authentication primaryAuthentication) {
-        Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null when creating FactorContext.");
-        Assert.isTrue(primaryAuthentication.isAuthenticated(), "PrimaryAuthentication must be authenticated.");
+    public FactorContext(Authentication primaryAuthentication, String flowTypeName) {
+        Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null");
+        Assert.isTrue(primaryAuthentication.isAuthenticated(), "PrimaryAuthentication must be authenticated");
+        Assert.hasText(flowTypeName, "flowTypeName cannot be null or empty");
+
         this.mfaSessionId = UUID.randomUUID().toString();
         this.primaryAuthentication = primaryAuthentication;
         this.username = primaryAuthentication.getName();
-        this.flowTypeName = flowTypeName.toLowerCase();
-        // 초기 상태: 1차 인증은 성공했으나, MFA 정책 평가는 아직 이루어지지 않음.
+        this.flowTypeName = StringUtils.hasText(flowTypeName) ? flowTypeName.toLowerCase() : "unknown_flow";
+        // MFA 플로우의 경우 1차 인증 성공 후 바로 다음 단계를 평가하므로, PRIMARY_AUTHENTICATION_COMPLETED로 시작
+        // 단일 인증 후 바로 MFA 없이 성공하는 경우는 이 FactorContext가 사용되지 않거나, 즉시 ALL_FACTORS_COMPLETED로 변경됨
         this.currentMfaState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
         this.lastActivityTimestamp = Instant.now();
-        log.info("FactorContext created for user '{}'. Session ID: {}, Initial State: {}",
-                this.username, mfaSessionId, this.currentMfaState.get());
+        log.info("FactorContext created for user '{}' in flow '{}'. Session ID: {}, Initial State: {}",
+                this.username, this.flowTypeName, mfaSessionId, this.currentMfaState.get());
     }
 
     public MfaState getCurrentState() {
         return currentMfaState.get();
+    }
+
+    @Nullable
+    public String getFlowTypeName() {
+        return flowTypeName;
+    }
+
+    @Nullable
+    public String getCurrentStepId() {
+        return currentStepId;
     }
 
     @Nullable
@@ -83,7 +97,6 @@ public class FactorContext implements Serializable {
         }
     }
 
-    // ... (compareAndSetState, addCompletedFactor, incrementAttemptCount, getAttemptCount, recordAttempt, getAttribute, setAttribute, updateLastActivityTimestamp, MfaAttemptDetail 등 이전과 유사하게 유지)
     public boolean compareAndSetState(MfaState expect, MfaState update) {
         Assert.notNull(expect, "Expected MfaState cannot be null.");
         Assert.notNull(update, "Update MfaState cannot be null.");
@@ -128,16 +141,6 @@ public class FactorContext implements Serializable {
         this.mfaAttemptHistory.add(new MfaAttemptDetail(factorType, success, detail));
         updateLastActivityTimestamp();
         log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}' for user {}", mfaSessionId, factorType, success, detail, this.username);
-    }
-
-    @Nullable
-    public String getFlowTypeName() {
-        return flowTypeName;
-    }
-
-    @Nullable
-    public String getCurrentStepId() {
-        return currentStepId;
     }
 
     @Nullable

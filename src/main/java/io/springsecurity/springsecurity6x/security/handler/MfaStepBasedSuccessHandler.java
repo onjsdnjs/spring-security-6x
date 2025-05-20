@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-// ... (imports)
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -12,34 +14,43 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.authentication.ott.OneTimeToken; // OTT 핸들링 위해 추가
+import org.springframework.lang.Nullable;
+import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler; // OTT 핸들링 위해 추가
+import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
-@Component // 스프링 빈으로 등록
-@RequiredArgsConstructor
-public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler { // OneTimeTokenGenerationSuccessHandler 추가 (단일 OTT 성공 후에도 사용될 수 있으므로)
+@Component
+public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler {
 
     private final TokenService tokenService;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final ContextPersistence contextPersistence;
     private final AuthResponseWriter responseWriter;
-    // finalSuccessHandler는 AuthenticationFlowConfig에서 가져오거나,
-    // 이 핸들러 자체가 최종 성공 처리까지 담당할 수 있음. 여기서는 직접 처리.
+    private final ApplicationContext applicationContext; // PlatformConfig 접근용
 
-    // 일반적인 MFA Factor 성공 시 호출 (예: Passkey 검증 성공 후)
+    public MfaStepBasedSuccessHandler(TokenService tokenService,
+                                      MfaPolicyProvider mfaPolicyProvider,
+                                      ContextPersistence contextPersistence,
+                                      AuthResponseWriter responseWriter,
+                                      ApplicationContext applicationContext) {
+        this.tokenService = tokenService;
+        this.mfaPolicyProvider = mfaPolicyProvider;
+        this.contextPersistence = contextPersistence;
+        this.responseWriter = responseWriter;
+        this.applicationContext = applicationContext;
+    }
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -49,7 +60,6 @@ public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler,
         processMfaStepSuccess(request, response, authentication);
     }
 
-    // OTT Factor 성공 시 호출 (OneTimeTokenAuthenticationFilter가 이 핸들러를 직접 호출하도록 설정)
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
             throws IOException, ServletException {
@@ -89,37 +99,69 @@ public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler,
                 currentFactorJustCompleted, factorContext.getUsername(), factorContext.getMfaSessionId());
 
         factorContext.addCompletedFactor(currentFactorJustCompleted);
-        AuthType nextFactorToProcess = mfaPolicyProvider.determineNextFactorToProcess(factorContext);
+        int currentFactorOrder = getCurrentFactorOrder(factorContext); // 현재 완료된 Factor의 order 가져오기
+
+        // MfaPolicyProvider가 다음 Factor를 결정할 때, flowConfig가 필요하다면 주입 또는 조회
+        AuthenticationFlowConfig currentFlowConfig = findFlowConfigByName(factorContext.getFlowTypeName());
+        AuthType nextFactorToProcess = mfaPolicyProvider.determineNextFactorToProcess(factorContext); // 이 메소드는 FactorContext만으로 다음 Factor 결정 가능해야 함
         Map<String, Object> responseBody = new HashMap<>();
 
         if (nextFactorToProcess != null) {
             log.info("MFA Step Success: Next factor to process for user {} is {}. Session: {}",
                     factorContext.getUsername(), nextFactorToProcess, factorContext.getMfaSessionId());
+
             factorContext.setCurrentProcessingFactor(nextFactorToProcess);
-            factorContext.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION); // 다음 Factor 챌린지 시작 대기
+            // 다음 Factor에 대한 AuthenticationStepConfig를 찾아 stepId와 options 설정
+            if (currentFlowConfig != null) {
+                Optional<AuthenticationStepConfig> nextStepOpt = currentFlowConfig.getStepConfigs().stream()
+                        .filter(step -> step.getOrder() > currentFactorOrder && // 현재 완료된 Factor보다 높은 order
+                                nextFactorToProcess.name().equalsIgnoreCase(step.getType()))
+                        .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
+
+                if (nextStepOpt.isPresent()) {
+                    AuthenticationStepConfig nextStep = nextStepOpt.get();
+                    factorContext.setCurrentStepId(nextStep.getStepId());
+                    if (currentFlowConfig.getRegisteredFactorOptions() != null) {
+                        factorContext.setCurrentFactorOptions(currentFlowConfig.getRegisteredFactorOptions().get(nextFactorToProcess));
+                    }
+                } else {
+                    log.error("Could not find next AuthenticationStepConfig for factor {} in flow {}. This is a configuration error.",
+                            nextFactorToProcess, factorContext.getFlowTypeName());
+                    // 적절한 오류 처리, 예: AWAITING_FACTOR_SELECTION으로 보내거나 에러 응답
+                    factorContext.changeState(MfaState.AWAITING_FACTOR_SELECTION);
+                    factorContext.setCurrentProcessingFactor(null);
+                    factorContext.setCurrentFactorOptions(null);
+                    factorContext.setCurrentStepId(null);
+                    contextPersistence.saveContext(factorContext, request);
+                    responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA_FLOW_CONFIG_ERROR", "다음 MFA 단계를 찾을 수 없습니다.", request.getRequestURI());
+                    return;
+                }
+            } else {
+                log.error("MFA Flow Configuration not found for flow: {}. Cannot set next stepId and options.", factorContext.getFlowTypeName());
+                // FlowConfig를 찾을 수 없는 경우의 처리
+                responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA_FLOW_CONFIG_UNAVAILABLE", "MFA 플로우 설정을 찾을 수 없습니다.", request.getRequestURI());
+                return;
+            }
+
+            factorContext.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
             contextPersistence.saveContext(factorContext, request);
 
             responseBody.put("status", "MFA_CONTINUE");
             responseBody.put("message", currentFactorJustCompleted.name() + " 인증 성공. 다음 " + nextFactorToProcess.name() + " 인증을 진행하세요.");
             responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("nextFactorType", nextFactorToProcess.name().toUpperCase()); // 일관성을 위해 대문자
-            // 클라이언트가 이 URL로 GET 요청하여 해당 Factor의 챌린지 UI를 받도록 함
+            responseBody.put("nextFactorType", nextFactorToProcess.name().toUpperCase());
             responseBody.put("nextStepUrl", request.getContextPath() + "/mfa/challenge/" + nextFactorToProcess.name().toLowerCase());
+            responseBody.put("nextStepId", factorContext.getCurrentStepId()); // 다음 stepId도 전달 (클라이언트에서 사용 가능)
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
         } else {
             // 모든 MFA 단계 완료
             log.info("MFA Step Success: All MFA factors completed for user {}. Issuing final tokens. Session: {}",
                     factorContext.getUsername(), factorContext.getMfaSessionId());
-            factorContext.changeState(MfaState.ALL_FACTORS_COMPLETED); // 최종 완료 직전 상태
-
-            // AuthenticationFlowConfig에 finalSuccessHandler가 설정되어 있다면 그것을 사용.
-            // 여기서는 JwtEmittingAndMfaAwareSuccessHandler가 최종 처리를 한다고 가정하고,
-            // 해당 핸들러가 호출되도록 SecurityConfig에서 설정하거나, 여기서 직접 토큰 발급.
-            // 더 일반적인 접근은 finalSuccessHandler를 주입받아 호출하는 것.
-            // 여기서는 이 핸들러가 최종 토큰 발급까지 담당하는 것으로 간주 (기존 코드의 JwtEmittingAndMfaAwareSuccessHandler와 유사 역할 수행)
+            factorContext.changeState(MfaState.ALL_FACTORS_COMPLETED);
+            factorContext.setCurrentStepId(null); // 최종 완료 시 currentStepId 초기화
 
             String deviceId = (String) factorContext.getAttribute("deviceId");
-            Authentication finalAuthentication = factorContext.getPrimaryAuthentication(); // 1차 인증 객체 사용
+            Authentication finalAuthentication = factorContext.getPrimaryAuthentication();
 
             String accessToken = tokenService.createAccessToken(finalAuthentication, deviceId);
             String refreshTokenVal = null;
@@ -136,12 +178,42 @@ public class MfaStepBasedSuccessHandler implements AuthenticationSuccessHandler,
                     response.addHeader("Set-Cookie", cookie.toString());
                 }
             }
-            // body에는 이미 accessToken 등이 포함되어 있음. 추가 정보만 설정.
             Map<String, Object> finalSuccessBody = new HashMap<>(transportResult.getBody());
-            finalSuccessBody.put("status", "MFA_COMPLETE"); // 또는 "SUCCESS"
+            finalSuccessBody.put("status", "MFA_COMPLETE");
             finalSuccessBody.put("message", "모든 MFA 인증이 성공적으로 완료되었습니다.");
-            finalSuccessBody.put("redirectUrl", "/"); // 최종 성공 시 이동할 URL (클라이언트에서 사용)
+            finalSuccessBody.put("redirectUrl", "/");
             responseWriter.writeSuccessResponse(response, finalSuccessBody, HttpServletResponse.SC_OK);
         }
+    }
+
+    private int getCurrentFactorOrder(FactorContext factorContext) {
+        if (factorContext.getCurrentStepId() == null) return -1; // stepId가 없으면 order도 알 수 없음
+
+        AuthenticationFlowConfig flowConfig = findFlowConfigByName(factorContext.getFlowTypeName());
+        if (flowConfig != null && flowConfig.getStepConfigs() != null) {
+            return flowConfig.getStepConfigs().stream()
+                    .filter(step -> factorContext.getCurrentStepId().equals(step.getStepId()))
+                    .mapToInt(AuthenticationStepConfig::getOrder)
+                    .findFirst()
+                    .orElse(-1); // 해당 stepId를 찾지 못한 경우
+        }
+        return -1;
+    }
+
+    @Nullable
+    private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName) {
+        if (!StringUtils.hasText(flowTypeName)) return null;
+        try {
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            if (platformConfig != null && platformConfig.getFlows() != null) {
+                return platformConfig.getFlows().stream()
+                        .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
+                        .findFirst()
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("MfaStepBasedSuccessHandler: Could not retrieve PlatformConfig or find flow configuration for type {}: {}", flowTypeName, e.getMessage());
+        }
+        return null;
     }
 }

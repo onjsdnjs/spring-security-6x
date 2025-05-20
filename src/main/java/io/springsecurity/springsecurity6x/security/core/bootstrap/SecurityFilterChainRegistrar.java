@@ -46,11 +46,10 @@ public class SecurityFilterChainRegistrar {
         Assert.notNull(flows, "Flows list cannot be null.");
         Assert.notNull(context, "ApplicationContext cannot be null.");
 
-        if (!(context instanceof ConfigurableApplicationContext)) {
+        if (!(context instanceof ConfigurableApplicationContext cac)) {
             log.warn("ApplicationContext is not a ConfigurableApplicationContext. Cannot register SecurityFilterChain beans dynamically.");
             return;
         }
-        ConfigurableApplicationContext cac = (ConfigurableApplicationContext) context;
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) cac.getBeanFactory();
         AtomicInteger idx = new AtomicInteger(0);
 
@@ -77,7 +76,7 @@ public class SecurityFilterChainRegistrar {
             log.debug("Building SecurityFilterChain and registering factor filters for flow: type='{}', order={}",
                     flowConfig.getTypeName(), flowConfig.getOrder());
 
-            DefaultSecurityFilterChain builtChain = (DefaultSecurityFilterChain) fc.http().build();
+            DefaultSecurityFilterChain builtChain = fc.http().build();
             log.debug("Successfully built DefaultSecurityFilterChain for flow: {}", flowConfig.getTypeName());
 
             for (AuthenticationStepConfig step : flowConfig.getStepConfigs()) {

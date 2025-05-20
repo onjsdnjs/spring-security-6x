@@ -107,7 +107,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     @Nullable
     private AuthType determineNextFactorInternal(Set<AuthType> registered, Set<AuthType> completed) {
-        List<AuthType> processingOrder = List.of(AuthType.PASSKEY, AuthType.OTT, AuthType.RECOVERY_CODE);
+        List<AuthType> processingOrder = List.of(AuthType.OTT, AuthType.PASSKEY, AuthType.RECOVERY_CODE);
         for (AuthType factorInOrder : processingOrder) {
             if (registered.contains(factorInOrder) && (completed == null || !completed.contains(factorInOrder))) {
                 log.debug("Next MFA factor determined by policy: {}", factorInOrder);

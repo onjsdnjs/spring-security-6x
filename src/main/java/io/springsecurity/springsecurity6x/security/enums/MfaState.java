@@ -19,6 +19,8 @@ public enum MfaState {
      */
     FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION("2차 인증 검증 대기"),
 
+    FACTOR_CHALLENGE_INITIATED("실제 챌린지 발송"),
+
     // 아래는 이전 제안에서 누락되었던, 중요한 추가 상태들입니다.
     // 실제 프로젝트의 MfaState.java 파일에 아래와 유사한 상태들이 정의되어 있다고 가정합니다.
     // (사용자가 제공한 파일 내용을 기반으로 아래 내용을 보완 또는 대체해야 합니다.)
@@ -28,6 +30,7 @@ public enum MfaState {
     /** 자동 시도 Factor에 대한 검증 진행 중 */
     AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING("자동 인증 시도 검증 중"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
 
+    FACTOR_VERIFICATION_PENDING("Factor 검증 진행"),
     /** (단일 또는 다중) Factor 검증 성공 후, 추가 Factor 필요 여부 또는 최종 완료 판단 대기 상태 */
     FACTOR_VERIFICATION_COMPLETED("인증 요소 검증 완료"), // 이 부분은 ALL_FACTORS_COMPLETED와 유사/통합될 수 있습니다.
 
@@ -47,7 +50,12 @@ public enum MfaState {
     /** MFA 세션이 유효하지 않거나 의도적으로 무효화된 경우 (예: 로그아웃, 다른 세션에서의 로그인) - 터미널 상태 */
     MFA_SESSION_INVALIDATED("MFA 세션 무효화"), // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
     /** MFA 처리 중 예상치 못한 시스템 오류 발생 - 터미널 상태 */
-    MFA_SYSTEM_ERROR("MFA 시스템 오류"); // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
+    MFA_SYSTEM_ERROR("MFA 시스템 오류"),
+
+    MFA_VERIFICATION_COMPLETED("모든 MFA Factor 검증 완료"),
+    MFA_FAILURE_TERMINAL("MFA 최종 실패");
+
+    // 이 부분은 사용자 제공 파일에 없을 수 있습니다. 필요시 추가.
 
 
     private final String description;
@@ -58,6 +66,7 @@ public enum MfaState {
 
     public boolean isTerminal() {
         return this == MFA_FULLY_COMPLETED ||
+                this == MFA_FAILURE_TERMINAL ||
                 this == MFA_FAILED_TERMINAL ||
                 this == MFA_SESSION_EXPIRED ||
                 this == MFA_SESSION_INVALIDATED ||

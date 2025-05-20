@@ -1,22 +1,19 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
-import lombok.RequiredArgsConstructor; // 추가
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.CollectionUtils;
-import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider; // 추가
-
-import java.util.Set;
 
 @Slf4j
-@RequiredArgsConstructor // MfaPolicyProvider 주입을 위해
+//@RequiredArgsConstructor // MfaPolicyProvider 주입을 위해
 public class PrimaryAuthCompletedStateHandler implements MfaStateHandler {
 
-    private final MfaPolicyProvider mfaPolicyProvider; // MfaPolicyProvider 주입
+//    private final MfaPolicyProvider mfaPolicyProvider; // MfaPolicyProvider 주입
 
     @Override
     public boolean supports(MfaState state) {

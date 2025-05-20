@@ -32,6 +32,7 @@ public enum MfaEvent {
     // --- 자동 시도(AUTO_ATTEMPT_FACTOR_PENDING) 관련 이벤트 ---
     /** 자동 시도 Factor에 대한 챌린지가 성공적으로 시작/요청됨 (예: Passkey get() 호출 또는 Conditional UI 표시) */
     CHALLENGE_INITIATED, // AUTO_ATTEMPT_FACTOR_PENDING -> AUTO_ATTEMPT_FACTOR_VERIFICATION_PENDING
+
     // 또는 FACTOR_SELECTED 이후 FACTOR_CHALLENGE_INITIATED -> FACTOR_VERIFICATION_PENDING
     /** 자동 시도 Factor를 건너뛰고 수동으로 다른 Factor를 선택하기로 함 */
     SKIP_AUTO_ATTEMPT,

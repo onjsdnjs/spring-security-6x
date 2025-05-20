@@ -1,17 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
-package io.springsecurity.springsecurity6x.security.core.mfa;
-
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig; // 사용된다면 유지
 import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.exception.InvalidTransitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Collections;
 
 public class StateMachineManager {
 
@@ -59,7 +56,7 @@ public class StateMachineManager {
         table.put(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION, new EnumMap<>(Map.of(
                 // 이 상태에서는 실제 챌린지를 "생성/요청"하는 액션이 발생하고,
                 // 그 결과에 따라 CHALLENGE_INITIATED 또는 CHALLENGE_DELIVERY_FAILURE, ERROR 이벤트가 발생하여 다음 상태로 전이해야 함.
-                // 예를 들어, ChallengeRouter에서 챌린지 생성 후 CHALLENGE_INITIATED 이벤트를 발생시켜야 함.
+                // 예를 들어, ChallengeRouter 에서 챌린지 생성 후 CHALLENGE_INITIATED 이벤트를 발생시켜야 함.
                 // 또는 이 상태를 처리하는 별도 핸들러가 필요할 수 있음.
                 // 지금 상태로는 이 상태에서 머무르게 됨.
                 // 만약 이 상태에서 바로 사용자가 credential을 제출한다면, 이벤트가 SUBMIT_CREDENTIAL, 다음 상태가 FACTOR_VERIFICATION_PENDING 이 될 수 있으나,
@@ -107,12 +104,12 @@ public class StateMachineManager {
 
         if (possibleTransitions == null) {
             log.error("No transitions defined for current state: {}", currentState);
-            throw new InvalidTransitionException(currentState, event, "No transitions defined for the current state.");
+            throw new InvalidTransitionException(currentState, event);
         }
 
         if (!possibleTransitions.containsKey(event)) {
             log.error("Invalid event: {} for current state: {}. Possible transitions: {}", event, currentState, possibleTransitions.keySet());
-            throw new InvalidTransitionException(currentState, event, "This event is not allowed for the current state.");
+            throw new InvalidTransitionException(currentState, event);
         }
 
         MfaState nextState = possibleTransitions.get(event);

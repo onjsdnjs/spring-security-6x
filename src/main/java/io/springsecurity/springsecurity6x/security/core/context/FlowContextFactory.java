@@ -70,7 +70,8 @@ public class FlowContextFactory {
             log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
             setSharedObjectIfAbsent(http, ContextPersistence.class, () -> appContext.getBean(ContextPersistence.class));
             setSharedObjectIfAbsent(http, MfaPolicyProvider.class, () -> appContext.getBean(MfaPolicyProvider.class));
-            setSharedObjectIfAbsent(http, StateMachineManager.class, () -> new StateMachineManager(flowConfig));
+            /*flowConfig*/
+            setSharedObjectIfAbsent(http, StateMachineManager.class, StateMachineManager::new);
             setSharedObjectIfAbsent(http, ObjectMapper.class, ObjectMapper::new);
 
             if (http.getSharedObject(StateHandlerRegistry.class) == null) {
@@ -79,7 +80,7 @@ public class FlowContextFactory {
                     List<MfaStateHandler> handlers = List.of(
                             new PrimaryAuthCompletedStateHandler(),
                             new AutoAttemptFactorStateHandler(),
-                            new FactorSelectionStateHandler(),
+                            new FactorSelectionStateHandler(policyProvider),
                             new ChallengeInitiatedStateHandler(),
                             new VerificationPendingStateHandler(policyProvider),
                             new OttStateHandler(),
@@ -87,7 +88,7 @@ public class FlowContextFactory {
                             new RecoveryStateHandler(),
                             new TokenStateHandler()
                     );
-                    http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers));
+                    http.setSharedObject(StateHandlerRegistry.class, new StateHandlerRegistry(handlers, policyProvider));
                 } catch (Exception e) { // NoSuchBeanDefinitionException 포함
                     log.error("Failed to get MfaPolicyProvider bean for StateHandlerRegistry setup in flow: {}. Error: {}", flowConfig.getTypeName(), e.getMessage());
                 }

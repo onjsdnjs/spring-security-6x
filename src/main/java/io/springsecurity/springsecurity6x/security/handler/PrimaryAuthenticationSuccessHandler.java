@@ -37,7 +37,7 @@ public class PrimaryAuthenticationSuccessHandler implements AuthenticationSucces
     private final TokenService tokenService;
     private final AuthContextProperties authContextProperties;
     private final AuthResponseWriter responseWriter;
-    private final ApplicationContext applicationContext; // PlatformConfig 접근용
+    private final ApplicationContext applicationContext;
 
     public PrimaryAuthenticationSuccessHandler(ContextPersistence contextPersistence,
                                                MfaPolicyProvider mfaPolicyProvider,
@@ -59,48 +59,34 @@ public class PrimaryAuthenticationSuccessHandler implements AuthenticationSucces
                                         Authentication authentication) throws IOException {
 
         String username = authentication.getName();
-        log.info("PrimaryAuthenticationSuccessHandler: Primary authentication successful for user: {}. Evaluating FactorContext for MFA.", username);
+        log.info("PrimaryAuthenticationSuccessHandler: 1FA success for user: {}. Evaluating MFA.", username);
 
-        // 이전 FactorContext 정리 (RestAuthenticationFilter에서도 할 수 있지만, 핸들러에서 확실히 처리)
-        contextPersistence.deleteContext(request);
+        contextPersistence.deleteContext(request); // 이전 MFA 세션 정리
 
-        // 현재 요청에 해당하는 AuthenticationFlowConfig를 가져와야 함 (MFA 플로우인지, 단일 인증 플로우인지 등)
-        // 실제 운영 환경에서는 현재 요청 URI와 매칭되는 SecurityFilterChain의 설정을 통해 flowTypeName을 결정해야 함.
-        // 여기서는 임시로 "mfa" 플로우로 가정하거나, RestAuthenticationFilter에서 flowTypeName을 request attribute로 전달받을 수 있음.
-        String flowTypeName = determineCurrentFlowTypeName(request); // 이 메소드 구현 필요
-
-        FactorContext mfaCtx = new FactorContext(authentication, flowTypeName);
+        String flowTypeName = determineCurrentFlowTypeName(request); // 현재 요청에 대한 Flow Type Name 결정
+        FactorContext mfaCtx = new FactorContext(authentication, flowTypeName); // flowTypeName 전달
         String deviceId = getEffectiveDeviceId(request, mfaCtx);
         mfaCtx.setAttribute("deviceId", deviceId);
 
-        // MfaPolicyProvider 호출하여 FactorContext 초기화 (MFA 필요 여부, 다음 상태, 다음 Factor 등 설정)
-        // MfaPolicyProvider는 flowTypeName에 해당하는 AuthenticationFlowConfig가 필요할 수 있음
         AuthenticationFlowConfig currentFlowConfig = findFlowConfigByName(flowTypeName);
-        if (currentFlowConfig == null && "mfa".equalsIgnoreCase(flowTypeName)) {
-            log.error("PrimaryAuthenticationSuccessHandler: MFA flow '{}' configuration not found. Cannot proceed with MFA policy evaluation.", flowTypeName);
-            // 적절한 오류 처리 또는 MFA 없이 진행 (정책에 따라)
+        if (currentFlowConfig == null && "mfa".equalsIgnoreCase(flowTypeName)) { // MFA 플로우인데 설정을 못 찾으면 오류
+            log.error("PrimaryAuthenticationSuccessHandler: MFA flow '{}' config not found for user {}.", flowTypeName, username);
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA_CONFIG_ERROR", "MFA 설정을 찾을 수 없습니다.", request.getRequestURI());
             return;
         }
 
-        // MfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep는 FactorContext의 상태,
-        // mfaRequiredAsPerPolicy, currentProcessingFactor 등을 설정함.
-        // 이 단계에서 currentFactorOptions와 currentStepId도 설정해야 함.
-        mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, mfaCtx); // DefaultMfaPolicyProvider는 이 과정에서 currentFactorOptions를 설정하지 않음
+        // MfaPolicyProvider가 FactorContext의 상태, mfaRequiredAsPerPolicy, currentProcessingFactor 등을 설정
+        mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, mfaCtx);
 
         // MfaPolicyProvider 호출 후, currentProcessingFactor가 설정되었다면 해당 Factor의 옵션과 stepId 설정
         if (mfaCtx.getCurrentProcessingFactor() != null && currentFlowConfig != null) {
             AuthType initialFactorType = mfaCtx.getCurrentProcessingFactor();
-            // registeredFactorOptions에서 옵션 가져오기
             if (currentFlowConfig.getRegisteredFactorOptions() != null) {
                 AuthenticationProcessingOptions factorOptions = currentFlowConfig.getRegisteredFactorOptions().get(initialFactorType);
                 mfaCtx.setCurrentFactorOptions(factorOptions);
             }
-            // stepConfigs에서 stepId 가져오기
-            Optional<AuthenticationStepConfig> initialStepOpt = currentFlowConfig.getStepConfigs().stream()
-                    .filter(step -> step.getOrder() > 0 && // 1차 인증(order 0) 제외
-                            initialFactorType.name().equalsIgnoreCase(step.getType()))
-                    .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder)); // 여러 개 있을 경우 order가 가장 낮은 것
+            // AuthenticationStepConfig에서 stepId 가져오기
+            Optional<AuthenticationStepConfig> initialStepOpt = findStepConfig(currentFlowConfig, initialFactorType, 0); // 1차 인증 다음이므로 order > 0 인 Factor 검색
             if (initialStepOpt.isPresent()) {
                 mfaCtx.setCurrentStepId(initialStepOpt.get().getStepId());
             } else {
@@ -113,42 +99,45 @@ public class PrimaryAuthenticationSuccessHandler implements AuthenticationSucces
         log.debug("PrimaryAuthenticationSuccessHandler: FactorContext (ID: {}, Flow: {}) saved for user {} with state: {}, factor: {}, stepId: {}",
                 mfaCtx.getMfaSessionId(), mfaCtx.getFlowTypeName(), username, mfaCtx.getCurrentState(), mfaCtx.getCurrentProcessingFactor(), mfaCtx.getCurrentStepId());
 
-        // FactorContext의 최종 평가된 상태를 기반으로 응답 결정
         if (mfaCtx.isMfaRequiredAsPerPolicy()) {
-            log.info("PrimaryAuthenticationSuccessHandler: MFA is required for user: {}. Guiding to MFA initiation. Session ID: {}",
+            log.info("PrimaryAuthenticationSuccessHandler: MFA required for user: {}. Session ID: {}. Guiding to MFA.",
                     username, mfaCtx.getMfaSessionId());
 
             Map<String, Object> mfaRequiredDetails = new HashMap<>();
             mfaRequiredDetails.put("status", "MFA_REQUIRED");
-            mfaRequiredDetails.put("message", "Primary authentication successful. MFA is required.");
+            mfaRequiredDetails.put("message", "1차 인증 성공. 2차 인증이 필요합니다.");
             mfaRequiredDetails.put("mfaSessionId", mfaCtx.getMfaSessionId());
-            mfaRequiredDetails.put("username", username); // 클라이언트 JS에서 사용
+            mfaRequiredDetails.put("username", username);
 
             String nextStepUrl;
+            // MfaPolicyProvider가 currentProcessingFactor를 설정하고, 상태를 AWAITING_FACTOR_CHALLENGE_INITIATION으로 변경한 경우
             if (mfaCtx.getCurrentProcessingFactor() != null &&
-                    (mfaCtx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
-                            mfaCtx.getCurrentState() == MfaState.FACTOR_CHALLENGE_INITIATED)) { // 기존 MfaState 값 사용
+                    mfaCtx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION) {
+                // 해당 Factor의 챌린지 UI 페이지로 직접 안내
                 nextStepUrl = request.getContextPath() + "/mfa/challenge/" + mfaCtx.getCurrentProcessingFactor().name().toLowerCase();
-            } else { // AWAITING_FACTOR_SELECTION 등
-                nextStepUrl = request.getContextPath() + authContextProperties.getMfa().getInitiateUrl(); // 예: /mfa/select-factor
+                log.debug("Next step for MFA: Directly to challenge UI for factor {} -> {}", mfaCtx.getCurrentProcessingFactor(), nextStepUrl);
+            } else {
+                // 기본적으로는 Factor 선택 페이지로 유도 (MfaState.AWAITING_FACTOR_SELECTION 상태일 것임)
+                // 또는 AuthContextProperties의 mfa.initiateUrl 사용 (이것이 /mfa/select-factor 와 같은 UI 페이지여야 함)
+                nextStepUrl = request.getContextPath() + authContextProperties.getMfa().getInitiateUrl();
+                log.debug("Next step for MFA: To factor selection or initiate URL -> {}", nextStepUrl);
             }
             mfaRequiredDetails.put("nextStepUrl", nextStepUrl);
 
             responseWriter.writeSuccessResponse(response, mfaRequiredDetails, HttpServletResponse.SC_OK);
         } else {
-            log.info("PrimaryAuthenticationSuccessHandler: MFA is not required for user: {}. Issuing final tokens.", username);
+            // MFA 불필요: 최종 인증 성공 처리 (토큰 발급)
+            log.info("PrimaryAuthenticationSuccessHandler: MFA not required for user: {}. Issuing final tokens.", username);
+            // ... (토큰 발급 로직은 이전 답변과 동일하게 유지) ...
             String currentDeviceId = (String) mfaCtx.getAttribute("deviceId");
-
             String accessToken = tokenService.createAccessToken(authentication, currentDeviceId);
             String refreshTokenVal = null;
             if (tokenService.properties().isEnableRefreshToken()) {
                 refreshTokenVal = tokenService.createRefreshToken(authentication, currentDeviceId);
             }
-
-            contextPersistence.deleteContext(request); // MFA 플로우 안 탔으므로 컨텍스트 정리
-
+            contextPersistence.deleteContext(request); // 컨텍스트 정리
             TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
-
+            // ... (응답 작성 로직) ...
             if (transportResult.getCookiesToSet() != null) {
                 for (ResponseCookie cookie : transportResult.getCookiesToSet()) {
                     response.addHeader("Set-Cookie", cookie.toString());
@@ -162,21 +151,19 @@ public class PrimaryAuthenticationSuccessHandler implements AuthenticationSucces
         }
     }
 
-    // 실제 구현에서는 현재 HTTP 요청에 매칭된 SecurityFilterChain의 이름을 가져와야 함.
-    // Spring Security의 FilterChainProxy 내부 로직을 참조하거나,
-    // HttpSecurity 빌드 시점에 해당 정보를 request attribute 등으로 저장해두고 읽어오는 방법 등을 고려.
-    // 여기서는 단순 예시로, 요청 경로가 /api/auth/login 이면 "mfa" 플로우로 간주.
+    // 현재 요청에 대한 Flow Type Name 결정 (실제 구현 필요)
     private String determineCurrentFlowTypeName(HttpServletRequest request) {
-        // TODO: 요청 URI 또는 다른 식별자를 기반으로 현재 활성화된 AuthenticationFlowConfig의 typeName을 결정하는 로직 구현.
-        //       예를 들어, /api/auth/login이면 "mfa", /login이면 "single-form" 등.
-        //       또는 SecurityFilterChain 빌드 시 HttpSecurity 공유 객체에 flowTypeName 저장 후 조회.
-        if (request.getRequestURI().startsWith("/api/auth/login")) { // 이 URL은 RestAuthenticationFilter가 처리하므로
-            return "mfa"; // RestAuthenticationFilter가 MFA 플로우의 1차 인증을 담당한다고 가정
+        // RestAuthenticationFilter의 loginProcessingUrl (예: /api/auth/login)은
+        // PlatformSecurityConfig에서 MFA 플로우에 속하도록 DSL로 정의되어야 함.
+        // 해당 SecurityFilterChain에 매핑된 AuthenticationFlowConfig의 typeName을 가져와야 함.
+        // 여기서는 간단히 "/api/auth/login" 요청은 "mfa" 플로우라고 가정.
+        if (request.getRequestURI().equals("/api/auth/login")) { // RestAuthenticationFilter의 requestMatcher와 일치해야 함
+            return "mfa";
         }
-        // 다른 단일 인증 플로우에 대한 처리 경로에 따라 다른 flowTypeName 반환
-        // 예: if (request.getRequestURI().startsWith("/login")) return "form"; (만약 form 이라는 이름의 단일 인증 플로우가 있다면)
-        log.warn("Could not determine flowTypeName from request URI: {}. Defaulting to 'mfa'. This might be incorrect.", request.getRequestURI());
-        return "mfa"; // 기본값 또는 가장 일반적인 MFA 플로우 이름
+        // 다른 단일 인증 요청 경로에 따라 다른 flowTypeName 반환 가능
+        // 예: if (request.getRequestURI().equals("/login")) return "form";
+        log.warn("Cannot determine flowTypeName for URI: {}. Defaulting to 'unknown_flow'. This needs proper implementation.", request.getRequestURI());
+        return "unknown_flow"; // 실제로는 예외를 던지거나, 더 정확한 로직 필요
     }
 
     @Nullable
@@ -188,43 +175,54 @@ public class PrimaryAuthenticationSuccessHandler implements AuthenticationSucces
                 return platformConfig.getFlows().stream()
                         .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
                         .findFirst()
-                        .orElse(null);
+                        .orElseGet(() -> {
+                            log.warn("No AuthenticationFlowConfig found with typeName: {}", flowTypeName);
+                            return null;
+                        });
             }
         } catch (Exception e) {
-            log.warn("PrimaryAuthenticationSuccessHandler: Could not retrieve PlatformConfig or find flow configuration for type {}: {}", flowTypeName, e.getMessage());
+            log.warn("PrimaryAuthenticationSuccessHandler: Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
         }
         return null;
     }
 
+    private Optional<AuthenticationStepConfig> findStepConfig(AuthenticationFlowConfig flowConfig, AuthType factorType, int minOrderExclusive) {
+        if (flowConfig == null || factorType == null || flowConfig.getStepConfigs() == null) {
+            return Optional.empty();
+        }
+        return flowConfig.getStepConfigs().stream()
+                .filter(step -> step.getOrder() > minOrderExclusive &&
+                        factorType.name().equalsIgnoreCase(step.getType()))
+                .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
+    }
+
+
     private String getEffectiveDeviceId(HttpServletRequest request, @Nullable FactorContext factorContext) {
+        // ... (이전 답변의 getEffectiveDeviceId 로직과 동일하게 사용)
         String deviceId = null;
         if (factorContext != null) {
             deviceId = (String) factorContext.getAttribute("deviceId");
-            if (StringUtils.hasText(deviceId)) {
-                log.debug("Using deviceId from existing FactorContext: {}", deviceId);
-                return deviceId;
-            }
+            if (StringUtils.hasText(deviceId)) return deviceId;
         }
         deviceId = request.getHeader("X-Device-Id");
         if (StringUtils.hasText(deviceId)) {
-            log.debug("Using deviceId from request header 'X-Device-Id': {}", deviceId);
             if (factorContext != null) factorContext.setAttribute("deviceId", deviceId);
             return deviceId;
         }
-        HttpSession session = request.getSession(false); // 세션이 없으면 null 반환
+        HttpSession session = request.getSession(false);
         if (session != null) {
             deviceId = (String) session.getAttribute("sessionDeviceIdForAuth");
             if (StringUtils.hasText(deviceId)) {
-                log.debug("Using deviceId from HTTP session attribute: {}", deviceId);
                 if (factorContext != null) factorContext.setAttribute("deviceId", deviceId);
                 return deviceId;
             }
         }
-        // 모든 곳에 없으면 새로 생성 (UUID)하고 FactorContext에만 저장 (세션에는 저장하지 않음)
         deviceId = UUID.randomUUID().toString();
-        log.debug("No existing deviceId found, generated new transient deviceId: {}", deviceId);
         if (factorContext != null) {
             factorContext.setAttribute("deviceId", deviceId);
+        } else {
+            HttpSession newSession = request.getSession(true);
+            newSession.setAttribute("sessionDeviceIdForAuth", deviceId);
         }
         return deviceId;
     }

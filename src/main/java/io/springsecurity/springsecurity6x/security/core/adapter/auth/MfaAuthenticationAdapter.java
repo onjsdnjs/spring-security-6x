@@ -109,8 +109,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
                         String processingUrl = procOpts.getLoginProcessingUrl();
                         if (processingUrl != null) {
                             // 일반적으로 MFA Factor 검증은 POST 요청
-//                            factorProcessingMatchers.add(new AntPathRequestMatcher(processingUrl, "POST"));
-                            factorProcessingMatchers.add(new AntPathRequestMatcher(processingUrl, "GET"));
+                            factorProcessingMatchers.add(new AntPathRequestMatcher(processingUrl, "POST"));
                             log.debug("MfaAuthenticationAdapter: Added AntPathRequestMatcher for MFA factor processing URL: POST {}", processingUrl);
                         }
                     }

@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.controller;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -16,13 +19,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.ott.GenerateOneTimeTokenRequest;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -34,8 +35,6 @@ public class MfaApiController {
     private final AuthResponseWriter responseWriter; // 응답 생성용
     private final MfaPolicyProvider mfaPolicyProvider; // 정책 검증용
     private final ApplicationContext applicationContext; // RP ID 등 설정값 접근용
-
-    // EmailOneTimeTokenService는 OTT 코드 재발송 시에만 필요. 생성자 주입 (nullable 가능)
     @Nullable
     private final EmailOneTimeTokenService emailOttService;
 
@@ -57,51 +56,72 @@ public class MfaApiController {
                 selectRequest.factorType(), mfaSessionIdHeader);
 
         FactorContext factorContext = contextPersistence.contextLoad(request);
-        if (factorContext == null || !Objects.equals(factorContext.getMfaSessionId(), mfaSessionIdHeader)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다."));
-        }
+        if (factorContext == null || !Objects.equals(factorContext.getMfaSessionId(), mfaSessionIdHeader)) { /* ... 오류 처리 ... */ return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다."));}
+        if (selectRequest.username() != null && !Objects.equals(factorContext.getUsername(), selectRequest.username())) { /* ... 오류 처리 ... */ return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("USER_MISMATCH", "MFA 세션 사용자와 요청 사용자가 일치하지 않습니다."));}
+        if (factorContext.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) { /* ... 오류 처리 ... */ return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse("INVALID_MFA_STATE_FOR_SELECTION", "잘못된 MFA 진행 상태입니다."));}
 
-        // 요청 사용자 이름과 컨텍스트 사용자 이름 일치 여부 확인 (선택적이지만 보안 강화)
-        if (selectRequest.username() != null && !Objects.equals(factorContext.getUsername(), selectRequest.username())) {
-            log.warn("MFA factor selection by user '{}' for MFA session of user '{}' (ID: {}). Forbidden.",
-                    selectRequest.username(), factorContext.getUsername(), mfaSessionIdHeader);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("USER_MISMATCH", "MFA 세션 사용자와 요청 사용자가 일치하지 않습니다."));
-        }
 
-        // 현재 상태가 Factor 선택을 기다리는 상태인지 확인
-        if (factorContext.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
-            log.warn("MFA factor selection attempt in invalid state: {}. Session ID: {}", factorContext.getCurrentState(), mfaSessionIdHeader);
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(createErrorResponse("INVALID_MFA_STATE_FOR_SELECTION", "잘못된 MFA 진행 상태입니다."));
-        }
-
-        AuthType selectedFactor;
+        AuthType selectedFactorType;
         try {
-            selectedFactor = AuthType.valueOf(selectRequest.factorType().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid factorType received in select-factor request: {}. Session ID: {}", selectRequest.factorType(), mfaSessionIdHeader, e);
-            return ResponseEntity.badRequest().body(createErrorResponse("INVALID_FACTOR_TYPE", "유효하지 않은 인증 수단입니다: " + selectRequest.factorType()));
+            selectedFactorType = AuthType.valueOf(selectRequest.factorType().toUpperCase());
+        } catch (IllegalArgumentException e) { /* ... 오류 처리 ... */ return ResponseEntity.badRequest().body(createErrorResponse("INVALID_FACTOR_TYPE", "유효하지 않은 인증 수단입니다: " + selectRequest.factorType()));}
+
+        if (!mfaPolicyProvider.isFactorAvailableForUser(factorContext.getUsername(), selectedFactorType, factorContext)) { /* ... 오류 처리 ... */ return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("UNAVAILABLE_FACTOR", "선택한 인증 수단(" + selectedFactorType + ")은 현재 사용할 수 없습니다."));}
+
+        AuthenticationFlowConfig currentFlowConfig = findFlowConfigByName(factorContext.getFlowTypeName());
+        if (currentFlowConfig == null) {
+            log.error("MFA factor selection: AuthenticationFlowConfig not found for flow '{}'. Session: {}", factorContext.getFlowTypeName(), mfaSessionIdHeader);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("MFA_FLOW_CONFIG_MISSING_SELECT", "MFA 플로우 설정을 찾을 수 없습니다."));
         }
 
-        // 선택한 Factor가 사용 가능한지 정책 제공자를 통해 확인
-        if (!mfaPolicyProvider.isFactorAvailableForUser(factorContext.getUsername(), selectedFactor, factorContext)) {
-            log.warn("User '{}' (session {}) selected factor {} which is not available/registered as per policy.",
-                    factorContext.getUsername(), mfaSessionIdHeader, selectedFactor);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("UNAVAILABLE_FACTOR", "선택한 인증 수단(" + selectedFactor + ")은 현재 사용할 수 없습니다."));
+        // 선택된 Factor에 해당하는 AuthenticationStepConfig 찾기 (MFA 플로우 내에서, order > 0)
+        Optional<AuthenticationStepConfig> selectedStepOpt = currentFlowConfig.getStepConfigs().stream()
+                .filter(step -> step.getOrder() > 0 && selectedFactorType.name().equalsIgnoreCase(step.getType()))
+                .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder)); // 동일 타입 여러개 시 첫번째
+
+        if (selectedStepOpt.isEmpty()) {
+            log.error("MFA factor selection: No AuthenticationStepConfig found for factor {} in flow {}. Session: {}",
+                    selectedFactorType, factorContext.getFlowTypeName(), mfaSessionIdHeader);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("MFA_STEP_CONFIG_MISSING", "선택한 인증 단계 설정을 찾을 수 없습니다."));
         }
 
-        factorContext.setCurrentProcessingFactor(selectedFactor);
-        factorContext.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION); // 다음 상태: 이 Factor의 챌린지 UI 로드/초기화 대기
+        AuthenticationStepConfig selectedStep = selectedStepOpt.get();
+        factorContext.setCurrentProcessingFactor(selectedFactorType);
+        factorContext.setCurrentStepId(selectedStep.getStepId()); // stepId 설정
+        factorContext.setCurrentFactorOptions(currentFlowConfig.getRegisteredFactorOptions().get(selectedFactorType));
+        factorContext.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
         contextPersistence.saveContext(factorContext, request);
 
-        String nextUiPageUrl = request.getContextPath() + "/mfa/challenge/" + selectedFactor.name().toLowerCase();
+        String nextUiPageUrl = request.getContextPath() + "/mfa/challenge/" + selectedFactorType.name().toLowerCase();
         Map<String, Object> responseBody = new HashMap<>();
         responseBody.put("status", "FACTOR_SELECTED_PROCEED_TO_CHALLENGE");
-        responseBody.put("message", selectedFactor.name() + " 인증을 시작합니다. 해당 페이지로 이동합니다.");
+        responseBody.put("message", selectedFactorType.name() + " 인증을 시작합니다. 해당 페이지로 이동합니다.");
         responseBody.put("nextStepUrl", nextUiPageUrl);
         responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
+        responseBody.put("nextFactorType", selectedFactorType.name().toUpperCase()); // 다음 UI에서 사용 가능
+        responseBody.put("nextStepId", selectedStep.getStepId()); // 다음 UI 또는 JS에서 사용 가능
 
-        log.info("Factor {} selected for MFA session {}. Client will be guided to {}.", selectedFactor, mfaSessionIdHeader, nextUiPageUrl);
+        log.info("Factor {} (stepId: {}) selected for MFA session {}. Client will be guided to {}.",
+                selectedFactorType, selectedStep.getStepId(), mfaSessionIdHeader, nextUiPageUrl);
         return ResponseEntity.ok(responseBody);
+    }
+
+    @Nullable
+    private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName) {
+        if (!StringUtils.hasText(flowTypeName)) return null;
+        try {
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            return platformConfig.getFlows().stream()
+                    .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        log.warn("No AuthenticationFlowConfig found with typeName: {}", flowTypeName);
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.warn("MfaApiController: Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
+        }
+        return null;
     }
 
     // OTT 코드 재발송 요청 API

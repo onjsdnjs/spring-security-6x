@@ -19,7 +19,7 @@ import java.util.UUID;
 @Slf4j
 public class EmailOneTimeTokenService implements OneTimeTokenService {
 
-    private final InMemoryOneTimeTokenService delegate; // Spring Security 6.2+ 에서는 setTokenValidity 존재
+    private InMemoryOneTimeTokenService delegate; // Spring Security 6.2+ 에서는 setTokenValidity 존재
     private final EmailService emailService;
     private final CodeStore codeStore;
     private final AuthContextProperties authContextProperties;
@@ -29,9 +29,8 @@ public class EmailOneTimeTokenService implements OneTimeTokenService {
 
     public EmailOneTimeTokenService(EmailService emailService,
                                     CodeStore codeStore,
-                                    AuthContextProperties authContextProperties,
-                                    InMemoryOneTimeTokenService inMemoryOneTimeTokenService) { // 주입
-        this.delegate = inMemoryOneTimeTokenService; // 주입받은 delegate 사용
+                                    AuthContextProperties authContextProperties) { // 주입
+        this.delegate = new InMemoryOneTimeTokenService();
         this.emailService = emailService;
         this.codeStore = codeStore;
         this.authContextProperties = authContextProperties;

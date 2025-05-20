@@ -31,60 +31,43 @@ document.addEventListener("DOMContentLoaded", () => {
         else alert(message);
     }
 
-    const factorButtons = factorSelectionContainer.querySelectorAll(".mfa-factor-button");
+    const factorButtons = document.querySelectorAll("#mfaFactorSelectionForm .mfa-factor-button");
 
     factorButtons.forEach(button => {
-        button.disabled = false; // 페이지 로드 시 버튼 활성화
         button.addEventListener("click", async () => {
-            factorButtons.forEach(btn => btn.disabled = true); // 모든 버튼 비활성화
-            const selectedFactor = button.dataset.factor; // 예: "OTT", "PASSKEY"
+            factorButtons.forEach(btn => btn.disabled = true);
+            const selectedFactor = button.dataset.factor;
+            // data-target-url은 이 JS가 직접 API를 호출하고 그 결과를 바탕으로 페이지를 이동하므로,
+            // 이 JS 에서는 MfaApiController를 호출하는 것으로 통일. 서버가 nextStepUrl을 내려줌.
+            const targetUiPageAfterApi = button.dataset.targetUrl; // 예비용 또는 서버 응답 없을 시 사용
+
             displayMessage("선택한 인증 수단(" + selectedFactor + ")으로 진행합니다...", "info");
 
-            const headers = {
-                "Content-Type": "application/json",
-                "X-MFA-Session-Id": mfaSessionId,
-                "X-Device-Id": getOrCreateDeviceId()
-            };
-            if (csrfToken && csrfHeader) {
-                headers[csrfHeader] = csrfToken;
-            }
+            const headers = createApiHeaders(true); // createApiHeaders는 mfaSessionId 등을 포함하여 생성
 
             try {
-                // 서버 API: 선택된 Factor로 MFA 진행 요청 (MfaApiController가 처리)
                 const response = await fetch(`/api/mfa/select-factor`, {
                     method: "POST",
                     headers: headers,
                     body: JSON.stringify({
-                        factorType: selectedFactor, // 대문자로 서버에 전달
-                        username: username // 서버에서 FactorContext의 사용자와 일치하는지 검증용
+                        factorType: selectedFactor,
+                        username: username
                     })
                 });
-
                 const result = await response.json();
-                logClientSideMfa(`Select Factor API response: Status=${response.status}, Body=${JSON.stringify(result)}`);
 
-                if (response.ok && result.status === "FACTOR_SELECTED_PROCEED_TO_CHALLENGE" && result.nextStepUrl) {
-                    if (typeof showToast === 'function') showToast(`${selectedFactor} 인증 페이지로 이동합니다.`, "success");
-                    sessionStorage.setItem("currentMfaFactor", result.nextFactorType || selectedFactor); // 서버에서 내려준 Factor 타입 사용
-                    if (result.nextStepId) { // 서버가 다음 단계의 stepId를 내려준다면 저장
-                        sessionStorage.setItem("currentMfaStepId", result.nextStepId);
-                        logClientSideMfa("Next MFA Step ID set: " + result.nextStepId);
-                    } else {
-                        sessionStorage.removeItem("currentMfaStepId"); // 없으면 제거
-                    }
-                    // 서버가 반환한 nextStepUrl은 GET 요청으로 접근 가능한 UI 페이지 URL이어야 함.
-                    setTimeout(() => {
-                        window.location.href = result.nextStepUrl;
-                    }, 1000);
+                if (response.ok && result.status === "FACTOR_SELECTED_PROCEED_TO_CHALLENGE_UI" && result.nextStepUrl) {
+                    showToast(`${selectedFactor} 인증 페이지로 이동합니다.`, "success");
+                    sessionStorage.setItem("currentMfaFactor", result.nextFactorType || selectedFactor);
+                    if (result.nextStepId) sessionStorage.setItem("currentMfaStepId", result.nextStepId);
+
+                    // 서버가 알려준 nextStepUrl (GET 요청용 UI 페이지 URL)로 이동
+                    setTimeout(() => { window.location.href = result.nextStepUrl; }, 1000);
                 } else {
-                    displayMessage(result.message || `선택한 인증 수단(${selectedFactor}) 처리 중 오류가 발생했습니다: ${response.statusText}`, "error");
-                    factorButtons.forEach(btn => btn.disabled = false); // 오류 시 버튼 다시 활성화
+                    displayMessage(result.message || `인증 수단 처리 중 오류: ${response.statusText}`, "error");
+                    factorButtons.forEach(btn => btn.disabled = false);
                 }
-            } catch (error) {
-                console.error("Error selecting MFA factor:", error);
-                displayMessage("인증 수단 선택 중 네트워크 오류가 발생했습니다.", "error");
-                factorButtons.forEach(btn => btn.disabled = false); // 오류 시 버튼 다시 활성화
-            }
+            } catch (error) { /* ... (오류 처리) ... */ }
         });
     });
 

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>MFA - 이메일 인증 코드 요청</title>
+    <th:block th:replace="~{fragments/common-head :: common-head-links}"></th:block>
+</head>
+<body class="flex flex-col min-h-screen bg-app-light-gray">
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50"></div>
+
+<main class="flex-1 p-6 md:p-10 flex items-center justify-center">
+    <div class="w-full max-w-md bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
+        <div class="text-center mb-6">
+            <h2 class="mt-4 text-3xl font-bold text-app-primary">이메일 인증 (MFA)</h2>
+        </div>
+        <p class="text-center text-slate-600 mb-8">
+            2차 인증을 위해 아래 이메일 주소로 인증 코드를 발송합니다.<br/>
+            이메일 주소를 확인 후 "코드 발송" 버튼을 눌러주세요.
+        </p>
+        <form id="mfaOttRequestCodeForm" method="POST" th:action="@{/mfa/ott/generate}" class="space-y-6">
+            <div>
+                <label for="mfaUsername" class="block text-sm font-medium text-app-dark-gray">이메일 주소 (Username):</label>
+                <input type="email" id="mfaUsername" name="username" th:value="${username}" readonly
+                       class="mt-1 block w-full px-4 py-2.5 bg-gray-100 border-app-border rounded-lg shadow-sm sm:text-sm" />
+            </div>
+            <div id="mfaOttRequestMessage" class="text-sm text-center min-h-[1.25rem]">
+                <p th:if="${param.error}" class="text-error" th:text="${param.error}"></p>
+            </div>
+            <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="mfaSessionId" th:value="${mfaSessionId}" /> <div>
+            <button type="submit" id="sendMfaOttCodeBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover">
+                인증 코드 발송
+            </button>
+        </div>
+        </form>
+        <div class="mt-6 text-center">
+            <a th:href="@{/mfa/select-factor}" class="text-sm text-slate-600 hover:text-app-accent hover:underline">다른 인증 수단 선택</a>
+        </div>
+    </div>
+</main>
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    // Spring Security GenerateOneTimeTokenFilter는 성공 시 tokenGenerationSuccessHandler를 호출함.
+    // MagicLinkHandler가 /ott/sent?email=... 로 리다이렉션.
+    // 이 페이지는 기본 폼 제출을 사용.
+    const mfaOttEmailInput = document.getElementById("mfaUsername");
+    const mfaSessionIdFromStorage = sessionStorage.getItem("mfaSessionId");
+    const usernameFromStorage = sessionStorage.getItem("mfaUsername");
+
+    if (mfaOttEmailInput && usernameFromStorage) {
+        mfaOttEmailInput.value = usernameFromStorage;
+    } else if (mfaOttEmailInput && !mfaOttEmailInput.value) {
+        // 모델에 username이 없고, sessionStorage에도 없다면 문제가 있음.
+        const messageDiv = document.getElementById("mfaOttRequestMessage");
+        if(messageDiv) messageDiv.innerHTML = '<p class="text-error">사용자 정보를 가져올 수 없습니다. 다시 로그인해주세요.</p>';
+        document.getElementById("sendMfaOttCodeBtn").disabled = true;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+        const messageDiv = document.getElementById("mfaOttRequestMessage");
+        if (messageDiv) messageDiv.innerHTML = '<p class="text-error">코드 발송에 실패했습니다. 다시 시도해주세요.</p>';
+        if (typeof showToast === 'function') showToast('코드 발송 실패. 다시 시도해주세요.', 'error');
+    }
+</script>
+</body>
+</html>

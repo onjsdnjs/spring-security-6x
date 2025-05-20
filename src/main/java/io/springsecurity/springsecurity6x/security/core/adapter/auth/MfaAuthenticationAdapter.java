@@ -93,7 +93,6 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
                 mfaPolicyProvider,
                 authContextProperties,
                 responseWriter,
-                emailOttService,
                 applicationContext
         );
         http.addFilterBefore(mfaContinuationFilter, LogoutFilter.class);

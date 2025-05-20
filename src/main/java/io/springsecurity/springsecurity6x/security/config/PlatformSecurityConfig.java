@@ -121,7 +121,7 @@ public class PlatformSecurityConfig {
 */
                 .ott(ott -> ott // 단일 OTT 로그인 설정
                         .tokenService(emailOneTimeTokenService) // 플랫폼의 EmailOneTimeTokenService 사용
-                        .tokenGeneratingUrl("/api/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
+                        .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
                         .loginProcessingUrl("/login/ott") // OTT 코드 제출 및 검증 URL (Spring Security의 AuthenticationFilter가 처리)
                         .successHandler(unifiedAuthenticationSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
                         .failureHandler(singleAuthFailureHandler("/loginOtt?error_ott"))
@@ -155,7 +155,7 @@ public class PlatformSecurityConfig {
                                 .tokenService(emailOneTimeTokenService) // Spring Security OneTimeTokenService 사용
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
                                 // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.
-                                .loginProcessingUrl("/mfa/challenge/ott")
+                                .loginProcessingUrl("/login/mfa-ott")
                                 .successHandler(mfaFactorProcessingSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리
                                 .failureHandler(unifiedAuthenticationFailureHandler) // OTT Factor 실패 시
                         )

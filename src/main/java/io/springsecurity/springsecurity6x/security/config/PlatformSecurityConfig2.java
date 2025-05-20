@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -179,3 +180,4 @@ public class PlatformSecurityConfig2 {
                 .build();
     }
 }
+*/

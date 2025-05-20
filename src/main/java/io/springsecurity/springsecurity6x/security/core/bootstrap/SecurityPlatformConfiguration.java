@@ -68,29 +68,6 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public InMemoryOneTimeTokenService inMemoryOneTimeTokenService(AuthContextProperties authContextProperties) {
-        InMemoryOneTimeTokenService tokenService = new InMemoryOneTimeTokenService();
-        // application.yml 또는 AuthContextProperties에 설정된 값을 사용
-        long validitySeconds = authContextProperties.getMfa().getOtpTokenValiditySeconds(); // 또는 authContextProperties.getOttFactor().getTokenValiditySeconds() 등 적절한 프로퍼티 사용
-        if (validitySeconds <= 0) {
-            validitySeconds = 300; // 기본값 5분
-            log.warn("InMemoryOneTimeTokenService: OTP token validity not configured or invalid, defaulting to {} seconds.", validitySeconds);
-        }
-        tokenService.setTokenValidity(Duration.ofSeconds(validitySeconds));
-        log.info("InMemoryOneTimeTokenService configured with token validity: {} seconds", validitySeconds);
-        return tokenService;
-    }
-
-    // EmailOneTimeTokenService 빈 정의 시, 위에서 생성한 InMemoryOneTimeTokenService 주입
-    @Bean
-    public EmailOneTimeTokenService emailOneTimeTokenService(EmailService emailService,
-                                                             CodeStore codeStore,
-                                                             AuthContextProperties authContextProperties,
-                                                             InMemoryOneTimeTokenService inMemoryOneTimeTokenService) { // 주입 추가
-        return new EmailOneTimeTokenService(emailService, codeStore, authContextProperties, inMemoryOneTimeTokenService);
-    }
-
-    @Bean
     public SecurityFilterChainRegistrar securityFilterChainRegistrar(ConfiguredFactorFilterProvider factorFilterProvider) {
         Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,

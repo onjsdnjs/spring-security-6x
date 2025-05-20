@@ -31,6 +31,9 @@ public class FactorContext implements Serializable {
     private final Authentication primaryAuthentication;
     private final String username;
 
+    @Setter @Nullable private String flowTypeName;
+    @Setter @Nullable private String currentStepId;
+
     @Setter private boolean mfaRequiredAsPerPolicy = false;
     @Setter private EnumSet<AuthType> registeredMfaFactors = EnumSet.noneOf(AuthType.class);
     @Setter @Nullable private AuthType currentProcessingFactor;
@@ -53,6 +56,7 @@ public class FactorContext implements Serializable {
         this.mfaSessionId = UUID.randomUUID().toString();
         this.primaryAuthentication = primaryAuthentication;
         this.username = primaryAuthentication.getName();
+        this.flowTypeName = flowTypeName.toLowerCase();
         // 초기 상태: 1차 인증은 성공했으나, MFA 정책 평가는 아직 이루어지지 않음.
         this.currentMfaState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
         this.lastActivityTimestamp = Instant.now();
@@ -124,6 +128,16 @@ public class FactorContext implements Serializable {
         this.mfaAttemptHistory.add(new MfaAttemptDetail(factorType, success, detail));
         updateLastActivityTimestamp();
         log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}' for user {}", mfaSessionId, factorType, success, detail, this.username);
+    }
+
+    @Nullable
+    public String getFlowTypeName() {
+        return flowTypeName;
+    }
+
+    @Nullable
+    public String getCurrentStepId() {
+        return currentStepId;
     }
 
     @Nullable

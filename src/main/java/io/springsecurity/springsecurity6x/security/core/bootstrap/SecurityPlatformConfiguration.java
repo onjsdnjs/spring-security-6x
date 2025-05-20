@@ -56,14 +56,19 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public SecurityFilterChainRegistrar securityFilterChainRegistrar(FeatureRegistry featureRegistry) {
+    public ConfiguredFactorFilterProvider factorFilterProvider() {
+        return new ConfiguredFactorFilterProvider();
+    }
+
+    @Bean
+    public SecurityFilterChainRegistrar securityFilterChainRegistrar(ConfiguredFactorFilterProvider factorFilterProvider) {
         Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,
                 "rest", RestAuthenticationFilter.class,
                 "ott", AuthenticationFilter.class, // Spring Security 6.x 에서는 org.springframework.security.web.authentication.AuthenticationFilter
                 "passkey", WebAuthnAuthenticationFilter.class
         );
-        return new SecurityFilterChainRegistrar(featureRegistry, stepFilterClasses);
+        return new SecurityFilterChainRegistrar(factorFilterProvider, stepFilterClasses);
     }
 
     @Bean public LoginProcessingUrlUniquenessValidator loginProcessingUrlUniquenessValidator() { return new LoginProcessingUrlUniquenessValidator(); }

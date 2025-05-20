@@ -7,7 +7,6 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.*;
 import io.springsecurity.springsecurity6x.security.core.dsl.factory.AuthMethodConfigurerFactory;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
@@ -54,6 +53,8 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     private final PrimaryAuthDslConfigurerImpl<H> primaryAuthConfigurer;
     private MfaAsepAttributes mfaAsepAttributes;
+
+    private final String mfaFlowTypeName = AuthType.MFA.name().toLowerCase(); // MFA 플로우 식별용 이름
 
     public MfaDslConfigurerImpl(ApplicationContext applicationContext) {
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null");
@@ -103,15 +104,13 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
         Objects.requireNonNull(factorConfigurerCustomizer, authType.name() + " customizer cannot be null").customize(configurer);
         O_FACTOR factorOptions = configurer.buildConcreteOptions();
 
-        AuthenticationStepConfig factorStep = new AuthenticationStepConfig();
-        factorStep.setType(authType.name().toLowerCase());
+        int stepOrder = currentStepOrderCounter++;
+        AuthenticationStepConfig factorStep = new AuthenticationStepConfig(this.mfaFlowTypeName, authType.name(), stepOrder);
         factorStep.getOptions().put("_options", factorOptions);
-        factorStep.setOrder(currentStepOrderCounter++);
         this.configuredSteps.add(factorStep);
         log.debug("MFA Flow: Added factor step: {} with order {}", factorStep.getType(), factorStep.getOrder());
         return this;
     }
-
 
     @Override
     public MfaDslConfigurerImpl<H> ott(Customizer<OttDslConfigurer> ottConfigurerCustomizer) {
@@ -193,7 +192,6 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     public AuthenticationFlowConfig build() {
         PrimaryAuthenticationOptions primaryAuthOptionsForFlow = null;
 
-        // primaryAuthConfigurer의 getter를 통해 Customizer 설정 여부 확인 (이전 답변에서 getter 추가됨)
         if (this.primaryAuthConfigurer != null &&
                 (this.primaryAuthConfigurer.getFormLoginCustomizer() != null || this.primaryAuthConfigurer.getRestLoginCustomizer() != null)) {
             try {
@@ -202,16 +200,12 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
                 AuthenticationProcessingOptions firstStepAuthOptions = primaryAuthOptionsForFlow.getFormOptions() != null ?
                         primaryAuthOptionsForFlow.getFormOptions() :
                         primaryAuthOptionsForFlow.getRestOptions();
-                // PrimaryAuthenticationOptions에 isFormLogin()과 같은 편의 메서드가 있다면 사용
                 AuthType firstStepAuthType = primaryAuthOptionsForFlow.isFormLogin() ? AuthType.FORM : AuthType.REST;
 
                 configuredSteps.removeIf(s -> s.getOrder() == 0); // 기존 0번 스텝이 있다면 제거
-
-                AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig();
-                primaryAuthStep.setType(firstStepAuthType.name().toLowerCase());
+                AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig(this.mfaFlowTypeName, firstStepAuthType.name(), 0);
                 primaryAuthStep.getOptions().put("_options", firstStepAuthOptions);
-                primaryAuthStep.setOrder(0);
-                configuredSteps.add(0, primaryAuthStep);
+                configuredSteps.addFirst(primaryAuthStep);
                 log.debug("MFA Flow: Added primary authentication step (type: {}) from primaryAuthentication() DSL.", firstStepAuthType);
 
             } catch (Exception e) {
@@ -220,7 +214,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
             }
         }
 
-        Assert.isTrue(!configuredSteps.isEmpty(), "MFA flow must have at least one authentication step (primary).");
+        Assert.isTrue(!configuredSteps.isEmpty(), "MFA flow ["+ this.mfaFlowTypeName +"] must have at least one authentication step (primary).");
         configuredSteps.sort(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
 
         AuthenticationStepConfig firstConfiguredStep = configuredSteps.get(0);

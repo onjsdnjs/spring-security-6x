@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
@@ -34,8 +35,6 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
     private ApplicationContext applicationContext; // 생성자 주입으로 변경 권장
 
     public MfaAuthenticationAdapter() {
-        // 기본 생성자는 ServiceLoader에 의해 사용될 수 있으나,
-        // ApplicationContext가 필요하므로 사용 시 주의
         log.warn("MfaAuthenticationAdapter created using default constructor. ApplicationContext might not be available.");
     }
 
@@ -72,6 +71,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
 
         ContextPersistence ctxPersistence = http.getSharedObject(ContextPersistence.class);
         FeatureRegistry featureRegistry = applicationContext.getBean(FeatureRegistry.class);
+        ConfiguredFactorFilterProvider factorFilterProvider = applicationContext.getBean(ConfiguredFactorFilterProvider.class);
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         AuthContextProperties authContextProperties = applicationContext.getBean(AuthContextProperties.class);
         AuthResponseWriter responseWriter = applicationContext.getBean(AuthResponseWriter.class);
@@ -127,7 +127,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             mfaFactorProcessingMatcherForWrapper = new OrRequestMatcher(factorProcessingMatchers);
         }
 
-        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(featureRegistry, ctxPersistence, mfaFactorProcessingMatcherForWrapper);
+        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(factorFilterProvider, ctxPersistence, mfaFactorProcessingMatcherForWrapper);
         http.addFilterBefore(mfaStepFilterWrapper, LogoutFilter.class);
 
         log.debug("MFA common filters (MfaContinuationFilter, MfaStepFilterWrapper) added for MFA flow.");

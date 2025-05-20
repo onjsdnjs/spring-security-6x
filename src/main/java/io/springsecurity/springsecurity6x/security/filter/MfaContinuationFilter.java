@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -146,8 +147,8 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     }
 
     private void handleMfaOttRequestCodeUiPageRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx) throws IOException, ServletException {
-        // 이 페이지는 MfaApiController.selectFactor에서 OTT 선택 시, 또는 1차 인증 후 바로 OTT로 안내될 때 도달.
-        // FactorContext.currentProcessingFactor가 OTT이고, 상태가 AWAITING_FACTOR_CHALLENGE_INITIATION 이어야 함.
+        // 이 페이지는 MfaApiController.selectFactor 에서 OTT 선택 시, 또는 1차 인증 후 바로 OTT로 안내될 때 도달.
+        // FactorContext.currentProcessingFactor가 OTT 이고, 상태가 AWAITING_FACTOR_CHALLENGE_INITIATION 이어야 함.
         if (ctx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
                 ctx.getCurrentProcessingFactor() == AuthType.OTT &&
                 StringUtils.hasText(ctx.getCurrentStepId())) {
@@ -233,22 +234,39 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     }
 
     private void setFactorOptionsInContext(FactorContext ctx, AuthType factorType, @Nullable AuthenticationFlowConfig flowConfig) {
-        // ... (이전 답변의 로직 유지)
+        if (factorType == null) {
+            ctx.setCurrentFactorOptions(null);
+            return;
+        }
+        if (flowConfig != null && flowConfig.getRegisteredFactorOptions() != null) {
+            AuthenticationProcessingOptions factorOptions = flowConfig.getRegisteredFactorOptions().get(factorType);
+            ctx.setCurrentFactorOptions(factorOptions);
+            if (factorOptions == null) {
+                log.warn("MfaContinuationFilter: No specific options found for factor {} in flow config for user {}. FactorContext.currentFactorOptions will be null.", factorType, ctx.getUsername());
+            }
+        } else {
+            log.warn("MfaContinuationFilter: AuthenticationFlowConfig or registeredFactorOptions not available. Cannot set currentFactorOptions for factor {} and user {}.", factorType, ctx.getUsername());
+            ctx.setCurrentFactorOptions(null);
+        }
     }
 
     @Nullable
     private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName) {
-        // ... (이전 답변의 로직 유지)
         if (!StringUtils.hasText(flowTypeName)) return null;
         try {
             PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
-            if (platformConfig != null && platformConfig.getFlows() != null) {
+            if (platformConfig.getFlows() != null) {
                 return platformConfig.getFlows().stream()
                         .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
                         .findFirst()
-                        .orElse(null);
+                        .orElseGet(() -> {
+                            log.warn("No AuthenticationFlowConfig found with typeName: {}", flowTypeName);
+                            return null;
+                        });
             }
-        } catch (Exception e) {log.warn("Cannot find FlowConfig for {}: {}", flowTypeName, e.getMessage());}
+        } catch (Exception e) {
+            log.warn("MfaContinuationFilter: Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
+        }
         return null;
     }
 }

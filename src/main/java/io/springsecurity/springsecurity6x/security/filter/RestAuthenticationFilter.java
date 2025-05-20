@@ -56,16 +56,12 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final ApplicationContext applicationContext;
-    // private final String mfaInitiateUrl; // 더 이상 이 필터에서 직접 사용하지 않음 (SuccessHandler 역할)
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
                                     MfaPolicyProvider mfaPolicyProvider,
                                     RequestMatcher requestMatcher,
-                                    // String mfaInitiateUrl, // 제거 또는 SuccessHandler로 이전
-                                    ApplicationContext applicationContext,
-                                    @Nullable AuthenticationSuccessHandler successHandler,
-                                    @Nullable AuthenticationFailureHandler failureHandler) {
+                                    ApplicationContext applicationContext) {
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
         Assert.notNull(contextPersistence, "contextPersistence cannot be null");
         Assert.notNull(mfaPolicyProvider, "mfaPolicyProvider cannot be null");
@@ -77,11 +73,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.contextPersistence = contextPersistence;
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.requestMatcher = requestMatcher;
-        // this.mfaInitiateUrl = mfaInitiateUrl;
         this.applicationContext = applicationContext;
-
-        this.successHandler = (successHandler != null) ? successHandler : defaultSuccessHandler();
-        this.failureHandler = (failureHandler != null) ? failureHandler : defaultFailureHandler();
     }
 
     private AuthenticationSuccessHandler defaultSuccessHandler() {
@@ -225,7 +217,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private AuthenticationFlowConfig findMfaFlowConfig() {
         try {
             PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
-            if (platformConfig != null && platformConfig.getFlows() != null) {
+            if (platformConfig.getFlows() != null) {
                 return platformConfig.getFlows().stream()
                         .filter(flow -> "mfa".equalsIgnoreCase(flow.getTypeName()))
                         .findFirst()

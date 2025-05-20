@@ -44,17 +44,15 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext) {
-        return new DefaultMfaPolicyProvider(userRepository, applicationContext);
+    public MfaPolicyProvider mfaPolicyProvider() {
+        return new DefaultMfaPolicyProvider(userRepository);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public MfaCapableRestSuccessHandler mfaCapableRestSuccessHandler(ContextPersistence contextPersistence,
-                                                                     MfaPolicyProvider mfaPolicyProvider,
                                                                      AuthResponseWriter authResponseWriter) {
-        return new MfaCapableRestSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,
-                authContextProperties, authResponseWriter);
+        return new MfaCapableRestSuccessHandler(contextPersistence, tokenService, authContextProperties, authResponseWriter);
     }
 
     @Bean

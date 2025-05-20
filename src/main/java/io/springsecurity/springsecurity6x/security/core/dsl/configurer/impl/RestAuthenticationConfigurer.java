@@ -1,25 +1,24 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext; // PlatformContext 사용 위해 추가
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence; // 추가
-import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider; // 추가
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties; // mfaInitiateUrl 등을 가져오기 위함
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository; // 기본값으로 사용
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils; // StringUtils 추가
+import org.springframework.util.StringUtils;
 
 public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>>
         extends AbstractHttpConfigurer<RestAuthenticationConfigurer<H>, H> {
@@ -29,10 +28,9 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
     private SecurityContextRepository securityContextRepository;
-    private String mfaInitiateUrl; // MFA 시작 URL
+    private String mfaInitiateUrl;
 
     public RestAuthenticationConfigurer() {
-        // loginProcessingUrl의 기본값으로 requestMatcher 초기화
         this.requestMatcher = new AntPathRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
     }
 
@@ -63,6 +61,9 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         ContextPersistence contextPersistence = http.getSharedObject(ContextPersistence.class);
         Assert.notNull(contextPersistence, "ContextPersistence cannot be null (is it shared from HttpSecurity?)");
 
+        ApplicationContext applicationContext = http.getSharedObject(ApplicationContext.class);
+        Assert.notNull(contextPersistence, "ContextPersistence cannot be null (is it shared from HttpSecurity?)");
+
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null (is it shared from HttpSecurity?)");
 
@@ -76,8 +77,8 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
                 authenticationManager,
                 contextPersistence,
                 mfaPolicyProvider,
-                this.requestMatcher, // 현재 Configurer에 설정된 requestMatcher 사용
-                this.mfaInitiateUrl  // 설정된 mfaInitiateUrl 사용
+                this.requestMatcher,
+                applicationContext
         );
 
         if (successHandler != null) {

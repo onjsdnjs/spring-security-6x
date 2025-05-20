@@ -7,7 +7,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -17,7 +16,7 @@ public final class PlatformConfig {
 
     private PlatformConfig(Builder builder) {
         this.globalCustomizer = builder.globalCustomizer;
-        this.flows = Collections.unmodifiableList(new ArrayList<>(builder.flows));
+        this.flows = List.copyOf(builder.flows);
     }
 
     public static Builder builder() {

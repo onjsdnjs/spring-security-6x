@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.properties;
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 

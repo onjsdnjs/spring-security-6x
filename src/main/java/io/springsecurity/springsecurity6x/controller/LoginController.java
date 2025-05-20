@@ -1,19 +1,18 @@
 package io.springsecurity.springsecurity6x.controller;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.SessionFactorContextManager;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
-import org.springframework.security.authentication.ott.OneTimeToken;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,7 +20,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.Comparator;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Optional;
 
 @Controller
@@ -29,161 +30,240 @@ import java.util.Optional;
 @Slf4j
 public class LoginController {
 
-    private final CodeStore codeStore; // 단일 OTT 로그인 시 사용
+    private final ApplicationContext applicationContext;
+    private final AuthContextProperties authContextProperties;
 
-    // --- 기존 단일 인증 화면 매핑 ---
     @GetMapping("/loginForm")
     public String loginForm(Model model, HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         String errorMessage = null;
         if (session != null) {
-            Exception ex = (Exception) session.getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
-            if (ex != null) {
-                errorMessage = ex.getMessage(); // 실제로는 더 구체적인 오류 메시지 처리
-                session.removeAttribute(WebAttributes.AUTHENTICATION_EXCEPTION); // 오류 메시지 소비
+            Object exObject = session.getAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
+            if (exObject instanceof Exception ex) {
+                errorMessage = ex.getMessage();
+            } else if (exObject != null) {
+                errorMessage = exObject.toString();
             }
+            if (exObject != null) {
+                session.removeAttribute(WebAttributes.AUTHENTICATION_EXCEPTION);
+            }
+        }
+        if (request.getParameter("error") != null && errorMessage == null) {
+            errorMessage = "로그인 정보가 정확하지 않거나 알 수 없는 오류가 발생했습니다.";
+        }
+        // MFA 관련 특정 에러 메시지 처리 (MfaContinuationFilter에서 리다이렉션 시 전달 가능)
+        String mfaError = request.getParameter("mfa_error");
+        if (StringUtils.hasText(mfaError)) {
+            errorMessage = switch (mfaError) {
+                case "mfa_session_missing_or_corrupted" -> "MFA 세션이 유효하지 않습니다. 다시 로그인해주세요.";
+                case "mfa_session_already_ended" -> "MFA 세션이 이미 종료되었습니다. 다시 로그인해주세요.";
+                case "invalid_mfa_init_context" -> "MFA 시작 컨텍스트가 유효하지 않습니다.";
+                case "invalid_state_for_select_factor" -> "잘못된 상태에서 인증 수단 선택 페이지에 접근했습니다.";
+                // MfaContinuationFilter의 handleInvalidContext, handleTerminalContext 등에서 설정한 에러 코드에 따라 추가
+                default -> "MFA 처리 중 오류가 발생했습니다.";
+            };
         }
         model.addAttribute("errorMessage", errorMessage);
         return "login-form";
     }
 
+    // 단일 OTT: 이메일 입력 페이지
     @GetMapping("/loginOtt")
-    public String loginOttPage() { // 단일 OTT 로그인 요청 페이지
+    public String loginOttPage(Model model, @RequestParam(value = "error", required = false) String error) {
+        if (error != null) {
+            model.addAttribute("errorMessage", "OTT 인증에 실패했습니다. 다시 시도해주세요.");
+        }
+        // 이 페이지의 폼은 /ott/generate (POST)로 제출되어 GenerateOneTimeTokenFilter가 처리
         return "login-ott";
     }
 
-    // 단일 OTT 인증: 이메일 링크 클릭 시 토큰과 함께 이리로 와서 자동 로그인 시도
-    /*@GetMapping("/login/ott")
-    public String loginOttByCode(@RequestParam String code, Model model) {
-        OneTimeToken ott = codeStore.consume(code);
-        if (ott == null) {
-            model.addAttribute("errorMessage", "유효하지 않거나 만료된 인증 링크입니다.");
-            return "login-ott"; // 오류 메시지와 함께 OTT 요청 페이지로
-        }
-        model.addAttribute("username", ott.getUsername());
-        model.addAttribute("token", ott.getTokenValue());
-        return "ott-forward"; // JS가 자동 POST하여 로그인 시도
-    }*/
-
+    // 단일/MFA OTT: 코드/링크 발송 완료 안내 페이지
     @GetMapping("/ott/sent")
-    public String ottSentPage(@RequestParam String email, Model model) {
+    public String ottSentPage(@RequestParam String email,
+                              @RequestParam(required = false) String type, // "code_sent" 또는 "magic_link_sent"
+                              @RequestParam(required = false) String flow, // "single" 또는 "mfa"
+                              Model model, HttpServletRequest request) {
         model.addAttribute("email", email);
+        String contextPath = request.getContextPath();
+
+        if ("code_sent".equals(type)) {
+            model.addAttribute("messageType", "code_sent");
+            if ("mfa".equals(flow)) {
+                // MFA 코드 입력 페이지로 안내
+                model.addAttribute("nextChallengeUrl", contextPath + authContextProperties.getOttFactor().getChallengeUrl());
+                model.addAttribute("nextChallengeMessage", "MFA 코드 입력 페이지로 이동하여 코드를 입력해주세요.");
+            } else {
+                // 단일 OTT 코드 입력 페이지로 안내
+                model.addAttribute("nextChallengeUrl", contextPath + "/loginOttVerifyCode?email=" + URLEncoder.encode(email, StandardCharsets.UTF_8));
+                model.addAttribute("nextChallengeMessage", "코드 입력 페이지로 이동하여 코드를 입력해주세요.");
+            }
+        } else { // magic_link_sent 또는 기타
+            model.addAttribute("messageType", "magic_link_sent");
+            model.addAttribute("loginPageUrl", contextPath + authContextProperties.getOttFactor().getCodeSentUrl());
+        }
         return "ott-sent";
     }
 
+    // 단일 OTT 코드 입력 UI (신규)
+    @GetMapping("/loginOttVerifyCode")
+    public String loginOttVerifyCodePage(@RequestParam String email, Model model, HttpServletRequest request) {
+        model.addAttribute("emailForVerification", email);
+        // 이 페이지의 폼 action은 "/login/ott" (POST), OttAuthenticationAdapter에서 설정된 경로
+        AuthenticationFlowConfig ottFlowConfig = findFlowConfigByName(AuthType.OTT.name().toLowerCase() + "_flow", request);
+        String processingUrl = authContextProperties.getOttFactor().getCodeSentUrl(); // 기본값
+        if (ottFlowConfig != null && !ottFlowConfig.getStepConfigs().isEmpty()) {
+            Object options = ottFlowConfig.getStepConfigs().get(0).getOptions().get("_options");
+            if (options instanceof io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions ottOpts) {
+                if (StringUtils.hasText(ottOpts.getLoginProcessingUrl())) {
+                    processingUrl = ottOpts.getLoginProcessingUrl();
+                }
+            }
+        }
+        model.addAttribute("ottProcessingUrl", request.getContextPath() + processingUrl);
+        return "login-ott-verify-code"; // Thymeleaf 템플릿 (이전 답변의 내용 사용)
+    }
+
     @GetMapping("/loginPasskey")
-    public String loginPasskeyPage() { // 단일 Passkey 로그인 페이지
+    public String loginPasskeyPage() {
         return "login-passkey";
     }
 
     // --- MFA 화면 매핑 ---
     @GetMapping("/mfa/select-factor")
-    public String mfaSelectFactorPage(Model model, HttpSession session) {
-        // MFA 세션에서 사용자 정보나 사용 가능한 factor 목록을 가져와 모델에 추가 가능
-        // String username = (String) session.getAttribute("mfaUsername"); // 예시
-        // List<String> availableFactors = (List<String>) session.getAttribute("availableMfaFactors"); // 예시
-        // model.addAttribute("username", username);
-        // model.addAttribute("availableFactors", availableFactors);
-        // 현재는 JS에서 sessionStorage를 사용하므로, 서버에서 직접 모델에 담을 필요는 없을 수 있음.
-        // 단, 서버 주도 흐름이라면 여기서 모델에 데이터를 담아 전달.
+    public String mfaSelectFactorPage(Model model, HttpServletRequest request, @RequestParam(required = false) String error) {
+        FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
+        if (ctx == null || !StringUtils.hasText(ctx.getUsername())) {
+            log.warn("MFA Select Factor UI: No valid FactorContext. Redirecting to login.");
+            return "redirect:" + request.getContextPath() + "/loginForm?error=mfa_session_expired";
+        }
+        model.addAttribute("username", ctx.getUsername());
+        if (StringUtils.hasText(error)) {
+            model.addAttribute("errorMessage", error); // MfaContinuationFilter에서 전달된 에러 메시지
+        }
+        // 이 페이지의 각 Factor 선택 버튼은 MfaContinuationFilter가 처리하는 GET URL로 연결
+        // 예: <a th:href="@{/mfa/initiate-challenge(factor='OTT')}">OTT 인증</a>
         return "login-mfa-select-factor";
     }
 
-    // MFA 플로우용 OTT 코드 생성 요청 UI
+    // MFA OTT 코드 "생성 요청" UI (MfaContinuationFilter가 이 페이지로 안내할 경우)
+    // 이 페이지의 폼은 GenerateOneTimeTokenFilter가 처리하는 경로로 POST
     @GetMapping("/mfa/ott/request-code-ui")
     public String mfaOttRequestCodeUiPage(Model model, HttpServletRequest request) {
         FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
-        if (ctx != null && ctx.getUsername() != null) {
-            model.addAttribute("username", ctx.getUsername()); // username을 모델에 추가
-            model.addAttribute("mfaSessionId", ctx.getMfaSessionId()); // JS에서 사용
-        } else {
-            model.addAttribute("errorMessage", "MFA 세션 정보를 찾을 수 없습니다.");
+        if (ctx == null || !StringUtils.hasText(ctx.getUsername()) || ctx.getCurrentProcessingFactor() != AuthType.OTT) {
+            log.warn("MFA OTT Request Code UI: Invalid FactorContext or not an OTT factor. Redirecting. Context: {}", ctx);
+            return "redirect:" + request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl() + "?error=invalid_ott_request_context";
         }
-        // 이 페이지의 폼 action은 /mfa/ott/generate (POST) 를 가리켜야 함.
-        return "login-mfa-ott-request-code"; // 새로운 HTML 템플릿
+        model.addAttribute("username", ctx.getUsername());
+        // 폼 action은 PlatformSecurityConfig DSL의 MFA OTT Factor tokenGeneratingUrl (예: /mfa/ott/generate)
+        AuthenticationFlowConfig mfaFlowConfig = findFlowConfigByName(AuthType.MFA.name().toLowerCase(), request);
+        String tokenGeneratingUrl = authContextProperties.getOttFactor().getCodeGenerationUrl(); // 기본값
+        if (mfaFlowConfig != null) {
+            Optional<OttOptions> ottOpts = mfaFlowConfig.getStepConfigs().stream()
+                    .filter(step -> AuthType.OTT.name().equalsIgnoreCase(step.getType()))
+                    .map(step -> step.getOptions().get("_options"))
+                    .filter(OttOptions.class::isInstance).map(OttOptions.class::cast)
+                    .findFirst();
+            if (ottOpts.isPresent() && StringUtils.hasText(ottOpts.get().getTokenGeneratingUrl())) {
+                tokenGeneratingUrl = ottOpts.get().getTokenGeneratingUrl();
+            }
+        }
+        model.addAttribute("mfaOttTokenGeneratingUrl", request.getContextPath() + tokenGeneratingUrl);
+        return "login-mfa-ott-request-code";
     }
 
-
-    // MFA 플로우용 OTT 코드 "입력" UI
+    // MFA OTT 코드 "입력" UI
     @GetMapping("/mfa/challenge/ott")
-    public String mfaVerifyOttPage(Model model, HttpServletRequest request) {
+    public String mfaVerifyOttPage(Model model, HttpServletRequest request, @RequestParam(value = "resend_success", required = false) String resendSuccess) {
         FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
-        if (ctx != null && ctx.getUsername() != null) {
-            model.addAttribute("usernameForDisplay", ctx.getUsername()); // 화면 표시용
-            model.addAttribute("mfaSessionId", ctx.getMfaSessionId()); // JS에서 사용
-            // HTML data-* 속성으로 loginProcessingUrl을 전달하기 위한 정보
-            AuthenticationFlowConfig flowConfig = findFlowConfigByName(ctx.getFlowTypeName(), request);
-            if (flowConfig != null) {
-                Optional<AuthenticationStepConfig> ottStep = findStepConfigByFactorTypeAndMinOrder(flowConfig, AuthType.OTT, 0);
-                ottStep.ifPresent(step -> {
-                    if (step.getOptions().get("_options") instanceof io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions ottOpts) {
-                        model.addAttribute("mfaOttProcessingUrl", ottOpts.getLoginProcessingUrl());
-                    }
-                });
+        if (ctx == null || !StringUtils.hasText(ctx.getUsername()) || ctx.getCurrentProcessingFactor() != AuthType.OTT) {
+            log.warn("MFA OTT Challenge UI: Invalid FactorContext or not an OTT factor. Redirecting. Context: {}", ctx);
+            return "redirect:" + request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl() + "?error=invalid_ott_challenge_context";
+        }
+        model.addAttribute("usernameForDisplay", ctx.getUsername());
+        // 폼 action은 PlatformSecurityConfig DSL의 MFA OTT Factor loginProcessingUrl (예: /login/mfa-ott)
+        AuthenticationFlowConfig mfaFlowConfig = findFlowConfigByName(AuthType.MFA.name().toLowerCase(), request);
+        String loginProcessingUrl = authContextProperties.getOttFactor().getChallengeUrl(); // 프로퍼티에서는 이게 loginProcessingUrl 역할
+        if (mfaFlowConfig != null) {
+            Optional<OttOptions> ottOpts = mfaFlowConfig.getStepConfigs().stream()
+                    .filter(step -> AuthType.OTT.name().equalsIgnoreCase(step.getType()) && Objects.equals(step.getStepId(), ctx.getCurrentStepId()))
+                    .map(step -> step.getOptions().get("_options"))
+                    .filter(OttOptions.class::isInstance).map(OttOptions.class::cast)
+                    .findFirst();
+            if (ottOpts.isPresent() && StringUtils.hasText(ottOpts.get().getLoginProcessingUrl())) {
+                loginProcessingUrl = ottOpts.get().getLoginProcessingUrl();
             }
-        } else {
-            model.addAttribute("errorMessage", "MFA 세션 정보를 찾을 수 없습니다.");
+        }
+        model.addAttribute("mfaOttProcessingUrl", request.getContextPath() + loginProcessingUrl);
+        model.addAttribute("mfaResendOttUrl", request.getContextPath() + authContextProperties.getMfa().getInitiateUrl() + "/resend-ott"); // 재전송 URL
+        if (resendSuccess != null) {
+            model.addAttribute("successMessage", "인증 코드가 재전송되었습니다.");
         }
         return "login-mfa-verify-ott";
     }
 
-    // MFA 플로우용 Passkey 인증 UI
-    @GetMapping("/mfa/challenge/passkey")
+    // MFA Passkey 챌린지 UI
+    /*@GetMapping("/mfa/challenge/passkey")
     public String mfaVerifyPasskeyPage(Model model, HttpServletRequest request) {
         FactorContext ctx = (FactorContext) request.getSession().getAttribute(SessionFactorContextManager.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
-        if (ctx != null && ctx.getUsername() != null) {
-            model.addAttribute("mfaSessionId", ctx.getMfaSessionId());
-            AuthenticationFlowConfig flowConfig = findFlowConfigByName(ctx.getFlowTypeName(), request);
-            if (flowConfig != null) {
-                Optional<AuthenticationStepConfig> passkeyStep = findStepConfigByFactorTypeAndMinOrder(flowConfig, AuthType.PASSKEY, 0);
-                passkeyStep.ifPresent(step -> {
-                    if (step.getOptions().get("_options") instanceof io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions pkOpts) {
-                        model.addAttribute("mfaPasskeyProcessingUrl", pkOpts.getLoginProcessingUrl());
-                        model.addAttribute("mfaPasskeyAssertionOptionsUrl", pkOpts.getAssertionOptionsEndpoint());
-                    }
-                });
-            }
-        } else {
-            model.addAttribute("errorMessage", "MFA 세션 정보를 찾을 수 없습니다.");
+        if (ctx == null || !StringUtils.hasText(ctx.getUsername()) || ctx.getCurrentProcessingFactor() != AuthType.PASSKEY) {
+            log.warn("MFA Passkey Challenge UI: Invalid FactorContext or not a Passkey factor. Redirecting. Context: {}", ctx);
+            return "redirect:" + request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl() + "?error=invalid_passkey_challenge_context";
         }
+        model.addAttribute("username", ctx.getUsername()); // JS에서 사용
+        // JS는 DSL에 정의된 Passkey Factor의 assertionOptionsEndpoint로 AJAX 요청 후,
+        // loginProcessingUrl (예: /login/mfa-passkey - POST)로 결과를 제출.
+        // 관련 URL들을 모델에 담아 전달.
+        AuthenticationFlowConfig mfaFlowConfig = findFlowConfigByName(AuthType.MFA.name().toLowerCase(), request);
+        String assertionOptionsUrl = authContextProperties.getPasskeyFactor().getAssertionOptionsEndpoint();
+        String loginProcessingUrl = authContextProperties.getPasskeyFactor().getLoginProcessingUrl(); // 프로퍼티의 challengeUrl이 아님
+
+        if (mfaFlowConfig != null) {
+            Optional<io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions> pkOpts = mfaFlowConfig.getStepConfigs().stream()
+                    .filter(step -> AuthType.PASSKEY.name().equalsIgnoreCase(step.getType()) && Objects.equals(step.getStepId(), ctx.getCurrentStepId()))
+                    .map(step -> step.getOptions().get("_options"))
+                    .filter(io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions.class::isInstance)
+                    .map(io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions.class::cast)
+                    .findFirst();
+            if (pkOpts.isPresent()) {
+                if (StringUtils.hasText(pkOpts.get().getAssertionOptionsEndpoint())) assertionOptionsUrl = pkOpts.get().getAssertionOptionsEndpoint();
+                if (StringUtils.hasText(pkOpts.get().getLoginProcessingUrl())) loginProcessingUrl = pkOpts.get().getLoginProcessingUrl();
+            }
+        }
+        model.addAttribute("mfaPasskeyAssertionOptionsUrl", request.getContextPath() + assertionOptionsUrl);
+        model.addAttribute("mfaPasskeyProcessingUrl", request.getContextPath() + loginProcessingUrl);
         return "login-mfa-verify-passkey";
-    }
+    }*/
 
     @GetMapping("/mfa/failure")
     public String mfaFailurePage(@RequestParam(required = false) String error, Model model) {
-        model.addAttribute("errorMessage", error != null ? error : "MFA 인증에 실패했습니다. 다시 시도해주세요.");
+        String errorMessage = "MFA 인증에 실패했습니다. 다시 시도해주세요.";
+        if (StringUtils.hasText(error)) {
+            // MfaContinuationFilter 또는 다른 핸들러에서 전달된 구체적인 오류 메시지 사용 가능
+            errorMessage = error; // 이미 URL 디코딩된 상태로 넘어옴
+        }
+        model.addAttribute("errorMessage", errorMessage);
         return "mfa-failure";
     }
 
-    // ... (logoutPage, findFlowConfigByName, findStepConfigByFactorTypeAndMinOrder 등 헬퍼 메소드)
+    // 나머지 GET 매핑 (예: /home, /users, /admin, /logout UI 페이지)들은 기존과 유사하게 유지
+
     @Nullable
     private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName, HttpServletRequest request) {
         if (!StringUtils.hasText(flowTypeName)) return null;
         try {
-            // PlatformContext를 통해 현재 요청에 매칭된 SecurityFilterChain에 대한 FlowConfig를 가져오는 것이 이상적.
-            // 여기서는 ApplicationContext를 통해 PlatformConfig 전체를 가져와 필터링.
-            ApplicationContext appContext = (ApplicationContext) request.getServletContext().getAttribute("org.springframework.web.context.WebApplicationContext.ROOT");
-            if (appContext != null) {
-                PlatformConfig platformConfig = appContext.getBean(PlatformConfig.class);
-                if (platformConfig != null && platformConfig.getFlows() != null) {
-                    return platformConfig.getFlows().stream()
-                            .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
-                            .findFirst()
-                            .orElse(null);
-                }
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            if (platformConfig != null && platformConfig.getFlows() != null) {
+                return platformConfig.getFlows().stream()
+                        .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            log.warn("LoginController: No AuthenticationFlowConfig found with typeName: {}", flowTypeName);
+                            return null;
+                        });
             }
-        } catch (Exception e) { log.warn("Error finding flow config by name '{}': {}", flowTypeName, e.getMessage()); }
+        } catch (Exception e) { log.warn("LoginController: Error finding flow config by name '{}': {}", flowTypeName, e.getMessage()); }
         return null;
-    }
-
-    private Optional<AuthenticationStepConfig> findStepConfigByFactorTypeAndMinOrder(AuthenticationFlowConfig flowConfig, AuthType factorType, int minOrderExclusive) {
-        if (flowConfig == null || factorType == null || flowConfig.getStepConfigs() == null) {
-            return Optional.empty();
-        }
-        return flowConfig.getStepConfigs().stream()
-                .filter(step -> step.getOrder() > minOrderExclusive &&
-                        factorType.name().equalsIgnoreCase(step.getType()))
-                .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
     }
 
 

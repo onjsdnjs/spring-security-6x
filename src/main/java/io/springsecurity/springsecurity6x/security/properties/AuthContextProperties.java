@@ -38,6 +38,9 @@ public class AuthContextProperties {
     @NestedConfigurationProperty
     private JwtsTokenSettings internal = new JwtsTokenSettings();
 
+    @NestedConfigurationProperty
+    private OttFactorSettings ottFactor = new OttFactorSettings();
+
     /**
      * OAuth2 Resource Server 기반 자동 토큰 처리 (internal) 설정
      */

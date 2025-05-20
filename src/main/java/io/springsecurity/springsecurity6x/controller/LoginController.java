@@ -87,8 +87,6 @@ public class LoginController {
 
     @GetMapping("/mfa/verify/ott")
     public String mfaVerifyOttPage(Model model, HttpSession session) {
-        // String username = (String) session.getAttribute("mfaUsername");
-        // model.addAttribute("username", username);
         return "login-mfa-verify-ott";
     }
 

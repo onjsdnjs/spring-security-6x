@@ -7,15 +7,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!requestCodeForm || !emailInput || !sendButton) {
         console.warn("MFA OTT Request Code form elements not found. Ensure form ID is 'mfaOttRequestCodeForm', email input ID is 'mfaUsername', and there is a submit button.");
-        const mainMessageDiv = document.getElementById("mfaOttRequestMessage") || document.body; // Fallback
+        const mainMessageDiv = document.getElementById("mfaOttRequestMessage") || document.body;
         if (mainMessageDiv) {
-            mainMessageDiv.innerHTML = '<p class="text-error font-medium">페이지 초기화 오류. 관리자에게 문의하세요.</p>';
+            mainMessageDiv.innerHTML = '<p class="text-error font-medium">페이지 구성 오류. 관리자에게 문의하세요.</p>';
             if(typeof showToast === 'function') showToast("페이지 구성 오류", "error");
         }
         return;
     }
 
-    // 폼의 action URL은 LoginController 에서 모델을 통해 전달받아 th:action에 설정되어 있어야 합니다.
+    // 폼의 action URL은 LoginController에서 모델을 통해 전달받아 th:action에 설정됩니다.
+    // 이 URL은 Spring Security의 GenerateOneTimeTokenFilter가 처리할 경로입니다.
     const formActionUrl = requestCodeForm.getAttribute("action");
 
     if (!formActionUrl) {
@@ -23,22 +24,20 @@ document.addEventListener("DOMContentLoaded", () => {
         sendButton.disabled = true;
         return;
     }
-    logClientSideMfaOttRequest(`MFA OTT Code Request UI loaded. Form will POST to: ${formActionUrl}`);
+    logClientSideMfaOttRequest(`MFA OTT Code Request UI loaded. Form will POST to: ${formActionUrl} for user: ${emailInput.value}`);
 
     function displayMessage(message, type = 'info', clearAfter = 0) {
         if (messageDiv) {
             messageDiv.innerHTML = `<p class="text-sm text-center ${type === 'error' ? 'text-red-500' : (type === 'success' ? 'text-green-500' : 'text-blue-500')}">${message}</p>`;
             messageDiv.classList.remove('hidden');
-        }
-        if (typeof showToast === 'function') showToast(message, type);
-        if (clearAfter > 0) {
-            setTimeout(() => {
-                if (messageDiv) {
+            if (clearAfter > 0) {
+                setTimeout(() => {
                     messageDiv.innerHTML = '';
                     messageDiv.classList.add('hidden');
-                }
-            }, clearAfter);
+                }, clearAfter);
+            }
         }
+        if (typeof showToast === 'function') showToast(message, type);
     }
 
     requestCodeForm.addEventListener("submit", (event) => {
@@ -55,28 +54,23 @@ document.addEventListener("DOMContentLoaded", () => {
         displayMessage("인증 코드를 요청 중입니다...", "info");
         logClientSideMfaOttRequest("Form is being submitted to " + formActionUrl + " for OTT code generation.");
         // 폼은 기본 동작으로 서버에 제출됩니다 (Spring Security Filter Chain으로).
-        // event.preventDefault(); // 이 부분을 주석 처리하거나 삭제하여 폼이 실제로 제출되도록 합니다.
+        // event.preventDefault(); // 주석 처리하여 폼이 제출되도록 합니다.
     });
 
-    // 페이지 로드 시 username 및 mfaSessionId 확인
+    // username은 서버에서 FactorContext를 통해 가져와서 hidden input 등으로 제공하거나,
+    // GenerateOneTimeTokenFilter가 Principal에서 가져오도록 설정.
+    // 여기서는 login-mfa-ott-request-code.html 에서 <input type="hidden" name="username" th:value="${username}" /> 가 있다고 가정.
     const usernameFromModel = emailInput.value;
-    const mfaSessionIdFromStorage = sessionStorage.getItem("mfaSessionId");
-
     if (!usernameFromModel) {
         displayMessage("사용자 정보를 가져올 수 없습니다. 다시 로그인해주세요.", "error");
         if(typeof showToast === 'function') showToast("사용자 정보 없음", "error");
         sendButton.disabled = true;
-    } else if (!mfaSessionIdFromStorage) {
-        // mfaSessionId는 서버 측 FactorContext 로드에 중요. 클라이언트 측에서 검증은 참고용.
-        logClientSideMfaOttRequest(`Username for OTT request: ${usernameFromModel}. MFA Session ID not found in sessionStorage, server will validate.`);
-    } else {
-        logClientSideMfaOttRequest(`Username for OTT request: ${usernameFromModel}, Session ID (from JS): ${mfaSessionIdFromStorage}`);
     }
 
-    // URL 에서 에러 메시지 확인 (GenerateOneTimeTokenFilter의 FailureHandler가 리다이렉션한 경우)
+    // URL 파라미터에 에러가 있는 경우 (예: GenerateOneTimeTokenFilter의 FailureHandler가 리다이렉션한 경우)
     const urlParams = new URLSearchParams(window.location.search);
-    const errorParam = urlParams.get('error'); // LoginController 또는 핸들러에서 전달한 error
-    const messageParam = urlParams.get('message');
+    const errorParam = urlParams.get('error'); // LoginController 또는 핸들러에서 error 파라미터로 전달
+    const messageParam = urlParams.get('message'); // 또는 message 파라미터
 
     if (errorParam || messageParam) {
         let displayErrorMessage = messageParam || "코드 발송에 실패했습니다. 잠시 후 다시 시도해주세요.";
@@ -87,23 +81,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         // 다른 특정 에러 코드에 대한 처리 추가 가능
         displayMessage(displayErrorMessage, "error");
-        sendButton.disabled = false;
-        sendButton.classList.remove("opacity-50", "cursor-not-allowed");
-        sendButton.innerHTML = '인증 코드 발송';
+        if(sendButton) { // sendButton이 null이 아닐 때만 접근
+            sendButton.disabled = false;
+            sendButton.classList.remove("opacity-50", "cursor-not-allowed");
+            sendButton.innerHTML = '인증 코드 발송';
+        }
     }
 });
 
 function logClientSideMfaOttRequest(message) {
     console.log("[Client MFA OTT Request Code] " + message);
 }
-
-// getOrCreateDeviceId 함수는 이 파일에서 직접 사용되지 않으므로 제거해도 무방하나,
-// 다른 JS 파일과의 일관성을 위해 남겨둘 수 있습니다.
-// function getOrCreateDeviceId() {
-//     let deviceId = localStorage.getItem("deviceId");
-//     if (!deviceId) {
-//         deviceId = crypto.randomUUID();
-//         localStorage.setItem("deviceId", deviceId);
-//     }
-//     return deviceId;
-// }

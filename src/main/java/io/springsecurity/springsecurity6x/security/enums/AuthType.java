@@ -1,10 +1,13 @@
 package io.springsecurity.springsecurity6x.security.enums;
 
+import io.springsecurity.springsecurity6x.security.core.asep.annotation.SecurityCookieValue;
+
 public enum AuthType {
     FORM,
     REST,
     PASSKEY,
     OTT,
     MFA,
-    RECOVERY_CODE
+    RECOVERY_CODE,
+    PRIMARY
 }

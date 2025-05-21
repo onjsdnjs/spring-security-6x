@@ -14,7 +14,7 @@ public interface MfaPolicyProvider {
 
     // 기존 determineNextFactorToProcess 유지
     @Nullable
-    AuthType determineNextFactorToProcess(FactorContext ctx);
+    void determineNextFactorToProcess(FactorContext ctx);
 
     // 기존 getRetryPolicyForFactor 유지
     @Nullable

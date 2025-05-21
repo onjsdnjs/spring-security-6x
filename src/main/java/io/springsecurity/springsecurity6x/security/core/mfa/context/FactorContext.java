@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class FactorContext implements Serializable {
 
-    private static final long serialVersionUID = 20250522_01L; // 날짜 기반으로 버전 업데이트
+    private static final long serialVersionUID = 20250522_01L;
 
     private final String mfaSessionId;
     private final AtomicReference<MfaState> currentMfaState;
@@ -34,107 +34,72 @@ public class FactorContext implements Serializable {
     private final String username;
 
     @Setter @Nullable private String flowTypeName;
-    @Setter @Nullable private String currentStepId;
-
-    @Setter private boolean mfaRequiredAsPerPolicy = false;
-    @Setter private EnumSet<AuthType> registeredMfaFactors = EnumSet.noneOf(AuthType.class);
     @Setter @Nullable private AuthType currentProcessingFactor;
-    @Setter @Nullable private AuthenticationProcessingOptions currentFactorOptions; // 현재 Factor의 상세 옵션
-    private final Set<AuthType> completedMfaFactors = EnumSet.noneOf(AuthType.class);
+    @Setter @Nullable private String currentStepId;
+    @Setter @Nullable private AuthenticationProcessingOptions currentFactorOptions;
+    @Setter private boolean mfaRequiredAsPerPolicy = false;
 
-    // 자동 인증 시도 관련 필드는 필요에 따라 유지 또는 제거
-    // @Setter @Nullable private AuthType preferredAutoAttemptFactor;
-    // @Setter private boolean autoAttemptFactorSkippedOrFailed = false;
-    // @Setter private boolean autoAttemptFactorSucceeded = false;
-
-    private final Map<AuthType, Integer> factorAttemptCounts = new ConcurrentHashMap<>();
+    private final List<AuthenticationStepConfig> completedFactors = new CopyOnWriteArrayList<>();
+    private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
     private Instant lastActivityTimestamp;
-    private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final Map<AuthType, Integer> factorAttemptCounts = new ConcurrentHashMap<>();
+    private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
 
-    public FactorContext(Authentication primaryAuthentication, String flowTypeName) {
-        Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null");
-        Assert.isTrue(primaryAuthentication.isAuthenticated(), "PrimaryAuthentication must be authenticated");
-        Assert.hasText(flowTypeName, "flowTypeName cannot be null or empty");
+    public FactorContext(String mfaSessionId, Authentication primaryAuthentication, MfaState initialState, @Nullable String flowTypeName) {
+        Assert.hasText(mfaSessionId, "mfaSessionId cannot be empty");
+        Assert.notNull(primaryAuthentication, "primaryAuthentication cannot be null");
+        Assert.notNull(initialState, "initialState cannot be null");
 
-        this.mfaSessionId = UUID.randomUUID().toString();
+        this.mfaSessionId = mfaSessionId;
         this.primaryAuthentication = primaryAuthentication;
         this.username = primaryAuthentication.getName();
-        this.flowTypeName = StringUtils.hasText(flowTypeName) ? flowTypeName.toLowerCase() : "unknown_flow";
-        // MFA 플로우의 경우 1차 인증 성공 후 바로 다음 단계를 평가하므로, PRIMARY_AUTHENTICATION_COMPLETED로 시작
-        // 단일 인증 후 바로 MFA 없이 성공하는 경우는 이 FactorContext가 사용되지 않거나, 즉시 ALL_FACTORS_COMPLETED로 변경됨
-        this.currentMfaState = new AtomicReference<>(MfaState.PRIMARY_AUTHENTICATION_COMPLETED);
+        this.currentMfaState = new AtomicReference<>(initialState);
+        this.flowTypeName = flowTypeName;
         this.lastActivityTimestamp = Instant.now();
-        log.info("FactorContext created for user '{}' in flow '{}'. Session ID: {}, Initial State: {}",
-                this.username, this.flowTypeName, mfaSessionId, this.currentMfaState.get());
+        log.debug("FactorContext (ID: {}) created for user '{}' with initial state: {}. Flow type: {}",
+                mfaSessionId, this.username, initialState, flowTypeName);
     }
 
     public MfaState getCurrentState() {
-        return currentMfaState.get();
+        return this.currentMfaState.get();
     }
 
-    @Nullable
-    public String getFlowTypeName() {
-        return flowTypeName;
-    }
-
-    @Nullable
-    public String getCurrentStepId() {
-        return currentStepId;
-    }
-
-    @Nullable
-    public AuthenticationProcessingOptions getCurrentFactorOptions() {
-        return currentFactorOptions;
-    }
-
-    public void changeState(MfaState newState) {
-        Assert.notNull(newState, "New MfaState cannot be null.");
-        MfaState oldState = this.currentMfaState.getAndSet(newState);
-        if (oldState != newState) {
+    public boolean changeState(MfaState newState) {
+        MfaState previousState = this.currentMfaState.getAndSet(newState);
+        if (previousState != newState) {
             this.version.incrementAndGet();
+            log.info("FactorContext (ID: {}) state changed from {} to {} for user '{}'. Version: {}",
+                    mfaSessionId, previousState, newState, this.username, this.version.get());
             updateLastActivityTimestamp();
-            log.info("FactorContext (ID: {}) state changed: {} -> {} for user {}", mfaSessionId, oldState, newState, this.username);
+            return true;
         }
+        return false;
     }
 
-    public boolean compareAndSetState(MfaState expect, MfaState update) {
-        Assert.notNull(expect, "Expected MfaState cannot be null.");
-        Assert.notNull(update, "Update MfaState cannot be null.");
-        boolean success = this.currentMfaState.compareAndSet(expect, update);
-        if (success) {
-            this.version.incrementAndGet();
+    public void addCompletedFactor(AuthenticationStepConfig completedFactor) {
+        Assert.notNull(completedFactor, "completedFactor cannot be null");
+        if (this.completedFactors.stream().noneMatch(step -> step.getStepId().equals(completedFactor.getStepId()))) {
+            this.completedFactors.add(completedFactor);
+            log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) marked as completed for user {}. Total completed: {}",
+                    mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username, this.completedFactors.size());
             updateLastActivityTimestamp();
-            log.info("FactorContext (ID: {}) state compareAndSet: {} -> {}. Success: {} for user {}", mfaSessionId, expect, update, true, this.username);
         } else {
-            log.warn("FactorContext (ID: {}) state compareAndSet FAILED. Expected: {}, Actual: {}, UpdateTo: {} for user {}", mfaSessionId, expect, getCurrentState(), update, this.username);
-        }
-        return success;
-    }
-
-    public void addCompletedFactor(AuthType factorType) {
-        if (factorType != null) {
-            synchronized (this.completedMfaFactors) {
-                this.completedMfaFactors.add(factorType);
-            }
-            updateLastActivityTimestamp();
-            log.debug("FactorContext (ID: {}): Factor {} marked as completed for user {}.", mfaSessionId, factorType, this.username);
+            log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) already completed for user {}. Not adding again.",
+                    mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username);
         }
     }
 
-    /**
-     * 마지막으로 완료된 인증 단계의 순서(order)를 반환합니다.
-     * 완료된 단계가 없으면 0을 반환합니다.
-     * @return 마지막 완료 단계의 order 값 또는 0
-     */
+
+    public int getNumberOfCompletedFactors() {
+        return this.completedFactors.size();
+    }
+
     public int getLastCompletedFactorOrder() {
-        if (completedMfaFactors.isEmpty()) {
+        if (completedFactors.isEmpty()) { // *** 수정: completedMfaFactors -> completedFactors ***
             return 0;
         }
-        // completedFactors가 order 순으로 정렬되어 있다고 가정하거나, 여기서 정렬 필요
-        // 여기서는 마지막에 추가된 요소가 가장 높은 order를 가진다고 가정하지 않고,
-        // completedFactors 리스트에서 가장 큰 order 값을 찾습니다.
-        return completedMfaFactors.stream()
+        return completedFactors.stream() // *** 수정: completedMfaFactors -> completedFactors ***
                 .mapToInt(AuthenticationStepConfig::getOrder)
                 .max()
                 .orElse(0);
@@ -162,12 +127,38 @@ public class FactorContext implements Serializable {
         log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}' for user {}", mfaSessionId, factorType, success, detail, this.username);
     }
 
+    public int incrementFailedAttempts(String factorTypeOrStepId) {
+        Assert.hasText(factorTypeOrStepId, "factorTypeOrStepId cannot be empty");
+        int attempts = this.failedAttempts.compute(factorTypeOrStepId, (key, currentAttempts) -> (currentAttempts == null) ? 1 : currentAttempts + 1);
+        log.debug("FactorContext (ID: {}): Failed attempt for factor/step '{}' incremented to {}. User: {}",
+                mfaSessionId, factorTypeOrStepId, attempts, this.username);
+        updateLastActivityTimestamp();
+        return attempts;
+    }
+
+    public int getFailedAttempts(String factorTypeOrStepId) {
+        return this.failedAttempts.getOrDefault(factorTypeOrStepId, 0);
+    }
+
+    public void resetFailedAttempts(String factorTypeOrStepId) {
+        this.failedAttempts.remove(factorTypeOrStepId);
+        log.debug("FactorContext (ID: {}): Failed attempts for factor/step '{}' reset. User: {}",
+                mfaSessionId, factorTypeOrStepId, this.username);
+        updateLastActivityTimestamp();
+    }
+
+    public void resetAllFailedAttempts() {
+        this.failedAttempts.clear();
+        log.debug("FactorContext (ID: {}): All failed attempts reset. User: {}", mfaSessionId, this.username);
+        updateLastActivityTimestamp();
+    }
+
     @Nullable
     public Object getAttribute(String key) {
         return this.attributes.get(key);
     }
 
-    public void setAttribute(String key, Object value) {
+    public void setAttribute(String key, @Nullable Object value) {
         Assert.hasText(key, "Attribute key cannot be empty or null.");
         if (value == null) {
             this.attributes.remove(key);
@@ -199,7 +190,45 @@ public class FactorContext implements Serializable {
             this.detail = detail;
         }
     }
+
+    public boolean isCompleted() {
+        // MfaState에 MFA_FULLY_COMPLETED 또는 MFA_SUCCESS 와 같은 최종 완료 상태가 정의되어 있어야 함.
+        // 현재 FactorContext에는 MfaState.MFA_COMPLETED 만 정의되어 있을 수 있으므로,
+        // DefaultMfaPolicyProvider에서 모든 필수 팩터가 completedFactors에 있는지 확인하는 로직이 더 정확할 수 있음.
+        return MfaState.MFA_FULLY_COMPLETED == this.currentMfaState.get();
+    }
+
+    public boolean isTerminal() {
+        return this.currentMfaState.get().isTerminal();
+    }
+
+    public List<AuthType> getRegisteredMfaFactors() {
+        Object registeredFactorsObj = attributes.get("registeredMfaFactors");
+        if (registeredFactorsObj instanceof List) {
+            try {
+                @SuppressWarnings("unchecked")
+                List<AuthType> factors = (List<AuthType>) registeredFactorsObj;
+                return Collections.unmodifiableList(factors);
+            } catch (ClassCastException e) {
+                log.warn("Attribute 'registeredMfaFactors' is not a List of AuthType in FactorContext for user: {}", username);
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    public void setRegisteredMfaFactors(List<AuthType> registeredFactors) {
+        setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
+    }
+
+    /**
+     * 특정 인증 단계(stepId)가 완료되었는지 확인합니다.
+     * @param stepId 확인할 스텝 ID
+     * @return 완료되었으면 true, 아니면 false
+     */
+    public boolean isFactorCompleted(String stepId) {
+        if (!StringUtils.hasText(stepId)) {
+            return false;
+        }
+        return this.completedFactors.stream().anyMatch(step -> stepId.equals(step.getStepId()));
+    }
 }
-
-
-

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.http;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
@@ -27,4 +28,5 @@ public interface AuthResponseWriter {
     void writeErrorResponse(HttpServletResponse response, int status, String errorCode, String errorMessage, String path) throws IOException;
 
     void writeErrorResponse(HttpServletResponse response, int scUnauthorized, String errorCode, String errorMessage, String requestURI, Map<String, Object> errorDetails) throws IOException;
+
 }

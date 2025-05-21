@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -67,6 +68,8 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null (is it shared from HttpSecurity?)");
 
+        ObjectMapper objectMapper = applicationContext.getBean(ObjectMapper.class);
+
         // requestMatcher가 loginProcessingUrl에 의해 설정되었는지 확인
         if (this.requestMatcher == null) {
             this.requestMatcher = new AntPathRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
@@ -76,9 +79,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         RestAuthenticationFilter restFilter = new RestAuthenticationFilter(
                 authenticationManager,
                 contextPersistence,
-                mfaPolicyProvider,
-                this.requestMatcher,
-                applicationContext
+                objectMapper
         );
 
         if (successHandler != null) {

@@ -82,7 +82,7 @@ public enum MfaState {
     /** [ALL_FACTORS_COMPLETED와 중복] 모든 MFA Factor 검증 완료. 삭제 또는 ALL_FACTORS_COMPLETED로 통일 권장. */
     MFA_VERIFICATION_COMPLETED("모든 MFA Factor 검증 완료"), // 설명 중복
     /** [MFA_FAILED_TERMINAL과 중복] MFA 최종 실패. 삭제 또는 MFA_FAILED_TERMINAL로 통일 권장. */
-    MFA_FAILURE_TERMINAL("MFA 최종 실패"); // 설명 중복 및 이름 중복
+    MFA_FAILURE_TERMINAL("MFA 최종 실패"), MFA_NOT_REQUIRED("MFA 대상자 아님"), MFA_CONFIGURATION_REQUIRED("MFA 등록 설정 필요"); // 설명 중복 및 이름 중복
 
 
     private final String description;

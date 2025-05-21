@@ -213,9 +213,9 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             // CustomTokenIssuingSuccessHandler가 OneTimeTokenGenerationSuccessHandler를 구현하고 있다면,
             // 또는 플랫폼에 정의된 다른 기본 OTT 성공 핸들러 빈 이름을 사용합니다.
             // 예시: return appContext.getBean(MagicLinkHandler.class); // 만약 MagicLinkHandler가 있다면
-            return appContext.getBean("customTokenIssuingSuccessHandler", OneTimeTokenGenerationSuccessHandler.class);
+            return appContext.getBean("oneTimeTokenCreationSuccessHandler", OneTimeTokenGenerationSuccessHandler.class);
         } catch (Exception e) {
-            String errorMessage = String.format("Default OneTimeTokenGenerationSuccessHandler bean ('customTokenIssuingSuccessHandler' or specific OTT handler) not found for OTT feature: %s. This is a critical configuration error.", getId());
+            String errorMessage = String.format("Default OneTimeTokenGenerationSuccessHandler bean ('oneTimeTokenCreationSuccessHandler' or specific OTT handler) not found for OTT feature: %s. This is a critical configuration error.", getId());
             log.error(errorMessage, e);
             throw new IllegalStateException(errorMessage, e);
         }

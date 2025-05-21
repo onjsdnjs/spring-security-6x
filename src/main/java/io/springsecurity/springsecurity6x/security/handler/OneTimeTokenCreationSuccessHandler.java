@@ -52,7 +52,7 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
             // factorContext.changeState(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION);
             // contextPersistence.saveContext(factorContext, request);
 
-            String challengeUiUrl = authContextProperties.getOttFactor().getChallengeUrl(); // 예: /mfa/challenge/ott
+            String challengeUiUrl = authContextProperties.getMfa().getOttFactor().getChallengeUrl(); // 예: /mfa/challenge/ott
             if (!StringUtils.hasText(challengeUiUrl)) {
                 challengeUiUrl = "/mfa/challenge/ott"; // 기본값
                 log.warn("MFA OTT challengeUrl not configured, using default: {}", challengeUiUrl);
@@ -71,7 +71,7 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
         if ((factorContext == null || !AuthType.MFA.name().equalsIgnoreCase(factorContext.getFlowTypeName()))) {
             log.info("Single OTT token generated for user {}. Redirecting to 'ott/sent' page.", usernameFromToken);
             String email = URLEncoder.encode(usernameFromToken, StandardCharsets.UTF_8);
-            String codeSentUrl = authContextProperties.getOttFactor().getCodeSentUrl(); // 예: /ott/sent
+            String codeSentUrl = authContextProperties.getMfa().getOttFactor().getCodeSentUrl(); // 예: /ott/sent
             if (!StringUtils.hasText(codeSentUrl)) {
                 codeSentUrl = "/ott/sent";
             }

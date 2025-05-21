@@ -40,8 +40,8 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MfaPolicyProvider mfaPolicyProvider() {
-        return new DefaultMfaPolicyProvider(userRepository);
+    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext) {
+        return new DefaultMfaPolicyProvider(userRepository, applicationContext);
     }
 
     @Bean
@@ -50,8 +50,8 @@ public class MfaInfrastructureAutoConfiguration {
                                                                                     AuthResponseWriter authResponseWriter,
                                                                                     MfaPolicyProvider mfaPolicyProvider,
                                                                                    ApplicationContext applicationContext) {
-        return new UnifiedAuthenticationSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,
-                                                        authContextProperties, authResponseWriter, applicationContext);
+        return new UnifiedAuthenticationSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,authResponseWriter,
+                                                        authContextProperties, applicationContext);
     }
 
     @Bean
@@ -71,8 +71,8 @@ public class MfaInfrastructureAutoConfiguration {
                                                                                AuthContextProperties properties,
                                                                                ApplicationContext applicationContext,
                                                                                UnifiedAuthenticationSuccessHandler successHandler) {
-        return new MfaFactorProcessingSuccessHandler(mfaPolicyProvider, contextPersistence,
-                                                    authResponseWriter, properties, applicationContext, successHandler);
+        return new MfaFactorProcessingSuccessHandler(contextPersistence,mfaPolicyProvider,successHandler,
+                                                    authResponseWriter, applicationContext, properties);
     }
 
     @Bean

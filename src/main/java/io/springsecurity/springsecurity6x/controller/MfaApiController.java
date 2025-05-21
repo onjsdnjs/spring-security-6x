@@ -9,8 +9,9 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService; // EmailOneTimeTokenService 는 이제 MfaContinuationFilter -> GenerateOneTimeTokenFilter 에서 사용됨
+// EmailOneTimeTokenService import는 더 이상 필요하지 않음
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -34,7 +35,6 @@ public class MfaApiController {
     private final MfaPolicyProvider mfaPolicyProvider;
     private final ApplicationContext applicationContext;
     private final AuthContextProperties authContextProperties;
-    // private final EmailOneTimeTokenService emailOttService; // MfaApiController에서 직접 사용하지 않음
 
     @PostMapping("/select-factor")
     public ResponseEntity<?> handleFactorSelection(@RequestBody SelectFactorRequestDto selectRequest,
@@ -75,15 +75,14 @@ public class MfaApiController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("MFA_FLOW_CONFIG_MISSING_SELECT", "MFA 플로우 설정을 찾을 수 없습니다."));
         }
 
-        // int lastCompletedOrder = factorContext.getLastCompletedFactorOrder(); // 이 메서드가 FactorContext에 없다고 가정하고 주석 처리
-        // 대신, MfaPolicyProvider가 다음 단계를 결정하거나, FactorContext의 completedFactors를 기반으로 결정할 수 있음.
-        // 여기서는 가장 첫 번째로 매칭되는 factor를 선택하도록 단순화 (또는 MfaPolicyProvider에 위임 필요)
-//        int lastCompletedOrder = factorContext.getLastCompletedFactorOrderIfAvailable(); // FactorContext에 해당 메서드가 있다고 가정하고 호출, 없다면 0을 반환하도록 FactorContext 수정 필요
-        int lastCompletedOrder = 1; // FactorContext에 해당 메서드가 있다고 가정하고 호출, 없다면 0을 반환하도록 FactorContext 수정 필요
+        // FactorContext.java에 정의된 getLastCompletedFactorOrder() 사용
+        int lastCompletedOrder = factorContext.getLastCompletedFactorOrder();
+        log.debug("Last completed factor order for user {}: {}", factorContext.getUsername(), lastCompletedOrder);
 
         Optional<AuthenticationStepConfig> selectedStepOpt = findStepConfigByFactorTypeAndMinOrder(currentFlowConfig, selectedFactorType, lastCompletedOrder);
 
         if (selectedStepOpt.isEmpty()) {
+            log.error("No step config found for factor {} after order {} in flow {} for user {}", selectedFactorType, lastCompletedOrder, factorContext.getFlowTypeName(), factorContext.getUsername());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("MFA_STEP_CONFIG_MISSING", "선택한 인증 단계 설정을 찾을 수 없습니다."));
         }
 
@@ -98,12 +97,13 @@ public class MfaApiController {
 
         String nextUiPageUrl;
         if (selectedFactorType == AuthType.OTT) {
-            // MfaContinuationFilter가 이 URL을 받아서 코드 생성 필터로 연결
-            nextUiPageUrl = request.getContextPath() + authContextProperties.getOttFactor().getRequestCodeUiUrl(); // 예: /mfa/ott/request-code-ui
+            // OTT 코드 요청 UI로 리다이렉션. 이 UI에서 폼을 통해 코드 생성 요청.
+            nextUiPageUrl = request.getContextPath() + authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
         } else if (selectedFactorType == AuthType.PASSKEY) {
-            nextUiPageUrl = request.getContextPath() + authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl(); // 예: /mfa/challenge/passkey
+            // Passkey 챌린지 UI로 리다이렉션
+            nextUiPageUrl = request.getContextPath() + authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl();
         } else {
-            log.warn("No specific UI page defined for selected MFA factor: {}", selectedFactorType);
+            log.warn("No specific UI page defined for selected MFA factor: {}. Defaulting path.", selectedFactorType);
             nextUiPageUrl = request.getContextPath() + "/mfa/challenge/" + selectedFactorType.name().toLowerCase();
         }
 
@@ -120,56 +120,33 @@ public class MfaApiController {
         return ResponseEntity.ok(responseBody);
     }
 
-    // 이 API 엔드포인트는 더 이상 직접적인 코드 생성/발송을 담당하지 않습니다.
-    // 코드 생성은 MfaContinuationFilter를 통해 GenerateOneTimeTokenFilter로 위임됩니다.
-    // 필요하다면 이 엔드포인트는 코드 '재전송' 기능으로 역할을 변경하거나, 다른 용도로 사용될 수 있습니다.
-    // 현재는 주석 처리하여 사용하지 않도록 합니다.
     /*
-    @PostMapping("/request-ott-code")
-    public ResponseEntity<?> requestMfaOttCode(@RequestBody OttCodeRequestDto ottRequestDto,
-                                               @RequestHeader(name = "X-MFA-Session-Id", required = true) String mfaSessionIdHeader,
-                                               HttpServletRequest request) {
-        Assert.hasText(mfaSessionIdHeader, "X-MFA-Session-Id header cannot be empty.");
-        log.info("API Call: /api/mfa/request-ott-code. MFA Session ID: {}", mfaSessionIdHeader);
+     * MFA OTT 코드 생성/발송은 MfaContinuationFilter 와 GenerateOneTimeTokenFilter를 통해 처리됩니다.
+     * 이 API 엔드포인트는 더 이상 직접적인 코드 생성에 사용되지 않습니다.
+     * 클라이언트는 /mfa/ott/request-code-ui 페이지의 폼을 통해
+     * authContextProperties.getOttFactor().getCodeGenerationUrl() 경로로 POST 요청을 보내야 합니다.
+     */
+    // @PostMapping("/request-ott-code")
+    // public ResponseEntity<?> requestMfaOttCode(@RequestBody OttCodeRequestDto ottRequestDto,
+    //                                            @RequestHeader(name = "X-MFA-Session-Id", required = true) String mfaSessionIdHeader,
+    //                                            HttpServletRequest request) {
+    //     log.warn("/api/mfa/request-ott-code endpoint is deprecated for initial code generation. " +
+    //              "Use form submission from the OTT request UI to the configured codeGenerationUrl.");
+    //
+    //     FactorContext factorContext = contextPersistence.contextLoad(request);
+    //     if (factorContext == null || !Objects.equals(factorContext.getMfaSessionId(), mfaSessionIdHeader)) {
+    //         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다."));
+    //     }
+    //
+    //     // 코드 "재전송" 로직이 필요하다면 여기에 구현할 수 있으나,
+    //     // 일관성을 위해 재전송도 사용자가 UI에서 다시 폼을 제출하는 방식을 권장합니다.
+    //     // (즉, /mfa/ott/request-code-ui 페이지로 다시 가서 '코드 발송' 버튼을 누르는 방식)
+    //
+    //     return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+    //                          .body(createErrorResponse("ENDPOINT_DEPRECATED",
+    //                                  "OTT code generation is handled via form submission to Spring Security filters."));
+    // }
 
-        FactorContext factorContext = contextPersistence.contextLoad(request);
-        if (factorContext == null || !Objects.equals(factorContext.getMfaSessionId(), mfaSessionIdHeader)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다."));
-        }
-        if (ottRequestDto != null && StringUtils.hasText(ottRequestDto.username()) && !Objects.equals(factorContext.getUsername(), ottRequestDto.username())) {
-            log.warn("MFA OTT code request: Username in DTO ({}) does not match FactorContext username ({}). Using FactorContext username.",
-                    ottRequestDto.username(), factorContext.getUsername());
-        }
-
-        if (factorContext.getCurrentProcessingFactor() != AuthType.OTT ||
-                !(factorContext.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
-                  factorContext.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)) {
-            log.warn("OTT code request in invalid state ({}) or for non-OTT factor ({}). Session ID: {}",
-                    factorContext.getCurrentState(), factorContext.getCurrentProcessingFactor(), mfaSessionIdHeader);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createErrorResponse("INVALID_STATE_FOR_OTT_REQUEST", "잘못된 상태에서 OTT 코드 요청입니다."));
-        }
-
-        // EmailOneTimeTokenService는 Spring Security Filter Chain 내에서 호출되도록 변경
-        // try {
-        //     emailOttService.generateAndSendVerificationCode(factorContext.getUsername(), "MFA Authentication");
-        //     log.info("MFA OTT code requested and sent to {} for session {}", factorContext.getUsername(), mfaSessionIdHeader);
-        //
-        //     String nextStepUrl = request.getContextPath() + authContextProperties.getOttFactor().getChallengeUrl();
-        //
-        //     Map<String, Object> responseBody = new HashMap<>();
-        //     responseBody.put("status", "MFA_OTT_CODE_SENT");
-        //     responseBody.put("message", "새로운 인증 코드가 " + factorContext.getUsername() + "(으)로 발송되었습니다. 확인 후 입력해주세요.");
-        //     responseBody.put("nextStepUrl", nextStepUrl);
-        //
-        //     return ResponseEntity.ok(responseBody);
-        // } catch (Exception e) {
-        //     log.error("Error requesting/sending MFA OTT code for user {}: {}", factorContext.getUsername(), e.getMessage(), e);
-        //     return ResponseEntity.internalServerError().body(createErrorResponse("OTT_REQUEST_FAILED", "인증 코드 요청/발송에 실패했습니다: " + e.getMessage()));
-        // }
-        log.warn("/api/mfa/request-ott-code endpoint is deprecated. OTT code generation should be handled by MfaContinuationFilter redirecting to a generation URL.");
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(createErrorResponse("ENDPOINT_DEPRECATED", "This endpoint is no longer used for direct code generation."));
-    }
-    */
 
     @PostMapping("/assertion/options")
     public ResponseEntity<?> getMfaPasskeyAssertionOptions(@RequestBody(required = false) PasskeyOptionsRequestDto optionsRequestDto,
@@ -181,7 +158,7 @@ public class MfaApiController {
                 !StringUtils.hasText(factorContext.getFlowTypeName())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse("MFA_SESSION_INVALID_OPTIONS", "MFA 세션이 유효하지 않거나 플로우 정보가 없습니다."));
         }
-        if (optionsRequestDto != null && optionsRequestDto.username() != null && !Objects.equals(factorContext.getUsername(), optionsRequestDto.username())) {
+        if (optionsRequestDto != null && StringUtils.hasText(optionsRequestDto.username()) && !Objects.equals(factorContext.getUsername(), optionsRequestDto.username())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(createErrorResponse("USER_MISMATCH_OPTIONS", "MFA 세션 사용자와 요청 사용자가 일치하지 않습니다."));
         }
 
@@ -196,33 +173,37 @@ public class MfaApiController {
             log.error("Passkey assertion options request but currentStepId is null in FactorContext. Session: {}", mfaSessionIdHeader);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("MFA_CONTEXT_MISSING_STEPID", "MFA 컨텍스트에 현재 단계 정보가 없습니다."));
         }
-        if (StringUtils.hasText(mfaStepIdHeader) && !Objects.equals(mfaStepIdHeader, factorContext.getCurrentStepId())) {
-            log.warn("MFA Step ID mismatch in Passkey options request. Header: {}, Context: {}. Session: {}",
-                    mfaStepIdHeader, factorContext.getCurrentStepId(), mfaSessionIdHeader);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createErrorResponse("MFA_STEP_ID_MISMATCH", "MFA 단계 정보가 일치하지 않습니다."));
-        }
+        // mfaStepIdHeader는 현재 사용되지 않음. FactorContext의 currentStepId를 신뢰.
+        // if (StringUtils.hasText(mfaStepIdHeader) && !Objects.equals(mfaStepIdHeader, factorContext.getCurrentStepId())) { ... }
 
         try {
-            String challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(new SecureRandom().generateSeed(32));
+            SecureRandom random = new SecureRandom();
+            byte[] challengeBytes = new byte[32];
+            random.nextBytes(challengeBytes);
+            String challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(challengeBytes);
 
-            // FactorContext에 challenge를 저장하는 로직은 FactorContext 클래스의 실제 구현에 따라 달라집니다.
-            // factorContext.setChallenge(challenge); // 이 라인은 FactorContext에 setChallenge 메서드가 없다면 오류 발생.
-            // Passkey Challenge는 세션이나 WebAuthnChallengeRepository를 통해 관리하는 것이 일반적입니다.
-            // 임시로 세션에 저장하는 예시 (실제 구현 시 변경 필요)
-            httpServletRequest.getSession().setAttribute("PASSKEY_CHALLENGE_" + factorContext.getMfaSessionId(), challenge);
-            log.info("Generated and stored Passkey challenge in session: {}", challenge);
-
+            // FactorContext에 setChallenge 메서드가 없으므로, HTTP 세션에 challenge 저장
+            HttpSession session = httpServletRequest.getSession(false); // 기존 세션 가져오기
+            if (session != null) {
+                String sessionAttributeName = "PASSKEY_ASSERTION_CHALLENGE_" + factorContext.getMfaSessionId();
+                session.setAttribute(sessionAttributeName, challenge);
+                log.info("Passkey assertion challenge stored in session (attribute: {}) for MFA session ID: {}", sessionAttributeName, factorContext.getMfaSessionId());
+            } else {
+                // 세션이 없는 경우 에러 처리 또는 다른 저장 메커니즘 고려
+                log.error("HttpSession not available to store Passkey challenge for MFA session ID: {}. Passkey assertion will likely fail.", factorContext.getMfaSessionId());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(createErrorResponse("SESSION_UNAVAILABLE", "세션이 없어 Passkey 챌린지를 저장할 수 없습니다."));
+            }
 
             Map<String, Object> assertionOptionsMap = new HashMap<>();
             assertionOptionsMap.put("challenge", challenge);
             assertionOptionsMap.put("rpId", applicationContext.getEnvironment().getProperty("spring.security.webauthn.relying-party-id", "localhost"));
+            // TODO: allowCredentials는 실제 사용자의 등록된 credential ID 목록으로 채워야 함
+            // 예: List<Map<String, Object>> allowedCredentials = webAuthnService.getAllowCredentials(factorContext.getUsername());
+            // assertionOptionsMap.put("allowCredentials", allowedCredentials);
             assertionOptionsMap.put("userVerification", "preferred");
             assertionOptionsMap.put("timeout", authContextProperties.getMfa().getPasskeyFactor().getTimeoutSeconds() * 1000L);
-            // TODO: allowCredentials는 실제 사용자의 등록된 credential ID 목록으로 채워야 합니다.
-            // List<Map<String, Object>> allowedCredentials = ... ;
-            // assertionOptionsMap.put("allowCredentials", allowedCredentials);
 
-            log.info("MFA Passkey assertion options generated for user {} (session {}, stepId {})",
+            log.info("MFA Passkey assertion options generated for user {} (session {}, stepId {}).",
                     factorContext.getUsername(), mfaSessionIdHeader, factorContext.getCurrentStepId());
             return ResponseEntity.ok(assertionOptionsMap);
 
@@ -267,8 +248,8 @@ public class MfaApiController {
                 .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder));
     }
 
-    // DTO 정의
     private record SelectFactorRequestDto(String factorType, @Nullable String username) {}
-    private record OttCodeRequestDto(@Nullable String username) {}
+    // OttCodeRequestDto는 /api/mfa/request-ott-code가 제거되므로 사용되지 않음.
+    // private record OttCodeRequestDto(@Nullable String username) {}
     private record PasskeyOptionsRequestDto(@Nullable String username) {}
 }

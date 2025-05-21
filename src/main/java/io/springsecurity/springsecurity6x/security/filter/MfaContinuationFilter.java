@@ -179,7 +179,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 .filter(step -> stepId.equals(step.getStepId()) && factorType.name().equalsIgnoreCase(step.getType()))
                 .findFirst()
                 .map(step -> {
-                    Object optionsObj = step.getOptions().get(optionClass.getName());
+                    Object optionsObj = step.getOptions().get("_options");
                     if (optionClass.isInstance(optionsObj)) {
                         return optionClass.cast(optionsObj);
                     }

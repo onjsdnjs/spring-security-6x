@@ -4,7 +4,8 @@
 <body class="flex flex-col min-h-screen bg-app-light-gray">
 <div th:insert="~{fragments/header :: header}"></div>
 <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
-
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
 <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
     <div class="w-full max-w-md bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
         <div class="text-center mb-6">
@@ -17,7 +18,7 @@
             2차 인증을 위해 아래 등록된 이메일 주소로 인증 코드를 발송합니다.<br/>
             "인증 코드 발송" 버튼을 눌러주세요.
         </p>
-        <form id="mfaOttRequestCodeForm" class="space-y-6">
+        <form id="mfaOttRequestCodeForm" th:action="${mfaOttCodeRequestFormActionUrl}" method="post" class="space-y-6">
             <div>
                 <label for="mfaUsername" class="block text-sm font-medium text-app-dark-gray">이메일 주소 (Username):</label>
                 <input type="email" id="mfaUsername" name="username" th:value="${username}" readonly
@@ -37,6 +38,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
 <script th:src="@{/js/token-holder.js}"></script>
 <script th:src="@{/js/init-auth.js}"></script>

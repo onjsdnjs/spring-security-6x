@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // 폼의 action URL은 LoginController에서 모델을 통해 전달받아 th:action에 설정됩니다.
+    // 폼의 action URL은 LoginController 에서 모델을 통해 전달받아 th:action에 설정됩니다.
     // 이 URL은 Spring Security의 GenerateOneTimeTokenFilter가 처리할 경로입니다.
     const formActionUrl = requestCodeForm.getAttribute("action");
 

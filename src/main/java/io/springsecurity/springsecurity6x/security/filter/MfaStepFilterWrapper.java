@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;

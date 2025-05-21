@@ -66,7 +66,7 @@ public class PlatformSecurityConfig {
                                         "/loginForm", "/register",
                                         "/loginOtt", "/ott/sent", // 단일 OTT 관련 페이지
                                         "/loginPasskey",           // 단일 Passkey 관련 페이지
-                                        "/mfa/select-factor", "/mfa/challenge/ott", "/mfa/challenge/passkey", "/mfa/failure", // MFA UI 페이지
+                                        "/mfa/select-factor","/mfa/ott/request-code-ui", "/mfa/challenge/ott", "/mfa/challenge/passkey", "/mfa/failure", // MFA UI 페이지
                                         "/api/register",
                                         "/api/auth/login", "/api/auth/refresh",         // 1차 인증 및 토큰 API
                                         "/api/ott/generate",                             // 단일 OTT 코드 생성 API

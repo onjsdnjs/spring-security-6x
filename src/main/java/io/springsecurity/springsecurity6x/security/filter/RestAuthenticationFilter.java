@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.domain.LoginRequest;
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
@@ -133,10 +133,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String mfaSessionId = UUID.randomUUID().toString();
-        // 1차 인증 성공 시점에서는 flowTypeName을 아직 확정하지 않거나, 'primary'로 설정.
+        // 1차 인증 성공 시점에서는 flowTypeName을 아직 확정하지 않거나, 'primary' 로 설정.
         // UnifiedAuthenticationSuccessHandler 에서 MFA 필요 여부에 따라 'mfa'로 설정하거나,
         // 단일 인증으로 처리.
-        String flowTypeNameForContext = AuthType.PRIMARY.name().toLowerCase(); // 또는 null
+        String flowTypeNameForContext = AuthType.MFA.name().toLowerCase(); // 또는 null
 
         FactorContext factorContext = new FactorContext(
                 mfaSessionId,

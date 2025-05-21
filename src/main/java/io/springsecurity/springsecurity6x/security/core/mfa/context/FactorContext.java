@@ -42,7 +42,8 @@ public class FactorContext implements Serializable {
     private final List<AuthenticationStepConfig> completedFactors = new CopyOnWriteArrayList<>();
     private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
     private Instant lastActivityTimestamp;
-    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+//    private final Set<AuthType> completedMfaFactors = EnumSet.noneOf(AuthType.class);
+    private final Map<String, Object> registeredMfaFactors = new ConcurrentHashMap<>();
     private final Map<AuthType, Integer> factorAttemptCounts = new ConcurrentHashMap<>();
     private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
 
@@ -96,10 +97,10 @@ public class FactorContext implements Serializable {
     }
 
     public int getLastCompletedFactorOrder() {
-        if (completedFactors.isEmpty()) { // *** 수정: completedMfaFactors -> completedFactors ***
+        if (completedFactors.isEmpty()) {
             return 0;
         }
-        return completedFactors.stream() // *** 수정: completedMfaFactors -> completedFactors ***
+        return completedFactors.stream()
                 .mapToInt(AuthenticationStepConfig::getOrder)
                 .max()
                 .orElse(0);
@@ -155,16 +156,16 @@ public class FactorContext implements Serializable {
 
     @Nullable
     public Object getAttribute(String key) {
-        return this.attributes.get(key);
+        return this.registeredMfaFactors.get(key);
     }
 
     public void setAttribute(String key, @Nullable Object value) {
         Assert.hasText(key, "Attribute key cannot be empty or null.");
         if (value == null) {
-            this.attributes.remove(key);
+            this.registeredMfaFactors.remove(key);
             log.debug("FactorContext (ID: {}): Attribute removed: Key='{}' for user {}", mfaSessionId, key, this.username);
         } else {
-            this.attributes.put(key, value);
+            this.registeredMfaFactors.put(key, value);
             log.debug("FactorContext (ID: {}): Attribute set: Key='{}', Value type='{}' for user {}", mfaSessionId, key, value.getClass().getSimpleName(), this.username);
         }
         updateLastActivityTimestamp();
@@ -203,7 +204,7 @@ public class FactorContext implements Serializable {
     }
 
     public List<AuthType> getRegisteredMfaFactors() {
-        Object registeredFactorsObj = attributes.get("registeredMfaFactors");
+        Object registeredFactorsObj = registeredMfaFactors.get("registeredMfaFactors");
         if (registeredFactorsObj instanceof List) {
             try {
                 @SuppressWarnings("unchecked")

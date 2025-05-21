@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
 import jakarta.servlet.FilterChain;

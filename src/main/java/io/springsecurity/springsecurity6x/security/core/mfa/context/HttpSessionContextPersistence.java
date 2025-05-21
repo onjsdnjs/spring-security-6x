@@ -1,6 +1,5 @@
-package io.springsecurity.springsecurity6x.security.core.mfa;
+package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +7,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component; // 컴포넌트 스캔 대상
 
 @Slf4j
-@Component // 스프링 빈으로 등록
+@Component
 public class HttpSessionContextPersistence implements ContextPersistence {
 
     public static final String MFA_CONTEXT_SESSION_ATTRIBUTE_NAME = "MFA_SESSION_CONTEXT_V1"; // 상수명 유지 (V1은 예시)

@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -61,7 +61,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         FactorContext factorContext = contextPersistence.contextLoad(request);
         String username = authentication.getName();
 
-        // 1. MFA 플로우가 이미 완료된 상태로 이 핸들러가 호출된 경우 (MfaFactorProcessingSuccessHandler로부터의 위임)
+        // 1. MFA 플로우가 이미 완료된 상태로 이 핸들러가 호출된 경우 (MfaFactorProcessingSuccessHandler 로부터의 위임)
         if (factorContext != null &&
                 Objects.equals(factorContext.getUsername(), username) &&
                 (factorContext.getCurrentState() == MfaState.MFA_FULLY_COMPLETED)) {
@@ -141,11 +141,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("nextFactorType", nextFactor.name());
+            responseBody.put("status", "MFA_REQUIRED");
+            responseBody.put("nextStepUrl", nextUiPageUrl);
             responseBody.put("nextStepId", factorContext.getCurrentStepId());
             responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
 
-            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, "MFA_REQUIRED_PROCEED_TO_CHALLENGE",
-                    nextFactor.name() + " 인증을 진행합니다.", nextUiPageUrl, responseBody);
+            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
         } else {
             log.error("UnifiedAuthenticationSuccessHandler: Unexpected FactorContext state ({}) for user {} after policy evaluation. MFA Session ID: {}. This may indicate an issue in MfaPolicyProvider or FactorContext state transitions.",

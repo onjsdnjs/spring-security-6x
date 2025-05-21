@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.mfa.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.OttForwardingFilter;
 import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;

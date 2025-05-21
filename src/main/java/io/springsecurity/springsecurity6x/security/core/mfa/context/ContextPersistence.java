@@ -1,6 +1,5 @@
-package io.springsecurity.springsecurity6x.security.core.mfa;
+package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.lang.Nullable;
 

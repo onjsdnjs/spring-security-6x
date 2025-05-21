@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -23,6 +24,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -30,9 +32,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 public class MfaContinuationFilter extends OncePerRequestFilter {
@@ -48,7 +48,9 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private final AntPathRequestMatcher selectFactorMatcher;
     private final AntPathRequestMatcher ottRequestCodeUiMatcher; // GET /mfa/ott/request-code-ui
     private final AntPathRequestMatcher ottChallengeMatcher;     // GET /mfa/challenge/ott
-    private final AntPathRequestMatcher passkeyChallengeMatcher;   // GET /mfa/challenge/passkey
+    private final AntPathRequestMatcher tokenGeneratorMatcher;     // GET /mfa/ott/generate-code
+    private final AntPathRequestMatcher loginProcessingUrlMatcher;     // GET //login/mfa-ott
+    private final AntPathRequestMatcher passkeyChallengeMatcher;
 
     public MfaContinuationFilter(ContextPersistence contextPersistence,
                                  MfaPolicyProvider mfaPolicyProvider,
@@ -61,34 +63,104 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.responseWriter = Objects.requireNonNull(responseWriter, "responseWriter cannot be null");
         this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext cannot be null");
 
-        String mfaInitiatePath = authContextProperties.getMfa().getInitiateUrl();
-        Assert.hasText(mfaInitiatePath, "auth.mfa.initiate-url must be configured");
-        String selectFactorPath = authContextProperties.getMfa().getSelectFactorUrl();
-        Assert.hasText(selectFactorPath, "auth.mfa.select-factor-url must be configured");
+        // PlatformConfig 에서 MFA 플로우 설정을 가져옴
+        PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+        AuthenticationFlowConfig mfaFlowConfig = null;
+        if (!CollectionUtils.isEmpty(platformConfig.getFlows())) {
+            mfaFlowConfig = platformConfig.getFlows().stream()
+                    .filter(flow -> AuthType.MFA.name().equalsIgnoreCase(flow.getTypeName()))
+                    .findFirst()
+                    .orElse(null);
+        }
 
-        String ottRequestCodeUiPath = authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
-        Assert.hasText(ottRequestCodeUiPath, "auth.ott-factor.request-code-ui-url must be configured");
-        String ottChallengePath = authContextProperties.getMfa().getOttFactor().getChallengeUrl();
-        Assert.hasText(ottChallengePath, "auth.ott-factor.challenge-url must be configured");
-
-        String passkeyChallengePath = authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl();
-        Assert.hasText(passkeyChallengePath, "auth.mfa.passkey-factor.challenge-url must be configured");
-
+        // 1. MFA Initiate URL 결정 (DSL 우선)
+        String mfaInitiatePath = authContextProperties.getMfa().getInitiateUrl(); // 기본값
+        Assert.hasText(mfaInitiatePath, "MFA initiate URL must be configured (properties or DSL)");
         this.mfaInitiateMatcher = new AntPathRequestMatcher(mfaInitiatePath, HttpMethod.GET.name());
+
+        // 2. Select Factor URL 결정 (DSL 우선)
+        String selectFactorPath = authContextProperties.getMfa().getSelectFactorUrl(); // 기본값
+        Assert.hasText(selectFactorPath, "MFA select factor URL must be configured (properties or DSL)");
         this.selectFactorMatcher = new AntPathRequestMatcher(selectFactorPath, HttpMethod.GET.name());
+
+        // 3. OTT Request Code UI URL 결정 (MFA 플로우 내 OTT 스텝 설정 우선)
+        String ottRequestCodeUiPath = authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl(); // 기본값
+        Assert.hasText(ottRequestCodeUiPath, "MFA OTT request code UI URL must be configured (properties or DSL)");
         this.ottRequestCodeUiMatcher = new AntPathRequestMatcher(ottRequestCodeUiPath, HttpMethod.GET.name());
+
+        // 4. Token Generator URL 결정 (MFA 플로우 내 OTT 스텝 설정 우선)
+        String tokenGeneratorPath = authContextProperties.getMfa().getOttFactor().getCodeGenerationUrl(); // 기본값
+        Optional<OttOptions> mfaOttOptions = getMfaFactorOptions(mfaFlowConfig, AuthType.OTT, OttOptions.class);
+        if (mfaOttOptions.isPresent() && StringUtils.hasText(mfaOttOptions.get().getTokenGeneratingUrl())) {
+            tokenGeneratorPath = mfaOttOptions.get().getTokenGeneratingUrl();
+            log.info("MfaContinuationFilter: Using MFA OTT challenge URL from DSL: {}", tokenGeneratorPath);
+        }
+        this.tokenGeneratorMatcher = new AntPathRequestMatcher(tokenGeneratorPath, HttpMethod.GET.name());
+
+        // 5. Ott 검증 URL 결정 (MFA 플로우 내 OTT 스텝 설정 우선)
+        String loginProcessingUrlPath = authContextProperties.getMfa().getOttFactor().getLoginProcessingUrl(); // 기본값
+        if (mfaOttOptions.isPresent() && StringUtils.hasText(mfaOttOptions.get().getLoginProcessingUrl())) {
+            loginProcessingUrlPath = mfaOttOptions.get().getTokenGeneratingUrl();
+            log.info("MfaContinuationFilter: Using MFA OTT challenge URL from DSL: {}", loginProcessingUrlPath);
+        }
+        this.loginProcessingUrlMatcher = new AntPathRequestMatcher(loginProcessingUrlPath, HttpMethod.GET.name());
+
+        // 5. OTT Challenge URL 결정 (MFA 플로우 내 OTT 스텝 설정 우선)
+        String ottChallengePath = authContextProperties.getMfa().getOttFactor().getChallengeUrl(); // 기본값
+        Assert.hasText(ottChallengePath, "MFA OTT challenge URL must be configured (properties or DSL)");
         this.ottChallengeMatcher = new AntPathRequestMatcher(ottChallengePath, HttpMethod.GET.name());
+
+        // 6. Passkey Challenge URL 결정 (MFA 플로우 내 Passkey 스텝 설정 우선)
+        String passkeyChallengePath = authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl(); // 기본값
         this.passkeyChallengeMatcher = new AntPathRequestMatcher(passkeyChallengePath, HttpMethod.GET.name());
 
-        this.requestMatcher = new OrRequestMatcher(
-                mfaInitiateMatcher,
-                selectFactorMatcher,
-                ottRequestCodeUiMatcher,
-                ottChallengeMatcher,
-                passkeyChallengeMatcher
-        );
-        log.info("MfaContinuationFilter initialized. Listening on GET requests for: {}, {}, {}, {}, {}",
-                mfaInitiatePath, selectFactorPath, ottRequestCodeUiPath, ottChallengePath, passkeyChallengePath);
+        List<RequestMatcher> matchers = new ArrayList<>();
+        matchers.add(this.mfaInitiateMatcher);
+        matchers.add(this.selectFactorMatcher);
+        matchers.add(this.ottRequestCodeUiMatcher);
+        matchers.add(this.ottChallengeMatcher);
+        matchers.add(this.tokenGeneratorMatcher);
+        matchers.add(this.loginProcessingUrlMatcher);
+        matchers.add(this.passkeyChallengeMatcher);
+
+        this.requestMatcher = new OrRequestMatcher(matchers);
+
+        log.info("MfaContinuationFilter initialized. Listening on GET requests for registered MFA UI paths.");
+        log.debug("MFA Initiate Matcher: {}", mfaInitiatePath);
+        log.debug("Select Factor Matcher: {}", selectFactorPath);
+        log.debug("OTT Request Code UI Matcher: {}", ottRequestCodeUiPath);
+        log.debug("OTT Challenge Matcher: {}", ottChallengePath);
+        log.debug("OTT Code Generator Matcher: {}", tokenGeneratorPath);
+        log.debug("OTT Ott Validation Matcher: {}", loginProcessingUrlPath);
+    }
+
+    /**
+     * MFA 플로우 설정에서 특정 인증 타입의 첫 번째 스텝 옵션을 가져옵니다.
+     * @param mfaFlowConfig MFA 플로우 설정
+     * @param factorType 찾고자 하는 인증 타입
+     * @param optionClass 옵션 클래스 타입
+     * @return 해당 옵션 객체 (Optional)
+     */
+    private <T extends AuthenticationProcessingOptions> Optional<T> getMfaFactorOptions(
+            @Nullable AuthenticationFlowConfig mfaFlowConfig, AuthType factorType, Class<T> optionClass) {
+        if (mfaFlowConfig == null || factorType == null || CollectionUtils.isEmpty(mfaFlowConfig.getStepConfigs())) {
+            return Optional.empty();
+        }
+        return mfaFlowConfig.getStepConfigs().stream()
+                .filter(step -> factorType.name().equalsIgnoreCase(step.getType()))
+                .findFirst() // 일반적으로 MFA 플로우 내에 같은 타입의 팩터는 하나만 정의될 것으로 가정
+                .map(step -> {
+                    // AuthenticationStepConfig의 getOptions()는 Map<String, Object>를 반환하고,
+                    // 실제 옵션 객체는 특정 키로 저장되어 있다고 가정 (예: OptionClass.getName())
+                    Object optionsObj = step.getOptions().get(optionClass.getName());
+                    if (optionClass.isInstance(optionsObj)) {
+                        return optionClass.cast(optionsObj);
+                    }
+                    // 또는, 스텝 자체에 옵션 객체를 직접 들고 있는 경우 (예: step.getConcreteOptions(optionClass))
+                    // if (step.getConcreteOptions(optionClass) != null) return step.getConcreteOptions(optionClass);
+                    return null;
+                })
+                .filter(Objects::nonNull);
     }
 
     @Override
@@ -247,7 +319,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         // MfaPolicyProvider 또는 OneTimeTokenCreationSuccessHandler를 통해 currentProcessingFactor와 currentState가 이미 설정되었어야 함.
         if (ctx.getCurrentProcessingFactor() == requestedFactor &&
                 (ctx.getCurrentState() == MfaState.FACTOR_CHALLENGE_SENT_AWAITING_UI || // 코드 생성/발송 직후
-                        ctx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION || // 코드 생성 UI에서 넘어왔으나 아직 코드 생성 안된 경우 (예: JS 문제로 API 호출 실패 후 직접 URL 접근)
+                        ctx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION || // 코드 생성 UI 에서 넘어왔으나 아직 코드 생성 안된 경우 (예: JS 문제로 API 호출 실패 후 직접 URL 접근)
                         ctx.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)) { // 이미 UI를 봤고, 재시도 등으로 다시 GET
 
             // StepId와 FactorOptions가 설정되어 있는지 확인 및 설정

@@ -278,7 +278,7 @@ public class LoginController {
                 AuthenticationStepConfig currentOttStep = currentOttStepOpt.get();
                 // 해당 스텝의 OttOptions 에서 tokenGeneratingUrl을 가져옴
                 // AuthenticationStepConfig에 getOptions()가 있고, 그 안에 OttOptions가 특정 키로 저장되어 있다고 가정.
-                Object optionsObj = currentOttStep.getOptions().get(OttOptions.class.getName()); // 키는 실제 저장 방식에 따라 달라질 수 있음 (예: "_ottOptions")
+                Object optionsObj = currentOttStep.getOptions().get("_options"); // 키는 실제 저장 방식에 따라 달라질 수 있음 (예: "_ottOptions")
                 if (optionsObj instanceof OttOptions ottOptions) {
                     if (StringUtils.hasText(ottOptions.getTokenGeneratingUrl())) {
                         tokenGeneratingUrl = ottOptions.getTokenGeneratingUrl();
@@ -322,7 +322,7 @@ public class LoginController {
 
             if (currentOttStepOpt.isPresent()) {
                 AuthenticationStepConfig currentOttStep = currentOttStepOpt.get();
-                Object optionsObj = currentOttStep.getOptions().get(OttOptions.class.getName()); // 키는 실제 저장 방식에 따라 달라질 수 있음
+                Object optionsObj = currentOttStep.getOptions().get("_options"); // 키는 실제 저장 방식에 따라 달라질 수 있음
                 if (optionsObj instanceof OttOptions ottOptions && StringUtils.hasText(ottOptions.getLoginProcessingUrl())) {
                     loginProcessingUrl = ottOptions.getLoginProcessingUrl();
                     log.info("MFA OTT Challenge UI: Using loginProcessingUrl from MFA OTT Step (StepId: {}): {}", ctx.getCurrentStepId(), loginProcessingUrl);

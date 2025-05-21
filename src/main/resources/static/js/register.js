@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault();
 
         const username = registerForm.username.value;
-        const email = registerForm.email.value;
+        const name = registerForm.name.value;
         const password = registerForm.password.value;
         const roles = registerForm.roles.value; // "USER", "USER,ADMIN" 형태
         const authMode = localStorage.getItem("authMode") || "header";
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 method: "POST",
                 credentials: "same-origin",
                 headers: headers,
-                body: JSON.stringify({ username, email, password, roles })
+                body: JSON.stringify({ username, name, password, roles })
             });
 
             if (response.ok) {

@@ -40,6 +40,7 @@ public class PlatformSecurityConfig {
     private final UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
+    private final OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
 
 
     // 단일 인증 실패 시 기본 핸들러 (페이지 리다이렉트)
@@ -156,6 +157,7 @@ public class PlatformSecurityConfig {
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
                                 // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.
                                 .loginProcessingUrl("/login/mfa-ott")
+                                .tokenGenerationSuccessHandler(oneTimeTokenCreationSuccessHandler)
                                 .successHandler(mfaFactorProcessingSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리
                                 .failureHandler(unifiedAuthenticationFailureHandler) // OTT Factor 실패 시
                         )

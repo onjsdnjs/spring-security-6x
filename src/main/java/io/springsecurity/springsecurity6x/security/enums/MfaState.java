@@ -31,6 +31,8 @@ public enum MfaState {
      */
     FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION("2차 인증 검증 대기"),
 
+    FACTOR_CHALLENGE_SENT_AWAITING_UI("2차 인증 챌린지 요청"),
+
     /** [사용 빈도 낮음/재검토] 실제 챌린지가 발송/생성 완료된 특정 시점을 나타낼 수 있으나,
      * AWAITING_FACTOR_CHALLENGE_INITIATION 후 바로 FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION 으로
      * 전이하는 것이 더 일반적일 수 있음. 현재는 유지.

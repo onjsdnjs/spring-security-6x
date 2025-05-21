@@ -1,33 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그아웃 중…</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'app-primary': '#3f51b5', 'app-primary-dark': '#303f9f', 'app-secondary': '#455a64',
-                        'app-accent': '#2196f3', 'app-accent-hover': '#1976d2', 'app-light-gray': '#f3f4f6',
-                        'app-dark-gray': '#374151', 'app-border': '#d1d5db', 'app-input-focus-border': '#60a5fa',
-                        'error': '#ef4444', 'success': '#22c55e', 'info': '#3b82f6'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
-                    }
-                }
-            }
-        }
-    </script>
-    <script th:src="@{/js/toast.js}"></script>
-    <th:block th:if="${_csrf != null}">
-        <meta name="_csrf" th:content="${_csrf.token}" />
-        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
-    </th:block>
-</head>
+<head th:replace="~{fragments/common-head :: head-elements(pageTitle='로그아웃 중…')}"></head>
 <body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
 
 <div th:insert="~{fragments/header :: header}"></div>
@@ -54,5 +27,26 @@
 
 <script th:src="@{/js/token-holder.js}"></script>
 <script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    // 페이지 로드 시 initAuth() 호출 (init-auth.js 에 정의되어 있다고 가정)
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initAuth === 'function') {
+            initAuth(); // 로그아웃 페이지에서는 불필요할 수 있으나, 일관성을 위해 추가
+        }
+        // 실제 로그아웃 처리는 logout.js에서 API 호출 후 리다이렉션을 통해 loginForm으로 이동하게 됨
+        // 이 페이지는 "로그아웃 중"이라는 메시지를 잠깐 보여주는 역할
+        const logoutLinkInHeader = document.getElementById('logoutLink');
+        if (logoutLinkInHeader && logoutLinkInHeader.offsetParent !== null) { // 보이는 경우에만
+            // 자동 로그아웃 실행 (만약 logout.js가 이 페이지에서 자동으로 실행되지 않는다면)
+            // window.performLogout(); // logout.js에 해당 함수가 있다고 가정
+            console.log("Logout page loaded. logout.js should handle the actual logout process and redirect.");
+        } else {
+            // 이미 로그아웃 상태이거나, logout.js가 이미 처리한 경우 로그인 페이지로 바로 이동
+            // window.location.href = /*[[@{/loginForm?message=logout_success}]]*/ '/loginForm?message=logout_success';
+        }
+    });
+    /*]]>*/
+</script>
 </body>
 </html>

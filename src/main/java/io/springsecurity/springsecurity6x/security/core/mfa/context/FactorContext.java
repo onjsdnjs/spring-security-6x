@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
@@ -119,6 +120,24 @@ public class FactorContext implements Serializable {
             updateLastActivityTimestamp();
             log.debug("FactorContext (ID: {}): Factor {} marked as completed for user {}.", mfaSessionId, factorType, this.username);
         }
+    }
+
+    /**
+     * 마지막으로 완료된 인증 단계의 순서(order)를 반환합니다.
+     * 완료된 단계가 없으면 0을 반환합니다.
+     * @return 마지막 완료 단계의 order 값 또는 0
+     */
+    public int getLastCompletedFactorOrder() {
+        if (completedMfaFactors.isEmpty()) {
+            return 0;
+        }
+        // completedFactors가 order 순으로 정렬되어 있다고 가정하거나, 여기서 정렬 필요
+        // 여기서는 마지막에 추가된 요소가 가장 높은 order를 가진다고 가정하지 않고,
+        // completedFactors 리스트에서 가장 큰 order 값을 찾습니다.
+        return completedMfaFactors.stream()
+                .mapToInt(AuthenticationStepConfig::getOrder)
+                .max()
+                .orElse(0);
     }
 
     public int incrementAttemptCount(@Nullable AuthType factorType) {

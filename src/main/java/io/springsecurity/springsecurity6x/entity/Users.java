@@ -20,7 +20,7 @@ public class Users {
     private String password;
 
     @Column(nullable = false)
-    private String email; // username과 동일할 수도, 별도 필드일 수도 있음
+    private String name;
 
     @Column(nullable = false)
     private String roles; // 예: "ROLE_USER,ROLE_ADMIN"
@@ -36,10 +36,10 @@ public class Users {
      */
     private String registeredMfaFactors;
 
-    public Users(String username, String password, String email, String roles) {
+    public Users(String username, String password, String name, String roles) {
         this.username = username;
         this.password = password;
-        this.email = email;
+        this.name = name;
         this.roles = roles;
     }
 

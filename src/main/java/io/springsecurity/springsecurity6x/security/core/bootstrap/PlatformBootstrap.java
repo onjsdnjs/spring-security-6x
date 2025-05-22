@@ -28,6 +28,16 @@ public class PlatformBootstrap implements InitializingBean {
     @Override
     public void afterPropertiesSet() throws Exception {
         log.info("PlatformBootstrap: Starting DSL configuration validation...");
+
+        // 1. 플랫폼 전역 준비
+        List<AuthenticationFlowConfig> flows = config.getFlows();
+        List<AuthenticationAdapter> features = registry.getAuthFeaturesFor(flows);
+        platform.prepareGlobal(config, features);
+
+        // 2. 플랫폼 초기화
+        platform.initialize();
+
+        // 3. 플랫폼 오류 검증
         try {
             dslValidatorService.validate(config, "PlatformSecurityConfig.java (DSL)");
 
@@ -37,14 +47,6 @@ public class PlatformBootstrap implements InitializingBean {
         }
         log.info("PlatformBootstrap: DSL configuration validation passed.");
 
-
-        // 1. 플랫폼 전역 준비 (기존 로직)
-        List<AuthenticationFlowConfig> flows = config.getFlows();
-        List<AuthenticationAdapter> features = registry.getAuthFeaturesFor(flows);
-        platform.prepareGlobal(config, features);
-
-        // 2. 플랫폼 초기화 (기존 로직)
-        platform.initialize();
         log.info("PlatformBootstrap: Security platform initialized successfully.");
     }
 }

@@ -1,8 +1,10 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
 
+import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.util.Assert;
 
@@ -10,9 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Getter
+@Setter
 public final class PlatformConfig {
     private final SafeHttpCustomizer<HttpSecurity> globalCustomizer;
     private final List<AuthenticationFlowConfig> flows;
+    private PlatformContext platformContext;
 
     private PlatformConfig(Builder builder) {
         this.globalCustomizer = builder.globalCustomizer;

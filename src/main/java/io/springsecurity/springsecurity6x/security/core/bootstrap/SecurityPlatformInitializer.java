@@ -13,7 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityPlatformInitializer implements SecurityPlatform {
     private final PlatformContext context;
-    private final PlatformConfig config; // 추가: PlatformConfig를 필드로 가짐
+    private final PlatformConfig config;
     private final SecurityFilterChainRegistrar registrar;
     private final FlowContextFactory flowContextFactory;
     private final SecurityConfigurerOrchestrator securityConfigurerOrchestrator;
@@ -27,12 +27,14 @@ public class SecurityPlatformInitializer implements SecurityPlatform {
     public void initialize() throws Exception {
 
         log.info("SecurityPlatformInitializer: Initializing security platform...");
-        List<FlowContext> flows = flowContextFactory.createAndSortFlows(this.config, this.context);
+        List<FlowContext> flows = flowContextFactory.createAndSortFlows(config, context);
+        context.flowContexts(flows);
+        config.setPlatformContext(context);
 
         if (flows.isEmpty() && !this.config.getFlows().isEmpty()) {
             log.warn("No FlowContexts were created by FlowContextFactory, but PlatformConfig has flows defined. Check FlowContextFactory logic and HttpSecurity provider.");
         }
-        securityConfigurerOrchestrator.applyConfigurations(flows, context, this.config);
+        securityConfigurerOrchestrator.applyConfigurations(flows, context, config);
         registrar.registerSecurityFilterChains(flows, context.applicationContext());
         log.info("SecurityPlatformInitializer: Security platform initialization complete.");
     }

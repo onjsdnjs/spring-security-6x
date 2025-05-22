@@ -49,7 +49,9 @@ public interface PlatformContext {
     void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http);
     HttpSecurity http(AuthenticationFlowConfig flow);
 
-    FlowContext flowContext();
+    List<FlowContext> flowContexts();
+
+    void flowContexts(List<FlowContext> flowContexts);
 
     /**
      * 새로운 HttpSecurity 인스턴스를 반환합니다.
@@ -63,8 +65,6 @@ public interface PlatformContext {
      * @param chain SecurityFilterChain
      */
     void registerChain(String id, SecurityFilterChain chain);
-
-    void registerAsBean(String name, SecurityFilterChain  chain);
 
     /**
      * 등록된 모든 SecurityFilterChain을 읽기 전용으로 반환합니다.

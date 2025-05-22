@@ -148,6 +148,55 @@ public class PlatformSecurityConfig {
 */
                 // --- MFA 플로우 설정 ---
                 .mfa(mfa -> mfa
+                                // 1차 인증: REST API 방식 사용
+                                .primaryAuthentication(primaryAuth -> primaryAuth
+                                        .restLogin(rest -> rest
+                                                .loginProcessingUrl("/api/auth/login") // 1차 인증 API 경로
+                                                .successHandler(unifiedAuthenticationSuccessHandler) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
+                                                .failureHandler(unifiedAuthenticationFailureHandler) // 1차 인증 실패 또는 MFA 전역 실패 시
+                                        )
+                                )
+                                // 2차 인증 요소: OTT
+                                .ott(ottFactor -> ottFactor
+//                                .tokenService(emailOneTimeTokenService) // Spring Security OneTimeTokenService 사용
+                                                // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
+                                                // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.
+                                                .loginProcessingUrl("/login/mfa-ott")
+//                                .tokenGeneratingUrl("/ott/generate")
+//                                .tokenGenerationSuccessHandler(oneTimeTokenCreationSuccessHandler)
+//                                .successHandler(mfaFactorProcessingSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리
+//                                .failureHandler(unifiedAuthenticationFailureHandler)
+                                                .rawHttp(http -> http.oneTimeTokenLogin(
+                                                        ott -> ott.authenticationConverter(new OneTimeTokenAuthenticationConverter(){
+                                                            @Override
+                                                            public Authentication convert(HttpServletRequest request) {
+                                                                String token = request.getParameter("token");
+                                                                if (!StringUtils.hasText(token)) {
+                                                                    return null;
+                                                                }
+                                                                return OneTimeTokenAuthenticationToken.unauthenticated(request.getParameter("username"),token);
+                                                            }
+                                                        })))// OTT Factor 실패 시
+                                )
+                                // 2차 인증 요소: Passkey
+                                /* .passkey(passkeyFactor -> passkeyFactor
+                                         .rpId(rpId)
+                                         .rpName("Spring Security 6x IDP MFA")
+                                         // Passkey Assertion Options 요청은 클라이언트 JS가 /api/mfa/assertion/options API를 호출하도록 함.
+                                         .assertionOptionsEndpoint("/api/mfa/assertion/options")
+                                         // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 WebAuthnAuthenticationFilter로 위임됨.
+                                         .loginProcessingUrl("/mfa/challenge/passkey")
+                                         .successHandler(mfaStepBasedSuccessHandler) // Passkey Factor 성공 시 다음 단계 또는 최종 완료 처리
+                                         .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
+                                 )*/
+                                // MFA 플로우 전반에 대한 설정
+                                .finalSuccessHandler(unifiedAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
+                                .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
+                                .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
+                                .order(20) // 다른 인증 플로우(단일 Form, OTT 등)보다 우선순위 높게 설정 (선택적)
+                ).jwt(Customizer.withDefaults()) // MFA 플로우 완료 후 JWT 토큰 사용
+
+                .mfa(mfa -> mfa
                         // 1차 인증: REST API 방식 사용
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest

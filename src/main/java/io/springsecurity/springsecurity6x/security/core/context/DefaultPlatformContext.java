@@ -3,11 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.context;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -24,7 +20,7 @@ import java.util.Map;
 public class DefaultPlatformContext implements PlatformContext{
 
     private final ApplicationContext applicationContext;
-    private FlowContext flowContext;
+    private List<FlowContext> flowContexts;
     private final ObjectProvider<HttpSecurity> httpProvider;
     private final List<AuthenticationStepConfig> authConfigs = new ArrayList<>();
     private final Map<Class<?>, Object> shared = new HashMap<>();
@@ -66,8 +62,12 @@ public class DefaultPlatformContext implements PlatformContext{
         return flowHttpMap.get(flow);
     }
 
-    public FlowContext flowContext() {
-        return flowContext;
+    public List<FlowContext> flowContexts() {
+        return flowContexts;
+    }
+
+    public void flowContexts(List<FlowContext> flowContexts) {
+        this.flowContexts = flowContexts;
     }
 
     @Override
@@ -78,19 +78,6 @@ public class DefaultPlatformContext implements PlatformContext{
     @Override
     public void registerChain(String id, SecurityFilterChain chain) {
         chains.put(id, chain);
-    }
-
-    @Override
-    public void registerAsBean(String name, SecurityFilterChain  chain) {
-        if (applicationContext instanceof ConfigurableApplicationContext configurable) {
-            ConfigurableListableBeanFactory factory = configurable.getBeanFactory();
-            if (!factory.containsBean(name)) {
-                BeanDefinitionRegistry registry = (BeanDefinitionRegistry) factory;
-                BeanDefinitionBuilder builder = BeanDefinitionBuilder
-                        .genericBeanDefinition(SecurityFilterChain.class, () -> chain);
-                registry.registerBeanDefinition(name, builder.getBeanDefinition());
-            }
-        }
     }
 
     @Override

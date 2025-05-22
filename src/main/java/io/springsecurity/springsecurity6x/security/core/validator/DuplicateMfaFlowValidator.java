@@ -2,11 +2,10 @@ package io.springsecurity.springsecurity6x.security.core.validator;
 
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
-import io.springsecurity.springsecurity6x.security.core.context.FlowContext; // FlowContext import
-import io.springsecurity.springsecurity6x.security.enums.AuthType; // AuthType Enum import
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -37,7 +36,7 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
             return result; // 오류가 없으므로 result는 기본적으로 유효함 (isValid()가 true 반환)
         }
 
-        // 1. 모든 FlowContext에서 AuthenticationFlowConfig를 추출하고, MFA 플로우만 필터링합니다.
+        // 1. 모든 FlowContext 에서 AuthenticationFlowConfig를 추출하고, MFA 플로우만 필터링합니다.
         // FlowContext.java에 getFlowConfig() 메소드가 존재하므로 이를 사용합니다.
         List<AuthenticationFlowConfig> mfaFlowConfigs = flowContexts.stream()
                 .filter(Objects::nonNull) // Null FlowContext 방지
@@ -114,8 +113,8 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
         // }
 
         // 방법 2: AuthType을 확인 (AuthenticationFlowConfig에 getAuthType()이 있고 AuthType Enum을 반환한다고 가정)
-        AuthType authType = AuthType.valueOf(flowConfig.getTypeName()); // AuthenticationFlowConfig.java에 getAuthType() 존재 확인 필요
-        if (authType == AuthType.MFA) {
+        String authType = flowConfig.getTypeName(); // AuthenticationFlowConfig.java에 getAuthType() 존재 확인 필요
+        if (authType.equals(AuthType.MFA.name().toLowerCase())) {
             return true;
         }
 
@@ -130,7 +129,7 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
             }
         }
         log.trace("Flow '{}' (AuthType: {}) is not considered an MFA flow by this validator's criteria.",
-                flowConfig.getTypeName(), (authType != null ? authType.name() : "null"));
+                flowConfig.getTypeName(), (authType != null ? authType : "null"));
         return false;
     }
 
@@ -143,7 +142,7 @@ public class DuplicateMfaFlowValidator implements Validator<List<FlowContext>> {
      */
     // @Override // 만약 Validator 인터페이스가 Ordered를 상속한다면
     public int getOrder() {
-        // 다른 Validator들과의 실행 순서를 고려하여 적절한 값 설정
+        // 다른 Validator 들과의 실행 순서를 고려하여 적절한 값 설정
         // 예: 다른 구문 검사 이후, 하지만 너무 늦지 않은 시점에 실행
         return 120; // 예시 값 (ValidatorOrder 와 같은 상수 사용 권장)
     }

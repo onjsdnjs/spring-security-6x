@@ -37,7 +37,7 @@ public class ValidationReportReporter {
         if (hasErrors) {
             reportBuilder.append(String.format("%s (설정 파일: %s)\n", ERROR_TITLE, dslSourceName));
             reportBuilder.append("-----------------------------------------------------------------------------------------\n");
-            reportBuilder.append("  다음과 같은 설정 오류가 발견되어 서버 기동을 중단합니다:\n");
+            reportBuilder.append("  다음과 같은 설정 오류가 발견되었습니다:\n");
             reportBuilder.append(BORDER_LINE).append("\n\n");
             for (int i = 0; i < result.getErrors().size(); i++) {
                 reportBuilder.append(ERROR_PREFIX).append(i + 1).append(". ").append(result.getErrors().get(i)).append("\n");
@@ -45,7 +45,7 @@ public class ValidationReportReporter {
         } else if (hasWarnings) {
             reportBuilder.append(String.format("%s (설정 파일: %s)\n", WARNING_TITLE, dslSourceName));
             reportBuilder.append("-----------------------------------------------------------------------------------------\n");
-            reportBuilder.append("  다음과 같은 설정 경고가 발견되었습니다. 애플리케이션은 시작되지만, 검토를 권장합니다:\n\n");
+            reportBuilder.append("  다음과 같은 설정 경고가 발견되었습니다.:\n\n");
             for (int i = 0; i < result.getWarnings().size(); i++) {
                 reportBuilder.append(WARNING_PREFIX).append(i + 1).append(". ").append(result.getWarnings().get(i)).append("\n");
             }

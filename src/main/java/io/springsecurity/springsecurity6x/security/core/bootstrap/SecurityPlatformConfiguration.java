@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.DefaultPlatformContext;
+import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContextFactory;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
@@ -92,18 +93,21 @@ public class SecurityPlatformConfiguration {
             ObjectProvider<List<Validator<PlatformConfig>>> platformConfigValidatorsProvider,
             ObjectProvider<List<Validator<List<AuthenticationFlowConfig>>>> flowListValidatorsProvider,
             ObjectProvider<List<Validator<AuthenticationFlowConfig>>> singleFlowValidatorsProvider,
-            ObjectProvider<List<Validator<AuthenticationStepConfig>>> stepValidatorsProvider) {
+            ObjectProvider<List<Validator<AuthenticationStepConfig>>> stepValidatorsProvider,
+            ObjectProvider<List<Validator<List<FlowContext>>>> duplicatedFlowValidators) {
 
         List<Validator<PlatformConfig>> platformValidators = platformConfigValidatorsProvider.getIfAvailable(Collections::emptyList);
         List<Validator<List<AuthenticationFlowConfig>>> flowListValidators = flowListValidatorsProvider.getIfAvailable(Collections::emptyList);
         List<Validator<AuthenticationFlowConfig>> singleFlowValidators = singleFlowValidatorsProvider.getIfAvailable(Collections::emptyList);
         List<Validator<AuthenticationStepConfig>> stepValidators = stepValidatorsProvider.getIfAvailable(Collections::emptyList);
+        List<Validator<List<FlowContext>>> flowValidators = duplicatedFlowValidators.getIfAvailable(Collections::emptyList);
 
         return new DslValidator(
                 platformValidators,
                 flowListValidators,
                 singleFlowValidators,
-                stepValidators
+                stepValidators,
+                flowValidators
         );
     }
 

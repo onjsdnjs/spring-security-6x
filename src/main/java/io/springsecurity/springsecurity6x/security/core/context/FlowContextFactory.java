@@ -29,8 +29,8 @@ public class FlowContextFactory {
         this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext cannot be null");
     }
 
-    public List<io.springsecurity.springsecurity6x.security.core.context.FlowContext> createAndSortFlows(PlatformConfig config, PlatformContext platformContext) {
-        List<io.springsecurity.springsecurity6x.security.core.context.FlowContext> flows = new ArrayList<>();
+    public List<FlowContext> createAndSortFlows(PlatformConfig config, PlatformContext platformContext) {
+        List<FlowContext> flows = new ArrayList<>();
         if (config == null || CollectionUtils.isEmpty(config.getFlows())) {
             log.warn("PlatformConfig or its flows are null/empty. No FlowContexts will be created.");
             return flows;

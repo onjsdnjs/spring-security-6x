@@ -34,9 +34,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 
 @Slf4j
 public class MfaContinuationFilter extends OncePerRequestFilter {
@@ -48,16 +47,14 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private final ApplicationContext applicationContext;
     private final RequestMatcher requestMatcher;
 
-    // UI 경로 Matcher (GET)
+    // 각 Matcher들은 생성자에서 최종 확정된 "대표 URL"로 초기화됨
     private final AntPathRequestMatcher mfaInitiateMatcher;
     private final AntPathRequestMatcher selectFactorMatcher;
     private final AntPathRequestMatcher ottRequestCodeUiMatcher;
     private final AntPathRequestMatcher ottChallengeMatcher;
     private final AntPathRequestMatcher passkeyChallengeMatcher;
-
-    // API 및 인증 처리 경로 Matcher (주로 POST, 이 필터는 요청을 인지하고 다음 필터로 넘기는 역할)
-    private final AntPathRequestMatcher tokenGeneratorMatcher;
-    private final AntPathRequestMatcher loginProcessingUrlMatcher;
+    private final AntPathRequestMatcher tokenGeneratorMatcher;      // OTT 코드 생성 요청 (POST)
+    private final AntPathRequestMatcher loginProcessingUrlMatcher;  // OTT 코드 검증 요청 (POST)
 
     public MfaContinuationFilter(ContextPersistence contextPersistence,
                                  MfaPolicyProvider mfaPolicyProvider,
@@ -72,73 +69,92 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
         PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
         AuthenticationFlowConfig mfaFlowConfig = null;
-        if (platformConfig != null && !CollectionUtils.isEmpty(platformConfig.getFlows())) {
+        if (!CollectionUtils.isEmpty(platformConfig.getFlows())) {
             mfaFlowConfig = platformConfig.getFlows().stream()
                     .filter(flow -> AuthType.MFA.name().equalsIgnoreCase(flow.getTypeName()))
                     .findFirst()
                     .orElse(null);
         }
 
-        // --- GET 요청 기반 UI 경로 Matcher 초기화 ---
-        String mfaInitiatePath = authContextProperties.getMfa().getInitiateUrl();
-        Assert.hasText(mfaInitiatePath, "MFA initiate URL must be configured");
-        this.mfaInitiateMatcher = new AntPathRequestMatcher(mfaInitiatePath, HttpMethod.GET.name());
+        // 1. MFA Initiate URL (GET) - 플로우 레벨 DSL 우선, 없으면 기본값
+        String determinedMfaInitiatePath = authContextProperties.getMfa().getInitiateUrl();
+        this.mfaInitiateMatcher = new AntPathRequestMatcher(determinedMfaInitiatePath, HttpMethod.GET.name());
 
-        String selectFactorPath = authContextProperties.getMfa().getSelectFactorUrl();
-        Assert.hasText(selectFactorPath, "MFA select factor URL must be configured");
-        this.selectFactorMatcher = new AntPathRequestMatcher(selectFactorPath, HttpMethod.GET.name());
+        // 2. Select Factor URL (GET) - 플로우 레벨 DSL 우선, 없으면 기본값
+        String determinedSelectFactorPath = authContextProperties.getMfa().getSelectFactorUrl();
+        this.selectFactorMatcher = new AntPathRequestMatcher(determinedSelectFactorPath, HttpMethod.GET.name());
 
+        // MFA 플로우 내 OTT 관련 대표 URL (첫번째 OTT 스텝 기준)
         Optional<OttOptions> mfaFirstOttFactorOptions = getFirstMfaFactorOptionsByType(mfaFlowConfig, AuthType.OTT, OttOptions.class);
-        String ottRequestCodeUiPath = authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
-        Assert.hasText(ottRequestCodeUiPath, "MFA OTT request code UI URL must be configured");
-        this.ottRequestCodeUiMatcher = new AntPathRequestMatcher(ottRequestCodeUiPath, HttpMethod.GET.name());
 
-        String ottChallengePath = authContextProperties.getMfa().getOttFactor().getChallengeUrl();
-        Assert.hasText(ottChallengePath, "MFA OTT challenge URL must be configured");
-        this.ottChallengeMatcher = new AntPathRequestMatcher(ottChallengePath, HttpMethod.GET.name());
+        // 3. OTT Request Code UI URL (GET) - 스텝 레벨 DSL 우선, 없으면 기본값
+        String determinedOttRequestCodeUiPath = authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
+        this.ottRequestCodeUiMatcher = new AntPathRequestMatcher(determinedOttRequestCodeUiPath, HttpMethod.GET.name());
 
-        Optional<PasskeyOptions> mfaPasskeyFactorOptions = getFirstMfaFactorOptionsByType(mfaFlowConfig, AuthType.PASSKEY, PasskeyOptions.class);
-        String passkeyChallengePath = authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl();
-        Assert.hasText(passkeyChallengePath, "MFA Passkey challenge URL must be configured");
-        this.passkeyChallengeMatcher = new AntPathRequestMatcher(passkeyChallengePath, HttpMethod.GET.name());
+        // 4. OTT Challenge UI URL (GET) - 스텝 레벨 DSL 우선, 없으면 기본값
+        String determinedOttChallengePath = authContextProperties.getMfa().getOttFactor().getChallengeUrl();
+        this.ottChallengeMatcher = new AntPathRequestMatcher(determinedOttChallengePath, HttpMethod.GET.name());
 
-        // --- POST 요청 기반 API/처리 경로 Matcher 초기화 (대표 URL 사용) ---
-        String tokenGeneratorPath = authContextProperties.getMfa().getOttFactor().getCodeGenerationUrl();
-        if (mfaFirstOttFactorOptions.isPresent() && StringUtils.hasText(mfaFirstOttFactorOptions.get().getTokenGeneratingUrl())) {
-            tokenGeneratorPath = mfaFirstOttFactorOptions.get().getTokenGeneratingUrl();
-        }
-        Assert.hasText(tokenGeneratorPath, "MFA OTT token generator URL must be configured");
-        this.tokenGeneratorMatcher = new AntPathRequestMatcher(tokenGeneratorPath, HttpMethod.POST.name());
+        // 5. OTT Token Generator URL (POST) - 스텝 레벨 DSL 우선, 없으면 기본값
+        String determinedTokenGeneratorPath = determineUrlFromStepOptions(
+                mfaFirstOttFactorOptions,
+                OttOptions::getTokenGeneratingUrl,
+                authContextProperties.getMfa().getOttFactor().getCodeGenerationUrl(),
+                "MFA OTT token generator"
+        );
+        this.tokenGeneratorMatcher = new AntPathRequestMatcher(determinedTokenGeneratorPath, HttpMethod.POST.name());
 
-        String loginProcessingUrlPath = authContextProperties.getMfa().getOttFactor().getLoginProcessingUrl();
-        if (mfaFirstOttFactorOptions.isPresent() && StringUtils.hasText(mfaFirstOttFactorOptions.get().getLoginProcessingUrl())) {
-            loginProcessingUrlPath = mfaFirstOttFactorOptions.get().getLoginProcessingUrl();
-        }
-        Assert.hasText(loginProcessingUrlPath, "MFA OTT login processing URL must be configured");
-        this.loginProcessingUrlMatcher = new AntPathRequestMatcher(loginProcessingUrlPath, HttpMethod.POST.name());
+        // 6. OTT Login Processing URL (POST) - 스텝 레벨 DSL 우선, 없으면 기본값
+        String determinedLoginProcessingUrlPath = determineUrlFromStepOptions(
+                mfaFirstOttFactorOptions,
+                OttOptions::getLoginProcessingUrl,
+                authContextProperties.getMfa().getOttFactor().getLoginProcessingUrl(),
+                "MFA OTT login processing"
+        );
+        this.loginProcessingUrlMatcher = new AntPathRequestMatcher(determinedLoginProcessingUrlPath, HttpMethod.POST.name());
+
+        // 7. Passkey Challenge UI URL (GET) - 스텝 레벨 DSL 우선, 없으면 기본값 (시큐리티 기본 경로 등)
+        String determinedPasskeyChallengePath = authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl();
+        this.passkeyChallengeMatcher = new AntPathRequestMatcher(determinedPasskeyChallengePath, HttpMethod.GET.name());
 
 
         this.requestMatcher = new OrRequestMatcher(
-                this.mfaInitiateMatcher,          // GET
-                this.selectFactorMatcher,         // GET
-                this.ottRequestCodeUiMatcher,     // GET
-                this.ottChallengeMatcher,         // GET
-                this.passkeyChallengeMatcher,     // GET
-                this.tokenGeneratorMatcher,       // POST
-                this.loginProcessingUrlMatcher    // POST
+                this.mfaInitiateMatcher,
+                this.selectFactorMatcher,
+                this.ottRequestCodeUiMatcher,
+                this.ottChallengeMatcher,
+                this.passkeyChallengeMatcher,
+                this.tokenGeneratorMatcher,
+                this.loginProcessingUrlMatcher
         );
 
-        log.info("MfaContinuationFilter initialized. Listening on UI (GET) and API/Processing (POST) paths.");
-        log.debug("MFA UI Paths (GET): Initiate [{}], Select Factor [{}], OTT Request UI [{}], OTT Challenge [{}], Passkey Challenge [{}]",
-                mfaInitiatePath, selectFactorPath, ottRequestCodeUiPath, ottChallengePath, passkeyChallengePath);
-        log.debug("MFA API/Processing Paths (POST): OTT Token Generate [{}], OTT Login Process [{}]",
-                tokenGeneratorPath, loginProcessingUrlPath);
+        log.info("MfaContinuationFilter initialized. Listening on: " +
+                        "GET [MFA Initiate: {}, Select Factor: {}, OTT Request UI: {}, OTT Challenge: {}, Passkey Challenge: {}], " +
+                        "POST [OTT Token Generate: {}, OTT Login Process: {}]",
+                determinedMfaInitiatePath, determinedSelectFactorPath, determinedOttRequestCodeUiPath, determinedOttChallengePath, determinedPasskeyChallengePath,
+                determinedTokenGeneratorPath, determinedLoginProcessingUrlPath);
     }
 
     /**
-     * MFA 플로우 설정에서 특정 인증 타입의 첫 번째 스텝 옵션을 가져옵니다.
-     * 이 메소드는 필터 생성 시점에서 각 경로의 대표 URL을 설정하기 위해 사용됩니다.
+     * 스텝 레벨 옵션 (Optional)에서 URL을 결정하는 헬퍼 메소드.
      */
+    private <T_STEP_OPT extends AuthenticationProcessingOptions> String determineUrlFromStepOptions(
+            Optional<T_STEP_OPT> stepOptionsOpt,
+            Function<T_STEP_OPT, String> urlExtractor,
+            String defaultUrl, String urlDescription) {
+        String determinedUrl = defaultUrl;
+        if (stepOptionsOpt.isPresent()) {
+            String dslUrl = urlExtractor.apply(stepOptionsOpt.get());
+            if (StringUtils.hasText(dslUrl)) {
+                determinedUrl = dslUrl;
+                log.debug("MfaContinuationFilter: Using {} URL from Step-Level DSL: {}", urlDescription, determinedUrl);
+            }
+        }
+        Assert.hasText(determinedUrl, urlDescription + " URL must be configured (properties or Step DSL)");
+        return determinedUrl;
+    }
+
+
     private <T extends AuthenticationProcessingOptions> Optional<T> getFirstMfaFactorOptionsByType(
             @Nullable AuthenticationFlowConfig mfaFlowConfig, AuthType factorType, Class<T> optionClass) {
         if (mfaFlowConfig == null || factorType == null || CollectionUtils.isEmpty(mfaFlowConfig.getStepConfigs())) {
@@ -147,29 +163,9 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         return mfaFlowConfig.getStepConfigs().stream()
                 .filter(step -> factorType.name().equalsIgnoreCase(step.getType()))
                 .min(Comparator.comparingInt(AuthenticationStepConfig::getOrder))
-                .map(step -> {
-                    // AuthenticationStepConfig의 getOptions()는 Map<String, Object>를 반환하고,
-                    // 실제 옵션 객체는 optionClass의 이름(또는 다른 약속된 키)으로 저장되어 있다고 가정
-                    Object optionsObj = step.getOptions().get(optionClass.getName());
-                    if (optionClass.isInstance(optionsObj)) {
-                        return optionClass.cast(optionsObj);
-                    }
-                    // 대체 키 "_options" 시도 (구현에 따라 다를 수 있음)
-                    Object genericOptionsObj = step.getOptions().get("_options");
-                    if (optionClass.isInstance(genericOptionsObj)) {
-                        return optionClass.cast(genericOptionsObj);
-                    }
-                    log.warn("MfaContinuationFilter(getFirst): Could not find or cast options of type {} for step {} (type {}) using key {} or '_options'. Step options: {}",
-                            optionClass.getSimpleName(), step.getStepId(), step.getType(), optionClass.getName(), step.getOptions());
-                    return null;
-                })
-                .filter(Objects::nonNull);
+                .flatMap(step -> getSpecificOptionFromStep(step, optionClass)); // flatMap으로 변경
     }
 
-    /**
-     * MFA 플로우 설정에서 특정 stepId와 factorType에 해당하는 스텝의 옵션을 가져옵니다.
-     * 이 메소드는 doFilterInternal 내에서 현재 진행 중인 스텝의 구체적인 설정을 가져올 때 사용됩니다.
-     */
     private <T extends AuthenticationProcessingOptions> Optional<T> getMfaFactorOptionsByStepId(
             @Nullable AuthenticationFlowConfig mfaFlowConfig, String stepId, AuthType factorType, Class<T> optionClass) {
         if (mfaFlowConfig == null || !StringUtils.hasText(stepId) || factorType == null || CollectionUtils.isEmpty(mfaFlowConfig.getStepConfigs())) {
@@ -178,20 +174,22 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         return mfaFlowConfig.getStepConfigs().stream()
                 .filter(step -> stepId.equals(step.getStepId()) && factorType.name().equalsIgnoreCase(step.getType()))
                 .findFirst()
-                .map(step -> {
-                    Object optionsObj = step.getOptions().get("_options");
-                    if (optionClass.isInstance(optionsObj)) {
-                        return optionClass.cast(optionsObj);
-                    }
-                    Object genericOptionsObj = step.getOptions().get("_options"); // 대체 키 시도
-                    if (optionClass.isInstance(genericOptionsObj)) {
-                        return optionClass.cast(genericOptionsObj);
-                    }
-                    log.warn("MfaContinuationFilter(getByStepId): Could not find or cast options of type {} for step {} (type {}) using key {} or '_options'. Step options: {}",
-                            optionClass.getSimpleName(), step.getStepId(), step.getType(), optionClass.getName(), step.getOptions());
-                    return null;
-                })
-                .filter(Objects::nonNull);
+                .flatMap(step -> getSpecificOptionFromStep(step, optionClass)); // flatMap으로 변경
+    }
+
+    private <T extends AuthenticationProcessingOptions> Optional<T> getSpecificOptionFromStep(AuthenticationStepConfig step, Class<T> optionClass) {
+        Object optionsObj = step.getOptions().get(optionClass.getName());
+        if (optionClass.isInstance(optionsObj)) {
+            return Optional.of(optionClass.cast(optionsObj));
+        }
+        Object genericOptionsObj = step.getOptions().get("_options");
+        if (optionClass.isInstance(genericOptionsObj)) {
+            return Optional.of(optionClass.cast(genericOptionsObj));
+        }
+        // 옵션 객체를 찾지 못한 경우에도 경고보다는 trace 레벨로 로깅하거나, 호출부에서 Optional.empty()를 적절히 처리하도록 함.
+        log.trace("MfaContinuationFilter(getSpecificOption): Options of type {} not found or not castable for step {} (type {}) using key {} or '_options'. Step options: {}",
+                optionClass.getSimpleName(), step.getStepId(), step.getType(), optionClass.getName(), step.getOptions());
+        return Optional.empty();
     }
 
 
@@ -223,7 +221,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         }
 
         try {
-            // --- GET 요청 처리 (UI 페이지 안내 또는 렌더링 위임) ---
             if (HttpMethod.GET.name().equalsIgnoreCase(request.getMethod())) {
                 if (mfaInitiateMatcher.matches(request)) {
                     handleMfaInitiationRequest(request, response, ctx, currentMfaFlowConfig);
@@ -236,12 +233,10 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 } else if (passkeyChallengeMatcher.matches(request)) {
                     handleFactorChallengeInputUiPageRequest(request, response, filterChain, ctx, AuthType.PASSKEY, currentMfaFlowConfig);
                 } else {
-                    // OrRequestMatcher에 의해 매칭되었으나, GET 핸들러가 없는 경우 (이론상 POST 매칭)
-                    log.debug("MfaContinuationFilter: GET request {} matched OrRequestMatcher but no specific GET handler. Passing to next filter (likely for POST).", request.getRequestURI());
+                    log.trace("MfaContinuationFilter: GET request {} matched OrRequestMatcher but no specific GET handler.", request.getRequestURI());
                     filterChain.doFilter(request, response);
                 }
             }
-            // --- POST 요청 처리 (API 및 인증 처리 - MfaStepFilterWrapper로 위임 준비) ---
             else if (HttpMethod.POST.name().equalsIgnoreCase(request.getMethod())) {
                 if (tokenGeneratorMatcher.matches(request)) {
                     handleTokenGenerationRequest(request, response, filterChain, ctx, currentMfaFlowConfig);
@@ -252,7 +247,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                     filterChain.doFilter(request, response);
                 }
             } else {
-                // 기타 HTTP 메소드 (PUT, DELETE 등) - 이 필터에서 처리 안 함
                 filterChain.doFilter(request, response);
             }
         } catch (Exception e) {
@@ -260,15 +254,14 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         }
     }
 
-    // --- GET 요청 핸들러들 (UI 안내 및 렌더링 위임) ---
-
+    // --- GET 요청 핸들러 ---
     private void handleMfaInitiationRequest(HttpServletRequest request, HttpServletResponse response, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {
+        // ... (이전과 유사, setFactorOptionsByStepIdInContext 사용) ...
         if (ctx.isMfaRequiredAsPerPolicy() &&
                 (ctx.getCurrentState() == MfaState.PRIMARY_AUTHENTICATION_COMPLETED ||
                         ctx.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION ||
                         ctx.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)) {
 
-            log.info("MfaContinuationFilter: Guiding MFA initiation for user: {}, Session: {}, Current State: {}", ctx.getUsername(), ctx.getMfaSessionId(), ctx.getCurrentState());
             mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(ctx.getPrimaryAuthentication(), ctx);
 
             if (StringUtils.hasText(ctx.getCurrentStepId()) && ctx.getCurrentProcessingFactor() != null && ctx.getCurrentFactorOptions() == null) {
@@ -282,9 +275,9 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 AuthType nextFactor = ctx.getCurrentProcessingFactor();
 
                 if (nextFactor == AuthType.OTT) {
-                    redirectUrl = request.getContextPath() + this.ottRequestCodeUiMatcher.getPattern();
+                    redirectUrl = request.getContextPath() + this.ottRequestCodeUiMatcher.getPattern(); // 생성자에서 확정된 대표 UI 경로
                 } else if (nextFactor == AuthType.PASSKEY) {
-                    redirectUrl = request.getContextPath() + this.passkeyChallengeMatcher.getPattern();
+                    redirectUrl = request.getContextPath() + this.passkeyChallengeMatcher.getPattern(); // 생성자에서 확정된 대표 UI 경로
                 } else {
                     log.warn("MFA Initiation: Unsupported initial MFA factor: {}. Redirecting to factor selection.", nextFactor);
                     redirectUrl = request.getContextPath() + this.selectFactorMatcher.getPattern();
@@ -293,13 +286,13 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             } else if (ctx.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION) {
                 response.sendRedirect(request.getContextPath() + this.selectFactorMatcher.getPattern());
             } else {
-                log.warn("MFA Initiation: Unexpected state {} after policy evaluation for user {}. Redirecting to factor selection.", ctx.getCurrentState(), ctx.getUsername());
+                log.warn("MFA Initiation: Unexpected state {} for user {}. Redirecting to factor selection.", ctx.getCurrentState(), ctx.getUsername());
                 ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
                 contextPersistence.saveContext(ctx, request);
                 response.sendRedirect(request.getContextPath() + this.selectFactorMatcher.getPattern());
             }
         } else {
-            log.warn("MfaContinuationFilter: Invalid state ({}) or MFA not required for MFA initiation. Session: {}. Redirecting to login.", ctx.getCurrentState(), ctx.getMfaSessionId());
+            log.warn("MfaContinuationFilter: Invalid state ({}) or MFA not required for MFA initiation. Redirecting to login.", ctx.getCurrentState());
             response.sendRedirect(request.getContextPath() + "/loginForm?mfa_error=invalid_mfa_initiation_state");
         }
     }
@@ -309,7 +302,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             log.info("MfaContinuationFilter: Rendering /mfa/select-factor page. Session: {}", ctx.getMfaSessionId());
             filterChain.doFilter(request, response);
         } else {
-            log.warn("MfaContinuationFilter: Invalid state ({}) for /mfa/select-factor. Session: {}. Redirecting to MFA initiate.", ctx.getCurrentState(), ctx.getMfaSessionId());
+            log.warn("MfaContinuationFilter: Invalid state ({}) for /mfa/select-factor. Redirecting to MFA initiate.", ctx.getCurrentState());
             response.sendRedirect(request.getContextPath() + this.mfaInitiateMatcher.getPattern() + "?error=invalid_state_for_select_factor");
         }
     }
@@ -335,9 +328,8 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                     request.getRequestURI(), ctx.getMfaSessionId(), ctx.getCurrentStepId(), ctx.getCurrentState());
             filterChain.doFilter(request, response);
         } else {
-            log.warn("MfaContinuationFilter: Invalid context for GET {}. Expected OTT factor in AWAITING_FACTOR_CHALLENGE_INITIATION state. " +
-                            "Actual State: {}, Actual Factor: {}. Session: {}. Redirecting to MFA initiate.",
-                    request.getRequestURI(), ctx.getCurrentState(), ctx.getCurrentProcessingFactor(), ctx.getMfaSessionId());
+            log.warn("MfaContinuationFilter: Invalid context for GET {}. Expected OTT in AWAITING_FACTOR_CHALLENGE_INITIATION. State: {}, Factor: {}. Redirecting.",
+                    request.getRequestURI(), ctx.getCurrentState(), ctx.getCurrentProcessingFactor());
             response.sendRedirect(request.getContextPath() + this.mfaInitiateMatcher.getPattern() + "?error=invalid_ott_request_ui_context");
         }
     }
@@ -368,91 +360,138 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             }
             ctx.changeState(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION);
             contextPersistence.saveContext(ctx, request);
-            log.info("MfaContinuationFilter: Proceeding to render challenge input UI for factor {} (stepId: {}, session {}). New state: {}",
+            log.info("MfaContinuationFilter: Rendering challenge UI for factor {} (stepId: {}, session {}). New state: {}",
                     requestedFactor, ctx.getCurrentStepId(), ctx.getMfaSessionId(), ctx.getCurrentState());
             filterChain.doFilter(request, response);
         } else {
-            log.warn("Challenge UI for factor {} requested with invalid context state {} or processing factor {}. Session: {}. Redirecting to MFA initiate.",
-                    requestedFactor, ctx.getCurrentState(), ctx.getCurrentProcessingFactor(), ctx.getMfaSessionId());
+            log.warn("Challenge UI for {} requested with invalid context: State {}, Factor {}. Redirecting.",
+                    requestedFactor, ctx.getCurrentState(), ctx.getCurrentProcessingFactor());
             response.sendRedirect(request.getContextPath() + this.mfaInitiateMatcher.getPattern() + "?error=invalid_challenge_input_page_context");
         }
     }
 
-    // --- POST 요청 핸들러들 (MfaStepFilterWrapper로 처리 위임 준비) ---
+    // --- POST 요청 핸들러 ---
 
     private void handleTokenGenerationRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {
-        if (ctx.getCurrentProcessingFactor() != AuthType.OTT) {
-            log.warn("Token generation requested for non-OTT factor or invalid context. Factor: {}, State: {}", ctx.getCurrentProcessingFactor(), ctx.getCurrentState());
-            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Invalid request for token generation.","");
-            return;
-        }
-        if (!StringUtils.hasText(ctx.getCurrentStepId())) {
-            log.error("Token generation requested but currentStepId is missing in FactorContext. SessionId: {}", ctx.getMfaSessionId());
-            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","MFA context is incomplete (missing stepId).","");
-            return;
-        }
-
-        // 현재 stepId에 해당하는 OttOptions 가져오기
-        Optional<OttOptions> ottOptions = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
-        if (ottOptions.isEmpty() || !StringUtils.hasText(ottOptions.get().getTokenGeneratingUrl())) {
-            log.error("Token generation URL not configured for OTT stepId: {} in MFA flow.", ctx.getCurrentStepId());
-            responseWriter.writeErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR.value(), "","Token generation not configured for this MFA step.", ottOptions.get().getTokenGeneratingUrl());
+        // 1. 요청이 tokenGeneratorMatcher에 의해 이미 일치됨 (대표 URL 기준)
+        // 2. FactorContext에서 currentStepId를 가져와야 함 (MfaPolicyProvider가 설정했어야 함)
+        if (ctx.getCurrentProcessingFactor() != AuthType.OTT || !StringUtils.hasText(ctx.getCurrentStepId())) {
+            log.warn("Token generation POST request for non-OTT factor or missing stepId. Factor: {}, StepId: {}, State: {}",
+                    ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId(), ctx.getCurrentState());
+            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Invalid request for token generation (not OTT or missing stepId).","");
             return;
         }
 
-        // MfaPolicyProvider가 stepId를 설정하고, 여기서는 해당 stepId의 옵션을 사용함을 확인.
-        // 실제 코드 생성은 MfaStepFilterWrapper를 통해 위임될 전용 필터 (예: OttCodeGenerationFilter)가 수행.
-        // 이 필터는 상태 변경 및 컨텍스트 저장 후 다음 필터로 넘김.
-        ctx.changeState(MfaState.FACTOR_CHALLENGE_SENT_AWAITING_UI); // 코드 생성 요청 시작 상태
-        ctx.setCurrentFactorOptions(ottOptions.get()); // 현재 스텝의 정확한 옵션 설정
+        // 3. 현재 stepId에 해당하는 OttOptions (DSL 설정)를 가져옴
+        Optional<OttOptions> ottOptionsForStep = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
+
+        // 4. DSL 설정에 tokenGeneratingUrl이 명시적으로 있는지 확인 (사용자 커스텀 설정)
+        if (ottOptionsForStep.isPresent() && StringUtils.hasText(ottOptionsForStep.get().getTokenGeneratingUrl())) {
+            // DSL에 해당 stepId에 대한 tokenGeneratingUrl이 설정되어 있음.
+            // 이 URL이 현재 요청된 URL(this.tokenGeneratorMatcher.getPattern()으로 매칭된)과 일치하는지
+            // 또는 이 URL을 기반으로 MfaStepFilterWrapper가 올바른 하위 필터를 찾을 수 있는지 확인해야 함.
+            // 현재는 요청된 URL이 대표 URL과 일치했고, stepId로 찾은 옵션에도 URL이 있다면 진행.
+            log.info("MFA OTT (StepId: {}): Token generation requested. DSL 'tokenGeneratingUrl' found: {}",
+                    ctx.getCurrentStepId(), ottOptionsForStep.get().getTokenGeneratingUrl());
+            ctx.setCurrentFactorOptions(ottOptionsForStep.get()); // 현재 스텝의 정확한 옵션 설정
+        } else {
+            // DSL에 이 stepId에 대한 tokenGeneratingUrl이 명시적으로 설정되지 않은 경우.
+            // 이 경우, 생성자에서 설정된 대표 tokenGeneratorMatcher의 URL (기본값)을 사용하는 것으로 간주.
+            // 만약 "DSL로 설정한 항목에 대해서만 stepId로 체크"하고, 없으면 에러 처리하고 싶다면 여기서 return.
+            // 여기서는 기본 URL을 사용하는 스텝도 이 핸들러로 들어올 수 있으므로, 옵션이 없어도 기본값으로 진행될 수 있도록
+            // OttOptions가 없더라도 에러를 내지 않고, MfaStepFilterWrapper가 기본 처리 필터를 찾도록 함.
+            // 단, FactorContext에 setCurrentFactorOptions는 null 또는 기본 OttOptions로 설정.
+            Optional<OttOptions> defaultOttOptions = getFirstMfaFactorOptionsByType(flowConfig, AuthType.OTT, OttOptions.class);
+            ctx.setCurrentFactorOptions(defaultOttOptions.orElse(null)); // 대표(첫번째) OTT 스텝 옵션 또는 null
+            log.info("MFA OTT (StepId: {}): Token generation requested. No specific 'tokenGeneratingUrl' in DSL for this step. " +
+                            "Proceeding with representative/default tokenGeneratorMatcher URL: {}",
+                    ctx.getCurrentStepId(), this.tokenGeneratorMatcher.getPattern());
+        }
+
+        ctx.changeState(MfaState.FACTOR_CHALLENGE_SENT_AWAITING_UI);
         contextPersistence.saveContext(ctx, request);
 
-        log.info("MfaContinuationFilter: Preparing for OTT token generation. FactorContext updated for stepId: {}. Passing to MfaStepFilterWrapper.", ctx.getCurrentStepId());
-        filterChain.doFilter(request, response); // MfaStepFilterWrapper가 이 요청을 받아 처리하도록 함
+        log.info("MfaContinuationFilter: Preparing for OTT token generation (POST for StepId: {}). Passing to MfaStepFilterWrapper.", ctx.getCurrentStepId());
+        filterChain.doFilter(request, response); // MfaStepFilterWrapper로 위임
     }
 
     private void handleLoginProcessingRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {
-        if (ctx.getCurrentProcessingFactor() != AuthType.OTT && ctx.getCurrentProcessingFactor() != AuthType.PASSKEY) { // 다른 팩터 타입 추가 가능
-            log.warn("Login processing requested for unsupported factor or invalid context. Factor: {}, State: {}", ctx.getCurrentProcessingFactor(), ctx.getCurrentState());
-            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "", "Invalid request for factor processing.", "");
-            return;
-        }
-        if (!StringUtils.hasText(ctx.getCurrentStepId())) {
-            log.error("Login processing requested but currentStepId is missing in FactorContext. SessionId: {}", ctx.getMfaSessionId());
-            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "", "MFA context is incomplete (missing stepId).", "");
+        // 1. 요청이 loginProcessingUrlMatcher에 의해 이미 일치됨 (대표 URL 기준)
+        AuthType currentFactor = ctx.getCurrentProcessingFactor();
+        if ((currentFactor != AuthType.OTT && currentFactor != AuthType.PASSKEY) || !StringUtils.hasText(ctx.getCurrentStepId())) {
+            log.warn("Login processing POST for unsupported factor or missing stepId. Factor: {}, StepId: {}, State: {}",
+                    currentFactor, ctx.getCurrentStepId(), ctx.getCurrentState());
+            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Invalid request for factor processing (unsupported factor or missing stepId).","");
             return;
         }
         if(ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
-            log.warn("Login processing requested in an unexpected state: {}. Expected AWAITING_VERIFICATION. SessionId: {}", ctx.getCurrentState(), ctx.getMfaSessionId());
-            // 상태에 따라 다른 처리 또는 에러 응답
-        }
-
-        // 현재 stepId에 해당하는 FactorOptions 가져오기
-        Optional<? extends AuthenticationProcessingOptions> factorOptions = Optional.empty();
-        if(ctx.getCurrentProcessingFactor() == AuthType.OTT) {
-            factorOptions = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
-        } else if (ctx.getCurrentProcessingFactor() == AuthType.PASSKEY) {
-            factorOptions = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.PASSKEY, PasskeyOptions.class);
-        }
-
-        if (factorOptions.isEmpty() || (ctx.getCurrentProcessingFactor() == AuthType.OTT && !StringUtils.hasText(((OttOptions)factorOptions.get()).getLoginProcessingUrl()))
-                || (ctx.getCurrentProcessingFactor() == AuthType.PASSKEY && !StringUtils.hasText(((PasskeyOptions)factorOptions.get()).getLoginProcessingUrl())) ) { // PasskeyOptions의 loginProcessingUrl 확인
-            log.error("Login processing URL not configured for {} stepId: {} in MFA flow.",ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId());
-            responseWriter.writeErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR.value(), "","Factor processing not configured for this MFA step","");
+            log.warn("Login processing POST in unexpected state: {}. Expected AWAITING_VERIFICATION. SessionId: {}", ctx.getCurrentState(), ctx.getMfaSessionId());
+            responseWriter.writeErrorResponse(response, HttpStatus.INTERNAL_SERVER_ERROR.value(), "","Invalid state for factor processing.", "");
             return;
         }
-        ctx.setCurrentFactorOptions(factorOptions.get()); // 현재 스텝의 정확한 옵션 설정
 
-        // 상태는 MfaStepFilterWrapper 또는 그 하위 필터에서 인증 성공/실패에 따라 변경됨.
-        // 이 필터는 컨텍스트 준비 후 다음 필터로 넘김.
+        // 2. 현재 stepId에 해당하는 FactorOptions (DSL 설정)를 가져옴
+        Optional<? extends AuthenticationProcessingOptions> factorOptionsForStep = Optional.empty();
+        String dslConfiguredProcessingUrl = null;
+
+        if(currentFactor == AuthType.OTT) {
+            Optional<OttOptions> ottOpts = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
+            if (ottOpts.isPresent()) {
+                factorOptionsForStep = ottOpts;
+                dslConfiguredProcessingUrl = ottOpts.get().getLoginProcessingUrl();
+            }
+        } else if (currentFactor == AuthType.PASSKEY) { // Passkey는 DSL로 loginProcessingUrl 설정이 없을 수 있음
+            Optional<PasskeyOptions> passkeyOpts = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.PASSKEY, PasskeyOptions.class);
+            if (passkeyOpts.isPresent()) {
+                factorOptionsForStep = passkeyOpts;
+                dslConfiguredProcessingUrl = passkeyOpts.get().getLoginProcessingUrl(); // PasskeyOptions에 loginProcessingUrl이 있다면
+            }
+        }
+
+        // 3. DSL 설정에 loginProcessingUrl이 명시적으로 있는지 확인
+        if (factorOptionsForStep.isPresent() && StringUtils.hasText(dslConfiguredProcessingUrl)) {
+            log.info("MFA {} (StepId: {}): Login processing requested. DSL 'loginProcessingUrl' found: {}",
+                    currentFactor, ctx.getCurrentStepId(), dslConfiguredProcessingUrl);
+            ctx.setCurrentFactorOptions(factorOptionsForStep.get());
+        } else {
+            // DSL에 이 stepId에 대한 loginProcessingUrl이 명시적으로 설정되지 않은 경우.
+            // Passkey의 경우, DSL 설정 없이 기본 Spring Security WebAuthn URL을 사용할 수 있음.
+            // OTT의 경우, 만약 DSL 설정이 필수라면 여기서 에러 처리.
+            // 여기서는 기본 URL(Matcher에 설정된 대표 URL)을 사용하는 것으로 간주하고 진행.
+            // MfaStepFilterWrapper가 stepId에 대한 커스텀 필터가 없으면 기본 처리 필터를 찾도록 함.
+            if (currentFactor == AuthType.OTT) { // OTT는 loginProcessingUrl이 명시적으로 있어야 할 가능성이 높음
+                log.warn("MFA OTT (StepId: {}): Login processing requested, but 'loginProcessingUrl' is NOT explicitly configured in DSL for this step. " +
+                                "Proceeding with representative/default loginProcessingMatcher URL: {}. Ensure MfaStepFilterWrapper handles this.",
+                        ctx.getCurrentStepId(), this.loginProcessingUrlMatcher.getPattern());
+                // 명시적 설정이 없는 OTT 스텝에 대한 처리를 거부하고 싶다면 여기서 에러 반환
+                // responseWriter.writeError(response, HttpStatus.NOT_IMPLEMENTED, "OTT Login processing not configured for this MFA step in DSL.");
+                // return;
+            } else if (currentFactor == AuthType.PASSKEY) {
+                log.info("MFA Passkey (StepId: {}): Login processing requested. No specific 'loginProcessingUrl' in DSL for this step. " +
+                                "Relying on default Passkey processing (likely Spring Security WebAuthn).",
+                        ctx.getCurrentStepId());
+            }
+            // setCurrentFactorOptions를 null 또는 기본 옵션으로 설정
+            if (factorOptionsForStep.isPresent()) { // 옵션 객체는 있지만 URL만 없는 경우
+                ctx.setCurrentFactorOptions(factorOptionsForStep.get());
+            } else { // 옵션 객체 자체가 없는 경우 (기본 옵션 사용 가정)
+                // 대표 옵션 설정 (예: 첫번째 스텝 옵션)
+                if(currentFactor == AuthType.OTT) {
+                    getFirstMfaFactorOptionsByType(flowConfig, AuthType.OTT, OttOptions.class).ifPresent(ctx::setCurrentFactorOptions);
+                } else if (currentFactor == AuthType.PASSKEY) {
+                    getFirstMfaFactorOptionsByType(flowConfig, AuthType.PASSKEY, PasskeyOptions.class).ifPresent(ctx::setCurrentFactorOptions);
+                }
+            }
+        }
+
         contextPersistence.saveContext(ctx, request);
 
-        log.info("MfaContinuationFilter: Preparing for {} factor processing. FactorContext updated for stepId: {}. Passing to MfaStepFilterWrapper.", ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId());
-        filterChain.doFilter(request, response); // MfaStepFilterWrapper가 이 요청을 받아 처리하도록 함
+        log.info("MfaContinuationFilter: Preparing for {} factor processing (POST for StepId: {}). Passing to MfaStepFilterWrapper.", currentFactor, ctx.getCurrentStepId());
+        filterChain.doFilter(request, response); // MfaStepFilterWrapper로 위임
     }
 
-    // --- 공통 에러 핸들러 및 유틸리티 메소드 ---
 
+    // --- 공통 에러 핸들러 및 유틸리티 메소드 ---
     private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response, String errorCode, String errorMessage) throws IOException {
         log.warn("MfaContinuationFilter: Invalid FactorContext. ErrorCode: {}, Message: {}, Request: {}", errorCode, errorMessage, request.getRequestURI());
         contextPersistence.deleteContext(request);
@@ -469,6 +508,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         contextPersistence.deleteContext(request);
         response.sendRedirect(request.getContextPath() + "/loginForm?mfa_error=mfa_session_already_ended");
     }
+
     private void handleConfigError(HttpServletResponse response, HttpServletRequest request, String errorCode, String errorMessage) throws IOException {
         log.error("MfaContinuationFilter: Configuration error. ErrorCode: {}, Message: {}, Request: {}", errorCode, errorMessage, request.getRequestURI());
         contextPersistence.deleteContext(request);
@@ -491,9 +531,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * FactorContext에 현재 진행 중인 스텝(stepId 기준)의 옵션을 설정합니다.
-     */
     private void setFactorOptionsByStepIdInContext(FactorContext ctx, AuthType factorType, String stepId, @Nullable AuthenticationFlowConfig flowConfig) {
         if (factorType == null || !StringUtils.hasText(stepId) || flowConfig == null) {
             ctx.setCurrentFactorOptions(null);
@@ -514,12 +551,16 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             log.debug("MfaContinuationFilter: Factor options set for factor {} (StepId: {}) in user {}'s context.",
                     factorType, stepId, ctx.getUsername());
         } else {
+            // DSL로 특정 stepId에 대한 옵션이 명시적으로 없는 경우.
+            // 이 경우, 해당 factorType의 대표 옵션 (첫번째 스텝 옵션 또는 properties 기본값 기반)을 설정할지,
+            // 아니면 null로 둘지 결정해야 함. 여기서는 null로 둠.
+            // MfaStepFilterWrapper에서 FactorContext의 옵션이 null일 경우 기본 처리를 하도록 유도.
             ctx.setCurrentFactorOptions(null);
-            log.warn("MfaContinuationFilter: No specific options found for factor {} (StepId: {}) in MFA flow config for user {}. FactorContext.currentFactorOptions will be null.",
+            log.warn("MfaContinuationFilter: No specific options in DSL found for factor {} (StepId: {}). " +
+                            "FactorContext.currentFactorOptions will be null. Relying on MfaStepFilterWrapper for default handling if applicable. User: {}",
                     factorType, stepId, ctx.getUsername());
         }
     }
-
 
     private Optional<AuthenticationStepConfig> findStepConfigByFactorTypeAndMinOrder(AuthenticationFlowConfig flowConfig, AuthType factorType, int minOrderExclusive) {
         if (flowConfig == null || factorType == null || CollectionUtils.isEmpty(flowConfig.getStepConfigs())) {

@@ -14,9 +14,6 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.service.ott.CodeStore;
-import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
-import io.springsecurity.springsecurity6x.security.service.ott.EmailService;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -25,14 +22,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.ott.InMemoryOneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 
 import javax.crypto.SecretKey;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +79,7 @@ public class SecurityPlatformConfiguration {
     @Bean public RequiredPlatformOptionsValidator requiredPlatformOptionsValidator() { return new RequiredPlatformOptionsValidator(); }
     @Bean public FeatureAvailabilityValidator featureAvailabilityValidator(FeatureRegistry featureRegistry) { return new FeatureAvailabilityValidator(featureRegistry); }
     @Bean public CustomBeanDependencyValidator customBeanDependencyValidator(ApplicationContext applicationContext) { return new CustomBeanDependencyValidator(applicationContext); }
-    @Bean public DuplicateMfaFlowValidator duplicateMfaFlowValidator() { return new DuplicateMfaFlowValidator(); }
+    @Bean public DuplicateFlowTypeNameValidator duplicateMfaFlowValidator() { return new DuplicateFlowTypeNameValidator(); }
 
 
     @Bean
@@ -100,14 +95,12 @@ public class SecurityPlatformConfiguration {
         List<Validator<List<AuthenticationFlowConfig>>> flowListValidators = flowListValidatorsProvider.getIfAvailable(Collections::emptyList);
         List<Validator<AuthenticationFlowConfig>> singleFlowValidators = singleFlowValidatorsProvider.getIfAvailable(Collections::emptyList);
         List<Validator<AuthenticationStepConfig>> stepValidators = stepValidatorsProvider.getIfAvailable(Collections::emptyList);
-        List<Validator<List<FlowContext>>> flowValidators = duplicatedFlowValidators.getIfAvailable(Collections::emptyList);
 
         return new DslValidator(
                 platformValidators,
                 flowListValidators,
                 singleFlowValidators,
-                stepValidators,
-                flowValidators
+                stepValidators
         );
     }
 

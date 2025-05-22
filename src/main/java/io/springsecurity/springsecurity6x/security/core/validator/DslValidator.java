@@ -28,9 +28,6 @@ public class DslValidator implements Validator<PlatformConfig> {
     // 개별 AuthenticationStepConfig를 대상으로 하는 Validator (예: 필수 옵션, Feature 가용성, 커스텀 Bean 의존성 검사)
     private final List<Validator<AuthenticationStepConfig>> stepValidators;
 
-    // List<FlowContext> 전체를 대상으로 하는 Validator (DuplicateMfaFlowValidator가 여기에 해당)
-    private final List<Validator<List<FlowContext>>> flowContextListValidators;
-
 
     @Override
     public ValidationResult validate(PlatformConfig platformConfig) {
@@ -60,23 +57,6 @@ public class DslValidator implements Validator<PlatformConfig> {
                 finalResult.merge(flv.validate(flows));
             }
         }
-
-        // 2.1. FlowContext 목록 전체 수준 검증 (Validator<List<FlowContext>>)
-        if (!CollectionUtils.isEmpty(flowContextListValidators)) {
-            if (!CollectionUtils.isEmpty(flows)) {
-                for (Validator<List<FlowContext>> fclv : flowContextListValidators) {
-                    finalResult.merge(fclv.validate(flowContexts)); // flowContexts (List<FlowContext>)를 전달
-                }
-
-            } else {
-                // flows가 비어있으면 List<FlowContext>도 비어있으므로, 해당 Validator는 빈 리스트로 호출하거나 건너뛸 수 있음.
-                // 여기서는 빈 리스트로 호출.
-                for (Validator<List<FlowContext>> fclv : flowContextListValidators) {
-                    finalResult.merge(fclv.validate(Collections.emptyList()));
-                }
-            }
-        }
-
 
         // 3. 개별 Flow 및 그 하위 Step 검증
         if (!CollectionUtils.isEmpty(flows)) {

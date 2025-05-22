@@ -161,7 +161,7 @@ public class PlatformSecurityConfig {
 //                                .tokenService(emailOneTimeTokenService) // Spring Security OneTimeTokenService 사용
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
                                 // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.
-//                                .loginProcessingUrl("/login/mfa-ott")
+                                .loginProcessingUrl("/login/mfa-ott")
 //                                .tokenGeneratingUrl("/ott/generate")
 //                                .tokenGenerationSuccessHandler(oneTimeTokenCreationSuccessHandler)
 //                                .successHandler(mfaFactorProcessingSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리

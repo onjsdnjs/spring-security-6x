@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,7 +35,14 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
     private final UnifiedAuthenticationSuccessHandler finalSuccessHandler;
     private final AuthResponseWriter responseWriter;
     private final ApplicationContext applicationContext;
+
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authentication) throws IOException, ServletException {
+        onAuthenticationSuccess(request, response, authentication);
+    }
+
     private final AuthContextProperties authContextProperties;
+
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {

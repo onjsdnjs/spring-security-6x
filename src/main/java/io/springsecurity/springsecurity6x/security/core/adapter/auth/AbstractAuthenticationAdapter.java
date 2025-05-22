@@ -40,6 +40,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
 
     protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions options,
                                                OneTimeTokenGenerationSuccessHandler ottSuccessHandler,
+                                               AuthenticationSuccessHandler successHandler,
                                                AuthenticationFailureHandler failureHandler) throws Exception {
         if (!(this instanceof OttAuthenticationAdapter)) {
             throw new UnsupportedOperationException(
@@ -88,33 +89,24 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
 
         AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
         AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        OneTimeTokenGenerationSuccessHandler generationSuccessHandler; // 변수 선언만
 
         if (this instanceof OttAuthenticationAdapter ottAdapter) {
-            OneTimeTokenGenerationSuccessHandler resolvedOttSuccessHandler; // 변수 선언만
-
-            if (successHandler instanceof OneTimeTokenGenerationSuccessHandler) {
-                // successHandler가 이미 OneTimeTokenGenerationSuccessHandler 타입이면 그대로 사용
-                resolvedOttSuccessHandler = (OneTimeTokenGenerationSuccessHandler) successHandler;
+                generationSuccessHandler = determineDefaultOttGenerationSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
                 log.debug("AuthenticationFeature [{}]: Using provided successHandler as OneTimeTokenGenerationSuccessHandler: {}",
                         getId(), successHandler.getClass().getName());
-            } else {
-                // successHandler가 OneTimeTokenGenerationSuccessHandler 타입이 아니면 기본 핸들러 결정 시도
-                log.warn("AuthenticationFeature [{}]: Resolved successHandler for OTT feature is not an instance of OneTimeTokenGenerationSuccessHandler (Actual: {}). " +
-                                "Attempting to use a default OTT success handler.",
-                        getId(), (successHandler != null ? successHandler.getClass().getName() : "null"));
-                resolvedOttSuccessHandler = determineDefaultOttSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
-                if (resolvedOttSuccessHandler == null) {
+
+                if (generationSuccessHandler == null) {
                     // determineDefaultOttSuccessHandler가 null을 반환하지 않도록 보장하는 것이 중요.
                     // 만약 null을 반환할 수 있다면, 여기서 적절한 기본값을 설정하거나 예외를 던져야 함.
                     // (이전 답변에서 determineDefaultOttSuccessHandler가 null이 아닌 값을 반환하도록 수정했음)
                     log.error("AuthenticationFeature [{}]: CRITICAL - determineDefaultOttSuccessHandler returned null. This should not happen. Review OttAuthenticationAdapter.determineDefaultOttSuccessHandler.", getId());
                     throw new IllegalStateException("Unable to determine a valid OneTimeTokenGenerationSuccessHandler for OTT feature " + getId() +
-                            ". Resolved successHandler was: " + (successHandler != null ? successHandler.getClass().getName() : "null") +
+                            ". Resolved successHandler was: " + successHandler.getClass().getName() +
                             " and determineDefaultOttSuccessHandler also returned null.");
                 }
-            }
             // 이 시점에서 resolvedOttSuccessHandler는 null이 아님을 보장.
-            ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, resolvedOttSuccessHandler, failureHandler);
+            ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, generationSuccessHandler, successHandler, failureHandler);
         } else {
             configureHttpSecurity(http, options, successHandler, failureHandler);
         }
@@ -191,7 +183,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
             ApplicationContext appContext) {
         try {
-            return appContext.getBean("jwtEmittingAndMfaAwareSuccessHandler", AuthenticationSuccessHandler.class);
+            return appContext.getBean("unifiedAuthenticationFailureHandler", AuthenticationSuccessHandler.class);
         } catch (Exception e) {
             log.warn("AuthenticationFeature [{}]: Default success handler bean 'jwtEmittingAndMfaAwareSuccessHandler' not found. Defaulting to simple redirect to '/'.", getId(), e);
             return (request, response, authentication) -> {
@@ -205,7 +197,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
      * 이 메서드는 {@link OttAuthenticationAdapter}에서 반드시 재정의되어야 하며,
      * null을 반환해서는 안 됩니다.
      */
-    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttSuccessHandler(
+    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttGenerationSuccessHandler(
             O options, @Nullable AuthenticationFlowConfig currentFlow,
             AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
             ApplicationContext appContext) {

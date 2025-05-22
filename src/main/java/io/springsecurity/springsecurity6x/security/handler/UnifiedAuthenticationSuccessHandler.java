@@ -38,7 +38,7 @@ import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
-public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler, OneTimeTokenGenerationSuccessHandler { // 인터페이스 추가
+public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler{
 
     private final ContextPersistence contextPersistence;
     private final MfaPolicyProvider mfaPolicyProvider;
@@ -159,7 +159,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
      * OTT 코드 생성 성공 시 (GenerateOneTimeTokenFilter에 의해) 호출됩니다.
      * @param token 생성된 OneTimeToken (내부 토큰)
      */
-    @Override
+    /*@Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token) throws IOException, ServletException {
         log.info("UnifiedAuthenticationSuccessHandler.handle (OneTimeTokenGenerationSuccessHandler): OTT code generated for user: {}", token.getUsername());
 
@@ -194,7 +194,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
         log.debug("Redirecting to MFA OTT challenge page: {}", redirectUrl);
         response.sendRedirect(redirectUrl);
-    }
+    }*/
 
 
     /**

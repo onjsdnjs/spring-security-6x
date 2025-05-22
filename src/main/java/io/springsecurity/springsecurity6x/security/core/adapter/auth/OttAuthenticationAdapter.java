@@ -38,7 +38,8 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
 
     @Override
     public void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
-                                            OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler, // 코드 생성 성공 핸들러
+                                            OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
+                                            AuthenticationSuccessHandler successHandler,// 코드 생성 성공 핸들러
                                             AuthenticationFailureHandler failureHandler) throws Exception { // 코드 검증 실패 핸들러
 
         ApplicationContext applicationContext = http.getSharedObject(ApplicationContext.class);
@@ -87,9 +88,10 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
                     .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl()) // 코드 "생성/발송"을 처리할 POST URL (GenerateOneTimeTokenFilter가 처리)
                     .tokenService(opts.getOneTimeTokenService())
-                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler)
-                    .authenticationSuccessHandler()
-                    .authenticationFailureHandler(failureHandler);
+                    .tokenGenerationSuccessHandler(opts.getTokenGenerationSuccessHandler() == null ?
+                            tokenGenerationSuccessHandler:opts.getTokenGenerationSuccessHandler())
+                    .authenticationSuccessHandler(opts.getSuccessHandler() == null ? successHandler : opts.getSuccessHandler())
+                    .authenticationFailureHandler(opts.getFailureHandler() == null ? failureHandler: opts.getFailureHandler());
                     // 코드 생성/발송 성공 핸들러
             // usernameParameter, tokenParameter는 OneTimeTokenLoginConfigurer에 기본값이 설정되어 있음 (username, token)
             // 만약 OttOptions에 이 파라미터 이름 설정이 있다면 여기서 ott.usernameParameter(), ott.tokenParameter()로 설정 가능

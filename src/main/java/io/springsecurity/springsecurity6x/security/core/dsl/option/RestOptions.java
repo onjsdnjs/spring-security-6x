@@ -30,7 +30,7 @@ public final class RestOptions extends AuthenticationProcessingOptions {
 
         public Builder() {
             super.loginProcessingUrl("/api/auth/login");
-            super.order(200); // 예시
+            super.order(200);
         }
 
         @Override

@@ -30,8 +30,8 @@ public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapt
                     .passwordParameter(opts.getPasswordParameter())
                     .failureUrl(opts.getFailureUrl())
                     .permitAll(opts.isPermitAll())
-                    .successHandler(successHandler)
-                    .failureHandler(failureHandler);
+                    .successHandler(opts.getSuccessHandler() == null ? successHandler:opts.getSuccessHandler())
+                    .failureHandler(opts.getFailureHandler() == null ? failureHandler:opts.getFailureHandler());
 
             if (opts.getSecurityContextRepository() != null) {
                 form.securityContextRepository(opts.getSecurityContextRepository());

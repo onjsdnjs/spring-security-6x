@@ -25,8 +25,8 @@ public final class RestAuthenticationAdapter extends AbstractAuthenticationAdapt
                                          AuthenticationFailureHandler failureHandler) throws Exception {
         http.with(new RestAuthenticationConfigurer(), rest -> {
             rest.loginProcessingUrl(opts.getLoginProcessingUrl())
-                    .successHandler(successHandler)
-                    .failureHandler(failureHandler);
+                    .successHandler(opts.getSuccessHandler() == null ? successHandler:opts.getSuccessHandler())
+                    .failureHandler(opts.getFailureHandler() == null ? failureHandler:opts.getFailureHandler());
 
             if (opts.getSecurityContextRepository() != null) {
                 rest.securityContextRepository(opts.getSecurityContextRepository());

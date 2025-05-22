@@ -9,6 +9,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.Authenticatio
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
@@ -151,7 +152,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                         .orElseGet(() -> appContext.getBean(UnifiedAuthenticationSuccessHandler.class));
             } else {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
-                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
+                return appContext.getBean(MfaFactorProcessingSuccessHandler.class);
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());

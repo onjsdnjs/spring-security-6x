@@ -374,7 +374,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
     private void handleTokenGenerationRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {
         // 1. 요청이 tokenGeneratorMatcher에 의해 이미 일치됨 (대표 URL 기준)
-        // 2. FactorContext에서 currentStepId를 가져와야 함 (MfaPolicyProvider가 설정했어야 함)
+        // 2. FactorContext 에서 currentStepId를 가져와야 함 (MfaPolicyProvider가 설정했어야 함)
         if (ctx.getCurrentProcessingFactor() != AuthType.OTT || !StringUtils.hasText(ctx.getCurrentStepId())) {
             log.warn("Token generation POST request for non-OTT factor or missing stepId. Factor: {}, StepId: {}, State: {}",
                     ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId(), ctx.getCurrentState());
@@ -382,11 +382,18 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             return;
         }
 
+
         // 3. 현재 stepId에 해당하는 OttOptions (DSL 설정)를 가져옴
         Optional<OttOptions> ottOptionsForStep = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
+        if(!request.getRequestURI().equals(ottOptionsForStep.get().getTokenGeneratingUrl())){
+            log.warn("Token generation POST request for non-OTT factor or not matched generatorUrl. Factor: {}, StepId: {}, State: {}",
+                    ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId(), ctx.getCurrentState());
+            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Token generation POST request for non-OTT factor or not matched generatorUrl","");
+            return;
+        }
 
         // 4. DSL 설정에 tokenGeneratingUrl이 명시적으로 있는지 확인 (사용자 커스텀 설정)
-        if (ottOptionsForStep.isPresent() && StringUtils.hasText(ottOptionsForStep.get().getTokenGeneratingUrl())) {
+        if (StringUtils.hasText(ottOptionsForStep.get().getTokenGeneratingUrl())) {
             // DSL에 해당 stepId에 대한 tokenGeneratingUrl이 설정되어 있음.
             // 이 URL이 현재 요청된 URL(this.tokenGeneratorMatcher.getPattern()으로 매칭된)과 일치하는지
             // 또는 이 URL을 기반으로 MfaStepFilterWrapper가 올바른 하위 필터를 찾을 수 있는지 확인해야 함.
@@ -422,6 +429,13 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             log.warn("Login processing POST for unsupported factor or missing stepId. Factor: {}, StepId: {}, State: {}",
                     currentFactor, ctx.getCurrentStepId(), ctx.getCurrentState());
             responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Invalid request for factor processing (unsupported factor or missing stepId).","");
+            return;
+        }
+        Optional<OttOptions> ottOptionsForStep = getMfaFactorOptionsByStepId(flowConfig, ctx.getCurrentStepId(), AuthType.OTT, OttOptions.class);
+        if(!request.getRequestURI().equals(ottOptionsForStep.get().getLoginProcessingUrl())){
+            log.warn("Token generation POST request for non-OTT factor or not matched processingUrl. Factor: {}, StepId: {}, State: {}",
+                    ctx.getCurrentProcessingFactor(), ctx.getCurrentStepId(), ctx.getCurrentState());
+            responseWriter.writeErrorResponse(response, HttpStatus.BAD_REQUEST.value(), "","Token generation POST request for non-OTT factor or not matched processingUrl","");
             return;
         }
         if(ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {

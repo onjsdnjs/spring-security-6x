@@ -87,7 +87,10 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
                     .showDefaultSubmitPage(opts.isShowDefaultSubmitPage())
                     .tokenGeneratingUrl(opts.getTokenGeneratingUrl()) // 코드 "생성/발송"을 처리할 POST URL (GenerateOneTimeTokenFilter가 처리)
                     .tokenService(opts.getOneTimeTokenService())
-                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler); // 코드 생성/발송 성공 핸들러
+                    .tokenGenerationSuccessHandler(tokenGenerationSuccessHandler)
+                    .authenticationSuccessHandler()
+                    .authenticationFailureHandler(failureHandler);
+                    // 코드 생성/발송 성공 핸들러
             // usernameParameter, tokenParameter는 OneTimeTokenLoginConfigurer에 기본값이 설정되어 있음 (username, token)
             // 만약 OttOptions에 이 파라미터 이름 설정이 있다면 여기서 ott.usernameParameter(), ott.tokenParameter()로 설정 가능
         });

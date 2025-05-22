@@ -309,6 +309,7 @@ public class LoginController {
         }
 
         model.addAttribute("usernameForDisplay", ctx.getUsername());
+        model.addAttribute("emailForVerification", ctx.getUsername());
         model.addAttribute("mfaSessionId", ctx.getMfaSessionId());
         model.addAttribute("pageTitle", "MFA - 코드 입력");
 
@@ -351,7 +352,7 @@ public class LoginController {
         }
 
         model.addAttribute("isMfaFlow", true);
-        return "login-mfa-verify-code";
+        return "login-mfa-verify-ott";
     }
 
     @GetMapping("/mfa/challenge/passkey")

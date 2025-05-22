@@ -10,20 +10,25 @@ import io.springsecurity.springsecurity6x.security.handler.*;
 import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
+import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -160,7 +165,18 @@ public class PlatformSecurityConfig {
                                 .tokenGeneratingUrl("/ott/generate")
                                 .tokenGenerationSuccessHandler(oneTimeTokenCreationSuccessHandler)
                                 .successHandler(mfaFactorProcessingSuccessHandler) // OTT Factor 성공 시 다음 단계 또는 최종 완료 처리
-                                .failureHandler(unifiedAuthenticationFailureHandler) // OTT Factor 실패 시
+                                .failureHandler(unifiedAuthenticationFailureHandler)
+                                .rawHttp(http -> http.oneTimeTokenLogin(
+                                        ott -> ott.authenticationConverter(new OneTimeTokenAuthenticationConverter(){
+                                            @Override
+                                            public Authentication convert(HttpServletRequest request) {
+                                                String token = request.getParameter("token");
+                                                if (!StringUtils.hasText(token)) {
+                                                                                                        return null;
+                                                }
+                                                return OneTimeTokenAuthenticationToken.unauthenticated(request.getParameter("username"),token);
+                                            }
+                                        })))// OTT Factor 실패 시
                         )
                         // 2차 인증 요소: Passkey
                        /* .passkey(passkeyFactor -> passkeyFactor

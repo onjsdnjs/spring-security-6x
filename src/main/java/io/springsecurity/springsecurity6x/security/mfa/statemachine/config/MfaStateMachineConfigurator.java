@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.options.PrimaryAuthenticationOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -19,23 +20,17 @@ import io.springsecurity.springsecurity6x.security.mfa.statemachine.guard.IsFact
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 
-// static import 제거 (AuthType.OTT, AuthType.PASSKEY 직접 사용 권장 또는 enum 클래스명으로 접근)
-// import static io.springsecurity.springsecurity6x.security.enums.AuthType.OTT;
-// import static io.springsecurity.springsecurity6x.security.enums.AuthType.PASSKEY;
-
-/**
- * AuthenticationFlowConfig를 기반으로 MfaStateMachineDefinition을 구성합니다.
- * 이 클래스는 상태 머신 "정의"를 생성하는 역할을 합니다.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -47,103 +42,87 @@ public class MfaStateMachineConfigurator {
         Assert.notNull(mfaFlowConfig, "AuthenticationFlowConfig cannot be null for building MfaStateMachineDefinition");
         log.debug("Building MfaStateMachineDefinition for flow: {}", mfaFlowConfig.getTypeName());
 
-        MfaStateMachineDefinition.Transition.TransitionBuilder tBuilder = MfaStateMachineDefinition.Transition.builder();
         List<MfaStateMachineDefinition.Transition> transitions = new ArrayList<>();
 
-        // --- Action 및 Guard 빈 가져오기 (빈 이름 또는 클래스 타입으로) ---
+        // Action 및 Guard 빈 가져오기
         InitializeMfaSessionAction initAction = applicationContext.getBean("initializeMfaSessionAction", InitializeMfaSessionAction.class);
         AllRequiredFactorsAreCompletedGuard allCompletedGuard = applicationContext.getBean("allRequiredFactorsAreCompletedGuard", AllRequiredFactorsAreCompletedGuard.class);
         FinalizeMfaSuccessAction finalSuccessAction = applicationContext.getBean("finalizeMfaSuccessAction", FinalizeMfaSuccessAction.class);
         RedirectToFactorSelectionAction selectUiAction = applicationContext.getBean("redirectToFactorSelectionAction", RedirectToFactorSelectionAction.class);
         IsFactorAvailableGuard factorAvailableGuard = applicationContext.getBean("isFactorAvailableGuard", IsFactorAvailableGuard.class);
-        // 추가적으로 필요한 Action/Guard 빈들 (예시)
-        MfaAction sendOtpAction = applicationContext.getBean("sendOtpAction", MfaAction.class); // 실제 빈 이름 확인 필요
+        MfaAction sendOtpAction = applicationContext.getBean("sendOtpAction", MfaAction.class);
         MfaAction verifyOtpAction = applicationContext.getBean("verifyOtpAction", MfaAction.class);
         MfaAction generatePasskeyOptionsAction = applicationContext.getBean("generatePasskeyAssertionOptionsAction", MfaAction.class);
         MfaAction verifyPasskeyAssertionAction = applicationContext.getBean("verifyPasskeyAssertionAction", MfaAction.class);
         MfaAction updateFactorContextOnSuccessAction = applicationContext.getBean("updateFactorContextOnFactorSuccessAction", MfaAction.class);
-        MfaAction handleMfaFailureAction = applicationContext.getBean("handleMfaFailureAction", MfaAction.class); // 이 빈도 구현 필요
+        MfaAction handleMfaFailureAction = applicationContext.getBean("handleMfaFailureAction", MfaAction.class);
 
 
-        // 1. 초기 상태 -> 1차 인증 완료
-        transitions.add(tBuilder
+        // 각 Transition.builder()를 새로 호출하여 빌더 상태가 공유되지 않도록 함
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
                 .source(MfaState.START_MFA).target(MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL)
                 .event(MfaEvent.PRIMARY_AUTH_COMPLETED)
-                .action(initAction) // InitializeMfaSessionAction
+                .action(initAction)
                 .build());
 
-        // 2. 1차 인증 완료 후 -> (정책 결과에 따라) 팩터 선택 또는 특정 팩터 챌린지
-        transitions.add(tBuilder
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
                 .source(MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL).target(MfaState.AWAITING_FACTOR_SELECTION)
                 .event(MfaEvent.MFA_POLICY_EVALUATED_SELECT_FACTOR)
-                .action(selectUiAction) // RedirectToFactorSelectionAction
+                .action(selectUiAction)
                 .build());
 
-        // 1차 인증 완료 후 -> (정책 결과에 따라) 특정 팩터 챌린지 즉시 시작 (예: OTT)
-        // 이 전이는 MfaPolicyProvider가 "하나의 팩터만 등록 & 필수" 등의 조건일 때 발생시키는 이벤트를 따름
-        transitions.add(tBuilder
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
                 .source(MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL).target(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                 .event(MfaEvent.MFA_POLICY_EVALUATED_INITIATE_FACTOR)
-                // .guard(ctx -> ctx.getPayload().get("factorToInitiate", AuthType.class) == AuthType.OTT) // payload로 어떤 팩터인지 받아야 함
-                .action(context -> { // 현재 선택된(또는 정책에 의해 결정된) 팩터 정보를 FactorContext에 설정하는 액션
-                    AuthType factorToInitiate = context.getPayload() != null ? context.getPayload().get("factorToInitiate", AuthType.class) : null;
-                    AuthenticationStepConfig stepToInitiate = findStepConfigForAuthType(mfaFlowConfig, factorToInitiate);
-                    if (stepToInitiate != null) {
-                        context.getFactorContext().setCurrentStepId(stepToInitiate.getStepId());
-                        context.getFactorContext().setCurrentProcessingFactor(stepToInitiate.getAuthType());
-                        context.getFactorContext().setCurrentFactorOptions((AuthenticationProcessingOptions) stepToInitiate.getOptions().get("_options"));
+                .action(context -> {
+                    // MfaProcessingContext에 getFactorContext(), getPayload(), getFlowConfig()가 있다고 가정
+                    // MfaEventPayload에 get(String, Class)가 있다고 가정
+                    MfaEventPayload payload = context.getPayload(); // MfaProcessingContext에 getPayload()가 있어야 함
+                    AuthType factorToInitiate = payload != null ? payload.get("factorToInitiate", AuthType.class) : null;
+                    AuthenticationStepConfig stepToInitiate = findStepConfigForAuthType(context.getFlowConfig(), factorToInitiate);
+                    FactorContext factorCtx = context.getFactorContext(); // MfaProcessingContext에 getFactorContext()가 있어야 함
+                    if (stepToInitiate != null && factorCtx != null) {
+                        factorCtx.setCurrentStepId(stepToInitiate.getStepId());
+                        factorCtx.setCurrentProcessingFactor(stepToInitiate.getAuthType());
+                        factorCtx.setCurrentFactorOptions((AuthenticationProcessingOptions) stepToInitiate.getOptions().get("_options"));
                         log.debug("MFA_POLICY_EVALUATED_INITIATE_FACTOR: Set current processing factor to {} (StepId: {})",
                                 factorToInitiate, stepToInitiate.getStepId());
                     } else {
-                        log.warn("MFA_POLICY_EVALUATED_INITIATE_FACTOR: Could not find step config for AuthType: {}", factorToInitiate);
-                        // 오류 처리 또는 다른 상태로 전이 필요
+                        log.warn("MFA_POLICY_EVALUATED_INITIATE_FACTOR: Could not find step config for AuthType: {} or FactorContext/Payload is null.", factorToInitiate);
                     }
                 })
                 .build());
 
-        // 1차 인증 완료 후 -> (정책 결과에 따라) MFA 생략하고 바로 최종 성공
-        transitions.add(tBuilder
-                .source(MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL).target(MfaState.ALL_FACTORS_COMPLETED) // 또는 MFA_SUCCESSFUL
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
+                .source(MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL).target(MfaState.ALL_FACTORS_COMPLETED)
                 .event(MfaEvent.MFA_POLICY_ALLOWS_BYPASS)
-                // .action(MFA 생략 관련 로그 기록 액션 등)
                 .build());
 
-
-        // 각 StepConfig (2차 요소)에 대한 전이 규칙 동적 생성
-        // getSteps()가 List<AuthenticationStepConfig>를 반환한다고 가정
+        // AuthenticationFlowConfig에 getSteps()가 있다고 가정
         for (AuthenticationStepConfig step : mfaFlowConfig.getStepConfigs()) {
-//            if (isPrimaryAuthStep(step, mfaFlowConfig)) continue; // 1차 인증 스텝은 별도 처리
+            if (isPrimaryAuthStep(step, mfaFlowConfig)) { // 이 메소드는 아래에 수정된 버전 사용
+                log.trace("Skipping primary auth step '{}' for secondary factor transition building.", step.getStepId());
+                continue;
+            }
 
-            MfaState awaitingChallengeState;
             MfaEvent factorSelectedEvent;
-            // MfaEvent challengeIssuedEvent; // 액션 내부에서 다음 이벤트 발생 또는 상태 직접 변경
             MfaEvent credentialSubmittedEvent;
-            MfaEvent verificationSuccessEvent;
-            MfaEvent verificationFailureEvent;
-            MfaAction selectedFactorAction; // 팩터 선택 시 현재 처리 팩터 정보 설정
-            MfaAction initiateChallengeAction = null; // 각 타입에 맞는 챌린지 액션
-            MfaAction verifyCredentialAction = null;  // 각 타입에 맞는 검증 액션
+            MfaAction currentInitiateChallengeAction = null;
+            MfaAction currentVerifyCredentialAction = null;
 
-            switch (step.getAuthType()) { // AuthenticationStepConfig에 getAuthType()이 있다고 가정
+            // AuthenticationStepConfig에 getAuthType()이 있다고 가정
+            switch (step.getAuthType()) {
                 case OTT:
-                    awaitingChallengeState = MfaState.AWAITING_OTT_VERIFICATION; // Configurator에서 직접 사용하지 않음
                     factorSelectedEvent = MfaEvent.FACTOR_SELECTED_OTT;
-                    // challengeIssuedEvent = MfaEvent.CHALLENGE_ISSUED_SUCCESSFULLY;
                     credentialSubmittedEvent = MfaEvent.SUBMIT_OTT_CODE;
-                    verificationSuccessEvent = MfaEvent.FACTOR_VERIFIED_SUCCESS; // payload로 OTT 타입 명시
-                    verificationFailureEvent = MfaEvent.FACTOR_VERIFICATION_FAILED; // payload로 OTT 타입 명시
-                    initiateChallengeAction = sendOtpAction;
-                    verifyCredentialAction = verifyOtpAction;
+                    currentInitiateChallengeAction = sendOtpAction;
+                    currentVerifyCredentialAction = verifyOtpAction;
                     break;
                 case PASSKEY:
-                    awaitingChallengeState = MfaState.AWAITING_PASSKEY_VERIFICATION; // Configurator에서 직접 사용하지 않음
                     factorSelectedEvent = MfaEvent.FACTOR_SELECTED_PASSKEY;
-                    // challengeIssuedEvent = MfaEvent.CHALLENGE_ISSUED_SUCCESSFULLY;
                     credentialSubmittedEvent = MfaEvent.SUBMIT_PASSKEY_ASSERTION;
-                    verificationSuccessEvent = MfaEvent.FACTOR_VERIFIED_SUCCESS; // payload로 Passkey 타입 명시
-                    verificationFailureEvent = MfaEvent.FACTOR_VERIFICATION_FAILED; // payload로 Passkey 타입 명시
-                    initiateChallengeAction = generatePasskeyOptionsAction;
-                    verifyCredentialAction = verifyPasskeyAssertionAction;
+                    currentInitiateChallengeAction = generatePasskeyOptionsAction;
+                    currentVerifyCredentialAction = verifyPasskeyAssertionAction;
                     break;
                 default:
                     log.warn("Unsupported AuthType {} for MFA step {} in MfaStateMachineConfigurator. Skipping this step's transitions.",
@@ -151,163 +130,209 @@ public class MfaStateMachineConfigurator {
                     continue;
             }
 
-            // 공통 액션: 사용자가 팩터를 선택했을 때, FactorContext에 현재 처리할 stepId와 AuthType, Options 설정
-            selectedFactorAction = context -> {
-                log.debug("Factor {} (StepId: {}) selected by user {}.", step.getAuthType(), step.getStepId(), context.getFactorContext().getUsername());
-                context.getFactorContext().setCurrentStepId(step.getStepId());
-                context.getFactorContext().setCurrentProcessingFactor(step.getAuthType());
-                context.getFactorContext().setCurrentFactorOptions((AuthenticationProcessingOptions) step.getOptions().get("_options"));
+            MfaAction selectedFactorContextSetupAction = context -> {
+                FactorContext factorCtx = context.getFactorContext(); // MfaProcessingContext에 getFactorContext()가 있어야 함
+                if (factorCtx != null) {
+                    log.debug("Factor {} (StepId: {}) selected by user {}. Setting in FactorContext.",
+                            step.getAuthType(), step.getStepId(), factorCtx.getUsername());
+                    factorCtx.setCurrentStepId(step.getStepId());
+                    factorCtx.setCurrentProcessingFactor(step.getAuthType());
+                    factorCtx.setCurrentFactorOptions((AuthenticationProcessingOptions) step.getOptions().get("_options")); // AuthenticationStepConfig에 getOptions()가 있어야 함
+                } else {
+                    log.error("Cannot setup selected factor context: FactorContext is null. Event: {}, StepId: {}", context.getEvent(), step.getStepId());
+                }
             };
 
-
-            // AWAITING_FACTOR_SELECTION -> (팩터 선택) -> AWAITING_FACTOR_CHALLENGE_INITIATION
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(MfaState.AWAITING_FACTOR_SELECTION)
                     .target(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                     .event(factorSelectedEvent)
                     .guard(ctx -> factorAvailableGuard.evaluate(
+                            // MfaProcessingContext.toBuilder()와 MfaEventPayload.with()가 있다고 가정
                             ctx.toBuilder().payload(MfaEventPayload.with("stepId", step.getStepId())).build()
                     ))
-                    .action(selectedFactorAction) // 선택된 팩터 정보 FactorContext에 설정
+                    .action(selectedFactorContextSetupAction)
                     .build());
 
-            // AWAITING_FACTOR_CHALLENGE_INITIATION -> (챌린지 시작 액션) -> FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION
-            if (initiateChallengeAction != null) {
-                transitions.add(tBuilder
+            if (currentInitiateChallengeAction != null) {
+                transitions.add(MfaStateMachineDefinition.Transition.builder()
                         .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                         .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
-                        .event(MfaEvent.INITIATE_CHALLENGE) // 이 이벤트는 selectedFactorAction 직후 또는 MfaContinuationHandler가 발생시킬 수 있음
-                        .guard(ctx -> step.getStepId().equals(ctx.getFactorContext().getCurrentStepId())) // 현재 처리 스텝인지 확인
-                        .action(initiateChallengeAction) // 예: OTP 발송, Passkey 옵션 생성. 이 액션 성공 시 내부적으로 CHALLENGE_ISSUED_SUCCESSFULLY 발생시킬 수도.
+                        .event(MfaEvent.INITIATE_CHALLENGE)
+                        .guard(ctx -> ctx.getFactorContext() != null && step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()))
+                        .action(currentInitiateChallengeAction)
                         .build());
             }
 
-            // FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION 상태에서 챌린지 성공 후 다음 상태로 (선택적, initiateChallengeAction이 직접 상태 변경 안 할 경우)
-            transitions.add(tBuilder
-                    .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION) // 또는 initiateChallengeAction 이전의 상태
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
+                    .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                     .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
-                    .event(MfaEvent.CHALLENGE_ISSUED_SUCCESSFULLY) // initiateChallengeAction이 성공적으로 챌린지를 제시했을 때 발생시키는 이벤트
-                    .guard(ctx -> step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()))
-                    // .action(UI 업데이트 또는 사용자에게 안내하는 액션)
+                    .event(MfaEvent.CHALLENGE_ISSUED_SUCCESSFULLY)
+                    .guard(ctx -> ctx.getFactorContext() != null && step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()))
                     .build());
 
+            if (currentVerifyCredentialAction != null) {
+                transitions.add(MfaStateMachineDefinition.Transition.builder()
+                        .source(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
+                        .target(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
+                        .event(credentialSubmittedEvent)
+                        .guard(ctx -> ctx.getFactorContext() != null && step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()))
+                        .action(currentVerifyCredentialAction)
+                        .build());
+            }
 
-            // FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION -> (사용자 제출) -> FACTOR_VERIFICATION_IN_PROGRESS
-            transitions.add(tBuilder
-                    .source(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
-                    .target(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
-                    .event(credentialSubmittedEvent) // 예: SUBMIT_OTT_CODE, SUBMIT_PASSKEY_ASSERTION
-                    .guard(ctx -> step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()))
-                    .action(verifyCredentialAction) // 이 액션은 내부적으로 FACTOR_VERIFIED_SUCCESS 또는 FACTOR_VERIFICATION_FAILED 이벤트를 발생시킴
-                    .build());
-
-            // FACTOR_VERIFICATION_IN_PROGRESS -> (검증 성공) -> AWAITING_FACTOR_SELECTION (다음 팩터 선택)
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
                     .target(MfaState.AWAITING_FACTOR_SELECTION)
-                    .event(verificationSuccessEvent) // FACTOR_VERIFIED_SUCCESS (payload로 AuthType 구분)
-                    .guard(ctx -> step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()) && !allCompletedGuard.evaluate(ctx)) // 모든 필수 팩터 미완료
-                    .action(updateFactorContextOnSuccessAction) // FactorContext에 현재 팩터 완료 기록
-                    .action(selectUiAction) // 다음 팩터 선택 UI로
+                    .event(MfaEvent.FACTOR_VERIFIED_SUCCESS)
+                    .guard(ctx -> {
+                        // MfaProcessingContext에 getFactorContext(), getPayload() 존재 가정
+                        // MfaEventPayload에 get(String, Class) 존재 가정
+                        MfaEventPayload payload = ctx.getPayload();
+                        FactorContext factorCtx = ctx.getFactorContext();
+                        return factorCtx != null &&
+                                step.getStepId().equals(factorCtx.getCurrentStepId()) &&
+                                (payload == null || step.getAuthType().equals(payload.get("verifiedFactorType", AuthType.class))) &&
+                                !allCompletedGuard.evaluate(ctx);
+                    })
+                    .action(updateFactorContextOnSuccessAction)
+                    .action(selectUiAction)
                     .build());
 
-            // FACTOR_VERIFICATION_IN_PROGRESS -> (검증 성공 및 모든 팩터 완료) -> ALL_FACTORS_COMPLETED
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
                     .target(MfaState.ALL_FACTORS_COMPLETED)
-                    .event(verificationSuccessEvent) // FACTOR_VERIFIED_SUCCESS
-                    .guard(ctx -> step.getStepId().equals(ctx.getFactorContext().getCurrentStepId()) && allCompletedGuard.evaluate(ctx)) // 모든 필수 팩터 완료
-                    .action(updateFactorContextOnSuccessAction) // FactorContext에 현재 팩터 완료 기록
+                    .event(MfaEvent.FACTOR_VERIFIED_SUCCESS)
+                    .guard(ctx -> {
+                        MfaEventPayload payload = ctx.getPayload();
+                        FactorContext factorCtx = ctx.getFactorContext();
+                        return factorCtx != null &&
+                                step.getStepId().equals(factorCtx.getCurrentStepId()) &&
+                                (payload == null || step.getAuthType().equals(payload.get("verifiedFactorType", AuthType.class))) &&
+                                allCompletedGuard.evaluate(ctx);
+                    })
+                    .action(updateFactorContextOnSuccessAction)
                     .build());
 
-            // FACTOR_VERIFICATION_IN_PROGRESS -> (검증 실패, 재시도 가능) -> FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
-                    .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) // 현재 팩터 재시도
-                    .event(verificationFailureEvent) // FACTOR_VERIFICATION_FAILED
+                    .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
+                    .event(MfaEvent.FACTOR_VERIFICATION_FAILED)
                     .guard(ctx -> {
-                        if (!step.getStepId().equals(ctx.getFactorContext().getCurrentStepId())) return false;
-                        RetryPolicy retryPolicy = applicationContext.getBean(MfaPolicyProvider.class).getRetryPolicy(ctx.getFactorContext(), step);
-                        return retryPolicy.canRetry(ctx.getFactorContext(), step.getStepId());
+                        MfaEventPayload payload = ctx.getPayload();
+                        FactorContext factorCtx = ctx.getFactorContext();
+                        if (factorCtx == null ||
+                                !step.getStepId().equals(factorCtx.getCurrentStepId()) ||
+                                (payload != null && !step.getAuthType().equals(payload.get("failedFactorType", AuthType.class)))) {
+                            return false;
+                        }
+                        // AuthenticationStepConfig에 getOptions()가 있고, 반환된 Options 객체로 RetryPolicy를 가져올 수 있다고 가정
+                        // 또는 MfaPolicyProvider가 stepId를 기반으로 RetryPolicy를 반환한다고 가정
+                        RetryPolicy retryPolicy = applicationContext.getBean(MfaPolicyProvider.class).getRetryPolicy(factorCtx, step);
+                        return retryPolicy.canRetry(factorCtx, step.getStepId());
                     })
                     .action(context -> {
-                        log.warn("Factor verification failed for step '{}', user '{}'. Retrying.", step.getStepId(), context.getFactorContext().getUsername());
-                        // 실패 메시지 설정 등의 액션
+                        FactorContext factorCtx = context.getFactorContext();
+                        log.warn("Factor verification failed for step '{}', user '{}'. Retrying.",
+                                step.getStepId(),
+                                factorCtx != null ? factorCtx.getUsername() : "UNKNOWN_USER");
                     })
                     .build());
 
-            // FACTOR_VERIFICATION_IN_PROGRESS -> (검증 실패, 재시도 불가) -> MFA_FAILED_TERMINAL
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(MfaState.FACTOR_VERIFICATION_IN_PROGRESS)
                     .target(MfaState.MFA_FAILED_TERMINAL)
-                    .event(verificationFailureEvent) // FACTOR_VERIFICATION_FAILED
+                    .event(MfaEvent.FACTOR_VERIFICATION_FAILED)
                     .guard(ctx -> {
-                        if (!step.getStepId().equals(ctx.getFactorContext().getCurrentStepId())) return false;
-                        RetryPolicy retryPolicy = applicationContext.getBean(MfaPolicyProvider.class).getRetryPolicy(ctx.getFactorContext(), step);
-                        return !retryPolicy.canRetry(ctx.getFactorContext(), step.getStepId());
+                        MfaEventPayload payload = ctx.getPayload();
+                        FactorContext factorCtx = ctx.getFactorContext();
+                        if (factorCtx == null ||
+                                !step.getStepId().equals(factorCtx.getCurrentStepId()) ||
+                                (payload != null && !step.getAuthType().equals(payload.get("failedFactorType", AuthType.class)))) {
+                            return false;
+                        }
+                        RetryPolicy retryPolicy = applicationContext.getBean(MfaPolicyProvider.class).getRetryPolicy(factorCtx, step);
+                        return !retryPolicy.canRetry(factorCtx, step.getStepId());
                     })
                     .build());
         }
 
-
-        // ALL_FACTORS_COMPLETED -> (최종 토큰 발급 이벤트) -> MFA_SUCCESSFUL
-        transitions.add(tBuilder
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
                 .source(MfaState.ALL_FACTORS_COMPLETED).target(MfaState.MFA_SUCCESSFUL)
-                .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED) // ALL_FACTORS_COMPLETED 상태 진입 액션에서 이 이벤트 발생시킬 수 있음
-                // 또는 MfaPolicyProvider.checkAllFactorsCompleted가 직접 이 이벤트 발생
-                // .action(finalSuccessAction) // MFA_SUCCESSFUL 상태의 진입 액션으로 처리하는 것이 더 일반적
+                .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .build());
 
-        // 모든 활성 상태에서 사용자 취소 처리 -> MFA_CANCELLED
-        // EnumSet.allOf(MfaState.class)에서 터미널 상태들을 제외하고 루프
         EnumSet<MfaState> nonTerminalStates = EnumSet.complementOf(
                 EnumSet.of(MfaState.MFA_SUCCESSFUL, MfaState.MFA_FAILED_TERMINAL, MfaState.END_MFA, MfaState.MFA_CANCELLED)
         );
         for (MfaState sourceState : nonTerminalStates) {
-            transitions.add(tBuilder
+            transitions.add(MfaStateMachineDefinition.Transition.builder()
                     .source(sourceState).target(MfaState.MFA_CANCELLED)
                     .event(MfaEvent.USER_ABORTED_MFA)
-                    // .action(사용자 취소 관련 정리 액션)
                     .build());
         }
 
-        // MFA_CANCELLED -> END_MFA
-        transitions.add(tBuilder
+        transitions.add(MfaStateMachineDefinition.Transition.builder()
                 .source(MfaState.MFA_CANCELLED).target(MfaState.END_MFA)
-                // .action(최종 정리 액션)
                 .build());
-
-        // MFA_FAILED_TERMINAL 상태에 대한 onEntry 액션은 MfaStateMachineDefinition.builder()에서 설정
-        // MFA_SUCCESSFUL 상태에 대한 onEntry 액션도 MfaStateMachineDefinition.builder()에서 설정
-
 
         return MfaStateMachineDefinition.builder()
                 .initialState(MfaState.START_MFA)
-                .states(EnumSet.allOf(MfaState.class)) // 모든 MfaState enum 값을 상태로 등록
-                .endState(MfaState.END_MFA) // 명시적 종료 상태
+                .states(EnumSet.allOf(MfaState.class))
+                .endState(MfaState.END_MFA)
                 .transitions(transitions)
-                .onStateEntry(MfaState.MFA_SUCCESSFUL, finalSuccessAction) // MFA_SUCCESSFUL 상태 진입 시 finalSuccessAction 실행
-                .onStateEntry(MfaState.MFA_FAILED_TERMINAL, handleMfaFailureAction) // MFA_FAILED_TERMINAL 상태 진입 시 handleMfaFailureAction 실행
+                .onStateEntry(MfaState.MFA_SUCCESSFUL, finalSuccessAction)
+                .onStateEntry(MfaState.MFA_FAILED_TERMINAL, handleMfaFailureAction)
                 .build();
     }
 
-/*
-    private boolean isPrimaryAuthStep(AuthenticationStepConfig stepConfig, AuthenticationFlowConfig flowConfig) {
-        if (stepConfig == null || flowConfig == null) return false;
-        PrimaryAuthenticationOptions primaryOptions = flowConfig.getPrimaryAuthenticationOptions();
-        return primaryOptions != null &&
-                primaryOptions.getPrimaryAuthStepConfig() != null && // PrimaryAuthStepConfig가 설정되어 있는지 확인
-                Objects.equals(primaryOptions.getPrimaryAuthStepConfig().getStepId(), stepConfig.getStepId());
-    }
-*/
+    /**
+     * 주어진 AuthenticationStepConfig가 MFA 플로우의 1차 인증 단계인지 확인합니다.
+     * AuthenticationFlowConfig의 PrimaryAuthenticationOptions에 저장된 1차 인증 AuthType과
+     * 해당 AuthType을 가진 첫 번째 Step의 stepId를 비교합니다.
+     * 또는 PrimaryAuthenticationOptions에 1차 인증 stepId가 직접 저장되어 있다면 그것을 사용합니다.
+     */
+    private boolean isPrimaryAuthStep(AuthenticationStepConfig stepConfigToTest, AuthenticationFlowConfig flowConfig) {
+        if (stepConfigToTest == null || flowConfig == null) {
+            log.trace("isPrimaryAuthStep: stepConfigToTest or flowConfig is null, returning false.");
+            return false;
+        }
+        PrimaryAuthenticationOptions primaryOptions = flowConfig.getPrimaryAuthenticationOptions(); // AuthenticationFlowConfig에 이 getter가 있어야 함
+        if (primaryOptions == null) {
+            log.trace("isPrimaryAuthStep: PrimaryAuthenticationOptions not found in flowConfig '{}'. Assuming step '{}' is not primary.",
+                    flowConfig.getTypeName(), stepConfigToTest.getStepId());
+            return false;
+        }
 
-    // MfaFlowConfig 에서 AuthType에 해당하는 StepConfig를 찾는 헬퍼 (필요시 사용)
-    private AuthenticationStepConfig findStepConfigForAuthType(AuthenticationFlowConfig flowConfig, AuthType authType) {
+        // 해결책: PrimaryAuthenticationOptions에 저장된 primaryAuthStepId를 직접 사용
+        String primaryAuthStepId = primaryOptions.getPrimaryAuthStepId(); // 이 메소드가 PrimaryAuthenticationOptions에 있어야 함
+
+        if (!StringUtils.hasText(primaryAuthStepId)) {
+            // 이 경우는 PrimaryAuthDslConfigurerImpl에서 stepId를 PrimaryAuthenticationOptions에 제대로 설정하지 않았음을 의미.
+            // 또는 PrimaryAuthenticationOptions 자체에 해당 정보가 없는 초기 상태일 수 있음.
+            // 좀 더 견고하게 하려면, primaryOptions.getPrimaryAuthType()을 사용하고,
+            // flowConfig.getSteps()에서 해당 AuthType을 가진 첫 번째 step의 ID와 비교할 수 있음.
+            // 하지만 이는 1차 인증 타입이 steps 리스트에서 유일하거나 첫 번째라는 가정이 필요.
+            log.warn("isPrimaryAuthStep: Primary authentication stepId is not defined or accessible in PrimaryAuthenticationOptions for flow '{}'. " +
+                            "Cannot reliably determine if step '{}' is primary. Assuming false.",
+                    flowConfig.getTypeName(), stepConfigToTest.getStepId());
+            return false;
+        }
+
+        boolean isPrimary = Objects.equals(primaryAuthStepId, stepConfigToTest.getStepId());
+        log.trace("isPrimaryAuthStep: Comparing current stepConfig.getStepId() ('{}') with stored primaryAuthStepId ('{}') for flow '{}'. Result: {}",
+                stepConfigToTest.getStepId(), primaryAuthStepId, flowConfig.getTypeName(), isPrimary);
+        return isPrimary;
+    }
+
+    @Nullable
+    private AuthenticationStepConfig findStepConfigForAuthType(AuthenticationFlowConfig flowConfig, @Nullable AuthType authType) {
+        // AuthenticationFlowConfig에 getSteps()가 있다고 가정
         if (flowConfig == null || authType == null || CollectionUtils.isEmpty(flowConfig.getStepConfigs())) {
             return null;
         }
         return flowConfig.getStepConfigs().stream()
-                .filter(s -> authType.equals(s.getAuthType()))
+                .filter(s -> s != null && authType.equals(s.getAuthType())) // AuthenticationStepConfig에 getAuthType()이 있다고 가정
                 .findFirst()
                 .orElse(null);
     }

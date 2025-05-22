@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa.options;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
@@ -9,18 +10,24 @@ import org.springframework.util.Assert;
 public final class PrimaryAuthenticationOptions {
     private final FormOptions formOptions;
     private final RestOptions restOptions;
-    private final String loginProcessingUrl;
+    private final AuthType primaryAuthType;
+    private final String primaryAuthStepId; // *** 1차 인증 AuthenticationStepConfig의 stepId ***
 
     private PrimaryAuthenticationOptions(Builder builder) {
         this.formOptions = builder.formOptions;
         this.restOptions = builder.restOptions;
-        this.loginProcessingUrl = builder.loginProcessingUrl;
+        this.primaryAuthType = builder.primaryAuthType;
+        this.primaryAuthStepId = builder.primaryAuthStepId; // 빌더로부터 설정
 
-        Assert.isTrue(formOptions != null || restOptions != null,
-                "Either FormOptions or RestOptions must be configured for primary authentication.");
-        Assert.isTrue(formOptions == null || restOptions == null,
-                "Cannot configure both FormOptions and RestOptions for primary authentication.");
-        Assert.hasText(loginProcessingUrl, "loginProcessingUrl must be set for primary authentication.");
+        if (formOptions != null && restOptions != null) {
+            throw new IllegalArgumentException("Cannot configure both formLogin and restLogin for primary authentication.");
+        }
+        if (formOptions == null && restOptions == null) {
+            throw new IllegalArgumentException("Either formLogin or restLogin must be configured for primary authentication.");
+        }
+        Assert.notNull(primaryAuthType, "PrimaryAuthType cannot be null.");
+        // primaryAuthStepId는 PrimaryAuthDslConfigurerImpl에서 설정되므로 null이 아님을 보장해야 함
+        Assert.hasText(primaryAuthStepId, "PrimaryAuthStepId cannot be null or empty for primary authentication options.");
     }
 
     public boolean isFormLogin() {
@@ -38,6 +45,8 @@ public final class PrimaryAuthenticationOptions {
     public static class Builder {
         private FormOptions formOptions;
         private RestOptions restOptions;
+        private AuthType primaryAuthType;
+        private String primaryAuthStepId; // 추가
         private String loginProcessingUrl;
 
         public Builder formOptions(FormOptions formOptions) {
@@ -61,6 +70,11 @@ public final class PrimaryAuthenticationOptions {
         // loginProcessingUrl을 직접 설정할 수도 있지만, Form/Rest Options 에서 가져오는 것이 일반적
         public Builder loginProcessingUrl(String loginProcessingUrl) {
             this.loginProcessingUrl = loginProcessingUrl;
+            return this;
+        }
+
+        public Builder primaryAuthStepId(String primaryAuthStepId) {
+            this.primaryAuthStepId = primaryAuthStepId;
             return this;
         }
 

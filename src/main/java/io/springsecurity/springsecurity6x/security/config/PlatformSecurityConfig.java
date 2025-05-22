@@ -67,7 +67,7 @@ public class PlatformSecurityConfig {
                         .authorizeHttpRequests(authReq -> authReq
                                 .requestMatchers( // 기존 permitAll 경로 유지
                                         "/css/**", "/js/**", "/images/**", "/favicon.ico",
-                                        "/", "/authMode",
+                                        "/", "/authMode","/home",
                                         "/loginForm", "/register",
                                         "/loginOtt", "/ott/sent", // 단일 OTT 관련 페이지
                                         "/loginPasskey",           // 단일 Passkey 관련 페이지

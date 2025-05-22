@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
@@ -31,10 +32,7 @@ import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -156,61 +154,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
     }
 
     /**
-     * OTT 코드 생성 성공 시 (GenerateOneTimeTokenFilter에 의해) 호출됩니다.
-     * @param token 생성된 OneTimeToken (내부 토큰)
-     */
-    /*@Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token) throws IOException, ServletException {
-        log.info("UnifiedAuthenticationSuccessHandler.handle (OneTimeTokenGenerationSuccessHandler): OTT code generated for user: {}", token.getUsername());
-
-        FactorContext factorContext = contextPersistence.contextLoad(request);
-        String usernameFromToken = token.getUsername();
-
-        if (factorContext == null || !Objects.equals(factorContext.getUsername(), usernameFromToken) ||
-                !AuthType.MFA.name().equalsIgnoreCase(factorContext.getFlowTypeName()) ||
-                factorContext.getCurrentProcessingFactor() != AuthType.OTT) {
-            log.warn("OTT Generation Success: Invalid or missing FactorContext for user {}. " +
-                    "Expected MFA flow with OTT processing. Context: {}", usernameFromToken, factorContext);
-            // 적절한 오류 페이지로 리다이렉션 또는 에러 응답
-            response.sendRedirect(request.getContextPath() + "/loginForm?error=mfa_session_error_on_ott_generation");
-            return;
-        }
-
-        // 코드 생성이 성공했으므로, 사용자를 코드 입력 페이지로 안내.
-        // FactorContext 상태를 '챌린지 제시됨, 검증 대기'로 변경.
-        // MfaContinuationFilter가 /mfa/challenge/ott (GET) 요청을 받을 때 이 상태로 변경할 수도 있음.
-        // 여기서는 코드 생성이 "성공"했음을 명시하고, 다음 UI로 이동할 준비가 되었음을 나타내는 상태로 변경.
-        factorContext.changeState(MfaState.FACTOR_CHALLENGE_SENT_AWAITING_UI); // 또는 FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION
-        contextPersistence.saveContext(factorContext, request);
-        log.info("MFA FactorContext (ID: {}) state updated to {} for user {} after OTT code generation. Redirecting to OTT challenge page.",
-                factorContext.getMfaSessionId(), factorContext.getCurrentState(), factorContext.getUsername());
-
-        String challengeUiUrl = authContextProperties.getMfa().getOttFactor().getChallengeUrl(); // 예: /mfa/challenge/ott
-        if (!StringUtils.hasText(challengeUiUrl)) {
-            challengeUiUrl = "/mfa/challenge/ott"; // 안전한 기본값
-            log.warn("MFA OTT challengeUrl not configured in properties, using default: {}", challengeUiUrl);
-        }
-        String redirectUrl = request.getContextPath() + challengeUiUrl;
-
-        log.debug("Redirecting to MFA OTT challenge page: {}", redirectUrl);
-        response.sendRedirect(redirectUrl);
-    }*/
-
-
-    /**
      * 모든 인증(1차 또는 최종 MFA) 성공 시 토큰 발급 및 응답 처리
      * @param finalAuthentication 최종적으로 인증된 Authentication 객체 (일반적으로 1차 인증 객체)
      * @param factorContext MFA 플로우를 거친 경우의 컨텍스트, 단일 인증 시 null일 수 있음.
      */
     private void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                                   Authentication finalAuthentication, @Nullable FactorContext factorContext) throws IOException {
-        if (factorContext != null) {
-            log.info("Final authentication success for user: {}. MFA Session ID: {}. Cleaning up FactorContext.",
-                    finalAuthentication.getName(), factorContext.getMfaSessionId());
-            contextPersistence.deleteContext(request); // 성공 후 MFA 컨텍스트 정리
-        } else {
-            log.info("Final authentication success for user: {} (No FactorContext involved or already cleaned).", finalAuthentication.getName());
-        }
 
         log.info("MFA not required or all factors completed for user: {}. Issuing final tokens.", finalAuthentication.getName());
         String deviceIdFromCtx = (String) factorContext.getAttribute("deviceId");
@@ -230,10 +179,15 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
                 response.addHeader("Set-Cookie", cookie.toString());
             }
         }
-        String determineTargetUrl = determineTargetUrl(request, response, finalAuthentication);
+        String redirectUrl = determineTargetUrl(request, response, finalAuthentication);
 
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, "SUCCESS",
-                "인증에 성공했습니다", determineTargetUrl);
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("status", "MFA_COMPLETE");
+        responseBody.put("redirectUrl", redirectUrl);
+        responseBody.put("accessToken", accessToken);
+        responseBody.put("refreshTokenVal", refreshTokenVal);
+
+        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }
 
     private String getEffectiveDeviceId(HttpServletRequest request) {
@@ -298,5 +252,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     errorCode, message, request.getRequestURI());
         }
+    }
+
+    private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request, String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
+        log.warn("MFA Factor Processing Success: Invalid FactorContext. Message: {}. User from auth: {}", logMessage, (authentication != null ? authentication.getName() : "UnknownUser"));
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode, "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI());
+        FactorContext existingCtx = contextPersistence.contextLoad(request);
+        if (existingCtx != null) contextPersistence.deleteContext(request);
     }
 }

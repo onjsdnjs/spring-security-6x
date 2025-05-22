@@ -2,6 +2,9 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.domain.LoginRequest;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -12,7 +15,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -30,6 +35,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -46,12 +52,12 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
     private final ContextPersistence contextPersistence;
-    private final ObjectMapper objectMapper;
+    private final ApplicationContext applicationContext;
 
 
-    public RestAuthenticationFilter(AuthenticationManager authenticationManager,
-                                    ContextPersistence contextPersistence, ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public RestAuthenticationFilter(AuthenticationManager authenticationManager, ContextPersistence contextPersistence,
+                                    ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
         this.authenticationManager = authenticationManager;
         this.contextPersistence = contextPersistence;
@@ -153,7 +159,35 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         log.info("FactorContext (ID: {}) created and saved after primary authentication for user: {}. Initial state: {}, FlowType: {}",
                 factorContext.getMfaSessionId(), factorContext.getUsername(), factorContext.getCurrentState(), factorContext.getFlowTypeName());
 
+        AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
+        AuthenticationStepConfig currentFactorJustCompleted = mfaFlowConfig.getStepConfigs().stream()
+                .findFirst()
+                .orElse(null);
+
+        factorContext.addCompletedFactor(currentFactorJustCompleted);
+
         successHandler.onAuthenticationSuccess(request, response, authentication);
+    }
+
+    @Nullable
+    private AuthenticationFlowConfig findMfaFlowConfig(String flowTypeName) {
+
+        if (!AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) { // MFA 플로우만 처리
+            log.warn("Attempting to find non-MFA flow config in MfaFactorProcessingSuccessHandler: {}", flowTypeName);
+            return null;
+        }
+        try {
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            if (platformConfig != null && platformConfig.getFlows() != null) {
+                return platformConfig.getFlows().stream()
+                        .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
+                        .findFirst()
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
+        }
+        return null;
     }
 
     private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,

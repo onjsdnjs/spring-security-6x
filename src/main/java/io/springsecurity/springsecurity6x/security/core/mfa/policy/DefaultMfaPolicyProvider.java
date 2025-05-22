@@ -98,36 +98,92 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
     }
 
+    /**
+     * MFA 플로우의 모든 필수 단계가 완료되었는지 확인하고, 그에 따라 FactorContext의 상태를 변경합니다.
+     * 이 메소드는 MfaFactorProcessingSuccessHandler 또는 MfaContinuationHandler 에서 호출될 수 있습니다.
+     *
+     * @param ctx           현재 FactorContext
+     * @param mfaFlowConfig 현재 MFA 플로우 설정
+     */
     private void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
-        // MFA 플로우의 모든 필수 단계가 완료되었는지 확인
-        boolean allRequiredCompleted = mfaFlowConfig.getStepConfigs().stream()
-                .filter(AuthenticationStepConfig::isRequired) // isRequired() 메서드가 AuthenticationStepConfig에 있다고 가정
-                .allMatch(step -> ctx.getCompletedFactors().stream().anyMatch(completed -> completed.getStepId().equals(step.getStepId())));
+        Assert.notNull(ctx, "FactorContext cannot be null");
+        Assert.notNull(mfaFlowConfig, "AuthenticationFlowConfig cannot be null for MFA flow");
 
-        if (allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) { // 하나 이상의 팩터가 완료되어야 함
-            log.info("All required MFA factors completed for user: {}", ctx.getUsername());
-            ctx.changeState(MfaState.MFA_FULLY_COMPLETED); // 또는 MFA_SUCCESS
-        } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty() && ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
-            // 등록된 MFA 요소가 있는데, 아무것도 완료하지 못했고, 선택 화면도 아니라면 선택 화면으로.
-            log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection.", ctx.getUsername());
-            ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
-            ctx.setCurrentProcessingFactor(null);
-            ctx.setCurrentStepId(null);
-            ctx.setCurrentFactorOptions(null);
-        } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
-            log.warn("MFA required for user {} but no MFA factors are registered. Setting state to MFA_CONFIGURATION_REQUIRED.", ctx.getUsername());
-            ctx.changeState(MfaState.MFA_CONFIGURATION_REQUIRED); // MFA 설정 필요 상태
+        if (!AuthType.MFA.name().equalsIgnoreCase(mfaFlowConfig.getTypeName())) {
+            log.warn("checkAllFactorsCompleted called with a non-MFA flow config: {}", mfaFlowConfig.getTypeName());
+            return;
         }
-        else {
-            log.info("No more MFA factors to process or not all required factors completed for user: {}. Current state: {}", ctx.getUsername(), ctx.getCurrentState());
-            // AWAITING_FACTOR_SELECTION 으로 상태를 변경하여 사용자에게 선택권을 줄 수 있음
-            if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION &&
-                    ctx.getCurrentState() != MfaState.MFA_FULLY_COMPLETED && // 이미 완료된 경우는 제외
-                    ctx.getCurrentState() != MfaState.ALL_FACTORS_COMPLETED) {
+
+        // MFA 플로우에 정의된 모든 "필수" 단계를 가져옵니다.
+        List<AuthenticationStepConfig> requiredSteps = mfaFlowConfig.getStepConfigs().stream()
+                .filter(AuthenticationStepConfig::isRequired)
+                .toList();
+
+        if (requiredSteps.isEmpty()) {
+            log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
+                    mfaFlowConfig.getTypeName(), ctx.getUsername());
+            ctx.changeState(MfaState.MFA_FULLY_COMPLETED);
+            return;
+        }
+
+        // 완료된 필수 단계를 추적합니다.
+        Set<String> completedRequiredStepIds = new HashSet<>();
+        List<String> missingRequiredStepIds = new ArrayList<>();
+
+        for (AuthenticationStepConfig requiredStep : requiredSteps) {
+            String requiredStepId = requiredStep.getStepId();
+            if (!StringUtils.hasText(requiredStepId)) {
+                log.error("MFA flow '{}' has a required step with a missing or empty stepId. This step will be ignored in completion check. Step Details: {}",
+                        mfaFlowConfig.getTypeName(), requiredStep);
+                // 이 경우, 이 단계를 "완료 불가능"으로 간주할지, 아니면 설정을 수정해야 할지 정책 결정 필요.
+                // 여기서는 로그만 남기고 다음 단계로 진행 (사실상 이 단계는 무시됨).
+                continue;
+            }
+
+            boolean currentStepCompleted = ctx.getCompletedFactors().stream()
+                    .anyMatch(completedFactor -> requiredStepId.equals(completedFactor.getStepId()));
+
+            if (currentStepCompleted) {
+                completedRequiredStepIds.add(requiredStepId);
+            } else {
+                missingRequiredStepIds.add(requiredStepId);
+            }
+        }
+
+        log.debug("MFA completion check for user '{}', flow '{}': Required steps: {}, Completed required steps: {}, Missing required steps: {}",
+                ctx.getUsername(), mfaFlowConfig.getTypeName(),
+                requiredSteps.stream().map(AuthenticationStepConfig::getStepId).collect(Collectors.toList()),
+                completedRequiredStepIds,
+                missingRequiredStepIds);
+
+        // 모든 필수 단계가 완료되었는지 확인 (missingRequiredStepIds가 비어있는지 확인)
+        boolean allRequiredCompleted = missingRequiredStepIds.isEmpty();
+
+        if (allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
+            // 모든 필수 단계가 완료되었고, 실제로 하나 이상의 요소가 완료된 경우
+            log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.", ctx.getUsername(), mfaFlowConfig.getTypeName());
+            ctx.changeState(MfaState.MFA_FULLY_COMPLETED);
+        } else if (ctx.getCurrentState() == MfaState.MFA_FULLY_COMPLETED) {
+            // 이미 MFA_FULLY_COMPLETED 상태라면 더 이상 상태를 변경하지 않음 (예: 중복 호출 방지)
+            log.debug("User {} in flow '{}' is already in MFA_FULLY_COMPLETED state.", ctx.getUsername(), mfaFlowConfig.getTypeName());
+        } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty() && ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
+            // 등록된 MFA 요소가 있지만, 아무것도 완료하지 못했고, 현재 선택 대기 상태가 아니라면 선택 화면으로.
+            log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection for flow '{}'.", ctx.getUsername(), mfaFlowConfig.getTypeName());
+            ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
+            ctx.clearCurrentFactorProcessingState(); // 현재 처리 중인 팩터 정보 초기화
+        } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
+            // 사용자에게 등록된 MFA 요소가 없는 경우
+            log.warn("MFA required for user {} in flow '{}', but no MFA factors are registered by the user. Setting state to MFA_CONFIGURATION_REQUIRED.",
+                    ctx.getUsername(), mfaFlowConfig.getTypeName());
+            ctx.changeState(MfaState.MFA_CONFIGURATION_REQUIRED);
+        } else {
+            // 모든 필수 요소가 완료되지 않았거나, 처리할 다음 요소가 있는 경우 (또는 선택해야 하는 경우)
+            log.info("Not all required MFA factors completed for user: {} in flow '{}', or awaiting next action. Current state: {}. Missing steps: {}",
+                    ctx.getUsername(), mfaFlowConfig.getTypeName(), ctx.getCurrentState(), missingRequiredStepIds);
+            // 이미 완료된 상태가 아니고, 선택 대기 상태가 아니라면, 다음 요소 선택 대기 상태로 변경하는 것이 안전할 수 있음
+            if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
                 ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
-                ctx.setCurrentProcessingFactor(null);
-                ctx.setCurrentStepId(null);
-                ctx.setCurrentFactorOptions(null);
+                ctx.clearCurrentFactorProcessingState();
             }
         }
     }
@@ -226,6 +282,47 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
     }
 
+    /**
+     * 사용자의 등록된 MFA 요소 목록을 가져옵니다.
+     * Users 엔티티의 mfaFactors 필드를 파싱하여 사용합니다.
+     *
+     * @param username 사용자 이름
+     * @return 등록된 AuthType 목록. 없거나 파싱 실패 시 빈 목록 반환.
+     */
+    public List<AuthType> getRegisteredMfaFactorsForUser(String username) {
+        if (!StringUtils.hasText(username)) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(userRepository.findByUsername(username)
+                .map(this::parseMfaFactors) // Users 객체에서 mfaFactors 필드 파싱
+                .orElse(Collections.emptySet()));
+    }
+
+    private Set<AuthType> parseMfaFactors(Users user) {
+        if (user == null || !StringUtils.hasText(user.getMfaFactors())) {
+            return Collections.emptySet();
+        }
+        try {
+            // mfaFactors 필드는 쉼표로 구분된 AuthType 문자열로 가정 (예: "OTT,PASSKEY")
+            return Arrays.stream(user.getMfaFactors().split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .map(s -> {
+                        try {
+                            return AuthType.valueOf(s.toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                            log.warn("Invalid MFA factor string '{}' for user {}", s, user.getUsername());
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        } catch (Exception e) {
+            log.error("Error parsing MFA factors for user {}: {}", user.getUsername(), e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
     @Nullable
     private AuthenticationFlowConfig findMfaFlowConfig() {
         try {
@@ -244,4 +341,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
         return null;
     }
+
+
 }

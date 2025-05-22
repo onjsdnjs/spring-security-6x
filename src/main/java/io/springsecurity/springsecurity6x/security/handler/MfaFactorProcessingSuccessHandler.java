@@ -22,10 +22,8 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -134,23 +132,61 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
     @Nullable
     private AuthenticationFlowConfig findMfaFlowConfig(String flowTypeName) {
-        if (!StringUtils.hasText(flowTypeName)) return null;
-        if (!AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) { // MFA 플로우만 처리
-            log.warn("Attempting to find non-MFA flow config in MfaFactorProcessingSuccessHandler: {}", flowTypeName);
+        if (!StringUtils.hasText(flowTypeName)) {
+            // 이 로그는 이미 이전 코드에 의해 남겨지므로, 중복을 피하거나 레벨 조정 가능
+            // log.warn("MfaFactorProcessingSuccessHandler: findMfaFlowConfig called with empty flowTypeName.");
             return null;
         }
+
+        // 주석 처리된 if (!AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) { ... } 부분은
+        // 이 메소드를 호출하는 쪽에서 이미 flowTypeName이 MFA 관련 흐름임을 알고 있다는 전제가 있다면 생략 가능합니다.
+        // 또는 AuthenticationFlowConfig 객체를 가져온 후, 해당 객체의 속성(예: isMfaFlow() 메소드)으로 MFA 플로우인지 최종 확인하는 것이 더 좋습니다.
+
+        PlatformConfig platformConfig;
         try {
-            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
-            if (platformConfig != null && platformConfig.getFlows() != null) {
-                return platformConfig.getFlows().stream()
-                        .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
-                        .findFirst()
-                        .orElse(null);
-            }
+            platformConfig = applicationContext.getBean(PlatformConfig.class);
         } catch (Exception e) {
-            log.warn("Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
+            log.error("MfaFactorProcessingSuccessHandler: PlatformConfig bean not found in ApplicationContext. Cannot find MFA flow '{}'.", flowTypeName, e);
+            return null;
         }
-        return null;
+
+        if (platformConfig == null || platformConfig.getFlows() == null) {
+            log.error("MfaFactorProcessingSuccessHandler: PlatformConfig bean is available, but it or its flows list is null. Cannot find MFA flow '{}'.", flowTypeName);
+            return null;
+        }
+
+        // AuthenticationFlowConfig에 getTypeName() 메소드가 있다고 가정
+        List<AuthenticationFlowConfig> matchingFlows = platformConfig.getFlows().stream()
+                .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
+                .collect(Collectors.toList()); // findFirst() 대신 List로 우선 수집
+
+        if (matchingFlows.isEmpty()) {
+            log.warn("MfaFactorProcessingSuccessHandler: No AuthenticationFlowConfig found with typeName '{}' in PlatformConfig.", flowTypeName);
+            return null;
+        }
+
+        if (matchingFlows.size() > 1) {
+            // *** 사용자 지적 사항에 대한 처리 ***
+            log.error("CRITICAL CONFIGURATION WARNING: Multiple AuthenticationFlowConfigs ({}) found for the same typeName '{}'. " +
+                            "Flow type names (defined by name() in DSL) SHOULD BE UNIQUE to ensure the correct flow is selected. " +
+                            "Using the first one found, but this can lead to UNEXPECTED BEHAVIOR if configurations differ. " +
+                            "Please review your PlatformSecurityConfig DSL settings to ensure unique names for each authentication flow.",
+                    matchingFlows.size(), flowTypeName);
+            // 이 지점에서 예외를 발생시켜 잘못된 설정을 강제 수정하도록 유도할 수도 있습니다.
+            // 예: throw new IllegalStateException("Multiple AuthenticationFlowConfigs found for typeName: " + flowTypeName + ". Flow names must be unique.");
+            // 하지만 현재는 로그만 남기고 기존 로직처럼 첫 번째 것을 반환합니다.
+        }
+
+        AuthenticationFlowConfig foundFlow = matchingFlows.get(0); // 첫 번째 (또는 유일해야 하는) 일치하는 플로우
+
+        // 추가 검증: 반환하기 전에 이 플로우가 실제로 MFA 플로우인지 확인 (AuthenticationFlowConfig에 isMfaFlow()가 있다고 가정)
+        // if (foundFlow != null && !foundFlow.isMfaFlow()) { // isMfaFlow()는 AuthenticationFlowConfig에 정의되어야 함
+        //     log.warn("MfaFactorProcessingSuccessHandler: Flow configuration found for typeName '{}', but it is NOT an MFA flow (isMfaFlow() returned false).", flowTypeName);
+        //     return null; // 찾았지만 MFA 플로우가 아니면 null 반환
+        // }
+
+        log.debug("MfaFactorProcessingSuccessHandler: Found AuthenticationFlowConfig for typeName '{}'.", flowTypeName);
+        return foundFlow;
     }
 
     private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request, String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {

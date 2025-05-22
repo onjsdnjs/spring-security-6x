@@ -129,7 +129,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             log.debug("AuthenticationFeature [{}]: Using successHandler from options: {}", getId(), options.getSuccessHandler().getClass().getSimpleName());
             return options.getSuccessHandler();
         }
-
+/*
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName()) && allSteps != null) {
             int currentStepIndex = allSteps.indexOf(myStepConfig);
             boolean isFirstStepInMfaFlow = (currentStepIndex == 0);
@@ -142,6 +142,21 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA final factor step.", getId());
                 return Optional.ofNullable(currentFlow.getFinalSuccessHandler())
                         .orElseGet(() -> appContext.getBean(UnifiedAuthenticationSuccessHandler.class));
+            } else {
+                log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
+                return appContext.getBean(MfaFactorProcessingSuccessHandler.class);
+            }
+        }
+        log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
+        return determineDefaultSuccessHandler(options, currentFlow, myStepConfig, allSteps, appContext);*/
+
+        if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName()) && allSteps != null) {
+            int currentStepIndex = allSteps.indexOf(myStepConfig);
+            boolean isFirstStepInMfaFlow = (currentStepIndex == 0);
+
+            if (isFirstStepInMfaFlow) {
+                log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA primary step.", getId());
+                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
             } else {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
                 return appContext.getBean(MfaFactorProcessingSuccessHandler.class);

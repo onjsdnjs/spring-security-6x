@@ -79,7 +79,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         RestAuthenticationFilter restFilter = new RestAuthenticationFilter(
                 authenticationManager,
                 contextPersistence,
-                objectMapper
+                applicationContext
         );
 
         if (successHandler != null) {

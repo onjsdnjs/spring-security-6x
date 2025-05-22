@@ -199,8 +199,7 @@ public class PlatformSecurityConfig {
 
                 .build();
     }
-
-    // 이하는 PlatformBootstrap 및 SecurityPlatformConfiguration에서
+    // 이하는 PlatformBootstrap 및 SecurityPlatformConfiguration 에서
     // HttpSecurity 객체와 각종 Feature/Adapter를 사용하여 SecurityFilterChain을 동적으로 생성하고 등록하는 로직.
     // AbstractAuthenticationAdapter의 apply 메소드 내부에서 각 인증 방식에 맞는
     // Spring Security Configurer (예: http.formLogin(), http.oneTimeTokenLogin(), http.webAuthnLogin())가 호출됨.

@@ -147,7 +147,7 @@ public class PlatformSecurityConfig {
                 ).jwt(Customizer.withDefaults()) // 단일 Passkey 로그인 후 JWT 토큰 사용
 */
                 // --- MFA 플로우 설정 ---
-                .mfa(ott -> ott
+                .mfa(mfa -> mfa
                         // 1차 인증: REST API 방식 사용
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest

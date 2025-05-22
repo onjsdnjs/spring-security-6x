@@ -50,7 +50,9 @@ public class FinalizeMfaSuccessAction implements MfaAction {
                 log.error("CRITICAL: FinalSuccessHandler not configured for flow '{}' AND UnifiedAuthenticationSuccessHandler bean not found. Cannot finalize MFA success.",
                         context.getFlowConfig().getTypeName(), e);
                 // 이 경우 심각한 설정 오류이므로, 적절한 오류 응답 처리 필요
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA success handling misconfigured.");
+                if (!response.isCommitted()) {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA success handling misconfigured.");
+                }
                 return;
             }
         }

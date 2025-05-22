@@ -70,7 +70,7 @@ public class IsFactorAvailableGuard implements MfaGuard {
         if (stepIdToEvaluate != null) {
             String finalStepIdToEvaluate = stepIdToEvaluate;
             allowedInFlow = context.getFlowConfig().getStepConfigs().stream()
-                    .anyMatch(step -> finalStepIdToEvaluate.equals(step.getStepId()) && step.getAuthType() == factorToEvaluate && step.isEnabled());
+                    .anyMatch(step -> finalStepIdToEvaluate.equals(step.getStepId()) && step.getAuthType() == factorToEvaluate && step.isRequired());
         } else {
             allowedInFlow = context.getFlowConfig().getStepConfigs().stream()
                     .anyMatch(step -> step.getAuthType() == factorToEvaluate && step.isRequired());

@@ -1,6 +1,9 @@
 package io.springsecurity.springsecurity6x.security.mfa.statemachine.listener;
 
+import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.mfa.statemachine.MfaEventPayload;
+import io.springsecurity.springsecurity6x.security.mfa.statemachine.MfaFlowState;
 import io.springsecurity.springsecurity6x.security.mfa.statemachine.MfaProcessingContext;
 import io.springsecurity.springsecurity6x.security.mfa.statemachine.config.MfaStateMachineDefinition;
 import org.springframework.lang.Nullable;
@@ -10,11 +13,11 @@ import org.springframework.lang.Nullable;
  */
 public interface MfaStateMachineListener {
 
-    default void onPreStateChange(MfaProcessingContext context, MfaFlowState from, MfaFlowState to, MfaStateMachineDefinition definition) {}
+    default void onPreStateChange(MfaProcessingContext context, MfaState from, MfaFlowState to, MfaStateMachineDefinition definition) {}
     default void onPostStateChange(MfaProcessingContext context, MfaFlowState from, MfaFlowState to, MfaStateMachineDefinition definition) {}
 
-    default void onPreEventProcessing(MfaProcessingContext context, MfaFlowEvent event, @Nullable MfaEventPayload payload, MfaStateMachineDefinition definition) {}
-    default void onPostEventProcessing(MfaProcessingContext context, MfaFlowEvent event, @Nullable MfaEventPayload payload, MfaStateMachineDefinition definition, boolean eventAccepted) {}
+    default void onPreEventProcessing(MfaProcessingContext context, MfaEvent event, @Nullable MfaEventPayload payload, MfaStateMachineDefinition definition) {}
+    default void onPostEventProcessing(MfaProcessingContext context, MfaEvent event, @Nullable MfaEventPayload payload, MfaStateMachineDefinition definition, boolean eventAccepted) {}
 
     default void onTransition(MfaProcessingContext context, MfaStateMachineDefinition.Transition transition, MfaStateMachineDefinition definition) {}
     default void onActionExecuting(MfaProcessingContext context, MfaStateMachineDefinition.Transition transition, String actionName, MfaStateMachineDefinition definition) {}

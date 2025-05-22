@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import lombok.Getter;
 
 /**
@@ -21,5 +22,9 @@ public class RetryPolicy { // 또는 interface RetryPolicy { int getMaxAttempts(
     // 기본 재시도 정책 (예: 3회)
     public static RetryPolicy defaultPolicy() {
         return new RetryPolicy(3);
+    }
+
+    public boolean canRetry(FactorContext factorContext, String stepId) {
+        return true;
     }
 }

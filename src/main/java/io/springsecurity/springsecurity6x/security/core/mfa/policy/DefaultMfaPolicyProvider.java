@@ -103,7 +103,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
      * @param ctx           현재 FactorContext
      * @param mfaFlowConfig 현재 MFA 플로우 설정
      */
-    private void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
+    public void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
         Assert.notNull(ctx, "FactorContext cannot be null");
         Assert.notNull(mfaFlowConfig, "AuthenticationFlowConfig cannot be null for MFA flow");
 
@@ -254,6 +254,11 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
         Users user = userOptional.get();
         return parseRegisteredMfaFactorsFromUser(user).contains(factorType);
+    }
+
+    @Override
+    public RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step) {
+        return new RetryPolicy(3);
     }
 
     private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) {

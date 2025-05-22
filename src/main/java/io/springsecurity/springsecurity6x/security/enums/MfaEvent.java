@@ -38,6 +38,35 @@ public enum MfaEvent {
     // 시간 초과 이벤트 (선택적)
     TIMEOUT,
 
+    // --- 1차 인증 및 초기화 ---
+
+    // --- MFA 정책 결과 및 팩터 선택 ---
+    MFA_POLICY_EVALUATED_SELECT_FACTOR, // 정책 평가 결과: MFA 필요, 사용자 선택 (기존 MFA_REQUIRED_SELECT_FACTOR 와 유사)
+    MFA_POLICY_EVALUATED_INITIATE_FACTOR, // 정책 평가 결과: MFA 필요, 특정 팩터 즉시 시작 (기존 MFA_REQUIRED_INITIATE_CHALLENGE 와 유사, payload로 팩터 타입 전달)
+    MFA_POLICY_ALLOWS_BYPASS,          // 정책 평가 결과: MFA 건너뛰기 허용 (기존 MFA_NOT_REQUIRED 와 유사)
+
+    // FACTOR_SELECT_REQUESTED는 UI 요청이므로 상태머신 이벤트보다는 컨트롤러 레벨에서 처리 후 UI 반환.
+
+    // --- 챌린지 처리 ---
+    INITIATE_CHALLENGE,         // 특정 팩터에 대한 챌린지 시작 요청 (내부 이벤트 또는 FACTOR_SELECTED의 결과)
+    CHALLENGE_ISSUED_SUCCESSFULLY, // OTP 발송 성공, Passkey 옵션 생성 성공 등 (기존 OTT_CHALLENGE_ISSUED, PASSKEY_CHALLENGE_ISSUED 와 유사)
+    CHALLENGE_ISSUANCE_FAILED,   // 챌린지 발급 실패 (기존 CHALLENGE_INITIATION_FAILED 와 유사)
+
+    // --- 사용자 응답 제출 ---
+    SUBMIT_OTT_CODE,            // 사용자가 OTT 코드 제출 (기존 OTT_SUBMITTED 와 유사)
+    SUBMIT_PASSKEY_ASSERTION,   // 사용자가 Passkey Assertion 제출 (기존 PASSKEY_ASSERTION_SUBMITTED 와 유사)
+    // SUBMIT_FACTOR_CREDENTIAL 은 너무 일반적이므로 각 팩터 타입별로 구체화된 이벤트 사용
+
+    // --- 검증 결과 ---
+    FACTOR_VERIFIED_SUCCESS,    // 현재 팩터 검증 성공 (기존 OTT_VERIFIED, PASSKEY_VERIFIED 와 유사, payload로 어떤 팩터인지 전달)
+    FACTOR_VERIFICATION_FAILED, // 현재 팩터 검증 실패 (기존 OTT_VERIFICATION_FAILED, PASSKEY_VERIFICATION_FAILED 와 유사)
+
+    // --- 사용자 취소 및 예외 ---
+    USER_ABORTED_MFA,             // 사용자가 MFA 흐름 중단
+    RETRY_LIMIT_EXCEEDED,         // 재시도 횟수 초과
+    SESSION_TIMEOUT,              // MFA 세션 타임아웃
+    SYSTEM_ERROR,                // 예측 불가능한 시스템 오류
+
     // --- 1차 인증 결과 관련 이벤트 (주로 PrimaryAuthenticationSuccessHandler에서 FactorContext 상태 변경에 사용) ---
     PRIMARY_AUTH_SUCCESS, // 1차 인증 성공 (MFA 필요 여부는 FactorContext.mfaRequiredAsPerPolicy로 판단)
     PRIMARY_AUTH_FAILURE, // 1차 인증 실패 (MFA_FAILED_TERMINAL 상태로 직결될 수 있음)
@@ -62,9 +91,6 @@ public enum MfaEvent {
     ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN, // 모든 필수 Factor 검증 완료, 토큰 발급 단계로 (기존 ISSUE_TOKEN 역할)
 
     // --- 예외 및 특수 상황 이벤트 ---
-    SESSION_TIMEOUT,              // MFA 세션 타임아웃
-    USER_ABORTED_MFA,             // 사용자가 MFA 흐름 중단 (명시적 취소)
-    SYSTEM_ERROR,                 // 예측 불가능한 시스템 오류
     CHALLENGE_DELIVERY_FAILURE,   // (CHALLENGE_INITIATION_FAILED와 통합 가능) Factor 챌린지 전달 실패 (예: 이메일 발송 실패)
     SKIP_AUTO_ATTEMPT,            // (AUTO_ATTEMPT 기능 사용 시) 자동 시도 건너뛰기
     REQUEST_RECOVERY;             // (RECOVER와 유사) 복구 흐름 요청

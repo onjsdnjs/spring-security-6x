@@ -36,9 +36,4 @@ public enum MfaFlowState {
     // 종료 상태
     END_MFA                     // MFA 흐름 완전 종료
 
-    public boolean isTerminal() {
-        return this == MFA_FULLY_COMPLETED || this == MFA_FAILED_TERMINAL ||
-                this == MFA_SESSION_EXPIRED || this == MFA_SESSION_INVALIDATED ||
-                this == MFA_SYSTEM_ERROR || this == END_MFA || this == MFA_CANCELLED;
-    }
 }

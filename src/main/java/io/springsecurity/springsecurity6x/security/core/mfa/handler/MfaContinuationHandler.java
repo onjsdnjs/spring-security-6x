@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.handler;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,10 +17,12 @@ public interface MfaContinuationHandler {
     /**
      * 1차 인증 성공 또는 이전 MFA Factor 인증 성공 후 호출됩니다.
      *
-     * @param request 현재 요청
-     * @param response 현재 응답
+     * @param request        현재 요청
+     * @param response       현재 응답
      * @param authentication 이전 단계의 성공한 Authentication 객체 (1차 인증 또는 이전 Factor 인증 결과)
-     * @param factorContext 현재 MFA 세션 컨텍스트
+     * @param factorContext  현재 MFA 세션 컨텍스트
+     * @param flowConfig
+     * @param o
      * @throws IOException
      * @throws ServletException
      */
@@ -27,5 +30,7 @@ public interface MfaContinuationHandler {
     continueMfaFlow(HttpServletRequest request,
                     HttpServletResponse response,
                     Authentication authentication, // 이전 단계 인증 결과
-                    FactorContext factorContext) throws IOException, ServletException;
+                    FactorContext factorContext,
+                    AuthenticationFlowConfig flowConfig,
+                    Object o) throws IOException, ServletException;
 }

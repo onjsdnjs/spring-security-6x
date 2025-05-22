@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -23,7 +22,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component // Component로 등록
 @RequiredArgsConstructor
 public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 

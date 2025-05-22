@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.config;
 
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -14,6 +15,7 @@ import java.util.Objects;
 public class AuthenticationStepConfig {
     private String stepId; // 고유 식별자 필드
     private String type;   // 예: "form", "ott", "passkey"
+    private AuthType authType;   // 예: "form", "ott", "passkey"
     private final Map<String, Object> options = new HashMap<>();
     private int order = 0;
     // isRequired getter
@@ -32,6 +34,7 @@ public class AuthenticationStepConfig {
         this.type = type;
         this.order = order;
         this.stepId = generateId(flowName, type, order);
+        this.authType = AuthType.valueOf(type);
     }
 
     public void addOption(String key, Object value) {

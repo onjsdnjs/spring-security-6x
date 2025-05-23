@@ -26,7 +26,7 @@ public class CompleteMfaAction extends AbstractMfaStateAction {
 
         // completedFactors가 문자열 Set인 경우
         if (factorContext.getCompletedFactors() != null && !factorContext.getCompletedFactors().isEmpty()) {
-            String completedFactorsStr = String.join(",", (CharSequence) factorContext.getCompletedFactors());
+            String completedFactorsStr = String.join(",", factorContext.getCompletedFactors());
             context.getExtendedState().getVariables().put("completedFactors", completedFactorsStr);
         }
     }

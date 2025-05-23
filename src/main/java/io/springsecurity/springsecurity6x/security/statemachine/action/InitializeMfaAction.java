@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateContext;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component

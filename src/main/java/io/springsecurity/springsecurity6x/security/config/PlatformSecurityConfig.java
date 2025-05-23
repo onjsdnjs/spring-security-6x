@@ -116,15 +116,15 @@ public class PlatformSecurityConfig {
                 .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
 
                 // --- 단일 인증 방식들 (MFA와 별개로 동작 가능) ---
-                /*.form(form -> form
+.form(form -> form
                         .loginPage("/loginForm")
                         .loginProcessingUrl("/login") // Spring Security의 UsernamePasswordAuthenticationFilter가 처리
-                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
                         .failureHandler(singleAuthFailureHandler("/loginForm?error"))
                         .permitAll()
                         .order(100) // 다른 인증 방식과의 순서
                 ).jwt(Customizer.withDefaults()) // Form 로그인 후 JWT 토큰 사용
-*/
+
+
                 .ott(ott -> ott // 단일 OTT 로그인 설정
                         .tokenService(emailOneTimeTokenService) // 플랫폼의 EmailOneTimeTokenService 사용
                         .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
@@ -134,18 +134,18 @@ public class PlatformSecurityConfig {
                         .order(110)
                 ).jwt(Customizer.withDefaults()) // 단일 OTT 로그인 후 JWT 토큰 사용
 
-                /*.passkey(passkey -> passkey // 단일 Passkey 로그인 설정
+.passkey(passkey -> passkey // 단일 Passkey 로그인 설정
                         .rpId(rpId)
                         .rpName("Spring Security 6x IDP")
                         // Assertion Options 요청은 Spring Security 기본 엔드포인트(/webauthn/assertion/options) 사용 또는 커스텀 API
                         .assertionOptionsEndpoint("/webauthn/assertion/options")
                         // Assertion 검증은 Spring Security 기본 엔드포인트(/webauthn/assertion/verify) 또는 커스텀 URL
                         .loginProcessingUrl("/login/webauthn") // Passkey Assertion 제출 및 검증 (Spring Security의 WebAuthnAuthenticationFilter가 처리)
-                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
                         .failureHandler(singleAuthFailureHandler("/loginPasskey?error_passkey"))
                         .order(120)
                 ).jwt(Customizer.withDefaults()) // 단일 Passkey 로그인 후 JWT 토큰 사용
-*/
+
+
                 // --- MFA 플로우 설정 ---
                 .mfa(mfa -> mfa
                         // 1차 인증: REST API 방식 사용
@@ -179,16 +179,15 @@ public class PlatformSecurityConfig {
                                         })))// OTT Factor 실패 시
                         )
                         // 2차 인증 요소: Passkey
-                       /* .passkey(passkeyFactor -> passkeyFactor
+ .passkey(passkeyFactor -> passkeyFactor
                                 .rpId(rpId)
                                 .rpName("Spring Security 6x IDP MFA")
                                 // Passkey Assertion Options 요청은 클라이언트 JS가 /api/mfa/assertion/options API를 호출하도록 함.
                                 .assertionOptionsEndpoint("/api/mfa/assertion/options")
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 WebAuthnAuthenticationFilter로 위임됨.
                                 .loginProcessingUrl("/mfa/challenge/passkey")
-                                .successHandler(mfaStepBasedSuccessHandler) // Passkey Factor 성공 시 다음 단계 또는 최종 완료 처리
-                                .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
-                        )*/
+                        )
+
                         // MFA 플로우 전반에 대한 설정
                         .finalSuccessHandler(unifiedAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))

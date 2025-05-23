@@ -1,4 +1,6 @@
-// static/js/mfa-verify-ott.js (일부 수정 제안)
+// src/main/resources/static/js/mfa-verify-ott.js
+// State Machine 통합 버전
+
 document.addEventListener("DOMContentLoaded", () => {
     const isMfaFlow = document.body.dataset.isMfaFlow === 'true';
     const formId = isMfaFlow ? "mfaVerifyOttForm" : "singleOttVerifyForm";
@@ -19,15 +21,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const csrfTokenMeta = document.querySelector('meta[name="_csrf"]');
     const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
-    const csrfParameterMeta = document.querySelector('meta[name="_csrf_parameter"]'); // CSRF 파라미터 이름
+    const csrfParameterMeta = document.querySelector('meta[name="_csrf_parameter"]');
 
     const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute("content") : null;
     const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
     const csrfParameterName = csrfParameterMeta ? csrfParameterMeta.getAttribute("content") : "_csrf";
 
-
     let username = "";
     const mfaSessionId = isMfaFlow ? sessionStorage.getItem("mfaSessionId") : null;
+
+    // State Machine 상태 확인 (MFA 플로우일 때만)
+    if (isMfaFlow && window.mfaStateTracker) {
+        if (!window.mfaStateTracker.isValid()) {
+            window.mfaStateTracker.restoreFromSession();
+        }
+
+        // OTT_CHALLENGE 상태인지 확인
+        if (window.mfaStateTracker.currentState !== 'OTT_CHALLENGE') {
+            console.warn(`Invalid state for OTT verification. Current state: ${window.mfaStateTracker.currentState}`);
+            displayMessage("잘못된 인증 상태입니다. 다시 시도해주세요.", "error");
+            setTimeout(() => {
+                window.location.href = "/mfa/select-factor";
+            }, 2000);
+            return;
+        }
+
+        // 남은 시도 횟수 표시
+        const attemptsRemaining = window.mfaStateTracker.stateMetadata?.attemptsRemaining;
+        if (attemptsRemaining !== undefined && attemptsRemaining < 3) {
+            displayMessage(`남은 시도 횟수: ${attemptsRemaining}회`, "info");
+        }
+    }
 
     if (isMfaFlow) {
         username = sessionStorage.getItem("mfaUsername");
@@ -43,8 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (submitButton) submitButton.disabled = true;
             return;
         }
-    } else { // Single OTT
-        // 단일 OTT의 경우 username (email)은 hidden input 또는 userIdentifierDisplay 에서 가져올 수 있음
+    } else {
+        // 단일 OTT 플로우
         const hiddenUsernameInput = ottVerifyForm.querySelector('input[name="username"]');
         if (hiddenUsernameInput && hiddenUsernameInput.value) {
             username = hiddenUsernameInput.value;
@@ -60,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    logClientSideMfaVerify(`OTT Verification page loaded. MFA Flow: ${isMfaFlow}, User: ${username}, Session ID: ${mfaSessionId || 'N/A'}`);
+    logClientSideMfaVerify(`OTT Verification page loaded. MFA Flow: ${isMfaFlow}, User: ${username}, Session ID: ${mfaSessionId || 'N/A'}, State: ${window.mfaStateTracker?.currentState || 'N/A'}`);
 
     function displayMessage(message, type = 'info') {
         if (messageDiv) {
@@ -73,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function requestNewOttCode() {
         const resendUrl = isMfaFlow ?
             (document.body.dataset.mfaResendOttUrl || "/api/mfa/request-ott-code") :
-            (document.body.dataset.singleOttResendUrl || "/api/ott/generate-code"); // 단일 OTT 재전송 URL
+            (document.body.dataset.singleOttResendUrl || "/api/ott/generate-code");
 
         if (!resendUrl) {
             displayMessage("코드 재전송 URL이 설정되지 않았습니다.", "error");
@@ -102,7 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             const result = await response.json();
-            const successStatus = isMfaFlow ? "MFA_OTT_CODE_SENT" : "OTT_CODE_SENT"; // API 응답에 따라 조정
+            const successStatus = isMfaFlow ? "MFA_OTT_CODE_SENT" : "OTT_CODE_SENT";
+
+            // State Machine 상태 업데이트
+            if (window.mfaStateTracker && result.stateMachine) {
+                window.mfaStateTracker.updateFromServerResponse(result);
+            }
 
             if (response.ok && result.status === successStatus) {
                 displayMessage(result.message || `새로운 인증 코드가 ${username}(으)로 발송되었습니다.`, "success");
@@ -131,6 +160,13 @@ document.addEventListener("DOMContentLoaded", () => {
             ottCodeInput.focus();
             return;
         }
+
+        // State Machine 전이 가능 여부 확인
+        if (isMfaFlow && window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo('OTT_VERIFIED')) {
+            displayMessage("현재 상태에서 OTT 검증을 수행할 수 없습니다.", "error");
+            return;
+        }
+
         displayMessage("OTT 코드 검증 중...", "info");
 
         const formData = new URLSearchParams();
@@ -141,23 +177,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const headers = {
-            "Content-Type": "application/x-www-form-urlencoded", // Spring Security 필터는 기본적으로 이 Content-Type을 기대
+            "Content-Type": "application/x-www-form-urlencoded",
             "X-Device-Id": getOrCreateDeviceId()
         };
         if (isMfaFlow && mfaSessionId) {
             headers["X-MFA-Session-Id"] = mfaSessionId;
         }
-        // AJAX POST 시에는 CSRF 토큰을 헤더로 보내는 것이 일반적이지만,
-        // Spring Security의 폼 기반 필터는 파라미터로도 CSRF 토큰을 받습니다.
-        // 여기서는 formData에 포함했으므로 헤더에서는 생략해도 무방할 수 있습니다.
-        // 만약 DSL에서 csrf().requireCsrfProtectionMatcher() 등으로 AJAX 요청에 대한 처리가 있다면 헤더가 필요.
-        // if (csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
-
 
         const processingUrl = isMfaFlow ?
             (ottVerifyForm.dataset.mfaOttProcessingUrl || document.body.dataset.mfaOttProcessingUrl) :
             (ottVerifyForm.dataset.singleOttProcessingUrl || ottVerifyForm.getAttribute('action'));
-
 
         if (!processingUrl) {
             displayMessage("처리 URL을 찾을 수 없습니다. 관리자에게 문의하세요.", "error");
@@ -175,19 +204,32 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await response.json();
             logClientSideMfaVerify(`OTT verification response status: ${response.status}, body: ${JSON.stringify(result)}`);
 
+            // State Machine 상태 업데이트
+            if (window.mfaStateTracker && result.stateMachine) {
+                window.mfaStateTracker.updateFromServerResponse(result);
+                logClientSideMfaVerify(`State updated to: ${result.stateMachine.currentState}`);
+            }
+
             if (response.ok) {
                 if (isMfaFlow) {
                     if (result.status === "MFA_COMPLETE") {
+                        // State Machine이 COMPLETED 상태인지 확인
+                        if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'COMPLETED') {
+                            console.warn(`State mismatch. Expected: COMPLETED, Actual: ${window.mfaStateTracker.currentState}`);
+                        }
+
                         const authMode = localStorage.getItem("authMode") || "header";
                         if (authMode === "header" || authMode === "header_cookie") {
                             if(result.accessToken) TokenMemory.accessToken = result.accessToken;
                             if (authMode === "header" && result.refreshToken) TokenMemory.refreshToken = result.refreshToken;
                         }
                         displayMessage("MFA 인증 성공!", "success");
-                        sessionStorage.removeItem("mfaSessionId");
-                        sessionStorage.removeItem("mfaUsername");
-                        sessionStorage.removeItem("currentMfaFactor");
-                        sessionStorage.removeItem("currentMfaStepId");
+
+                        // State Machine 정리
+                        if (window.mfaStateTracker) {
+                            window.mfaStateTracker.clear();
+                        }
+
                         setTimeout(() => { window.location.href = result.redirectUrl || "/home"; }, 1000);
                     } else if (result.status === "MFA_CONTINUE" && result.nextStepUrl) {
                         displayMessage("OTT 인증 성공. 다음 MFA 단계로 이동합니다.", "info");
@@ -202,13 +244,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         displayMessage(failureMsg, "error");
                         ottCodeInput.focus();
                         ottCodeInput.value = "";
-                        if (result.remainingAttempts === 0 && result.nextStepUrl) {
-                            setTimeout(() => { window.location.href = result.nextStepUrl; }, 2000);
+
+                        // State Machine 실패 처리
+                        if (window.mfaStateTracker && window.mfaStateTracker.currentState === 'FAILED') {
+                            const maxAttemptsExceeded = window.mfaStateTracker.stateMetadata?.failureReason === 'MAX_ATTEMPTS_EXCEEDED';
+                            if (maxAttemptsExceeded && result.nextStepUrl) {
+                                setTimeout(() => { window.location.href = result.nextStepUrl; }, 2000);
+                            }
                         }
                     } else {
                         displayMessage(result.message || "인증 처리 중 알 수 없는 상태입니다: " + result.status, "error");
                     }
-                } else { // Single OTT success
+                } else {
+                    // 단일 OTT 성공
                     displayMessage("로그인 성공!", "success");
                     const authMode = localStorage.getItem("authMode") || "header";
                     if (authMode === "header" || authMode === "header_cookie") {
@@ -217,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                     setTimeout(() => { window.location.href = result.redirectUrl || "/home"; }, 1000);
                 }
-            } else { // response.ok 가 false 인 경우
+            } else {
                 let message = "코드 검증에 실패했습니다.";
                 if (result && result.message) {
                     message = result.message;
@@ -227,10 +275,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 displayMessage(message, "error");
                 ottCodeInput.value = "";
                 ottCodeInput.focus();
+
                 if (isMfaFlow && result && result.remainingAttempts === 0 && result.nextStepUrl) {
                     setTimeout(() => { window.location.href = result.nextStepUrl; }, 2000);
-                } else if (!isMfaFlow && response.status === 401) { // 단일 OTT 실패
-                    // 실패 시 특별한 처리 (예: 로그인 페이지로 리다이렉트)
                 }
             }
         } catch (error) {

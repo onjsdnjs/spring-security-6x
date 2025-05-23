@@ -1,5 +1,8 @@
+// src/main/resources/static/js/mfa-select-factor.js
+// State Machine 통합 버전
+
 document.addEventListener("DOMContentLoaded", () => {
-    const factorSelectionContainer = document.getElementById("mfaFactorSelectionForm"); // ID 변경 가능성 고려
+    const factorSelectionContainer = document.getElementById("mfaFactorSelectionForm");
     const messageDiv = document.getElementById("factorSelectionMessage");
 
     if (!factorSelectionContainer) {
@@ -13,15 +16,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const csrfHeader = csrfHeaderMeta ? csrfHeaderMeta.getAttribute("content") : null;
 
     const mfaSessionId = sessionStorage.getItem("mfaSessionId");
-    const username = sessionStorage.getItem("mfaUsername"); // 1차 인증 시 저장된 사용자 이름
+    const username = sessionStorage.getItem("mfaUsername");
+
+    // State Machine 상태 확인
+    if (window.mfaStateTracker && !window.mfaStateTracker.isValid()) {
+        // 세션에서 복원 시도
+        window.mfaStateTracker.restoreFromSession();
+    }
+
+    // 현재 상태 검증
+    if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_SELECTION') {
+        console.warn(`Invalid state for factor selection. Current state: ${window.mfaStateTracker.currentState}`);
+        displayMessage("잘못된 인증 상태입니다. 다시 로그인해주세요.", "error");
+        setTimeout(() => {
+            window.location.href = "/loginForm";
+        }, 2000);
+        return;
+    }
 
     if (!mfaSessionId || !username) {
         displayMessage("MFA 세션 정보가 유효하지 않습니다. 다시 로그인해주세요.", "error");
-        if (typeof showToast === 'function') showToast("MFA 세션 정보가 유효하지 않습니다. 다시 로그인해주세요.", "error", 3000);
-        // setTimeout(() => { window.location.href = "/loginForm"; }, 2000); // 자동 리다이렉션은 UI/UX에 따라 결정
+        if (typeof showToast === 'function') {
+            showToast("MFA 세션 정보가 유효하지 않습니다. 다시 로그인해주세요.", "error", 3000);
+        }
         return;
     }
-    logClientSideMfa("Select Factor page loaded. SessionId: " + mfaSessionId + ", User: " + username);
+
+    logClientSideMfa(`Select Factor page loaded. SessionId: ${mfaSessionId}, User: ${username}, State: ${window.mfaStateTracker?.currentState}`);
 
     function displayMessage(message, type = 'error') {
         if (messageDiv) {
@@ -33,17 +54,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const factorButtons = document.querySelectorAll("#mfaFactorSelectionForm .mfa-factor-button");
 
+    // State Machine 정보를 기반으로 버튼 활성화/비활성화
+    if (window.mfaStateTracker && window.mfaStateTracker.stateMetadata?.availableFactors) {
+        const availableFactors = window.mfaStateTracker.stateMetadata.availableFactors;
+
+        factorButtons.forEach(button => {
+            const factor = button.dataset.factor;
+            if (!availableFactors.includes(factor)) {
+                button.disabled = true;
+                button.classList.add('opacity-50', 'cursor-not-allowed');
+                button.title = "이 인증 수단은 현재 사용할 수 없습니다.";
+            }
+        });
+    }
+
     factorButtons.forEach(button => {
         button.addEventListener("click", async () => {
             factorButtons.forEach(btn => btn.disabled = true);
             const selectedFactor = button.dataset.factor;
-            // data-target-url은 이 JS가 직접 API를 호출하고 그 결과를 바탕으로 페이지를 이동하므로,
-            // 이 JS 에서는 MfaApiController를 호출하는 것으로 통일. 서버가 nextStepUrl을 내려줌.
-            const targetUiPageAfterApi = button.dataset.targetUrl; // 예비용 또는 서버 응답 없을 시 사용
 
-            displayMessage("선택한 인증 수단(" + selectedFactor + ")으로 진행합니다...", "info");
+            // State Machine 전이 가능 여부 확인
+            const expectedTransition = selectedFactor + '_CHALLENGE';
+            if (window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo(expectedTransition)) {
+                displayMessage(`선택한 인증 수단(${selectedFactor})을 사용할 수 없습니다.`, "error");
+                factorButtons.forEach(btn => btn.disabled = false);
+                logClientSideMfa(`Invalid transition attempt: ${window.mfaStateTracker.currentState} -> ${expectedTransition}`);
+                return;
+            }
 
-            const headers = createApiHeaders(true); // createApiHeaders는 mfaSessionId 등을 포함하여 생성
+            displayMessage(`선택한 인증 수단(${selectedFactor})으로 진행합니다...`, "info");
+
+            const headers = {
+                "Content-Type": "application/json",
+                "X-Device-Id": getOrCreateDeviceId(),
+                "X-MFA-Session-Id": mfaSessionId
+            };
+
+            if (csrfToken && csrfHeader) {
+                headers[csrfHeader] = csrfToken;
+            }
 
             try {
                 const response = await fetch(`/api/mfa/select-factor`, {
@@ -54,20 +103,51 @@ document.addEventListener("DOMContentLoaded", () => {
                         username: username
                     })
                 });
+
                 const result = await response.json();
+
+                // State Machine 상태 업데이트
+                if (window.mfaStateTracker && result.stateMachine) {
+                    window.mfaStateTracker.updateFromServerResponse(result);
+                    logClientSideMfa(`State updated to: ${result.stateMachine.currentState}`);
+                }
 
                 if (response.ok && result.status === "FACTOR_SELECTED_PROCEED_TO_CHALLENGE_UI" && result.nextStepUrl) {
                     showToast(`${selectedFactor} 인증 페이지로 이동합니다.`, "success");
                     sessionStorage.setItem("currentMfaFactor", result.nextFactorType || selectedFactor);
-                    if (result.nextStepId) sessionStorage.setItem("currentMfaStepId", result.nextStepId);
 
-                    // 서버가 알려준 nextStepUrl (GET 요청용 UI 페이지 URL)로 이동
-                    setTimeout(() => { window.location.href = result.nextStepUrl; }, 1000);
+                    if (result.nextStepId) {
+                        sessionStorage.setItem("currentMfaStepId", result.nextStepId);
+                    }
+
+                    // State Machine 상태 확인
+                    if (window.mfaStateTracker) {
+                        const expectedState = selectedFactor + '_CHALLENGE';
+                        if (window.mfaStateTracker.currentState !== expectedState) {
+                            console.warn(`State mismatch. Expected: ${expectedState}, Actual: ${window.mfaStateTracker.currentState}`);
+                        }
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = result.nextStepUrl;
+                    }, 1000);
                 } else {
                     displayMessage(result.message || `인증 수단 처리 중 오류: ${response.statusText}`, "error");
                     factorButtons.forEach(btn => btn.disabled = false);
+
+                    // State Machine 오류 처리
+                    if (result.stateMachine && result.stateMachine.currentState === 'FAILED') {
+                        const failureReason = result.stateMachine.stateMetadata?.failureReason;
+                        if (failureReason) {
+                            displayMessage(`오류: ${failureReason}`, "error");
+                        }
+                    }
                 }
-            } catch (error) { /* ... (오류 처리) ... */ }
+            } catch (error) {
+                console.error("MFA Factor Selection error:", error);
+                displayMessage("인증 수단 선택 중 오류가 발생했습니다.", "error");
+                factorButtons.forEach(btn => btn.disabled = false);
+            }
         });
     });
 
@@ -79,6 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return deviceId;
     }
+
     function logClientSideMfa(message) {
         console.log("[Client MFA SelectFactor] " + message);
     }

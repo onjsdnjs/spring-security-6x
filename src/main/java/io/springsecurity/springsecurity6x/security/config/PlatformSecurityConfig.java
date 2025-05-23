@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCusto
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.handler.*;
-import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import jakarta.servlet.http.HttpServletRequest;

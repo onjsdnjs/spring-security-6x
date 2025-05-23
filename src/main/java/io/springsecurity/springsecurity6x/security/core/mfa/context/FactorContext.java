@@ -25,7 +25,8 @@ import java.util.stream.Collectors;
 
 @Getter
 @Slf4j
-public class FactorContext implements Serializable {
+@Setter
+public class FactorContext implements FactorContextExtensions {
 
     private static final long serialVersionUID = 20250522_01L;
 
@@ -35,12 +36,15 @@ public class FactorContext implements Serializable {
 
     private final Authentication primaryAuthentication;
     private final String username;
+    private int retryCount = 0;
+    private String lastError;
+    private final long createdAt = System.currentTimeMillis();
 
-    @Setter @Nullable private String flowTypeName;
-    @Setter @Nullable private AuthType currentProcessingFactor;
-    @Setter @Nullable private String currentStepId;
-    @Setter @Nullable private AuthenticationProcessingOptions currentFactorOptions;
-    @Setter private boolean mfaRequiredAsPerPolicy = false;
+    private String flowTypeName;
+    private AuthType currentProcessingFactor;
+    private String currentStepId;
+    private AuthenticationProcessingOptions currentFactorOptions;
+    private boolean mfaRequiredAsPerPolicy = false;
 
     private final List<AuthenticationStepConfig> completedFactors = new CopyOnWriteArrayList<>();
     private final Map<String, Integer> failedAttempts = new ConcurrentHashMap<>();
@@ -126,6 +130,7 @@ public class FactorContext implements Serializable {
         return newCount;
     }
 
+
     public int getAttemptCount(@Nullable AuthType factorType) {
         if (factorType == null) return 0;
         return factorAttemptCounts.getOrDefault(factorType, 0);
@@ -198,6 +203,11 @@ public class FactorContext implements Serializable {
     public void updateLastActivityTimestamp() {
         this.lastActivityTimestamp = Instant.now();
         log.trace("FactorContext (ID: {}) lastActivityTimestamp updated to: {} for user {}", mfaSessionId, this.lastActivityTimestamp, this.username);
+    }
+
+    @Override
+    public Set<AuthType> getAvailableFactors() {
+        return Set.of();
     }
 
     @Getter

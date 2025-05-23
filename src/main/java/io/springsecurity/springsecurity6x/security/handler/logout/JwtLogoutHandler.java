@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler.logout;
 
-import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter; // 추가
+import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter; // 추가
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.store.TokenInfo;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult; // 추가

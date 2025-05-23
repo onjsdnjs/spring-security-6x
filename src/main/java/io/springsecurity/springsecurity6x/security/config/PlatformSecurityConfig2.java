@@ -1,4 +1,3 @@
-/*
 package io.springsecurity.springsecurity6x.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,7 +9,7 @@ import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthen
 import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
-import io.springsecurity.springsecurity6x.security.http.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -180,4 +179,3 @@ public class PlatformSecurityConfig2 {
                 .build();
     }
 }
-*/

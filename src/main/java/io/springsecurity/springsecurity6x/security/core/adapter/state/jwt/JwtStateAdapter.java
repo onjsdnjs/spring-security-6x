@@ -5,7 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutSuccessHandler;
-import io.springsecurity.springsecurity6x.security.http.JsonAuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;

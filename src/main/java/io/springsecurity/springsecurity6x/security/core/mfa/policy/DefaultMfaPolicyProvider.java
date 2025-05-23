@@ -8,7 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;

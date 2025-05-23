@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.config;
+package io.springsecurity.springsecurity6x.security.statemachine.enums;
 
 import lombok.Getter;
 

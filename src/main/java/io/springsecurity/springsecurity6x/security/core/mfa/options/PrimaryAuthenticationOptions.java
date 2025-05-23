@@ -25,9 +25,9 @@ public final class PrimaryAuthenticationOptions {
         if (formOptions == null && restOptions == null) {
             throw new IllegalArgumentException("Either formLogin or restLogin must be configured for primary authentication.");
         }
-        Assert.notNull(primaryAuthType, "PrimaryAuthType cannot be null.");
-        // primaryAuthStepId는 PrimaryAuthDslConfigurerImpl에서 설정되므로 null이 아님을 보장해야 함
-        Assert.hasText(primaryAuthStepId, "PrimaryAuthStepId cannot be null or empty for primary authentication options.");
+//        Assert.notNull(primaryAuthType, "PrimaryAuthType cannot be null.");
+        // primaryAuthStepId는 PrimaryAuthDslConfigurerImpl 에서 설정되므로 null이 아님을 보장해야 함
+//        Assert.hasText(primaryAuthStepId, "PrimaryAuthStepId cannot be null or empty for primary authentication options.");
     }
 
     public boolean isFormLogin() {

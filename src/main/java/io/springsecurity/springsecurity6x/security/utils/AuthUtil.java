@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.utils;
 
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 
 public class AuthUtil {
 

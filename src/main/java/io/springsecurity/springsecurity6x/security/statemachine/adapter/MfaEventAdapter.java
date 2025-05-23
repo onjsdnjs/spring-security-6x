@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import org.springframework.messaging.Message;
 
 /**

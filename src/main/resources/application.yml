@@ -1,10 +1,4 @@
 spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://localhost:9000/oauth2/jwks
-
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
@@ -15,27 +9,29 @@ spring:
     console:
       enabled: true
       path: /h2-console
-  auth:
-    accessTokenValidity: 3600000
-    refreshTokenValidity: 604800000
-    enableRefreshToken: true
-    tokenPrefix: Bearer
 
-    mfa:
-      initiate-url: /mfa/initiate
-
+  security:
     oauth2:
-      client-id: client-app
-      client-secret: secret
-      issuer-uri: http://localhost:9000
-      token-endpoint: /oauth2/token
-      scope: read
-
-    token-issuer: internal
-    token-transport-type: header_cookie
-    allow-multiple-logins: true
-    max-concurrent-logins: 2
-    state-type: jwt
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9000/oauth2/jwks
+  # Spring Data Redis 설정
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: # Redis 비밀번호 (필요한 경우)
+      timeout: 2000
+      # 연결 풀 설정
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
+      # SSL 설정
+      ssl:
+        enabled: false
 
   mail:
     host: smtp.gmail.com
@@ -55,6 +51,136 @@ spring:
           ssl:
             trust: smtp.gmail.com
 
+  # 인증 관련 설정
+  auth:
+    token-issuer: internal
+    token-transport-type: header_cookie
+    state-type: jwt
 
+    # 토큰 유효 시간
+    access-token-validity: 3600000    # 1시간 (밀리초)
+    refresh-token-validity: 604800000  # 7일 (밀리초)
+    refresh-rotate-threshold: 43200000 # 12시간 (밀리초)
 
+    # 기타 설정
+    enable-refresh-token: true
+    allow-multiple-logins: false
+    max-concurrent-logins: 3
+    cookie-secure: false
+    token-prefix: "Bearer "
+    roles-claim: "roles"
+    scopes-claim: "scopes"
 
+    # MFA 설정
+    mfa:
+      initiate-url: "/mfa/initiate"
+      select-factor-url: "/mfa/select-factor"
+      failure-url: "/mfa/failure"
+      otp-token-validity-seconds: 300  # 5분
+
+# Security State Machine 설정
+security:
+  statemachine:
+    enabled: true
+    enable-persistence: true
+    context-ttl-minutes: 30
+
+    # MFA State Machine 설정
+    mfa:
+      enable-metrics: true
+      max-retries: 3
+      session-timeout-minutes: 30
+
+    # Redis 영속화 설정
+    redis:
+      enabled: true  # Redis 사용 여부 (false면 In-Memory 사용)
+      ttl-minutes: 30
+      key-prefix: "mfa:statemachine:"
+
+# 로깅 설정
+logging:
+  level:
+    io.springsecurity.springsecurity6x.security.statemachine: DEBUG
+    org.springframework.statemachine: INFO
+    org.springframework.data.redis: DEBUG
+
+---
+# 개발 환경 프로파일
+spring:
+  config:
+    activate:
+      on-profile: dev
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+security:
+  statemachine:
+    redis:
+      enabled: false  # 개발 환경에서는 In-Memory 사용
+
+logging:
+  level:
+    io.springsecurity.springsecurity6x: DEBUG
+    org.springframework.statemachine: DEBUG
+
+---
+# 운영 환경 프로파일
+spring:
+  config:
+    activate:
+      on-profile: prod
+  data:
+    redis:
+      host: ${REDIS_HOST:redis-cluster.example.com}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: true
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_NODE1:redis-1.example.com:6379}
+          - ${REDIS_CLUSTER_NODE2:redis-2.example.com:6379}
+          - ${REDIS_CLUSTER_NODE3:redis-3.example.com:6379}
+
+security:
+  statemachine:
+    redis:
+      enabled: true  # 운영 환경에서는 Redis 사용
+      ttl-minutes: 60  # 운영 환경에서는 더 긴 TTL
+
+logging:
+  level:
+    io.springsecurity.springsecurity6x: INFO
+    org.springframework.data.redis: WARN
+
+---
+# 테스트 환경 프로파일
+spring:
+  config:
+    activate:
+      on-profile: test
+  data:
+    redis:
+      host: localhost
+      port: 6370  # 테스트용 포트
+
+security:
+  statemachine:
+    mfa:
+      enable-metrics: false  # 테스트에서는 메트릭 비활성화
+      max-retries: 2
+      session-timeout-minutes: 10
+    redis:
+      enabled: false  # 테스트에서는 In-Memory 사용
+
+logging:
+  level:
+    io.springsecurity.springsecurity6x: DEBUG
+    org.springframework.statemachine: DEBUG

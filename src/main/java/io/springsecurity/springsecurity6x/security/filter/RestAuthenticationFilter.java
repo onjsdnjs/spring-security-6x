@@ -8,7 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

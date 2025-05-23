@@ -4,8 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,6 @@ import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 

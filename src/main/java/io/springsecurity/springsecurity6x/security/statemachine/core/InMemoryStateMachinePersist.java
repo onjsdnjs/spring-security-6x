@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachinePersist;
@@ -15,8 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
-public class MfaStateMachinePersisterImpl implements MfaStateMachinePersister,
-        StateMachinePersist<MfaState, MfaEvent, String> {
+public class InMemoryStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
 
     // 임시 In-Memory 저장소
     private final Map<String, StateMachineContext<MfaState, MfaEvent>> storage = new ConcurrentHashMap<>();

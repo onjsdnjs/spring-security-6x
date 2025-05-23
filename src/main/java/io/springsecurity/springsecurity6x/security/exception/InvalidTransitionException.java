@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.exception;
 
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 
 /**
  * FSM 전이 불가 시 던져지는 예외

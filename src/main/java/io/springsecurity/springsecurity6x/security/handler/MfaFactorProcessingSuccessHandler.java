@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersi
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.FilterChain;

@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.listener;
 
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 
 /**
  * MFA State Machine 리스너 인터페이스

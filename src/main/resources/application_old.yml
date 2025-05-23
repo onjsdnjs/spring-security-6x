@@ -1,0 +1,60 @@
+#spring:
+#  security:
+#    oauth2:
+#      resourceserver:
+#        jwt:
+#          jwk-set-uri: http://localhost:9000/oauth2/jwks
+#
+#  datasource:
+#    url: jdbc:h2:mem:testdb
+#    driver-class-name: org.h2.Driver
+#    username: sa
+#    password:
+#
+#  h2:
+#    console:
+#      enabled: true
+#      path: /h2-console
+#  auth:
+#    accessTokenValidity: 3600000
+#    refreshTokenValidity: 604800000
+#    enableRefreshToken: true
+#    tokenPrefix: Bearer
+#
+#    mfa:
+#      initiate-url: /mfa/initiate
+#
+#    oauth2:
+#      client-id: client-app
+#      client-secret: secret
+#      issuer-uri: http://localhost:9000
+#      token-endpoint: /oauth2/token
+#      scope: read
+#
+#    token-issuer: internal
+#    token-transport-type: header_cookie
+#    allow-multiple-logins: true
+#    max-concurrent-logins: 2
+#    state-type: jwt
+#
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: leaven73@gmail.com        # 발송용 계정
+#    password: vlkdxjsbxypcvgnj  # Gmail 앱 비밀번호 or OAuth2 토큰
+#    protocol: smtp
+#    default-encoding: UTF-8
+#
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+#            required: true
+#          ssl:
+#            trust: smtp.gmail.com
+#
+#
+#
+#

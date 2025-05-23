@@ -24,7 +24,7 @@ public class TokenServiceConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SecretKey jwtSecretKey(AuthContextProperties props) {
-        // 실제 운영에서는 application.yml 등에서 시크릿 키를 주입받거나 안전하게 관리해야 함
+        // 실제 운영에서는 application_old.yml 등에서 시크릿 키를 주입받거나 안전하게 관리해야 함
         // 여기서는 임시로 생성하거나, props 에서 가져오는 로직 추가 가능
         // if (StringUtils.hasText(props.getJwtSecret())) {
         //     return Keys.hmacShaKeyFor(props.getJwtSecret().getBytes(StandardCharsets.UTF_8));

@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

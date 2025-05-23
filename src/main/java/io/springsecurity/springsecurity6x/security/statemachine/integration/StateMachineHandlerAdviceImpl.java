@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.statemachine.integration;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

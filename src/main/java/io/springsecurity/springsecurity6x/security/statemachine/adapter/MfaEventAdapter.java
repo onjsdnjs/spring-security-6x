@@ -1,25 +1,42 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import org.springframework.messaging.Message;
 
 /**
- * MfaEvent와 State Machine Event 간의 변환 어댑터
+ * MFA 이벤트 어댑터 인터페이스
  */
 public interface MfaEventAdapter {
 
     /**
-     * MfaEvent를 State Machine 메시지로 변환
-     * @param event MFA 이벤트
-     * @param context Factor 컨텍스트
-     * @return State Machine 메시지
+     * 액션 문자열을 MfaEvent로 변환
      */
-    org.springframework.messaging.Message<MfaEvent> toStateMachineMessage(MfaEvent event, FactorContext context);
+    MfaEvent determineEvent(String action, FactorContext context);
 
     /**
-     * State Machine 이벤트에서 MfaEvent 추출
-     * @param message State Machine 메시지
-     * @return MFA 이벤트
+     * 특정 이벤트가 현재 컨텍스트에서 발생 가능한지 확인
      */
-    MfaEvent extractMfaEvent(org.springframework.messaging.Message<?> message);
+    boolean canTriggerEvent(MfaEvent event, FactorContext context);
+
+    /**
+     * 최대 재시도 횟수 가져오기
+     */
+    int getMaxRetries();
+
+    /**
+     * 세션 지속 시간 계산
+     */
+    long calculateSessionDuration(FactorContext context);
+
+    /**
+     * MfaEvent를 Spring State Machine Message로 변환
+     */
+    default Message<MfaEvent> toStateMachineMessage(MfaEvent event, FactorContext context) {
+        return org.springframework.messaging.support.MessageBuilder
+                .withPayload(event)
+                .setHeader("mfaSessionId", context.getMfaSessionId())
+                .setHeader("timestamp", System.currentTimeMillis())
+                .build();
+    }
 }

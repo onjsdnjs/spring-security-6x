@@ -1,17 +1,12 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import lombok.RequiredArgsConstructor;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachinePersist;
-import org.springframework.statemachine.persist.AbstractStateMachinePersister;
-import org.springframework.statemachine.persist.StateMachinePersister;
-import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

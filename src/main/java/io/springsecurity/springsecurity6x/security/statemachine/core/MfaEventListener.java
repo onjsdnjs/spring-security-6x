@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
 
 /**
  * MFA 이벤트 리스너

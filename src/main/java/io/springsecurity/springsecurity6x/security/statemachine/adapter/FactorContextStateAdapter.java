@@ -1,40 +1,30 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
+
+import java.util.Map;
 
 /**
- * FactorContext와 State Machine 간의 상태 동기화 어댑터
+ * FactorContext와 State Machine 간의 데이터 변환 어댑터
  */
 public interface FactorContextStateAdapter {
 
     /**
-     * FactorContext를 State Machine 컨텍스트로 변환
-     * @param factorContext Factor 컨텍스트
-     * @return State Machine 확장 상태 변수 맵
+     * FactorContext를 State Machine 변수로 변환
      */
-    java.util.Map<Object, Object> toStateMachineVariables(FactorContext factorContext);
+    Map<Object, Object> toStateMachineVariables(FactorContext factorContext);
 
     /**
-     * State Machine 컨텍스트를 FactorContext로 업데이트
-     * @param stateContext State Machine 컨텍스트
-     * @param factorContext 업데이트할 Factor 컨텍스트
+     * State Machine에서 FactorContext 업데이트
+     */
+    void updateFactorContext(StateMachine<MfaState, MfaEvent> stateMachine, FactorContext factorContext);
+
+    /**
+     * StateContext에서 FactorContext 업데이트
      */
     void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext, FactorContext factorContext);
-
-    /**
-     * StateMachineContext를 FactorContext로 업데이트 (오버로드)
-     * @param stateMachineContext State Machine 컨텍스트
-     * @param factorContext 업데이트할 Factor 컨텍스트
-     */
-    void updateFactorContext(org.springframework.statemachine.StateMachineContext<MfaState, MfaEvent> stateMachineContext, FactorContext factorContext);
-
-    /**
-     * State Machine 상태를 MfaState로 매핑
-     * @param state State Machine의 현재 상태
-     * @return 매핑된 MfaState
-     */
-    MfaState mapToMfaState(org.springframework.statemachine.state.State<MfaState, MfaEvent> state);
 }

@@ -3,15 +3,33 @@ package io.springsecurity.springsecurity6x.security.core.mfa.context;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.lang.Nullable;
 
+/**
+ * MFA 컨텍스트 영속화 인터페이스
+ */
 public interface ContextPersistence {
 
+    /**
+     * HttpServletRequest에서 FactorContext 로드
+     */
     @Nullable
-        // FactorContext가 없을 수 있음을 명시
-    FactorContext contextLoad(HttpServletRequest req);
+    FactorContext contextLoad(HttpServletRequest request);
 
-    // FactorContext 저장 시 HttpServletRequest도 받도록 변경 (세션 접근 위해)
-    void saveContext(@Nullable FactorContext ctx, HttpServletRequest req);
+    /**
+     * 세션 ID로 FactorContext 로드
+     */
+    @Nullable
+    default FactorContext loadContext(String sessionId, HttpServletRequest request) {
+        // 기본 구현: contextLoad 메서드 호출
+        return contextLoad(request);
+    }
 
-    // FactorContext 대신 HttpServletRequest를 받아 해당 요청의 컨텍스트를 삭제하도록 변경
-    void deleteContext(HttpServletRequest req);
+    /**
+     * FactorContext 저장
+     */
+    void saveContext(@Nullable FactorContext ctx, HttpServletRequest request);
+
+    /**
+     * FactorContext 삭제
+     */
+    void deleteContext(HttpServletRequest request);
 }

@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.listener;
 
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;

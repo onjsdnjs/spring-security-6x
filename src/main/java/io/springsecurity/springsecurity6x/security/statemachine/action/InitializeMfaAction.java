@@ -1,33 +1,41 @@
 package io.springsecurity.springsecurity6x.security.statemachine.action;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import lombok.RequiredArgsConstructor;
+import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateContext;
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import org.springframework.stereotype.Component;
 
+/**
+ * MFA 초기화 액션
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class InitializeMfaAction extends AbstractMfaStateAction {
 
-    @Override
-    protected void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) {
-        log.info("Initializing MFA flow for user: {}", factorContext.getUsername());
-
-        // MFA 플로우 초기화 로직
-        factorContext.setRetryCount(0);
-        factorContext.setLastError(null);
-
-        // 사용 가능한 팩터 확인 및 설정은 이미 되어 있을 것으로 가정
-        log.debug("Available factors: {}", factorContext.getAvailableFactors());
+    public InitializeMfaAction(FactorContextStateAdapter factorContextAdapter,
+                               StateContextHelper stateContextHelper) {
+        super(factorContextAdapter, stateContextHelper);
     }
 
     @Override
-    public String getActionName() {
-        return "InitializeMfaAction";
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {
+        String sessionId = factorContext.getMfaSessionId();
+        log.info("Initializing MFA for session: {}", sessionId);
+
+        // MFA 초기화 로직
+        factorContext.setAttribute("mfaInitializedAt", System.currentTimeMillis());
+        factorContext.setRetryCount(0);
+
+        // 초기 상태 설정
+        if (factorContext.getCurrentState() == MfaState.NONE) {
+            factorContext.changeState(MfaState.START_MFA);
+        }
+
+        log.info("MFA initialized successfully for session: {}", sessionId);
     }
 }

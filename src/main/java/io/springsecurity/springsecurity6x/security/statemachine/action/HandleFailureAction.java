@@ -1,54 +1,58 @@
 package io.springsecurity.springsecurity6x.security.statemachine.action;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import lombok.RequiredArgsConstructor;
+import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * MFA 실패 처리 액션
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class HandleFailureAction extends AbstractMfaStateAction {
 
-    @Override
-    protected void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) {
-        MfaEvent event = context.getEvent();
-        log.warn("Handling failure for event: {} in session: {}", event, factorContext.getMfaSessionId());
-
-        // 재시도 카운트 증가
-        int currentRetryCount = factorContext.getRetryCount();
-        factorContext.setRetryCount(currentRetryCount + 1);
-
-        // 에러 메시지 설정
-        String errorMessage = determineErrorMessage(event);
-        factorContext.setLastError(errorMessage);
-
-        // 실패 이유 로깅
-        log.info("MFA failure recorded. Retry count: {}, Error: {}",
-                factorContext.getRetryCount(), errorMessage);
+    public HandleFailureAction(FactorContextStateAdapter factorContextAdapter,
+                               StateContextHelper stateContextHelper) {
+        super(factorContextAdapter, stateContextHelper);
     }
 
-    private String determineErrorMessage(MfaEvent event) {
-        switch (event) {
-            case FACTOR_VERIFICATION_FAILED:
-            case OTT_VERIFICATION_FAILED:
-                return "Invalid verification code";
-            case PASSKEY_VERIFICATION_FAILED:
-                return "Passkey verification failed";
-            case CHALLENGE_ISSUANCE_FAILED:
-                return "Failed to issue challenge";
-            case RETRY_LIMIT_EXCEEDED:
-                return "Maximum retry attempts exceeded";
-            default:
-                return "Authentication failed";
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {
+        String sessionId = factorContext.getMfaSessionId();
+        log.info("Handling MFA failure for session: {}", sessionId);
+
+        // 실패 원인 추출
+        String failureReason = (String) context.getMessageHeader("failureReason");
+        if (failureReason == null) {
+            failureReason = (String) context.getExtendedState().getVariables().get("lastError");
         }
-    }
 
-    @Override
-    public String getActionName() {
-        return "HandleFailureAction";
+        // 실패 정보 저장
+        factorContext.setLastError(failureReason != null ? failureReason : "Unknown error");
+        factorContext.setAttribute("lastFailureTime", System.currentTimeMillis());
+
+        // 재시도 횟수 증가
+        int retryCount = factorContext.getRetryCount();
+        factorContext.setRetryCount(retryCount + 1);
+
+        // 최대 재시도 초과 확인
+        Integer maxRetries = (Integer) context.getExtendedState().getVariables().get("maxRetries");
+        if (maxRetries == null) {
+            maxRetries = 3; // 기본값
+        }
+
+        if (factorContext.getRetryCount() >= maxRetries) {
+            log.warn("Max retry attempts exceeded for session: {}", sessionId);
+            factorContext.changeState(MfaState.MFA_RETRY_LIMIT_EXCEEDED);
+        } else {
+            log.info("Retry attempt {} of {} for session: {}",
+                    factorContext.getRetryCount(), maxRetries, sessionId);
+        }
     }
 }

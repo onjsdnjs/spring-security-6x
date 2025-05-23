@@ -1,34 +1,51 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.policy;
 
-
-import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 
-import java.util.List;
-
+/**
+ * MFA 정책 제공자 인터페이스
+ */
 public interface MfaPolicyProvider {
 
-    // 기존 evaluateMfaRequirementAndDetermineInitialStep 유지
+    /**
+     * 1차 인증 후 MFA 필요 여부 평가 및 초기 단계 결정
+     */
     void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx);
 
-    // 기존 determineNextFactorToProcess 유지
-    @Nullable
+    /**
+     * 다음 처리할 팩터 결정
+     */
     void determineNextFactorToProcess(FactorContext ctx);
 
-    void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig);
-    // 기존 getRetryPolicyForFactor 유지
-    @Nullable
+    /**
+     * 특정 팩터의 재시도 정책 가져오기
+     */
     RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx);
 
-    List<AuthType> getRegisteredMfaFactorsForUser(String username);
-
-    // 추가: 특정 사용자에 대해 특정 Factor가 사용 가능한지 (등록되었고 활성화 상태인지 등) 확인
+    /**
+     * 특정 팩터가 사용자에게 사용 가능한지 확인
+     */
     boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx);
 
+    /**
+     * 재시도 정책 가져오기
+     */
     RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step);
+
+    /**
+     * 필요한 팩터 수 가져오기
+     */
+    default Integer getRequiredFactorCount(String userId, String flowType) {
+        // 기본 구현: flowType에 따라 결정
+        if ("mfa".equalsIgnoreCase(flowType)) {
+            return 2;
+        } else if ("mfa-stepup".equalsIgnoreCase(flowType)) {
+            return 1;
+        }
+        return 1;
+    }
 }

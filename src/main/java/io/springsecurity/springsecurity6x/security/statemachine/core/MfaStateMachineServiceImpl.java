@@ -2,22 +2,29 @@ package io.springsecurity.springsecurity6x.security.statemachine.core;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.adapter.MfaEventAdapter;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.persist.StateMachinePersister;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
- * MFA State Machine 서비스 구현체 (Spring State Machine 4.0.0)
+ * MFA State Machine 서비스 구현체
+ * 상태 머신의 생명주기 관리 및 이벤트 처리를 담당
  */
 @Slf4j
 @Service
@@ -26,203 +33,276 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
     private final MfaStateMachineFactory stateMachineFactory;
     private final StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister;
-    private final FactorContextStateAdapter contextAdapter;
-    private final MfaEventAdapter eventAdapter;
+    private final FactorContextStateAdapter factorContextAdapter;
     private final ContextPersistence contextPersistence;
     private final MfaEventPublisher eventPublisher;
 
-    // 활성 State Machine 추적
-    private final Map<String, StateMachine<MfaState, MfaEvent>> activeMachines = new ConcurrentHashMap<>();
+    // 활성 상태 머신 캐시 (TTL 적용)
+    private final Map<String, CachedStateMachine> activeMachines = new ConcurrentHashMap<>();
+
+    // TTL 정리를 위한 스케줄러
+    private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
+
+    // 기본 TTL (분)
+    private static final int DEFAULT_TTL_MINUTES = 30;
+
+    // 내부 클래스: 캐시된 상태 머신
+    private static class CachedStateMachine {
+        final StateMachine<MfaState, MfaEvent> stateMachine;
+        final LocalDateTime lastAccessTime;
+
+        CachedStateMachine(StateMachine<MfaState, MfaEvent> stateMachine) {
+            this.stateMachine = stateMachine;
+            this.lastAccessTime = LocalDateTime.now();
+        }
+
+        boolean isExpired(int ttlMinutes) {
+            return Duration.between(lastAccessTime, LocalDateTime.now()).toMinutes() > ttlMinutes;
+        }
+    }
+
+    // 생성자에서 정리 스케줄러 시작
+    public MfaStateMachineServiceImpl(MfaStateMachineFactory stateMachineFactory,
+                                      StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister,
+                                      FactorContextStateAdapter factorContextAdapter,
+                                      ContextPersistence contextPersistence,
+                                      MfaEventPublisher eventPublisher) {
+        this.stateMachineFactory = stateMachineFactory;
+        this.stateMachinePersister = stateMachinePersister;
+        this.factorContextAdapter = factorContextAdapter;
+        this.contextPersistence = contextPersistence;
+        this.eventPublisher = eventPublisher;
+
+        // 5분마다 만료된 상태 머신 정리
+        cleanupScheduler.scheduleAtFixedRate(this::cleanupExpiredMachines, 5, 5, TimeUnit.MINUTES);
+    }
 
     @Override
-    public boolean sendEvent(String sessionId, MfaEvent event, FactorContext context) {
-        log.debug("Sending event {} for session {}", event, sessionId);
+    public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
+        String sessionId = context.getMfaSessionId();
+        log.info("Initializing state machine for session: {}", sessionId);
 
         try {
-            StateMachine<MfaState, MfaEvent> stateMachine = acquireStateMachine(sessionId, context);
-
-            // FactorContext를 State Machine 변수로 동기화
-            Map<Object, Object> variables = contextAdapter.toStateMachineVariables(context);
-            variables.forEach((key, value) ->
-                    stateMachine.getExtendedState().getVariables().put(key, value)
-            );
-
-            // 이벤트 메시지 생성 및 전송
-            Message<MfaEvent> message = eventAdapter.toStateMachineMessage(event, context);
-            boolean result = stateMachine.sendEvent(message);
-
-            if (result) {
-                // State Machine 상태를 FactorContext로 역동기화
-                updateFactorContextFromStateMachine(stateMachine, context);
-
-                // 상태 저장
-                stateMachinePersister.persist(stateMachine, sessionId);
-
-                // 이벤트 발행
-                eventPublisher.publishEvent(event, context, sessionId);
-
-                log.info("Event {} successfully processed for session {}. New state: {}",
-                        event, sessionId, stateMachine.getState().getId());
-            } else {
-                log.warn("Event {} was not accepted in current state {} for session {}",
-                        event, stateMachine.getState().getId(), sessionId);
+            // 기존 상태 머신이 있는지 확인
+            StateMachine<MfaState, MfaEvent> existingMachine = getActiveStateMachine(sessionId);
+            if (existingMachine != null && isStateMachineValid(existingMachine)) {
+                log.warn("State machine already exists for session: {}", sessionId);
+                return;
             }
 
-            return result;
+            // 새 상태 머신 생성
+            StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.createStateMachine(sessionId);
+
+            // FactorContext를 상태 머신에 동기화
+            factorContextAdapter.updateStateMachineVariables(stateMachine, context);
+
+            // 활성 머신 목록에 추가
+            activeMachines.put(sessionId, new CachedStateMachine(stateMachine));
+
+            // 상태 머신 영속화
+            persistStateMachine(stateMachine, sessionId);
+
+            // FactorContext 영속화
+            contextPersistence.saveContext(context, request);
+
+            log.info("State machine initialized successfully for session: {}", sessionId);
 
         } catch (Exception e) {
-            log.error("Error processing event {} for session {}: {}", event, sessionId, e.getMessage(), e);
-            return false;
+            log.error("Failed to initialize state machine for session: {}", sessionId, e);
+            throw new RuntimeException("Failed to initialize state machine", e);
+        }
+    }
+
+    @Override
+    public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
+        String sessionId = context.getMfaSessionId();
+        log.info("Sending event {} for session: {}", event, sessionId);
+
+        try {
+            // 상태 머신 획득
+            StateMachine<MfaState, MfaEvent> stateMachine = acquireStateMachine(sessionId, context);
+
+            // FactorContext를 상태 머신에 동기화
+            factorContextAdapter.updateStateMachineVariables(stateMachine, context);
+
+            // 메시지 생성 (헤더에 추가 정보 포함)
+            Message<MfaEvent> message = MessageBuilder
+                    .withPayload(event)
+                    .setHeader("mfaSessionId", sessionId)
+                    .setHeader("authentication", context.getPrimaryAuthentication())
+                    .setHeader("request", request)
+                    .setHeader("timestamp", System.currentTimeMillis())
+                    .build();
+
+            // 이벤트 전송
+            boolean accepted = stateMachine.sendEvent(message);
+
+            if (accepted) {
+                // 상태 머신에서 FactorContext 업데이트
+                factorContextAdapter.updateFactorContext(stateMachine, context);
+
+                // 영속화
+                persistStateMachine(stateMachine, sessionId);
+                contextPersistence.saveContext(context, request);
+
+                // 이벤트 발행
+                eventPublisher.publishStateChange(sessionId, stateMachine.getState().getId(), event);
+
+                log.info("Event {} accepted and processed for session: {}", event, sessionId);
+            } else {
+                log.warn("Event {} not accepted for session: {} in state: {}",
+                        event, sessionId, stateMachine.getState().getId());
+            }
+
+            return accepted;
+
+        } catch (Exception e) {
+            log.error("Failed to send event {} for session: {}", event, sessionId, e);
+            throw new RuntimeException("Failed to send event", e);
         }
     }
 
     @Override
     public MfaState getCurrentState(String sessionId) {
         try {
-            StateMachine<MfaState, MfaEvent> stateMachine = activeMachines.get(sessionId);
-            if (stateMachine != null) {
+            StateMachine<MfaState, MfaEvent> stateMachine = getActiveStateMachine(sessionId);
+            if (stateMachine != null && stateMachine.getState() != null) {
                 return stateMachine.getState().getId();
             }
 
-            // 활성 머신이 없으면 persister에서 읽기 시도
-            StateMachine<MfaState, MfaEvent> restoredMachine = stateMachineFactory.createStateMachine(sessionId);
-            stateMachinePersister.restore(restoredMachine, sessionId);
-            return restoredMachine.getState().getId();
-
-        } catch (Exception e) {
-            log.error("Error getting current state for session {}: {}", sessionId, e.getMessage());
-            return MfaState.NONE;
-        }
-    }
-
-    @Override
-    public StateMachine<MfaState, MfaEvent> getStateMachine(String sessionId) {
-        return activeMachines.get(sessionId);
-    }
-
-    @Override
-    public void initializeStateMachine(String sessionId, FactorContext initialContext) {
-        log.info("Initializing State Machine for session {}", sessionId);
-
-        try {
-            // 기존 머신이 있으면 제거
-            releaseStateMachine(sessionId);
-
-            // 새 State Machine 생성
-            StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.createStateMachine(sessionId);
-
-            // 초기 컨텍스트 설정
-            if (initialContext != null) {
-                Map<Object, Object> variables = contextAdapter.toStateMachineVariables(initialContext);
-                variables.forEach((key, value) ->
-                        stateMachine.getExtendedState().getVariables().put(key, value)
-                );
+            // 활성 머신이 없으면 영속화된 상태 확인
+            stateMachine = stateMachineFactory.restoreStateMachine(sessionId);
+            if (stateMachine != null && stateMachine.getState() != null) {
+                activeMachines.put(sessionId, new CachedStateMachine(stateMachine));
+                return stateMachine.getState().getId();
             }
 
-            // State Machine 시작
-            stateMachine.start();
-
-            // 활성 머신으로 등록
-            activeMachines.put(sessionId, stateMachine);
-
-            // 초기 상태 저장
-            stateMachinePersister.persist(stateMachine, sessionId);
-
-            log.info("State Machine initialized for session {} with state {}",
-                    sessionId, stateMachine.getState().getId());
+            return MfaState.IDLE;
 
         } catch (Exception e) {
-            log.error("Error initializing State Machine for session {}: {}", sessionId, e.getMessage(), e);
-            throw new RuntimeException("Failed to initialize State Machine", e);
+            log.error("Failed to get current state for session: {}", sessionId, e);
+            return MfaState.IDLE;
         }
     }
 
     @Override
     public void releaseStateMachine(String sessionId) {
-        log.debug("Releasing State Machine for session {}", sessionId);
+        log.info("Releasing state machine for session: {}", sessionId);
 
-        StateMachine<MfaState, MfaEvent> stateMachine = activeMachines.remove(sessionId);
-        if (stateMachine != null) {
-            try {
-                // 최종 상태 저장
-                stateMachinePersister.persist(stateMachine, sessionId);
+        try {
+            // 활성 머신 목록에서 제거
+            CachedStateMachine cached = activeMachines.remove(sessionId);
+            if (cached != null) {
+                // 최종 상태 영속화
+                persistStateMachine(cached.stateMachine, sessionId);
 
-                // State Machine 정지
-                stateMachine.stop();
-
-                log.info("State Machine released for session {}", sessionId);
-            } catch (Exception e) {
-                log.error("Error releasing State Machine for session {}: {}", sessionId, e.getMessage());
+                // 팩토리를 통해 추가 정리
+                stateMachineFactory.releaseStateMachine(sessionId);
             }
+
+            log.info("State machine released for session: {}", sessionId);
+
+        } catch (Exception e) {
+            log.error("Error releasing state machine for session: {}", sessionId, e);
         }
     }
 
     /**
-     * State Machine 획득 (없으면 복원 또는 생성)
+     * 상태 머신 획득 (캐시 또는 복원)
      */
-    private StateMachine<MfaState, MfaEvent> acquireStateMachine(String sessionId, FactorContext context)
-            throws Exception {
+    private StateMachine<MfaState, MfaEvent> acquireStateMachine(String sessionId,
+                                                                 FactorContext context) {
+        // 캐시에서 확인
+        CachedStateMachine cached = activeMachines.get(sessionId);
+        if (cached != null && isStateMachineValid(cached.stateMachine)) {
+            // 접근 시간 갱신
+            activeMachines.put(sessionId, new CachedStateMachine(cached.stateMachine));
+            return cached.stateMachine;
+        }
 
-        StateMachine<MfaState, MfaEvent> stateMachine = activeMachines.get(sessionId);
-
-        if (stateMachine == null) {
-            // 새로 생성
-            stateMachine = stateMachineFactory.createStateMachine(sessionId);
-
-            try {
-                // Persister에서 복원 시도
-                stateMachinePersister.restore(stateMachine, sessionId);
-                log.debug("State Machine restored from persistence for session {}", sessionId);
-            } catch (Exception e) {
-                // 복원 실패 시 새로 시작
-                log.debug("No persisted state found for session {}, starting fresh", sessionId);
-
+        // 영속화된 상태 복원 시도
+        try {
+            StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.restoreStateMachine(sessionId);
+            if (stateMachine != null && isStateMachineValid(stateMachine)) {
+                // FactorContext 정보로 변수 업데이트
                 if (context != null) {
-                    Map<Object, Object> variables = contextAdapter.toStateMachineVariables(context);
-                    StateMachine<MfaState, MfaEvent> finalStateMachine = stateMachine;
-                    variables.forEach((key, value) ->
-                            finalStateMachine.getExtendedState().getVariables().put(key, value)
-                    );
+                    factorContextAdapter.updateStateMachineVariables(stateMachine, context);
                 }
-            }
 
-            // State Machine 시작 (아직 시작되지 않은 경우)
-            if (!stateMachine.hasStateMachineError()) {
-                stateMachine.start();
+                activeMachines.put(sessionId, new CachedStateMachine(stateMachine));
+                return stateMachine;
             }
-
-            activeMachines.put(sessionId, stateMachine);
+        } catch (Exception e) {
+            log.warn("Failed to restore state machine for session: {}, creating new one", sessionId);
         }
 
-        return stateMachine;
+        // 새로 생성
+        StateMachine<MfaState, MfaEvent> newStateMachine = stateMachineFactory.createStateMachine(sessionId);
+        if (context != null) {
+            factorContextAdapter.updateStateMachineVariables(newStateMachine, context);
+        }
+
+        activeMachines.put(sessionId, new CachedStateMachine(newStateMachine));
+        return newStateMachine;
     }
 
     /**
-     * StateMachine 상태를 FactorContext로 업데이트
+     * 상태 머신 영속화
      */
-    private void updateFactorContextFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine,
-                                                     FactorContext context) {
-        // 현재 상태
-        MfaState currentState = stateMachine.getState().getId();
-        context.changeState(currentState);
+    private void persistStateMachine(StateMachine<MfaState, MfaEvent> stateMachine, String sessionId) {
+        try {
+            stateMachinePersister.persist(stateMachine, sessionId);
+        } catch (Exception e) {
+            log.error("Failed to persist state machine for session: {}", sessionId, e);
+        }
+    }
 
-        // Extended State 변수들
-        Map<Object, Object> variables = stateMachine.getExtendedState().getVariables();
+    /**
+     * 상태 머신 유효성 검사
+     */
+    private boolean isStateMachineValid(StateMachine<MfaState, MfaEvent> stateMachine) {
+        return stateMachine != null &&
+                !stateMachine.hasStateMachineError() &&
+                stateMachine.getState() != null;
+    }
 
-        // 필요한 변수들 업데이트
-        Integer retryCount = (Integer) variables.get("retryCount");
-        if (retryCount != null) {
-            context.setRetryCount(retryCount);
+    /**
+     * 활성 상태 머신 가져오기
+     */
+    private StateMachine<MfaState, MfaEvent> getActiveStateMachine(String sessionId) {
+        CachedStateMachine cached = activeMachines.get(sessionId);
+        return cached != null ? cached.stateMachine : null;
+    }
+
+    /**
+     * 만료된 상태 머신 정리
+     */
+    private void cleanupExpiredMachines() {
+        log.debug("Starting cleanup of expired state machines");
+
+        int cleaned = 0;
+        for (Map.Entry<String, CachedStateMachine> entry : activeMachines.entrySet()) {
+            if (entry.getValue().isExpired(DEFAULT_TTL_MINUTES)) {
+                String sessionId = entry.getKey();
+                releaseStateMachine(sessionId);
+                cleaned++;
+            }
         }
 
-        String lastError = (String) variables.get("lastError");
-        if (lastError != null) {
-            context.setLastError(lastError);
+        if (cleaned > 0) {
+            log.info("Cleaned up {} expired state machines", cleaned);
         }
+    }
 
-        String currentStepId = (String) variables.get("currentStepId");
-        if (currentStepId != null) {
-            context.setCurrentStepId(currentStepId);
+    // Shutdown hook
+    public void shutdown() {
+        cleanupScheduler.shutdown();
+        try {
+            if (!cleanupScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                cleanupScheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            cleanupScheduler.shutdownNow();
         }
     }
 }

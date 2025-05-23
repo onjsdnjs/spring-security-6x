@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.enums;
+package io.springsecurity.springsecurity6x.security.statemachine.config;
 
 public enum MfaEvent {
 

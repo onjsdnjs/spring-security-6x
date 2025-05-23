@@ -1,93 +1,112 @@
 package io.springsecurity.springsecurity6x.security.statemachine.action;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import org.springframework.statemachine.action.Action;
 
+import java.util.Map;
+
 /**
- * MFA State Machine Action의 기본 추상 클래스 (Spring State Machine 4.0.0)
+ * MFA 상태 변경 액션의 추상 기본 클래스
+ * 모든 MFA 관련 액션은 이 클래스를 상속받아 구현
  */
 @Slf4j
-public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEvent>, MfaStateAction {
+@RequiredArgsConstructor
+public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEvent> {
 
-    @Autowired
-    private StateContextHelper contextHelper;
+    protected final FactorContextStateAdapter factorContextAdapter;
+    protected final StateContextHelper stateContextHelper;
 
     @Override
-    public void execute(StateContext<MfaState, MfaEvent> context) {
-        String sessionId = (String) context.getMessageHeaders().get("sessionId");
-        log.debug("Executing action {} for session {}", getActionName(), sessionId);
+    public final void execute(StateContext<MfaState, MfaEvent> context) {
+        String sessionId = extractSessionId(context);
+        log.debug("Executing action {} for session: {}", this.getClass().getSimpleName(), sessionId);
 
         try {
             // FactorContext 추출
-            FactorContext factorContext = contextHelper.extractFactorContext(context);
-
-            if (!validateContext(factorContext)) {
-                log.error("Invalid FactorContext for action {}", getActionName());
-                throw new IllegalStateException("Invalid FactorContext");
+            FactorContext factorContext = extractFactorContext(context);
+            if (factorContext == null) {
+                throw new IllegalStateException("FactorContext not found in state machine context");
             }
 
-            // 구체적인 액션 실행
+            // 액션별 구체적인 로직 실행
             doExecute(context, factorContext);
 
-            // 변경사항을 State Machine 변수에 반영
-            contextHelper.updateStateContext(context, factorContext);
+            // 변경된 FactorContext를 다시 상태 머신에 반영
+            updateStateMachineVariables(context, factorContext);
+
+            log.debug("Action {} completed successfully for session: {}",
+                    this.getClass().getSimpleName(), sessionId);
 
         } catch (Exception e) {
-            log.error("Error executing action {}: {}", getActionName(), e.getMessage(), e);
-            // Spring State Machine 4.0.0에서는 예외를 throw하면 transition이 중단됨
-            throw new RuntimeException("Action execution failed: " + getActionName(), e);
+            log.error("Error executing action {} for session: {}",
+                    this.getClass().getSimpleName(), sessionId, e);
+            handleError(context, e);
         }
     }
 
     /**
-     * 구체적인 액션 로직 구현
+     * 각 액션의 구체적인 비즈니스 로직을 구현
      */
-    protected abstract void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext);
+    protected abstract void doExecute(StateContext<MfaState, MfaEvent> context,
+                                      FactorContext factorContext) throws Exception;
 
     /**
-     * StateContext에서 FactorContext 추출 (deprecated - contextHelper 사용)
+     * StateContext에서 세션 ID 추출
      */
-    @Deprecated
-    protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
-        return contextHelper.extractFactorContext(context);
+    protected String extractSessionId(StateContext<MfaState, MfaEvent> context) {
+        String sessionId = (String) context.getMessageHeader("mfaSessionId");
+        if (sessionId == null) {
+            sessionId = (String) context.getExtendedState().getVariables().get("mfaSessionId");
+        }
+        return sessionId;
     }
-
-    /**
-     * FactorContext 변경사항을 State Machine 변수에 반영 (deprecated - contextHelper 사용)
-     */
-    @Deprecated
-    protected void updateStateMachineVariables(StateContext<MfaState, MfaEvent> context,
-                                               FactorContext factorContext) {
-        contextHelper.updateStateContext(context, factorContext);
-    }
-
-    /**
-     * 구체적인 액션 로직 구현
-     */
-    protected abstract void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext);
 
     /**
      * StateContext에서 FactorContext 추출
+     * StateContextHelper를 사용하여 안전하게 추출
      */
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
-        // Extended State Variables에서 재구성하거나
-        // Message Header에서 전달된 정보로 조회
-        // 실제 구현은 ContextPersistence를 통해 로드해야 할 수도 있음
-        return null; // TODO: 구현 필요
+        return stateContextHelper.extractFactorContext(context);
     }
 
     /**
-     * FactorContext 변경사항을 State Machine 변수에 반영
+     * 변경된 FactorContext를 StateContext에 업데이트
      */
     protected void updateStateMachineVariables(StateContext<MfaState, MfaEvent> context,
                                                FactorContext factorContext) {
-        context.getExtendedState().getVariables().put("lastUpdated", System.currentTimeMillis());
-        // 추가 변수 업데이트
+        // FactorContextStateAdapter의 toStateMachineVariables 메서드 사용
+        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(factorContext);
+        context.getExtendedState().getVariables().putAll(variables);
+    }
+
+    /**
+     * 에러 처리 로직
+     * 기본적으로 RuntimeException 으로 래핑하되, 구체적인 에러 타입에 따라 처리
+     */
+    protected void handleError(StateContext<MfaState, MfaEvent> context, Exception e) {
+        if (e instanceof IllegalStateException || e instanceof IllegalArgumentException) {
+            // 비즈니스 로직 에러는 그대로 전파
+            throw (RuntimeException) e;
+        } else if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+        } else {
+            // Checked exception은 RuntimeException 으로 래핑
+            throw new RuntimeException("Error executing MFA action", e);
+        }
+    }
+
+    /**
+     * 액션 실행 전 검증 로직 (선택적 구현)
+     */
+    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) {
+        return true;
     }
 }

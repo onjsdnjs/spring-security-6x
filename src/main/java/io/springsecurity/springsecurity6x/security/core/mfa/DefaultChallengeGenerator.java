@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.core.mfa;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.*;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 

@@ -1,66 +1,80 @@
 package io.springsecurity.springsecurity6x.security.statemachine.guard;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.statemachine.StateContext;
-import org.springframework.beans.factory.annotation.Autowired;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.guard.Guard;
 
 /**
- * MFA State Machine Guard의 기본 추상 클래스 (Spring State Machine 4.0.0)
+ * MFA State Guard의 추상 기본 클래스
  */
 @Slf4j
 public abstract class AbstractMfaStateGuard implements Guard<MfaState, MfaEvent>, MfaStateGuard {
 
     @Autowired
-    private StateContextHelper contextHelper;
+    protected StateContextHelper stateContextHelper;
 
     @Override
-    public boolean evaluate(StateContext<MfaState, MfaEvent> context) {
-        String sessionId = (String) context.getMessageHeaders().get("sessionId");
-        log.debug("Evaluating guard {} for session {}", getGuardName(), sessionId);
-
+    public final boolean evaluate(StateContext<MfaState, MfaEvent> context) {
         try {
             // FactorContext 추출
-            FactorContext factorContext = contextHelper.extractFactorContext(context);
-
+            FactorContext factorContext = extractFactorContext(context);
             if (factorContext == null) {
-                log.warn("No FactorContext found for guard evaluation");
+                log.warn("FactorContext not found in state context for guard: {}", getGuardName());
                 return false;
             }
 
-            // 구체적인 가드 로직 실행
+            // Guard 로직 실행
             boolean result = doEvaluate(context, factorContext);
 
-            log.debug("Guard {} evaluated to: {}", getGuardName(), result);
+            log.debug("Guard {} evaluated to: {} for session: {}",
+                    getGuardName(), result, factorContext.getMfaSessionId());
+
             return result;
 
         } catch (Exception e) {
-            log.error("Error evaluating guard {}: {}", getGuardName(), e.getMessage(), e);
+            log.error("Error evaluating guard: {}", getGuardName(), e);
             return false;
         }
     }
 
     /**
-     * 구체적인 가드 로직 구현
+     * 실제 Guard 로직 구현
      */
-    protected abstract boolean doEvaluate(StateContext<MfaState, MfaEvent> context, FactorContext factorContext);
+    protected abstract boolean doEvaluate(StateContext<MfaState, MfaEvent> context,
+                                          FactorContext factorContext);
 
     /**
-     * StateContext 에서 FactorContext 추출 (deprecated - contextHelper 사용)
+     * StateContext에서 FactorContext 추출
      */
-    @Deprecated
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
-        return contextHelper.extractFactorContext(context);
+        if (stateContextHelper != null) {
+            return stateContextHelper.extractFactorContext(context);
+        }
+
+        // Fallback: ExtendedState에서 직접 추출
+        Object factorContext = context.getExtendedState().getVariables().get("factorContext");
+        if (factorContext instanceof FactorContext) {
+            return (FactorContext) factorContext;
+        }
+
+        return null;
     }
 
     /**
-     * Guard의 부정 (negate) 버전 생성
+     * Guard의 논리적 부정 반환
      */
     public Guard<MfaState, MfaEvent> negate() {
         return context -> !this.evaluate(context);
     }
+
+    @Override
+    public abstract String getFailureReason();
+
+    @Override
+    public abstract String getGuardName();
 }

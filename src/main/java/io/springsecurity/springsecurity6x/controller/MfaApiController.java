@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersi
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 // EmailOneTimeTokenService import는 더 이상 필요하지 않음
 import jakarta.servlet.http.HttpServletRequest;

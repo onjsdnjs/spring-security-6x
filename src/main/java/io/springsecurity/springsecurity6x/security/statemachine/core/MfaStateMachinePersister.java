@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
 import org.springframework.statemachine.StateMachinePersist;
-import io.springsecurity.springsecurity6x.security.enums.MfaState;
-import io.springsecurity.springsecurity6x.security.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
 
 /**
  * State Machine 영속성 관리

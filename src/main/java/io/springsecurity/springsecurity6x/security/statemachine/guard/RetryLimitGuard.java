@@ -72,17 +72,11 @@ public class RetryLimitGuard extends AbstractMfaStateGuard {
      */
     private int getFactorMaxRetries(String factorType) {
         // 팩터 타입별 기본값
-        switch (factorType.toUpperCase()) {
-            case "OTT":
-            case "SMS":
-                return 5; // OTT/SMS는 더 많은 재시도 허용
-            case "TOTP":
-            case "FIDO":
-            case "PASSKEY":
-                return 3; // 기본값
-            default:
-                return getMaxRetries(); // 전체 설정값 사용
-        }
+        return switch (factorType.toUpperCase()) {
+            case "OTT", "SMS" -> 5; // OTT/SMS는 더 많은 재시도 허용
+            case "TOTP", "FIDO", "PASSKEY" -> 3; // 기본값
+            default -> getMaxRetries(); // 전체 설정값 사용
+        };
     }
 
     /**

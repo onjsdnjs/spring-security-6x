@@ -5,8 +5,10 @@ import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachinePersist;
+import org.springframework.statemachine.support.DefaultExtendedState;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 
 import java.io.*;
@@ -187,10 +189,13 @@ public class RedisStateMachinePersist implements StateMachinePersist<MfaState, M
                 headers.putAll((Map<String, Object>) map.get("headers"));
             }
 
+            // ExtendedState 생성
+            ExtendedState extendedState = new DefaultExtendedState();
+            extendedState.getVariables().putAll(variables);
+
             // 히스토리 상태 복원
             Map<Object, MfaState> historyStates = new HashMap<>();
             if (map.get("historyStates") instanceof Map) {
-                @SuppressWarnings("unchecked")
                 Map<String, String> savedHistory = (Map<String, String>) map.get("historyStates");
                 savedHistory.forEach((k, v) -> {
                     historyStates.put(k, MfaState.valueOf(v));
@@ -198,13 +203,14 @@ public class RedisStateMachinePersist implements StateMachinePersist<MfaState, M
             }
 
             // DefaultStateMachineContext 생성
-            return new DefaultStateMachineContext<>(
-                    state,
-                    event,
-                    headers,
-                    null, // extendedState는 별도로 설정
-                    historyStates,
-                    id
+            // 생성자: DefaultStateMachineContext(List<StateMachineContext<S,E>> childs, S state, E event,
+            //                                    Map<String,Object> eventHeaders, ExtendedState extendedState)
+            return new DefaultStateMachineContext<MfaState, MfaEvent>(
+                    null,  // childs (하위 컨텍스트 없음)
+                    state,  // 현재 상태
+                    event,  // 마지막 이벤트
+                    headers, // 이벤트 헤더
+                    extendedState  // ExtendedState
             );
         }
     }

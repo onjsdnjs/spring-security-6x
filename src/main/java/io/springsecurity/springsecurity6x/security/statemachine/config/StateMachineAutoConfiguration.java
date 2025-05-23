@@ -39,26 +39,11 @@ public class StateMachineAutoConfiguration {
     private final AuthContextProperties authContextProperties;
 
     /**
-     * State Machine Factory 빈 등록
-     * @EnableStateMachineFactory가 자동으로 생성하는 팩토리를 사용
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public MfaStateMachineConfiguration mfaStateMachineConfiguration() {
-        return new MfaStateMachineConfiguration();
-    }
-
-    /**
      * In-Memory State Machine Persist (기본값)
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(
-            prefix = "security.statemachine.redis",
-            name = "enabled",
-            havingValue = "false",
-            matchIfMissing = true
-    )
+    @ConditionalOnProperty(prefix = "security.statemachine.redis", name = "enabled", havingValue = "false", matchIfMissing = true)
     public StateMachinePersist<MfaState, MfaEvent, String> inMemoryStateMachinePersist() {
         log.info("Configuring In-Memory State Machine Persistence");
         return new MfaStateMachinePersisterImpl();

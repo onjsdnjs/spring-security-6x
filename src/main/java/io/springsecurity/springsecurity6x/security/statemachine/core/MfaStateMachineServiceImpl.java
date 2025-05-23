@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
     private final MfaStateMachineFactory stateMachineFactory;
@@ -124,7 +123,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             StateMachine<MfaState, MfaEvent> stateMachine = acquireStateMachine(sessionId, context);
 
             // FactorContext를 상태 머신에 동기화
-            factorContextAdapter.updateStateMachineVariables(stateMachine, context);
+            Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+            stateMachine.getExtendedState().getVariables().putAll(variables);
 
             // 메시지 생성 (헤더에 추가 정보 포함)
             Message<MfaEvent> message = MessageBuilder
@@ -227,7 +227,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             if (stateMachine != null && isStateMachineValid(stateMachine)) {
                 // FactorContext 정보로 변수 업데이트
                 if (context != null) {
-                    factorContextAdapter.updateStateMachineVariables(stateMachine, context);
+                    Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+                    stateMachine.getExtendedState().getVariables().putAll(variables);
                 }
 
                 activeMachines.put(sessionId, new CachedStateMachine(stateMachine));
@@ -240,7 +241,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         // 새로 생성
         StateMachine<MfaState, MfaEvent> newStateMachine = stateMachineFactory.createStateMachine(sessionId);
         if (context != null) {
-            factorContextAdapter.updateStateMachineVariables(newStateMachine, context);
+            Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+            newStateMachine.getExtendedState().getVariables().putAll(variables);
         }
 
         activeMachines.put(sessionId, new CachedStateMachine(newStateMachine));

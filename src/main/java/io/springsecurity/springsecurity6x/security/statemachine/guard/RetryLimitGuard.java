@@ -30,7 +30,8 @@ public class RetryLimitGuard extends AbstractMfaStateGuard {
         int maxRetries = getMaxRetries();
 
         // 현재 팩터별 재시도 횟수 확인
-        String currentFactor = factorContext.getCurrentFactorType();
+        String currentFactor = factorContext.getCurrentProcessingFactor() != null ?
+                factorContext.getCurrentProcessingFactor().name() : null;
         if (currentFactor != null) {
             Integer factorRetryCount = getFactorRetryCount(factorContext, currentFactor);
             int factorMaxRetries = getFactorMaxRetries(currentFactor);
@@ -89,7 +90,7 @@ public class RetryLimitGuard extends AbstractMfaStateGuard {
      */
     private Integer getFactorRetryCount(FactorContext factorContext, String factorType) {
         String key = "retryCount_" + factorType;
-        Object retryCount = factorContext.getAdditionalData().get(key);
+        Object retryCount = factorContext.getAttribute(key);
 
         if (retryCount instanceof Integer) {
             return (Integer) retryCount;
@@ -106,11 +107,12 @@ public class RetryLimitGuard extends AbstractMfaStateGuard {
         factorContext.setRetryCount(factorContext.getRetryCount() + 1);
 
         // 팩터별 재시도 횟수 증가
-        String currentFactor = factorContext.getCurrentFactorType();
+        String currentFactor = factorContext.getCurrentProcessingFactor() != null ?
+                factorContext.getCurrentProcessingFactor().name() : null;
         if (currentFactor != null) {
             String key = "retryCount_" + currentFactor;
             Integer currentCount = getFactorRetryCount(factorContext, currentFactor);
-            factorContext.getAdditionalData().put(key, currentCount + 1);
+            factorContext.setAttribute(key, currentCount + 1);
         }
 
         log.info("Retry count incremented for session: {}, total: {}",
@@ -123,7 +125,7 @@ public class RetryLimitGuard extends AbstractMfaStateGuard {
     public void resetRetryCount(FactorContext factorContext, String factorType) {
         if (factorType != null) {
             String key = "retryCount_" + factorType;
-            factorContext.getAdditionalData().remove(key);
+            factorContext.removeAttribute(key);
             log.debug("Reset retry count for factor {} in session: {}",
                     factorType, factorContext.getMfaSessionId());
         }

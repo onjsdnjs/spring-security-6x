@@ -1,31 +1,29 @@
 package io.springsecurity.springsecurity6x.security.statemachine.integration;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 
 /**
- * Filter와 State Machine 간의 통합 인터페이스
+ * State Machine과 Filter 통합 인터페이스
  */
 public interface StateMachineFilterIntegration {
 
     /**
-     * 요청 처리 전 State Machine 상태 확인
-     * @param request HTTP 요청
-     * @param response HTTP 응답
-     * @param context Factor 컨텍스트
-     * @return 처리 계속 여부
+     * 필터 처리 전 State Machine 상태 확인 및 초기화
+     * @return 계속 진행 여부
      */
-    boolean preProcess(HttpServletRequest request, HttpServletResponse response, FactorContext context);
+    boolean preProcess(HttpServletRequest request, HttpServletResponse response,
+                       FactorContext context);
 
     /**
-     * 요청 처리 후 State Machine 업데이트
-     * @param request HTTP 요청
-     * @param response HTTP 응답
-     * @param context Factor 컨텍스트
-     * @param result 처리 결과
+     * 필터 처리 후 State Machine 이벤트 전송
      */
-    void postProcess(HttpServletRequest request, HttpServletResponse response, FactorContext context, Object result);
+    void postProcess(HttpServletRequest request, HttpServletResponse response,
+                     FactorContext context, Object result);
+
+    /**
+     * 현재 상태에서 요청 처리를 진행할 수 있는지 확인
+     */
+    boolean canProceed(HttpServletRequest request, FactorContext context);
 }
-
-

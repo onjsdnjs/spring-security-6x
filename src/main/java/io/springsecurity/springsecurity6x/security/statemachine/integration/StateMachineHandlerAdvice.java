@@ -1,25 +1,30 @@
 package io.springsecurity.springsecurity6x.security.statemachine.integration;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Handler와 State Machine 간의 통합을 위한 Advice
+ * State Machine Handler Advice 인터페이스
+ * 핸들러 실행 전후로 State Machine과의 통합을 담당
  */
 public interface StateMachineHandlerAdvice {
 
     /**
-     * Handler 실행 전 처리
-     * @param handlerName Handler 이름
-     * @param context Factor 컨텍스트
-     * @return 실행 계속 여부
+     * 핸들러 실행 전 처리
+     * @return 핸들러 실행 가능 여부
      */
-    boolean beforeHandle(String handlerName, FactorContext context);
+    boolean beforeHandler(String handlerName, FactorContext context,
+                          HttpServletRequest request);
 
     /**
-     * Handler 실행 후 처리
-     * @param handlerName Handler 이름
-     * @param context Factor 컨텍스트
-     * @param success 성공 여부
+     * 핸들러 실행 후 처리
      */
-    void afterHandle(String handlerName, FactorContext context, boolean success);
+    void afterHandler(String handlerName, FactorContext context,
+                      HttpServletRequest request, Object result);
+
+    /**
+     * 핸들러 에러 처리
+     */
+    void onHandlerError(String handlerName, FactorContext context,
+                        HttpServletRequest request, Exception error);
 }

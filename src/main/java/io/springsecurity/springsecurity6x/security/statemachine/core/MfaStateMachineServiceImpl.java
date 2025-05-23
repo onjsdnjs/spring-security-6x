@@ -177,11 +177,11 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 return stateMachine.getState().getId();
             }
 
-            return MfaState.IDLE;
+            return MfaState.NONE;
 
         } catch (Exception e) {
             log.error("Failed to get current state for session: {}", sessionId, e);
-            return MfaState.IDLE;
+            return MfaState.NONE;
         }
     }
 
@@ -223,7 +223,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         // 영속화된 상태 복원 시도
         try {
             StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.restoreStateMachine(sessionId);
-            if (stateMachine != null && isStateMachineValid(stateMachine)) {
+            if (isStateMachineValid(stateMachine)) {
                 // FactorContext 정보로 변수 업데이트
                 if (context != null) {
                     factorContextAdapter.updateStateMachineVariables(stateMachine, context);

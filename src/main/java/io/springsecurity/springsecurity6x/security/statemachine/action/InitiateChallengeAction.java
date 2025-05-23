@@ -1,33 +1,61 @@
 package io.springsecurity.springsecurity6x.security.statemachine.action;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
-import lombok.RequiredArgsConstructor;
+import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
+/**
+ * MFA 챌린지 시작 액션
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class InitiateChallengeAction extends AbstractMfaStateAction {
 
-    @Override
-    protected void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) {
-        log.info("Initiating challenge for factor: {} in session: {}",
-                factorContext.getCurrentProcessingFactor(), factorContext.getMfaSessionId());
-
-        // Challenge 시작 로직
-        // 실제로는 각 팩터별 서비스를 호출하여 challenge를 시작
-        // 예: OTT 코드 발송, Passkey challenge 생성 등
-
-        // 상태 업데이트
-        context.getExtendedState().getVariables().put("challengeInitiatedAt", System.currentTimeMillis());
+    public InitiateChallengeAction(FactorContextStateAdapter factorContextAdapter,
+                                   StateContextHelper stateContextHelper) {
+        super(factorContextAdapter, stateContextHelper);
     }
 
     @Override
-    public String getActionName() {
-        return "InitiateChallengeAction";
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {
+        String sessionId = factorContext.getMfaSessionId();
+        String factorType = factorContext.getCurrentProcessingFactor() != null ?
+                factorContext.getCurrentProcessingFactor().name() : "UNKNOWN";
+
+        log.info("Initiating challenge for factor: {} in session: {}", factorType, sessionId);
+
+        // 챌린지 시작 시간 기록
+        factorContext.setAttribute("challengeInitiatedAt", System.currentTimeMillis());
+
+        // 팩터별 챌린지 처리 (실제 구현에서는 팩터별 서비스 호출)
+        switch (factorType) {
+            case "OTT":
+                log.info("Initiating OTT challenge for session: {}", sessionId);
+                // TODO: OTT 서비스 호출하여 코드 발송
+                factorContext.setAttribute("ottCodeSent", true);
+                break;
+
+            case "PASSKEY":
+                log.info("Initiating Passkey challenge for session: {}", sessionId);
+                // TODO: Passkey 옵션 생성
+                factorContext.setAttribute("passkeyOptionsGenerated", true);
+                break;
+
+            default:
+                log.warn("Unknown factor type for challenge: {}", factorType);
+                throw new UnsupportedOperationException("Unsupported factor type: " + factorType);
+        }
+
+        // 상태 업데이트
+        factorContext.changeState(MfaState.FACTOR_CHALLENGE_INITIATED);
+
+        log.info("Challenge initiated successfully for factor: {} in session: {}",
+                factorType, sessionId);
     }
 }

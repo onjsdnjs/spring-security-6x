@@ -1,83 +1,118 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * MFA 이벤트 발행자 구현체
+ * MFA 이벤트 발행 구현체
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MfaEventPublisherImpl implements MfaEventPublisher {
 
-    private final ApplicationEventPublisher springEventPublisher;
-    private final Map<MfaEvent, List<MfaEventListener>> listeners = new ConcurrentHashMap<>();
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
-    public void publishEvent(MfaEvent event, FactorContext context, String sessionId) {
-        log.debug("Publishing MFA event: {} for session: {}", event, sessionId);
+    public void publishStateChange(String sessionId, MfaState state, MfaEvent event) {
+        log.debug("Publishing state change event - Session: {}, State: {}, Event: {}",
+                sessionId, state, event);
 
-        // 내부 리스너들에게 전파
-        List<MfaEventListener> eventListeners = listeners.get(event);
-        if (eventListeners != null) {
-            for (MfaEventListener listener : eventListeners) {
-                try {
-                    listener.onEvent(event, context, sessionId);
-                } catch (Exception e) {
-                    log.error("Error in event listener for event {}: {}", event, e.getMessage(), e);
-                }
-            }
-        }
+        MfaStateChangeEvent stateChangeEvent = new MfaStateChangeEvent(
+                this,
+                sessionId,
+                state,
+                event,
+                LocalDateTime.now()
+        );
 
-        // Spring 이벤트로도 발행
-        MfaStateChangeEvent springEvent = new MfaStateChangeEvent(this, event, context, sessionId);
-        springEventPublisher.publishEvent(springEvent);
-
-        log.info("MFA event {} published for session {}", event, sessionId);
+        applicationEventPublisher.publishEvent(stateChangeEvent);
     }
 
     @Override
-    public void subscribe(MfaEvent eventType, MfaEventListener listener) {
-        listeners.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(listener);
-        log.debug("Listener subscribed to event type: {}", eventType);
+    public void publishError(String sessionId, Exception error) {
+        log.error("Publishing error event - Session: {}, Error: {}",
+                sessionId, error.getMessage());
+
+        MfaErrorEvent errorEvent = new MfaErrorEvent(
+                this,
+                sessionId,
+                error,
+                LocalDateTime.now()
+        );
+
+        applicationEventPublisher.publishEvent(errorEvent);
     }
 
     @Override
-    public void unsubscribe(MfaEvent eventType, MfaEventListener listener) {
-        List<MfaEventListener> eventListeners = listeners.get(eventType);
-        if (eventListeners != null) {
-            eventListeners.remove(listener);
-            log.debug("Listener unsubscribed from event type: {}", eventType);
-        }
+    public void publishCustomEvent(String eventType, Object payload) {
+        log.debug("Publishing custom event - Type: {}", eventType);
+
+        Map<String, Object> eventData = new HashMap<>();
+        eventData.put("eventType", eventType);
+        eventData.put("payload", payload);
+        eventData.put("timestamp", LocalDateTime.now());
+
+        applicationEventPublisher.publishEvent(eventData);
     }
 
     /**
-     * Spring 이벤트 객체
+     * MFA 상태 변경 이벤트
      */
-    public static class MfaStateChangeEvent extends org.springframework.context.ApplicationEvent {
-        private final MfaEvent mfaEvent;
-        private final FactorContext context;
+    public static class MfaStateChangeEvent {
+        private final Object source;
         private final String sessionId;
+        private final MfaState state;
+        private final MfaEvent event;
+        private final LocalDateTime timestamp;
 
-        public MfaStateChangeEvent(Object source, MfaEvent mfaEvent, FactorContext context, String sessionId) {
-            super(source);
-            this.mfaEvent = mfaEvent;
-            this.context = context;
+        public MfaStateChangeEvent(Object source, String sessionId,
+                                   MfaState state, MfaEvent event,
+                                   LocalDateTime timestamp) {
+            this.source = source;
             this.sessionId = sessionId;
+            this.state = state;
+            this.event = event;
+            this.timestamp = timestamp;
         }
 
-        public MfaEvent getMfaEvent() { return mfaEvent; }
-        public FactorContext getContext() { return context; }
+        // Getters
+        public Object getSource() { return source; }
         public String getSessionId() { return sessionId; }
+        public MfaState getState() { return state; }
+        public MfaEvent getEvent() { return event; }
+        public LocalDateTime getTimestamp() { return timestamp; }
+    }
+
+    /**
+     * MFA 에러 이벤트
+     */
+    public static class MfaErrorEvent {
+        private final Object source;
+        private final String sessionId;
+        private final Exception error;
+        private final LocalDateTime timestamp;
+
+        public MfaErrorEvent(Object source, String sessionId,
+                             Exception error, LocalDateTime timestamp) {
+            this.source = source;
+            this.sessionId = sessionId;
+            this.error = error;
+            this.timestamp = timestamp;
+        }
+
+        // Getters
+        public Object getSource() { return source; }
+        public String getSessionId() { return sessionId; }
+        public Exception getError() { return error; }
+        public LocalDateTime getTimestamp() { return timestamp; }
     }
 }

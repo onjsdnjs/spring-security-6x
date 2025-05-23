@@ -1,155 +1,163 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.statemachine.ExtendedState;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateContext;
-import org.springframework.statemachine.StateMachineContext;
-import org.springframework.statemachine.state.State;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * FactorContext와 State Machine 간의 상태 동기화 어댑터 구현체
+ * FactorContext와 State Machine 간의 데이터 변환 어댑터 구현체
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class FactorContextStateAdapterImpl implements FactorContextStateAdapter {
-
-    // State Machine 변수 키 상수
-    private static final String VAR_USERNAME = "username";
-    private static final String VAR_SESSION_ID = "mfaSessionId";
-    private static final String VAR_FLOW_TYPE = "flowTypeName";
-    private static final String VAR_CURRENT_FACTOR = "currentProcessingFactor";
-    private static final String VAR_CURRENT_STEP_ID = "currentStepId";
-    private static final String VAR_RETRY_COUNT = "retryCount";
-    private static final String VAR_MFA_REQUIRED = "mfaRequiredAsPerPolicy";
-    private static final String VAR_COMPLETED_FACTORS = "completedFactors";
-    private static final String VAR_AVAILABLE_FACTORS = "availableFactors";
-    private static final String VAR_LAST_ERROR = "lastError";
 
     @Override
     public Map<Object, Object> toStateMachineVariables(FactorContext factorContext) {
-        log.debug("Converting FactorContext to State Machine variables for session: {}",
-                factorContext.getMfaSessionId());
-
         Map<Object, Object> variables = new HashMap<>();
 
         // 기본 정보
-        variables.put(VAR_USERNAME, factorContext.getUsername());
-        variables.put(VAR_SESSION_ID, factorContext.getMfaSessionId());
-        variables.put(VAR_FLOW_TYPE, factorContext.getFlowTypeName());
+        variables.put("mfaSessionId", factorContext.getMfaSessionId());
+        variables.put("username", factorContext.getUsername());
+        variables.put("currentState", factorContext.getCurrentState());
+        variables.put("flowTypeName", factorContext.getFlowTypeName());
 
-        // 현재 처리 상태
+        // 현재 처리 중인 팩터 정보
+        variables.put("currentStepId", factorContext.getCurrentStepId());
         if (factorContext.getCurrentProcessingFactor() != null) {
-            variables.put(VAR_CURRENT_FACTOR, factorContext.getCurrentProcessingFactor().name());
+            variables.put("currentFactorType", factorContext.getCurrentProcessingFactor().name());
         }
-        variables.put(VAR_CURRENT_STEP_ID, factorContext.getCurrentStepId());
 
-        // 재시도 정보
-        variables.put(VAR_RETRY_COUNT, factorContext.getRetryCount());
+        // 재시도 및 에러 정보
+        variables.put("retryCount", factorContext.getRetryCount());
+        variables.put("lastError", factorContext.getLastError());
+
+        // 타임스탬프
+        variables.put("createdAt", factorContext.getCreatedAt());
+
+        // Authentication 정보
+        if (factorContext.getPrimaryAuthentication() != null) {
+            variables.put("principalName", factorContext.getPrimaryAuthentication().getName());
+            variables.put("primaryAuthentication", factorContext.getPrimaryAuthentication());
+        }
+
+        // 완료된 팩터들
+        if (!factorContext.getCompletedFactors().isEmpty()) {
+            variables.put("completedFactors", serializeCompletedFactors(factorContext));
+        }
+
+        // 사용 가능한 팩터들 (attributes에서 가져오기)
+        Object availableFactors = factorContext.getAttribute("availableFactors");
+        if (availableFactors instanceof Set) {
+            variables.put("availableFactors", serializeAvailableFactors((Set<?>) availableFactors));
+        }
 
         // MFA 정책 정보
-        variables.put(VAR_MFA_REQUIRED, factorContext.isMfaRequiredAsPerPolicy());
+        variables.put("mfaRequiredAsPerPolicy", factorContext.isMfaRequiredAsPerPolicy());
 
-        // 완료된 팩터들 (List<AuthenticationStepConfig>를 문자열로 변환)
-        if (factorContext.getCompletedFactors() != null && !factorContext.getCompletedFactors().isEmpty()) {
-            String completedFactorsStr = factorContext.getCompletedFactors().stream()
-                    .map(step -> step.getStepId() + ":" + step.getType() + ":" + step.getOrder())
-                    .collect(Collectors.joining(","));
-            variables.put(VAR_COMPLETED_FACTORS, completedFactorsStr);
-        }
-
-        // 사용 가능한 팩터들
-        if (factorContext.getAvailableFactors() != null && !factorContext.getAvailableFactors().isEmpty()) {
-            variables.put(VAR_AVAILABLE_FACTORS,
-                    String.join(",", factorContext.getAvailableFactors().stream()
-                            .map(Enum::name)
-                            .toList()));
-        }
-
-        // 에러 정보
-        if (factorContext.getLastError() != null) {
-            variables.put(VAR_LAST_ERROR, factorContext.getLastError());
-        }
-
-        log.debug("Converted {} variables from FactorContext", variables.size());
         return variables;
     }
 
     @Override
-    public void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext, FactorContext factorContext) {
-        log.debug("Updating FactorContext from State Machine context for session: {}",
-                factorContext.getMfaSessionId());
+    public void updateFactorContext(StateMachine<MfaState, MfaEvent> stateMachine,
+                                    FactorContext factorContext) {
+        ExtendedState extendedState = stateMachine.getExtendedState();
+        Map<Object, Object> variables = extendedState.getVariables();
 
+        updateFactorContextFromVariables(factorContext, variables);
+
+        // 현재 상태 동기화
+        if (stateMachine.getState() != null) {
+            factorContext.changeState(stateMachine.getState().getId());
+        }
+    }
+
+    @Override
+    public void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext,
+                                    FactorContext factorContext) {
         Map<Object, Object> variables = stateContext.getExtendedState().getVariables();
 
-        // 현재 상태 업데이트
-        MfaState currentState = stateContext.getSource().getId();
-        factorContext.changeState(currentState);
+        updateFactorContextFromVariables(factorContext, variables);
 
-        // 재시도 카운트 업데이트
-        Integer retryCount = (Integer) variables.get(VAR_RETRY_COUNT);
-        if (retryCount != null) {
-            factorContext.setRetryCount(retryCount);
+        // 현재 상태 동기화
+        if (stateContext.getTarget() != null) {
+            factorContext.changeState(stateContext.getTarget().getId());
         }
-
-        // 현재 스텝 ID 업데이트
-        String currentStepId = (String) variables.get(VAR_CURRENT_STEP_ID);
-        if (currentStepId != null) {
-            factorContext.setCurrentStepId(currentStepId);
-        }
-
-        // 에러 정보 업데이트
-        String lastError = (String) variables.get(VAR_LAST_ERROR);
-        if (lastError != null) {
-            factorContext.setLastError(lastError);
-        }
-
-        log.debug("FactorContext updated with state: {}", currentState);
     }
 
-    @Override
-    public void updateFactorContext(StateMachineContext<MfaState, MfaEvent> stateMachineContext,
-                                    FactorContext factorContext) {
-        log.debug("Updating FactorContext from StateMachineContext for session: {}",
-                factorContext.getMfaSessionId());
-
-        // StateMachineContext에서 현재 상태 업데이트
-        MfaState currentState = stateMachineContext.getState();
-        factorContext.changeState(currentState);
-
-        // ExtendedState에서 변수들 업데이트
-        Map<Object, Object> variables = stateMachineContext.getExtendedState() != null ?
-                stateMachineContext.getExtendedState().getVariables() : new HashMap<>();
-
-        // 재시도 카운트 업데이트
-        Integer retryCount = (Integer) variables.get(VAR_RETRY_COUNT);
-        if (retryCount != null) {
-            factorContext.setRetryCount(retryCount);
+    /**
+     * 변수 맵에서 FactorContext 업데이트
+     */
+    private void updateFactorContextFromVariables(FactorContext factorContext,
+                                                  Map<Object, Object> variables) {
+        // 현재 단계 정보
+        Object currentStepId = variables.get("currentStepId");
+        if (currentStepId instanceof String) {
+            factorContext.setCurrentStepId((String) currentStepId);
         }
 
-        // 현재 스텝 ID 업데이트
-        String currentStepId = (String) variables.get(VAR_CURRENT_STEP_ID);
-        if (currentStepId != null) {
-            factorContext.setCurrentStepId(currentStepId);
+        // 현재 팩터 타입
+        Object currentFactorType = variables.get("currentFactorType");
+        if (currentFactorType instanceof String) {
+            try {
+                factorContext.setCurrentProcessingFactor(AuthType.valueOf((String) currentFactorType));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid currentFactorType: {}", currentFactorType);
+            }
         }
 
-        // 에러 정보 업데이트
-        String lastError = (String) variables.get(VAR_LAST_ERROR);
-        if (lastError != null) {
-            factorContext.setLastError(lastError);
+        // 재시도 횟수
+        Object retryCount = variables.get("retryCount");
+        if (retryCount instanceof Integer) {
+            factorContext.setRetryCount((Integer) retryCount);
         }
 
-        log.debug("FactorContext updated with state: {} from StateMachineContext", currentState);
+        // 에러 메시지
+        Object lastError = variables.get("lastError");
+        if (lastError instanceof String) {
+            factorContext.setLastError((String) lastError);
+        }
+
+        // 추가 속성들
+        variables.entrySet().stream()
+                .filter(entry -> entry.getKey().toString().startsWith("attr_"))
+                .forEach(entry -> {
+                    String key = entry.getKey().toString().substring(5); // "attr_" 제거
+                    factorContext.setAttribute(key, entry.getValue());
+                });
     }
 
-    @Override
-    public MfaState mapToMfaState(State<MfaState, MfaEvent> state) {
-        return state != null ? state.getId() : MfaState.NONE;
+    /**
+     * 완료된 팩터 직렬화
+     */
+    private String serializeCompletedFactors(FactorContext factorContext) {
+        return factorContext.getCompletedFactors().stream()
+                .map(config -> String.format("%s:%s:%d",
+                        config.getStepId(),
+                        config.getType(),
+                        config.getOrder()))
+                .collect(Collectors.joining(","));
+    }
+
+    /**
+     * 사용 가능한 팩터 직렬화
+     */
+    private String serializeAvailableFactors(Set<?> availableFactors) {
+        return availableFactors.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(","));
     }
 }

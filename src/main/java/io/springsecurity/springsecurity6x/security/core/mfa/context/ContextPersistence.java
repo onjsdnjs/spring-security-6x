@@ -9,7 +9,7 @@ import org.springframework.lang.Nullable;
 public interface ContextPersistence {
 
     /**
-     * HttpServletRequest에서 FactorContext 로드
+     * HttpServletRequest 에서 FactorContext 로드
      */
     @Nullable
     FactorContext contextLoad(HttpServletRequest request);

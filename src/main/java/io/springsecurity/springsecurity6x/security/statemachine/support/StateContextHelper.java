@@ -124,24 +124,43 @@ public class StateContextHelper {
                                             Map<Object, Object> variables) {
         // 현재 팩터 정보
         factorContext.setCurrentStepId((String) variables.get("currentStepId"));
-        factorContext.setCurrentFactorType((String) variables.get("currentFactorType"));
+
+        // 현재 처리 중인 팩터 타입
+        String currentFactorType = (String) variables.get("currentFactorType");
+        if (currentFactorType != null) {
+            try {
+                factorContext.setCurrentProcessingFactor(AuthType.valueOf(currentFactorType));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid currentFactorType: {}", currentFactorType);
+            }
+        }
 
         // 재시도 횟수
         Integer retryCount = (Integer) variables.get("retryCount");
         factorContext.setRetryCount(retryCount != null ? retryCount : 0);
 
-        // 타임스탬프
+        // 마지막 에러
+        String lastError = (String) variables.get("lastError");
+        if (lastError != null) {
+            factorContext.setLastError(lastError);
+        }
+
+        // 타임스탬프 - FactorContext의 createdAt은 final long 타입이므로 setAttribute 사용
         Object createdAt = variables.get("createdAt");
-        if (createdAt instanceof LocalDateTime) {
-            factorContext.setCreatedAt((LocalDateTime) createdAt);
+        if (createdAt instanceof Long) {
+            factorContext.setAttribute("createdAt", createdAt);
         } else if (createdAt instanceof String) {
-            factorContext.setCreatedAt(LocalDateTime.parse((String) createdAt));
+            try {
+                factorContext.setAttribute("createdAt", Long.parseLong((String) createdAt));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid createdAt format: {}", createdAt);
+            }
         }
 
         // 완료된 팩터 복원
         restoreCompletedFactors(factorContext, variables);
 
-        // 사용 가능한 팩터 복원
+        // 사용 가능한 팩터 복원 - FactorContext에는 setAvailableFactors가 없으므로 attributes 사용
         restoreAvailableFactors(factorContext, variables);
 
         // 추가 데이터 복원
@@ -157,14 +176,18 @@ public class StateContextHelper {
 
         if (completedFactorsObj instanceof List) {
             // 이미 List<AuthenticationStepConfig> 형태인 경우
-            factorContext.setCompletedFactors((List<AuthenticationStepConfig>) completedFactorsObj);
+            List<AuthenticationStepConfig> completedFactors = (List<AuthenticationStepConfig>) completedFactorsObj;
+            // FactorContext의 completedFactors는 final이므로 clear하고 addAll
+            factorContext.getCompletedFactors().clear();
+            factorContext.getCompletedFactors().addAll(completedFactors);
         } else if (completedFactorsObj instanceof String) {
             // 문자열로 직렬화된 경우 파싱
             String completedFactorsStr = (String) completedFactorsObj;
             if (!completedFactorsStr.isEmpty()) {
                 List<AuthenticationStepConfig> configs = parseCompletedFactors(completedFactorsStr,
                         factorContext.getFlowTypeName());
-                factorContext.setCompletedFactors(configs);
+                factorContext.getCompletedFactors().clear();
+                factorContext.getCompletedFactors().addAll(configs);
             }
         }
     }
@@ -202,7 +225,8 @@ public class StateContextHelper {
         Object availableFactorsObj = variables.get("availableFactors");
 
         if (availableFactorsObj instanceof Set) {
-            factorContext.setAvailableFactors((Set<AuthType>) availableFactorsObj);
+            Set<AuthType> authTypes = (Set<AuthType>) availableFactorsObj;
+            factorContext.setAttribute("availableFactors", authTypes);
         } else if (availableFactorsObj instanceof String) {
             String availableFactorsStr = (String) availableFactorsObj;
             if (!availableFactorsStr.isEmpty()) {
@@ -210,7 +234,7 @@ public class StateContextHelper {
                         .map(String::trim)
                         .map(AuthType::valueOf)
                         .collect(Collectors.toSet());
-                factorContext.setAvailableFactors(authTypes);
+                factorContext.setAttribute("availableFactors", authTypes);
             }
         }
     }
@@ -269,9 +293,15 @@ public class StateContextHelper {
         variables.put("currentState", factorContext.getCurrentState());
         variables.put("flowTypeName", factorContext.getFlowTypeName());
         variables.put("currentStepId", factorContext.getCurrentStepId());
-        variables.put("currentFactorType", factorContext.getCurrentFactorType());
+
+        // currentProcessingFactor 저장
+        if (factorContext.getCurrentProcessingFactor() != null) {
+            variables.put("currentFactorType", factorContext.getCurrentProcessingFactor().name());
+        }
+
         variables.put("retryCount", factorContext.getRetryCount());
         variables.put("createdAt", factorContext.getCreatedAt());
+        variables.put("lastError", factorContext.getLastError());
 
         // Authentication 정보 저장 (주요 정보만)
         if (factorContext.getPrimaryAuthentication() != null) {
@@ -284,8 +314,12 @@ public class StateContextHelper {
             variables.put("completedFactors", completedFactorsStr);
         }
 
-        if (factorContext.getAvailableFactors() != null && !factorContext.getAvailableFactors().isEmpty()) {
-            String availableFactorsStr = factorContext.getAvailableFactors().stream()
+        // availableFactors는 attributes에서 가져오기
+        Object availableFactors = factorContext.getAttribute("availableFactors");
+        if (availableFactors instanceof Set) {
+            @SuppressWarnings("unchecked")
+            Set<AuthType> authTypes = (Set<AuthType>) availableFactors;
+            String availableFactorsStr = authTypes.stream()
                     .map(AuthType::name)
                     .collect(Collectors.joining(","));
             variables.put("availableFactors", availableFactorsStr);

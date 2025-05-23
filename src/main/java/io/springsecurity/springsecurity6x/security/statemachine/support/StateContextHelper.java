@@ -225,6 +225,7 @@ public class StateContextHelper {
         Object availableFactorsObj = variables.get("availableFactors");
 
         if (availableFactorsObj instanceof Set) {
+            @SuppressWarnings("unchecked")
             Set<AuthType> authTypes = (Set<AuthType>) availableFactorsObj;
             factorContext.setAttribute("availableFactors", authTypes);
         } else if (availableFactorsObj instanceof String) {
@@ -249,7 +250,7 @@ public class StateContextHelper {
                 .filter(entry -> entry.getKey().toString().startsWith("additionalData."))
                 .forEach(entry -> {
                     String key = entry.getKey().toString().substring("additionalData.".length());
-                    factorContext.getAdditionalData().put(key, entry.getValue());
+                    factorContext.setAttribute(key, entry.getValue());
                 });
     }
 

@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum MfaState {
 
     // --- 기본 상태 ---
+    IDLE("아직 시작 안함"),
     START_MFA("MFA 흐름 시작 (1차 인증 성공 직후)"),
     END_MFA("MFA 흐름 완전 종료 (성공, 실패, 취소 등 모든 터미널 상태 이후의 개념적 종료)"), // Configurator에서 사용
 

@@ -188,8 +188,9 @@ public class RedisStateMachinePersist implements StateMachinePersist<MfaState, M
             }
 
             // 히스토리 상태 복원
-            Map<Object, Object> historyStates = new HashMap<>();
+            Map<Object, MfaState> historyStates = new HashMap<>();
             if (map.get("historyStates") instanceof Map) {
+                @SuppressWarnings("unchecked")
                 Map<String, String> savedHistory = (Map<String, String>) map.get("historyStates");
                 savedHistory.forEach((k, v) -> {
                     historyStates.put(k, MfaState.valueOf(v));
@@ -202,7 +203,7 @@ public class RedisStateMachinePersist implements StateMachinePersist<MfaState, M
                     event,
                     headers,
                     null, // extendedState는 별도로 설정
-                    (Map<Object, MfaState>) historyStates, // 타입 캐스팅
+                    historyStates,
                     id
             );
         }

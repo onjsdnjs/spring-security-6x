@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-//@Getter
+@Getter
 @Slf4j
 @Setter
 public class FactorContext implements FactorContextExtensions {
@@ -217,8 +217,8 @@ public class FactorContext implements FactorContextExtensions {
     }
 
     @Override
-    public Set<AuthType> getCompletedFactors() {
-        return Set.of();
+    public List<AuthenticationStepConfig> getCompletedFactors() {
+        return List.of();
     }
 
     @Override

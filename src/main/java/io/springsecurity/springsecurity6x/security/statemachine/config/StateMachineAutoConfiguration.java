@@ -16,7 +16,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
-import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
@@ -41,12 +40,12 @@ public class StateMachineAutoConfiguration {
 
     /**
      * State Machine Factory 빈 등록
+     * @EnableStateMachineFactory가 자동으로 생성하는 팩토리를 사용
      */
     @Bean
     @ConditionalOnMissingBean
-    public StateMachineFactory<MfaState, MfaEvent> stateMachineFactory()
-            throws Exception {
-        return new MfaStateMachineConfiguration().getStateMachineFactory();
+    public MfaStateMachineConfiguration mfaStateMachineConfiguration() {
+        return new MfaStateMachineConfiguration();
     }
 
     /**
@@ -154,7 +153,11 @@ public class StateMachineAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "security.statemachine.redis", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(
+            prefix = "security.statemachine.redis",
+            name = "enabled",
+            havingValue = "true"
+    )
     public RedisTemplate<String, byte[]> stateMachineRedisTemplate() {
         RedisTemplate<String, byte[]> template = new RedisTemplate<>();
         // Redis 연결 설정은 spring.redis.* 프로퍼티를 통해 자동 구성됨

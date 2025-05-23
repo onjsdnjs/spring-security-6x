@@ -1,31 +1,20 @@
 package io.springsecurity.springsecurity6x.security.statemachine.listener;
 
-import org.springframework.statemachine.listener.StateMachineListener;
-import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.config.MfaState;
 
 /**
- * MFA State Machine 이벤트 리스너
+ * MFA State Machine 리스너 인터페이스
  */
-public interface MfaStateMachineListener extends StateMachineListener<MfaState, MfaEvent> {
+public interface MfaStateMachineListener {
 
     /**
-     * 상태 전이 성공 시 호출
-     * @param from 이전 상태
-     * @param to 새로운 상태
-     * @param event 트리거 이벤트
+     * 성공적인 상태 전이 시 호출
      */
-    default void onSuccessfulTransition(MfaState from, MfaState to, MfaEvent event) {
-        // 기본 구현 제공 가능
-    }
+    void onSuccessfulTransition(String sessionId, MfaState fromState, MfaState toState, MfaEvent event);
 
     /**
      * 상태 전이 실패 시 호출
-     * @param from 현재 상태
-     * @param event 시도된 이벤트
-     * @param reason 실패 이유
      */
-    default void onFailedTransition(MfaState from, MfaEvent event, String reason) {
-        // 기본 구현 제공 가능
-    }
+    void onFailedTransition(String sessionId, MfaState currentState, MfaEvent event, Exception error);
 }

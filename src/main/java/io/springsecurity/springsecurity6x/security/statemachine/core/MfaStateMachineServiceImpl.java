@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
     private final MfaStateMachineFactory stateMachineFactory;
@@ -93,7 +94,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.createStateMachine(sessionId);
 
             // FactorContext를 상태 머신에 동기화
-            factorContextAdapter.updateStateMachineVariables(stateMachine, context);
+            Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+            stateMachine.getExtendedState().getVariables().putAll(variables);
 
             // 활성 머신 목록에 추가
             activeMachines.put(sessionId, new CachedStateMachine(stateMachine));
@@ -222,7 +224,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         // 영속화된 상태 복원 시도
         try {
             StateMachine<MfaState, MfaEvent> stateMachine = stateMachineFactory.restoreStateMachine(sessionId);
-            if (isStateMachineValid(stateMachine)) {
+            if (stateMachine != null && isStateMachineValid(stateMachine)) {
                 // FactorContext 정보로 변수 업데이트
                 if (context != null) {
                     factorContextAdapter.updateStateMachineVariables(stateMachine, context);

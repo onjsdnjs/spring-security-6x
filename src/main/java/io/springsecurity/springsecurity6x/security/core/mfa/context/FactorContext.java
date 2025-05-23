@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-@Getter
+//@Getter
 @Slf4j
 @Setter
 public class FactorContext implements FactorContextExtensions {
@@ -74,6 +74,7 @@ public class FactorContext implements FactorContextExtensions {
     public MfaState getCurrentState() {
         return this.currentMfaState.get();
     }
+
 
     public void changeState(MfaState newState) {
         MfaState previousState = this.currentMfaState.getAndSet(newState);
@@ -206,8 +207,28 @@ public class FactorContext implements FactorContextExtensions {
     }
 
     @Override
+    public int getRetryCount() {
+        return 0;
+    }
+
+    @Override
     public Set<AuthType> getAvailableFactors() {
         return Set.of();
+    }
+
+    @Override
+    public Set<AuthType> getCompletedFactors() {
+        return Set.of();
+    }
+
+    @Override
+    public String getLastError() {
+        return "";
+    }
+
+    @Override
+    public long getCreatedAt() {
+        return 0;
     }
 
     @Getter

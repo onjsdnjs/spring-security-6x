@@ -112,10 +112,10 @@ public class LoginController {
         String tokenGeneratingUrl = authContextProperties.getMfa().getOttFactor().getCodeGenerationUrl(); // 기본값
 
         FactorContext ctx = (FactorContext) request.getSession().getAttribute(HttpSessionContextPersistence.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
-        if (ctx == null || !StringUtils.hasText(ctx.getUsername())) {
+     /*   if (ctx == null || !StringUtils.hasText(ctx.getUsername())) {
             log.warn("MFA Select Factor UI: No valid FactorContext. Redirecting to login.");
             return "redirect:" + getContextPath(request) + "/loginForm?mfa_error=mfa_session_expired";
-        }
+        }*/
         AuthenticationFlowConfig mfaFlowConfig = findFlowConfigByName(AuthType.MFA.name(), request);
 
         if (mfaFlowConfig != null) {

@@ -1,0 +1,3119 @@
+// ===== 패키지: io.springsecurity.springsecurity6x.security.config =====
+
+package io.springsecurity.springsecurity6x.security.config;
+
+// PlatformSecurityConfig.java
+public class PlatformSecurityConfig {
+    public PlatformSecurityConfig(ApplicationContext applicationContext, AuthContextProperties authContextProperties, ObjectMapper objectMapper, AuthResponseWriter authResponseWriter, EmailOneTimeTokenService emailOneTimeTokenService, UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler, UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler, MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler, OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler) {}
+    private AuthenticationFailureHandler singleAuthFailureHandler(String failureUrl) { return null; }
+    public PlatformConfig platformDslConfig(IdentityDslRegistry<HttpSecurity> registry) throws Exception { return null; }
+}
+
+// MySecurityConfig.java
+public class MySecurityConfig {
+    public WebSecurityCustomizer webSecurityCustomizer(){ return null; }
+    public PasswordEncoder passwordEncoder() { return null; }
+    public ModelMapper modelMapper() { return null; }
+    public ObjectMapper objectMapper() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.config.redis =====
+
+package io.springsecurity.springsecurity6x.security.config.redis;
+
+// DistributedCacheConfig.java
+public class DistributedCacheConfig {
+    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() { return null; }
+}
+
+// DistributedLockService.java
+public class DistributedLockService {
+    public DistributedLockService(RedisTemplate<String, String> redisTemplate) {}
+    public String acquireLock(String resourceKey, Duration leaseTime) { return null; }
+    public boolean releaseLock(String resourceKey, String lockValue) { return false; }
+    public <T> T executeWithLock(String resourceKey, Duration leaseTime,
+                                 Duration waitTime, LockableOperation<T> operation) { return null; }
+    @FunctionalInterface
+    public interface LockableOperation<T> {
+        T execute() throws Exception;
+    }
+}
+
+// DistributedSessionConfig.java
+public class DistributedSessionConfig extends AbstractHttpSessionApplicationInitializer {
+    public RedisSerializer<Object> springSessionDefaultRedisSerializer() { return null; }
+    public DistributedSessionConfig() {}
+}
+
+// RedisEventListener.java
+public class RedisEventListener implements MessageListener {
+    public RedisEventListener(RedisMessageListenerContainer messageListenerContainer, ObjectMapper objectMapper) {}
+    public void init() {}
+    @Override
+    public void onMessage(Message message, byte[] pattern) {}
+    private void processEvent(String channel, Map<String, Object> event) {}
+    private void handleAuthenticationEvent(String eventType, String username,
+                                           Map<String, Object> data) {}
+    private void handleMfaEvent(String eventType, String username,
+                                Map<String, Object> data) {}
+    private void handleSecurityEvent(String eventType, String username,
+                                     Map<String, Object> data) {}
+}
+
+// RedisEventPublisher.java
+public class RedisEventPublisher {
+    public RedisEventPublisher(RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper) {}
+    public void publishAuthenticationEvent(String eventType, String username,
+                                           Map<String, Object> additionalData) {}
+    public void publishMfaEvent(String eventType, String sessionId,
+                                String username, Map<String, Object> additionalData) {}
+    public void publishSecurityEvent(String eventType, String username,
+                                     String ipAddress, Map<String, Object> additionalData) {}
+    private Map<String, Object> createEvent(String category, String eventType,
+                                            String username, Map<String, Object> data) { return null; }
+    private void publishEvent(String topicName, Map<String, Object> event) {}
+    private String getServerId() { return null; }
+}
+
+// RedisMessageListenerConfig.java
+public class RedisMessageListenerConfig {
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+            RedisConnectionFactory connectionFactory) { return null; }
+    public RedisTemplate<String, Object> redisTemplate(
+            RedisConnectionFactory connectionFactory) { return null; }
+    // ObjectMapper objectMapper() 메서드는 MySecurityConfig 와 중복되므로 여기서는 생략 (실제 코드에서는 한 곳에만 정의)
+    // public ObjectMapper objectMapper() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.adapter =====
+
+package io.springsecurity.springsecurity6x.security.core.adapter;
+
+// AuthenticationAdapter.java
+public interface AuthenticationAdapter {
+    String getId();
+    int getOrder();
+    void apply(HttpSecurity http, List<AuthenticationStepConfig> steps, StateConfig state) throws Exception;
+}
+
+// StateAdapter.java
+public interface StateAdapter {
+    String getId();
+    void apply(HttpSecurity http, PlatformContext ctx) throws Exception;
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.adapter.auth =====
+
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
+
+// AbstractAuthenticationAdapter.java
+public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProcessingOptions> implements AuthenticationAdapter {
+    protected abstract void configureHttpSecurity(HttpSecurity http, O options,
+                                                  AuthenticationSuccessHandler successHandler,
+                                                  AuthenticationFailureHandler failureHandler) throws Exception;
+    protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions options,
+                                               OneTimeTokenGenerationSuccessHandler ottSuccessHandler,
+                                               AuthenticationSuccessHandler successHandler,
+                                               AuthenticationFailureHandler failureHandler) throws Exception {}
+    @Override
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> allStepsInCurrentFlow, StateConfig stateConfig) throws Exception {}
+    protected AuthenticationSuccessHandler resolveSuccessHandler(
+            O options, @Nullable AuthenticationFlowConfig currentFlow,
+            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
+            ApplicationContext appContext) { return null; }
+    protected AuthenticationFailureHandler resolveFailureHandler(
+            O options, @Nullable AuthenticationFlowConfig currentFlow,
+            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
+            ApplicationContext appContext) { return null; }
+    protected AuthenticationSuccessHandler determineDefaultSuccessHandler(
+            O options, @Nullable AuthenticationFlowConfig currentFlow,
+            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
+            ApplicationContext appContext) { return null; }
+    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttGenerationSuccessHandler(
+            O options, @Nullable AuthenticationFlowConfig currentFlow,
+            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
+            ApplicationContext appContext) { return null; }
+    protected AuthenticationFailureHandler createDefaultFailureHandler(O options, ApplicationContext appContext) { return null; }
+    protected String determineDefaultFailureUrl(O options) { return null; }
+}
+
+// FormAuthenticationAdapter.java
+public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapter<FormOptions> {
+    @Override
+    public String getId() { return null; }
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, FormOptions opts,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {}
+    @Override
+    protected String determineDefaultFailureUrl(FormOptions options) { return null; }
+}
+
+// MfaAuthenticationAdapter.java
+public class MfaAuthenticationAdapter implements AuthenticationAdapter {
+    public MfaAuthenticationAdapter() {}
+    public MfaAuthenticationAdapter(ApplicationContext applicationContext) {}
+    @Override
+    public String getId() { return null; }
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    public void apply(HttpSecurity http, List<AuthenticationStepConfig> allStepsInCurrentFlow, StateConfig stateConfig) throws Exception {}
+}
+
+// OttAuthenticationAdapter.java
+public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttOptions> {
+    @Override
+    public String getId() { return null; }
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {}
+    @Override
+    public void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
+                                            OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
+                                            AuthenticationSuccessHandler successHandler,
+                                            AuthenticationFailureHandler failureHandler) throws Exception {}
+    @Override
+    protected String determineDefaultFailureUrl(OttOptions options) { return null; }
+}
+
+// PasskeyAuthenticationAdapter.java
+public class PasskeyAuthenticationAdapter extends AbstractAuthenticationAdapter<PasskeyOptions> {
+    @Override
+    public String getId() { return null; }
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, PasskeyOptions opts,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {}
+    @Override
+    protected String determineDefaultFailureUrl(PasskeyOptions options) { return null; }
+}
+
+// RestAuthenticationAdapter.java
+public final class RestAuthenticationAdapter extends AbstractAuthenticationAdapter<RestOptions> {
+    @Override
+    public String getId() { return null; }
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    protected void configureHttpSecurity(HttpSecurity http, RestOptions opts,
+                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFailureHandler failureHandler) throws Exception {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.annotation =====
+// 해당 패키지는 어노테이션 정의만 포함하므로, 메서드 시그니처가 없습니다. (생략)
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.autoconfigure =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.autoconfigure;
+
+// AsepAutoConfiguration.java
+public class AsepAutoConfiguration {
+    public AsepAutoConfiguration(ObjectProvider<HttpMessageConverters> httpMessageConvertersProvider,
+                                 ObjectProvider<ConversionService> conversionServiceProvider) {}
+    public SecurityExceptionHandlerMethodRegistry securityExceptionHandlerMethodRegistry() { return null; }
+    public List<SecurityHandlerMethodArgumentResolver> asepDefaultArgumentResolvers() { return null; }
+    public List<SecurityHandlerMethodReturnValueHandler> asepDefaultReturnValueHandlers() { return null; }
+    public Map<String, Class<? extends BaseAsepAttributes>> asepDslAttributesMapping() { return null; }
+    public AsepConfigurer asepConfigurer(
+            SecurityExceptionHandlerMethodRegistry methodRegistry,
+            List<SecurityHandlerMethodArgumentResolver> defaultArgumentResolvers,
+            List<SecurityHandlerMethodReturnValueHandler> defaultReturnValueHandlers,
+            HttpMessageConverters httpMessageConverters,
+            Map<String, Class<? extends BaseAsepAttributes>> dslAttributesMapping) { return null; }
+}
+
+// EnableAsep.java
+// 어노테이션이므로 메서드 시그니처 없음 (생략)
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.configurer =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.configurer;
+
+// AsepConfigurer.java
+public final class AsepConfigurer implements SecurityConfigurer {
+    public AsepConfigurer(
+            SecurityExceptionHandlerMethodRegistry methodRegistry,
+            List<SecurityHandlerMethodArgumentResolver> defaultArgumentResolvers,
+            List<SecurityHandlerMethodReturnValueHandler> defaultReturnValueHandlers,
+            HttpMessageConverters httpMessageConverters,
+            Map<String, Class<? extends BaseAsepAttributes>> dslAttributesMapping) {}
+    public AsepConfigurer order(int order) { return null; }
+    @Override
+    public void init(PlatformContext platformContext, PlatformConfig platformConfig) {}
+    @Override
+    public void configure(FlowContext flowCtx) throws Exception {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.dsl =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.dsl;
+
+// BaseAsepAttributes.java
+public interface BaseAsepAttributes {
+    List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers();
+    List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers();
+}
+
+// FormAsepAttributes.java
+public final class FormAsepAttributes implements BaseAsepAttributes {
+    public FormAsepAttributes() {}
+    public FormAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public FormAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public FormAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public FormAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// MfaAsepAttributes.java
+public final class MfaAsepAttributes implements BaseAsepAttributes {
+    public MfaAsepAttributes() {}
+    public MfaAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public MfaAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public MfaAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public MfaAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// MfaOttAsepAttributes.java
+public final class MfaOttAsepAttributes implements BaseAsepAttributes {
+    public MfaOttAsepAttributes() {}
+    public MfaOttAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public MfaOttAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public MfaOttAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public MfaOttAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// MfaPasskeyAsepAttributes.java
+public final class MfaPasskeyAsepAttributes implements BaseAsepAttributes {
+    public MfaPasskeyAsepAttributes() {}
+    public MfaPasskeyAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public MfaPasskeyAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public MfaPasskeyAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public MfaPasskeyAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// OttAsepAttributes.java
+public final class OttAsepAttributes implements BaseAsepAttributes {
+    public OttAsepAttributes() {}
+    public OttAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public OttAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public OttAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public OttAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// PasskeyAsepAttributes.java
+public final class PasskeyAsepAttributes implements BaseAsepAttributes {
+    public PasskeyAsepAttributes() {}
+    public PasskeyAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public PasskeyAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public PasskeyAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public PasskeyAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// RestAsepAttributes.java
+public final class RestAsepAttributes implements BaseAsepAttributes {
+    public RestAsepAttributes() {}
+    public RestAsepAttributes exceptionArgumentResolver(SecurityHandlerMethodArgumentResolver resolver) { return null; }
+    public RestAsepAttributes exceptionArgumentResolvers(List<SecurityHandlerMethodArgumentResolver> resolvers) { return null; }
+    public RestAsepAttributes exceptionReturnValueHandler(SecurityHandlerMethodReturnValueHandler handler) { return null; }
+    public RestAsepAttributes exceptionReturnValueHandlers(List<SecurityHandlerMethodReturnValueHandler> handlers) { return null; }
+    @Override
+    public List<SecurityHandlerMethodArgumentResolver> getCustomArgumentResolvers() { return null; }
+    @Override
+    public List<SecurityHandlerMethodReturnValueHandler> getCustomReturnValueHandlers() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.exception =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.exception;
+
+// SecurityExceptionHandlerAdvice.java
+public class SecurityExceptionHandlerAdvice {
+    public ResponseEntity<ErrorResponse> handleException(RuntimeException e, HttpServletRequest request) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.filter =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.filter;
+
+// ASEPFilter.java
+public final class ASEPFilter extends OncePerRequestFilter implements Ordered {
+    public ASEPFilter(
+            SecurityExceptionHandlerMethodRegistry handlerRegistry,
+            SecurityExceptionHandlerInvoker handlerInvoker,
+            List<HttpMessageConverter<?>> messageConverters) {}
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {}
+    private void handleException(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            @Nullable Authentication authentication,
+            Throwable exception) throws IOException {}
+    private void handleCentralizedDefaultErrorResponse(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Throwable exception,
+            @Nullable Authentication authentication,
+            boolean isHandlerError) throws IOException {}
+    private MediaType determineResponseMediaType(HttpServletRequest request, HandlerMethod handlerMethod) { return null; }
+    private MediaType determineBestMediaTypeForDefaultResponse(HttpServletRequest request) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.handler =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.handler;
+
+// SecurityExceptionHandlerInvoker.java
+public final class SecurityExceptionHandlerInvoker {
+    public SecurityExceptionHandlerInvoker(
+            List<SecurityHandlerMethodArgumentResolver> argumentResolvers,
+            List<SecurityHandlerMethodReturnValueHandler> returnValueHandlers) {}
+    public void invokeHandlerMethod(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            @Nullable Authentication authentication,
+            Throwable originalException,
+            HandlerMethod handlerMethod,
+            @Nullable MediaType resolvedMediaType) throws Exception {}
+    private Object[] getMethodArgumentValues(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            @Nullable Authentication authentication,
+            Throwable originalCaughtException,
+            HandlerMethod handlerMethod,
+            @Nullable Object... providedArgs) throws Exception { return null; }
+    @Nullable
+    private Object findProvidedArgument(MethodParameter parameter, @Nullable Object... providedArgs) { return null; }
+    @Nullable
+    private SecurityHandlerMethodArgumentResolver findSupportingResolver(MethodParameter parameter) { return null; }
+    private void handleReturnValue(
+            @Nullable Object returnValue,
+            MethodParameter returnType,
+            HttpServletRequest request,
+            HttpServletResponse response,
+            @Nullable Authentication authentication,
+            HandlerMethod handlerMethod,
+            @Nullable MediaType resolvedMediaType) throws Exception {}
+    @Nullable
+    private SecurityHandlerMethodReturnValueHandler findSupportingReturnValueHandler(MethodParameter returnType) { return null; }
+    private MethodParameter[] getMethodParameters(Method method) { return null; }
+}
+
+// SecurityExceptionHandlerMethodRegistry.java
+public class SecurityExceptionHandlerMethodRegistry implements ApplicationContextAware, InitializingBean {
+    public SecurityExceptionHandlerMethodRegistry() {}
+    public void setContentNegotiationManager(ContentNegotiationManager contentNegotiationManager) {}
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) {}
+    @Override
+    public void afterPropertiesSet() {}
+    private void initializeExceptionHandlerAdviceCache() {}
+    public boolean hasAnyMappings() { return false; }
+    @Nullable
+    public HandlerMethod findBestExceptionHandlerMethod(
+            Throwable exception,
+            @Nullable Authentication authentication,
+            HttpServletRequest servletRequest) { return null; }
+    private Class<? extends Throwable> findClosestExceptionTypeFromMethodParams(Method method, Class<? extends Throwable> actualExceptionType) { return null; }
+    // 내부 static 클래스 ExceptionHandlerMethodResolver 및 그 하위 클래스들의 시그니처는 생략 (내부 구현 상세)
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.handler.argumentresolver =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.handler.argumentresolver;
+
+// AuthenticationObjectArgumentResolver.java
+public class AuthenticationObjectArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+}
+
+// CaughtExceptionArgumentResolver.java
+public class CaughtExceptionArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+}
+
+// HttpServletRequestArgumentResolver.java
+public class HttpServletRequestArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+}
+
+// HttpServletResponseArgumentResolver.java
+public class HttpServletResponseArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+}
+
+// SecurityCookieValueArgumentResolver.java
+public final class SecurityCookieValueArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    public SecurityCookieValueArgumentResolver(ConversionService conversionService) {}
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod) { return null; }
+    @Nullable
+    private Object convertValue(@Nullable String value, MethodParameter parameter, String valueSourceDescription) { return null; }
+    public static final class MissingCookieException extends RuntimeException {
+        public MissingCookieException(String cookieName, MethodParameter parameter) { super(""); }
+        public String getCookieName() { return null; }
+        public MethodParameter getMethodParameter() { return null; }
+    }
+}
+
+// SecurityHandlerMethodArgumentResolver.java
+public interface SecurityHandlerMethodArgumentResolver {
+    boolean supportsParameter(MethodParameter parameter);
+    @Nullable
+    Object resolveArgument(MethodParameter parameter,
+                           HttpServletRequest request,
+                           HttpServletResponse response,
+                           @Nullable Authentication authentication,
+                           @Nullable Throwable caughtException,
+                           HandlerMethod handlerMethod) throws Exception;
+}
+
+// SecurityPrincipalArgumentResolver.java
+public class SecurityPrincipalArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+}
+
+// SecurityRequestAttributeArgumentResolver.java
+public class SecurityRequestAttributeArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  @Nullable Authentication authentication,
+                                  @Nullable Throwable caughtException,
+                                  HandlerMethod handlerMethod) throws Exception { return null; }
+    public static class MissingRequestAttributeException extends RuntimeException {
+        public MissingRequestAttributeException(String attributeName, MethodParameter parameter) { super("");}
+        public String getAttributeName() { return null; }
+        public MethodParameter getMethodParameter() { return null; }
+    }
+}
+
+// SecurityRequestBodyArgumentResolver.java
+public final class SecurityRequestBodyArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    public SecurityRequestBodyArgumentResolver(List<HttpMessageConverter<?>> messageConverters) {}
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod)
+            throws IOException, HttpMediaTypeNotSupportedException, HttpMessageNotReadableException { return null; }
+    public static final class RequestBodyRequiredException extends RuntimeException {
+        public RequestBodyRequiredException(String message, MethodParameter parameter) { super("");}
+        public MethodParameter getParameter() { return null; }
+    }
+}
+
+// SecurityRequestHeaderArgumentResolver.java
+public final class SecurityRequestHeaderArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    public SecurityRequestHeaderArgumentResolver(ConversionService conversionService) {}
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod) { return null; }
+    @Nullable
+    private Object convertValue(@Nullable String value, MethodParameter parameter, String valueSourceDescription) { return null; }
+    public static final class MissingRequestHeaderException extends RuntimeException {
+        public MissingRequestHeaderException(String headerName, MethodParameter parameter) { super("");}
+        public String getHeaderName() { return null; }
+        public MethodParameter getMethodParameter() { return null; }
+    }
+}
+
+// SecuritySessionAttributeArgumentResolver.java
+public final class SecuritySessionAttributeArgumentResolver implements SecurityHandlerMethodArgumentResolver {
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) { return false; }
+    @Override
+    @Nullable
+    public Object resolveArgument(MethodParameter parameter, HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, @Nullable Throwable caughtException, HandlerMethod handlerMethod) { return null; }
+    public static final class MissingSessionAttributeException extends RuntimeException {
+        public MissingSessionAttributeException(String attributeName, MethodParameter parameter, String reason) { super("");}
+        public String getAttributeName() { return null; }
+        public MethodParameter getMethodParameter() { return null; }
+    }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.handler.model =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.handler.model;
+
+// HandlerMethod.java
+public final class HandlerMethod {
+    public HandlerMethod(Object bean, Method method,
+                         @Nullable Class<? extends Throwable>[] declaredExceptionTypes,
+                         int priority, @Nullable String[] producesMediaTypes) {}
+    // Getters
+    public Object getBean() { return null; }
+    public Method getMethod() { return null; }
+    public Class<? extends Throwable>[] getExceptionTypes() { return null; }
+    public int getPriority() { return 0; }
+    public List<String> getProduces() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.asep.handler.returnvaluehandler =====
+
+package io.springsecurity.springsecurity6x.security.core.asep.handler.returnvaluehandler;
+
+// RedirectReturnValueHandler.java
+public final class RedirectReturnValueHandler implements SecurityHandlerMethodReturnValueHandler {
+    @Override
+    public boolean supportsReturnType(MethodParameter returnType) { return false; }
+    @Override
+    public void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+                                  HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, HandlerMethod handlerMethod,
+                                  @Nullable MediaType resolvedMediaType) throws IOException {}
+}
+
+// ResponseEntityReturnValueHandler.java
+public final class ResponseEntityReturnValueHandler implements SecurityHandlerMethodReturnValueHandler {
+    public ResponseEntityReturnValueHandler(List<HttpMessageConverter<?>> messageConverters) {}
+    @Override
+    public boolean supportsReturnType(MethodParameter returnType) { return false; }
+    @Override
+    public void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+                                  HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, HandlerMethod handlerMethod,
+                                  @Nullable MediaType resolvedMediaType) throws IOException, HttpMessageNotWritableException {}
+}
+
+// SecurityHandlerMethodReturnValueHandler.java
+public interface SecurityHandlerMethodReturnValueHandler {
+    boolean supportsReturnType(MethodParameter returnType);
+    void handleReturnValue(@Nullable Object returnValue,
+                           MethodParameter returnType,
+                           HttpServletRequest request,
+                           HttpServletResponse response,
+                           @Nullable Authentication authentication,
+                           HandlerMethod handlerMethod,
+                           @Nullable MediaType resolvedMediaType) throws Exception;
+}
+
+// SecurityResponseBodyReturnValueHandler.java
+public final class SecurityResponseBodyReturnValueHandler implements SecurityHandlerMethodReturnValueHandler {
+    public SecurityResponseBodyReturnValueHandler(List<HttpMessageConverter<?>> messageConverters) {}
+    @Override
+    public boolean supportsReturnType(MethodParameter returnType) { return false; }
+    @Override
+    public void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+                                  HttpServletRequest request, HttpServletResponse response,
+                                  @Nullable Authentication authentication, HandlerMethod handlerMethod,
+                                  @Nullable MediaType resolvedMediaType) throws IOException, HttpMessageNotWritableException {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.bootstrap =====
+
+package io.springsecurity.springsecurity6x.security.core.bootstrap;
+
+// ConfiguredFactorFilterProvider.java
+public class ConfiguredFactorFilterProvider {
+    public ConfiguredFactorFilterProvider() {}
+    public void registerFilter(FactorIdentifier factorIdentifier, Filter filterInstance) {}
+    @Nullable
+    public Filter getFilter(FactorIdentifier factorIdentifier) { return null; }
+    public int getRegisteredFilterCount() { return 0; }
+}
+
+// DefaultSecurityConfigurerProvider.java
+@Component
+public final class DefaultSecurityConfigurerProvider implements SecurityConfigurerProvider {
+    public DefaultSecurityConfigurerProvider(
+            List<SecurityConfigurer> baseConfigurers,
+            FeatureRegistry featureRegistry,
+            ApplicationContext applicationContext) {}
+    @Override
+    public List<SecurityConfigurer> getGlobalConfigurers(PlatformContext platformContext, PlatformConfig platformConfig) { return null; }
+    @Override
+    public List<SecurityConfigurer> getFlowSpecificConfigurers(
+            PlatformContext platformContext,
+            PlatformConfig platformConfig,
+            HttpSecurity httpForScope) { return null; }
+}
+
+// FeatureRegistry.java
+public class FeatureRegistry {
+    public FeatureRegistry(ApplicationContext applicationContext) {}
+    public List<AuthenticationAdapter> getAuthFeaturesFor(List<AuthenticationFlowConfig> flows) { return null; }
+    public List<StateAdapter> getStateFeaturesFor(List<AuthenticationFlowConfig> flows) { return null; }
+    @Nullable
+    public AuthenticationAdapter getAuthenticationFeature(String featureId) { return null; }
+}
+
+// MfaInfrastructureAutoConfiguration.java
+@Configuration
+public class MfaInfrastructureAutoConfiguration {
+    public MfaInfrastructureAutoConfiguration(AuthContextProperties authContextProperties, TokenService tokenService, UserRepository userRepository) {}
+    @Bean
+    @ConditionalOnMissingBean
+    public ContextPersistence contextPersistence() { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext) { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(ContextPersistence contextPersistence,
+                                                                                    AuthResponseWriter authResponseWriter,
+                                                                                    MfaPolicyProvider mfaPolicyProvider,
+                                                                                   ApplicationContext applicationContext) { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler(MfaPolicyProvider mfaPolicyProvider,
+                                                                          ContextPersistence contextPersistence,
+                                                                          AuthResponseWriter authResponseWriter,
+                                                                          AuthContextProperties properties) { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler(ContextPersistence contextPersistence,
+                                                                               MfaPolicyProvider mfaPolicyProvider,
+                                                                               AuthResponseWriter authResponseWriter,
+                                                                               AuthContextProperties properties,
+                                                                               ApplicationContext applicationContext,
+                                                                               UnifiedAuthenticationSuccessHandler successHandler) { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public LogoutHandler jwtLogoutHandler(TokenService tokenService, AuthResponseWriter authResponseWriter) { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthResponseWriter authResponseWriter(ObjectMapper objectMapper) { return null; }
+}
+
+// PathMappingRegistry.java
+public class PathMappingRegistry {
+    public PathMappingRegistry(PlatformConfig config) {}
+    public Set<String> singleAuthPaths() { return null; }
+    public Set<String> mfaEntryPaths() { return null; }
+    public Map<String, String> mfaStepPaths() { return null; }
+    public Map<String, String> mfaStepTargetUrls() { return null; }
+}
+
+// PlatformBootstrap.java
+public class PlatformBootstrap implements InitializingBean {
+    public PlatformBootstrap(SecurityPlatform platform, PlatformConfig config, FeatureRegistry registry, DslValidatorService dslValidatorService) {}
+    @Override
+    public void afterPropertiesSet() throws Exception {}
+}
+
+// PlatformContextInitializer.java
+public class PlatformContextInitializer {
+    public PlatformContextInitializer(PlatformContext platformContext,
+                                      SecretKey secretKey,
+                                      AuthContextProperties authContextProperties,
+                                      ObjectMapper objectMapper) {}
+    public void initializeSharedObjects() {}
+}
+
+// SecurityConfigurerOrchestrator.java
+public final class SecurityConfigurerOrchestrator {
+    public SecurityConfigurerOrchestrator(SecurityConfigurerProvider configurerProvider) {}
+    public void applyConfigurations(
+            List<FlowContext> flows,
+            PlatformContext platformContext,
+            PlatformConfig platformConfig) throws Exception {}
+}
+
+// SecurityConfigurerProvider.java
+public interface SecurityConfigurerProvider {
+    List<SecurityConfigurer> getGlobalConfigurers(PlatformContext platformContext, PlatformConfig platformConfig);
+    List<SecurityConfigurer>getFlowSpecificConfigurers(
+            PlatformContext platformContext,
+            PlatformConfig platformConfig,
+            HttpSecurity httpForScope
+    );
+}
+
+// SecurityFilterChainRegistrar.java
+public class SecurityFilterChainRegistrar {
+    public SecurityFilterChainRegistrar(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
+                                        Map<String, Class<? extends Filter>> stepFilterClasses) {}
+    public void registerSecurityFilterChains(List<FlowContext> flows, ApplicationContext context) {}
+    private OrderedSecurityFilterChain buildAndRegisterFilters(FlowContext fc) { return null; }
+}
+
+// SecurityPlatform.java
+public interface SecurityPlatform {
+    void prepareGlobal(PlatformConfig config, List<?> features);
+    void initialize() throws Exception;
+}
+
+// SecurityPlatformConfiguration.java
+@Configuration
+@EnableConfigurationProperties(AuthContextProperties.class)
+public class SecurityPlatformConfiguration {
+    @Bean
+    public PlatformContext platformContext(ApplicationContext ctx,
+                                           ObjectProvider<HttpSecurity> provider) { return null; }
+    @Bean
+    public FeatureRegistry featureRegistry(ApplicationContext applicationContext) { return null; }
+    @Bean
+    public SecurityConfigurer flowConfigurer() { return null; }
+    @Bean
+    public SecurityConfigurer globalConfigurer() { return null; }
+    @Bean
+    public ConfiguredFactorFilterProvider factorFilterProvider() { return null; }
+    @Bean
+    public SecurityFilterChainRegistrar securityFilterChainRegistrar(ConfiguredFactorFilterProvider factorFilterProvider) { return null; }
+    @Bean public LoginProcessingUrlUniquenessValidator loginProcessingUrlUniquenessValidator() { return null; }
+    @Bean public MfaFlowStructureValidator mfaFlowStructureValidator() { return null; }
+    @Bean public RequiredPlatformOptionsValidator requiredPlatformOptionsValidator() { return null; }
+    @Bean public FeatureAvailabilityValidator featureAvailabilityValidator(FeatureRegistry featureRegistry) { return null; }
+    @Bean public CustomBeanDependencyValidator customBeanDependencyValidator(ApplicationContext applicationContext) { return null; }
+    @Bean public DuplicateFlowTypeNameValidator duplicateMfaFlowValidator() { return null; }
+    @Bean
+    @ConditionalOnMissingBean
+    public DslValidator dslValidator(
+            ObjectProvider<List<Validator<PlatformConfig>>> platformConfigValidatorsProvider,
+            ObjectProvider<List<Validator<List<AuthenticationFlowConfig>>>> flowListValidatorsProvider,
+            ObjectProvider<List<Validator<AuthenticationFlowConfig>>> singleFlowValidatorsProvider,
+            ObjectProvider<List<Validator<AuthenticationStepConfig>>> stepValidatorsProvider,
+            ObjectProvider<List<Validator<List<FlowContext>>>> duplicatedFlowValidators) { return null; }
+    @Bean
+    public DslValidatorService dslValidatorService(DslValidator dslValidator) { return null; }
+    @Bean
+    public PlatformContextInitializer platformContextInitializer(PlatformContext platformContext,
+                                                                 SecretKey secretKey,
+                                                                 AuthContextProperties authContextProperties,
+                                                                 ObjectMapper objectMapper) { return null; }
+    @Bean
+    public FlowContextFactory flowContextFactory(FeatureRegistry featureRegistry, ApplicationContext applicationContext){ return null; }
+    @Bean
+    public SecurityPlatform securityPlatform(PlatformContext context,
+                                             List<SecurityConfigurer> allRegisteredConfigurers,
+                                             FeatureRegistry featureRegistry,
+                                             PlatformContextInitializer platformContextInitializer,
+                                             SecurityFilterChainRegistrar securityFilterChainRegistrar,
+                                             FlowContextFactory flowContextFactory,
+                                             PlatformConfig platformConfig,
+                                             ApplicationContext applicationContext) { return null; }
+    @Bean
+    public PlatformBootstrap platformBootstrap(SecurityPlatform securityPlatform,
+                                               PlatformConfig platformConfig,
+                                               FeatureRegistry registry,
+                                               DslValidatorService dslValidatorService) { return null; }
+}
+
+// SecurityPlatformInitializer.java
+public class SecurityPlatformInitializer implements SecurityPlatform {
+    public SecurityPlatformInitializer(PlatformContext context, PlatformConfig config, SecurityFilterChainRegistrar registrar, FlowContextFactory flowContextFactory, SecurityConfigurerOrchestrator securityConfigurerOrchestrator) {}
+    @Override
+    public void prepareGlobal(PlatformConfig config, List<?> features) {}
+    @Override
+    public void initialize() throws Exception {}
+}
+
+// TokenServiceConfiguration.java
+@Configuration
+public class TokenServiceConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    public SecretKey jwtSecretKey(AuthContextProperties props) { return null; }
+    @Bean
+    public JwtTokenParser jwtTokenParser(SecretKey secretKey) { return null; }
+    @Bean
+    public JwtRefreshTokenStore jwtRefreshTokenStore(JwtTokenParser jwtTokenParser, AuthContextProperties props) { return null; }
+    @Bean
+    public JwtTokenCreator jwtTokenCreator(SecretKey secretKey) { return null; }
+    @Bean
+    public JwtTokenValidator jwtTokenValidator(JwtTokenParser jwtTokenParser, JwtRefreshTokenStore jwtRefreshTokenStore, AuthContextProperties props) { return null; }
+    @Bean
+    public TokenService tokenService(JwtTokenValidator jwtTokenValidator,
+                                     JwtTokenCreator jwtTokenCreator,
+                                     JwtRefreshTokenStore jwtRefreshTokenStore,
+                                     AuthContextProperties props,
+                                     ObjectMapper objectMapper,
+                                     SecretKey secretKey) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.bootstrap.configurer =====
+
+package io.springsecurity.springsecurity6x.security.core.bootstrap.configurer;
+
+// AuthFeatureConfigurerAdapter.java
+public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
+    public AuthFeatureConfigurerAdapter(AuthenticationAdapter feature) {}
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) {}
+    @Override
+    public void configure(FlowContext fc) throws Exception {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// FlowConfigurer.java
+public class FlowConfigurer implements SecurityConfigurer {
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) { }
+    @Override
+    public void configure(FlowContext ctx) {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// GlobalConfigurer.java
+public class GlobalConfigurer implements SecurityConfigurer {
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) {}
+    @Override
+    public void configure(FlowContext ctx) {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// SecurityConfigurer.java
+public interface SecurityConfigurer extends Ordered {
+    void init(PlatformContext ctx, PlatformConfig config);
+    void configure(FlowContext fc) throws Exception;
+    @Override
+    default int getOrder() { return 0; }
+}
+
+// StateFeatureConfigurerAdapter.java
+public class StateFeatureConfigurerAdapter implements SecurityConfigurer {
+    public StateFeatureConfigurerAdapter(StateAdapter feature, PlatformContext ctx) {}
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) { }
+    @Override
+    public void configure(FlowContext fc) throws Exception {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.config =====
+
+package io.springsecurity.springsecurity6x.security.core.config;
+
+// AuthenticationFlowConfig.java
+public final class AuthenticationFlowConfig {
+    private AuthenticationFlowConfig(Builder builder) {}
+    public AuthenticationFlowConfig withStateConfig(StateConfig newStateConfig) { return null; }
+    public static Builder builder(String typeName) { return null; }
+    // Getters
+    public String getTypeName() { return null; }
+    public int getOrder() { return 0; }
+    public StateConfig getStateConfig() { return null; }
+    public Customizer<HttpSecurity> getRawHttpCustomizer() { return null; }
+    public PrimaryAuthenticationOptions getPrimaryAuthenticationOptions() { return null; }
+    public MfaPolicyProvider getMfaPolicyProvider() { return null; }
+    public MfaContinuationHandler getMfaContinuationHandler() { return null; }
+    public AuthenticationFailureHandler getMfaFailureHandler() { return null; }
+    public AuthenticationSuccessHandler getFinalSuccessHandler() { return null; }
+    public Map<AuthType, AuthenticationProcessingOptions> getRegisteredFactorOptions() { return null; }
+    public RetryPolicy getDefaultRetryPolicy() { return null; }
+    public AdaptiveConfig getDefaultAdaptiveConfig() { return null; }
+    public boolean isDefaultDeviceTrustEnabled() { return false; }
+    public MfaAsepAttributes getMfaAsepAttributes() { return null; }
+    public List<AuthenticationStepConfig> getStepConfigs() { return null; }
+
+    public static class Builder {
+        public Builder(String typeName) {}
+        public Builder typeName(String typeName) { return null; }
+        public Builder order(int order) { return null; }
+        public Builder stateConfig(StateConfig stateConfig) { return null; }
+        public Builder rawHttpCustomizer(Customizer<HttpSecurity> customizer) { return null; }
+        public Builder stepConfigs(List<AuthenticationStepConfig> steps) { return null; }
+        public Builder primaryAuthenticationOptions(PrimaryAuthenticationOptions opts) { return null; }
+        public Builder registeredFactorOptions(Map<AuthType, AuthenticationProcessingOptions> options) { return null; }
+        public Builder mfaPolicyProvider(MfaPolicyProvider provider) { return null; }
+        public Builder mfaContinuationHandler(MfaContinuationHandler handler) { return null; }
+        public Builder mfaFailureHandler(AuthenticationFailureHandler handler) { return null; }
+        public Builder finalSuccessHandler(AuthenticationSuccessHandler handler) { return null; }
+        public Builder defaultRetryPolicy(RetryPolicy policy) { return null; }
+        public Builder defaultAdaptiveConfig(AdaptiveConfig config) { return null; }
+        public Builder defaultDeviceTrustEnabled(boolean enabled) { return null; }
+        public Builder mfaAsepAttributes(MfaAsepAttributes attributes) { return null; }
+        public AuthenticationFlowConfig build() { return null; }
+    }
+}
+
+// AuthenticationStepConfig.java
+public class AuthenticationStepConfig {
+    public AuthenticationStepConfig() {}
+    public AuthenticationStepConfig(String type, int order) {}
+    public AuthenticationStepConfig(String flowName, String type, int order) {}
+    public void addOption(String key, Object value) {}
+    public <T> T getOption(String key) { return null; }
+    public static String generateId(String flowName, String factorType, int order) { return null; }
+    // Getters and Setters
+    public String getStepId() { return null; }
+    public void setStepId(String stepId) {}
+    public String getType() { return null; }
+    public void setType(String type) {}
+    public AuthType getAuthType() { return null; }
+    public void setAuthType(AuthType authType) {}
+    public Map<String, Object> getOptions() { return null; }
+    public int getOrder() { return 0; }
+    public void setOrder(int order) {}
+    public boolean isRequired() { return false; }
+    public void setRequired(boolean required) {}
+    @Override
+    public boolean equals(Object o) { return false; }
+    @Override
+    public int hashCode() { return 0; }
+    @Override
+    public String toString() { return null; }
+}
+
+// PlatformConfig.java
+public final class PlatformConfig {
+    private PlatformConfig(Builder builder) {}
+    public static Builder builder() { return null; }
+    // Getters and Setters
+    public SafeHttpCustomizer<HttpSecurity> getGlobalCustomizer() { return null; }
+    public List<AuthenticationFlowConfig> getFlows() { return null; }
+    public PlatformContext getPlatformContext() { return null; }
+    public void setPlatformContext(PlatformContext platformContext) {}
+
+    public static class Builder {
+        public Builder global(SafeHttpCustomizer<HttpSecurity> globalCustomizer) { return null; }
+        public Builder addFlow(AuthenticationFlowConfig flow) { return null; }
+        public List<AuthenticationFlowConfig> getModifiableFlows() { return null; }
+        public Builder replaceLastFlow(AuthenticationFlowConfig flow) { return null; }
+        public PlatformConfig build() { return null; }
+    }
+}
+
+// StateConfig.java
+public record StateConfig(String state, StateType stateType) {}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.context =====
+
+package io.springsecurity.springsecurity6x.security.core.context;
+
+// DefaultPlatformContext.java
+public class DefaultPlatformContext implements PlatformContext{
+    public DefaultPlatformContext(ApplicationContext applicationContext, ObjectProvider<HttpSecurity> httpProvider) {}
+    @Override
+    public void addAuthConfig(AuthenticationStepConfig config) {}
+    @Override
+    public List<AuthenticationStepConfig> getAuthConfigs() { return null; }
+    @Override
+    public <T> void share(Class<T> clz, T obj) {}
+    @Override
+    public <T> T getShared(Class<T> clz) { return null; }
+    @Override
+    public void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http) {}
+    @Override
+    public HttpSecurity http(AuthenticationFlowConfig flow) { return null; }
+    public List<FlowContext> flowContexts() { return null; }
+    public void flowContexts(List<FlowContext> flowContexts) {}
+    @Override
+    public HttpSecurity newHttp() { return null; }
+    @Override
+    public void registerChain(String id, SecurityFilterChain chain) {}
+    @Override
+    public Map<String, SecurityFilterChain> getChains() { return null; }
+    @Override
+    public ApplicationContext applicationContext() { return null; }
+}
+
+// FlowContext.java
+public record FlowContext(AuthenticationFlowConfig flow, HttpSecurity http,
+                          PlatformContext context, PlatformConfig config) { }
+
+// FlowContextFactory.java
+public class FlowContextFactory {
+    public FlowContextFactory(FeatureRegistry featureRegistry, ApplicationContext applicationContext) {}
+    public List<FlowContext> createAndSortFlows(PlatformConfig config, PlatformContext platformContext) { return null; }
+    private void setupSharedObjectsForFlow(FlowContext fc) {}
+    private <T> void setSharedObjectIfAbsent(HttpSecurity http, Class<T> type, Supplier<T> supplier) {}
+}
+
+// OrderedSecurityFilterChain.java
+public class OrderedSecurityFilterChain implements SecurityFilterChain, Ordered {
+    public OrderedSecurityFilterChain(int order, RequestMatcher matcher, List<Filter> filters) {}
+    @Override
+    public int getOrder() { return 0; }
+    @Override
+    public boolean matches(HttpServletRequest request) { return false; }
+    @Override
+    public List<Filter> getFilters() { return null; }
+}
+
+// PlatformContext.java
+public interface PlatformContext {
+    void addAuthConfig(AuthenticationStepConfig config);
+    List<AuthenticationStepConfig> getAuthConfigs();
+    <T> void share(Class<T> clz, T obj);
+    <T> T getShared(Class<T> clz);
+    void registerHttp(AuthenticationFlowConfig flow, HttpSecurity http);
+    HttpSecurity http(AuthenticationFlowConfig flow);
+    List<FlowContext> flowContexts();
+    void flowContexts(List<FlowContext> flowContexts);
+    HttpSecurity newHttp();
+    void registerChain(String id, SecurityFilterChain chain);
+    Map<String, SecurityFilterChain> getChains();
+    ApplicationContext applicationContext();
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl;
+
+// AbstractDslConfigurer.java
+public abstract class AbstractDslConfigurer<O, D extends CommonSecurityDsl<D>> implements CommonSecurityDsl<D> {
+    protected AbstractDslConfigurer(O options) {}
+    protected AbstractDslConfigurer(@Nullable AuthenticationStepConfig stepConfig, O options) {}
+    @Nullable
+    public AuthenticationStepConfig getStepConfig() { return null; }
+    @Override
+    public D disableCsrf() { return null; }
+    @Override
+    public D cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public D headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public D sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public D logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) { return null; }
+}
+
+// AbstractFlowRegistrar.java
+public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> implements IdentityAuthDsl {
+    protected AbstractFlowRegistrar(PlatformConfig.Builder platformBuilder,
+                                    ApplicationContext applicationContext) {}
+    protected <O extends AuthenticationProcessingOptions,
+            A extends BaseAsepAttributes,
+            S extends AuthenticationFactorConfigurer<O, A, S>> IdentityStateDsl registerAuthenticationMethod(
+            AuthType authType,
+            Customizer<S> configurerCustomizer,
+            int defaultOrder,
+            Class<S> configurerInterfaceType) { return null; }
+    protected IdentityStateDsl registerMultiStepFlow(
+            Customizer<MfaDslConfigurer> customizer) { return null; }
+    // 내부 클래스 StateSetter 는 생략
+}
+
+// CommonSecurityDsl.java
+public interface CommonSecurityDsl<S extends CommonSecurityDsl<S>> {
+    S disableCsrf();
+    S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer);
+    S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer);
+    S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
+    S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
+}
+
+// DefaultRiskEngine.java
+public class DefaultRiskEngine implements RiskEngine {
+    @Override
+    public RiskAssessmentResult assess(HttpServletRequest request) { return null; }
+    private String extractClientIp(HttpServletRequest request) { return null; }
+}
+
+// IdentityAuthDsl.java
+public interface IdentityAuthDsl {
+    IdentityAuthDsl global(SafeHttpCustomizer<HttpSecurity> customizer);
+    IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) throws Exception;
+    IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) throws Exception;
+    IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) throws Exception;
+    IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) throws Exception;
+    IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) throws Exception;
+    PlatformConfig build();
+}
+
+// IdentityDslRegistry.java
+public final class IdentityDslRegistry<H extends HttpSecurityBuilder<H>>
+        extends AbstractFlowRegistrar<H> implements IdentityAuthDsl {
+    public IdentityDslRegistry(ApplicationContext applicationContext) { super(null,null); }
+    @Override
+    public IdentityAuthDsl global(SafeHttpCustomizer<HttpSecurity> customizer) { return null; }
+    @Override
+    public IdentityStateDsl form(Customizer<FormDslConfigurer> customizer) throws Exception { return null; }
+    @Override
+    public IdentityStateDsl rest(Customizer<RestDslConfigurer> customizer) throws Exception { return null; }
+    @Override
+    public IdentityStateDsl ott(Customizer<OttDslConfigurer> customizer) throws Exception { return null; }
+    @Override
+    public IdentityStateDsl passkey(Customizer<PasskeyDslConfigurer> customizer) throws Exception { return null; }
+    @Override
+    public IdentityStateDsl mfa(Customizer<MfaDslConfigurer> customizer) throws Exception { return null; }
+    @Override
+    public PlatformConfig build() { return null; }
+}
+
+// IdentityStateDsl.java
+public interface IdentityStateDsl {
+    IdentityAuthDsl session(Customizer<SessionStateConfigurer> customizer);
+    IdentityAuthDsl jwt(Customizer<JwtStateConfigurer> customizer);
+    IdentityAuthDsl oauth2(Customizer<OAuth2StateConfigurer> customizer);
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl.common =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl.common;
+
+// AbstractOptionsBuilderConfigurer.java
+public abstract class AbstractOptionsBuilderConfigurer<
+        T extends AbstractOptionsBuilderConfigurer<T, O, OB, C>,
+        O extends AbstractOptions,
+        OB extends AbstractOptions.Builder<O, OB>,
+        C extends OptionsBuilderDsl<O, C> & SecurityConfigurerDsl>
+        implements OptionsBuilderDsl<O, C> {
+    protected AbstractOptionsBuilderConfigurer(OB optionsBuilder) {}
+    protected final ApplicationContext getApplicationContext() { return null; }
+    protected OB getOptionsBuilder() { return null; }
+    protected abstract T self();
+    @Override
+    public O buildConcreteOptions() { return null; }
+    @Override
+    public C loginProcessingUrl(String url) { return null; }
+    @Override
+    public C successHandler(AuthenticationSuccessHandler handler) { return null; }
+    @Override
+    public C failureHandler(AuthenticationFailureHandler handler) { return null; }
+    @Override
+    public C securityContextRepository(SecurityContextRepository repository) { return null; }
+    @Override
+    public C disableCsrf() { return null; }
+    @Override
+    public C cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public C headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public C sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public C logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) { return null; }
+    @Override
+    public C rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) { return null; }
+    @Override
+    public C authorizeStaticPermitAll(List<String> patterns) { return null; }
+    @Override
+    public C authorizeStaticPermitAll(String... patterns) { return null; }
+    private void logUnsupportedOption(String optionName) {}
+    public void setApplicationContext(ApplicationContext applicationContext) {} // 추가
+}
+
+// OptionsBuilderDsl.java
+public interface OptionsBuilderDsl<O extends AbstractOptions, S extends OptionsBuilderDsl<O, S>> {
+    S loginProcessingUrl(String url);
+    S successHandler(AuthenticationSuccessHandler handler);
+    S failureHandler(AuthenticationFailureHandler handler);
+    S securityContextRepository(SecurityContextRepository repository);
+    S disableCsrf();
+    S cors(Customizer<CorsConfigurer<HttpSecurity>> customizer);
+    S headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer);
+    S sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer);
+    S logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer);
+    S rawHttp(SafeHttpCustomizer<HttpSecurity> customizer);
+    S authorizeStaticPermitAll(List<String> patterns);
+    S authorizeStaticPermitAll(String... patterns);
+    O buildConcreteOptions();
+}
+
+// SafeHttpCustomizer.java
+@FunctionalInterface
+public interface SafeHttpCustomizer<T> {
+    void customize(T t) throws Exception;
+    static <T> Customizer<T> withDefaults() { return null; }
+}
+
+// SafeHttpFormLoginCustomizer.java
+@FunctionalInterface
+public interface SafeHttpFormLoginCustomizer {
+    void customize(FormLoginConfigurer<HttpSecurity> formLogin) throws Exception;
+}
+
+// SecurityConfigurerDsl.java
+public interface SecurityConfigurerDsl {}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl.configurer =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer;
+
+// AuthenticationFactorConfigurer.java
+public interface AuthenticationFactorConfigurer<
+        O extends AuthenticationProcessingOptions,
+        A extends BaseAsepAttributes,
+        S extends AuthenticationFactorConfigurer<O, A, S>>
+        extends OptionsBuilderDsl<O, S>, SecurityConfigurerDsl {
+    S order(int order);
+    S asep(Customizer<A> asepAttributesCustomizer);
+}
+
+// FormDslConfigurer.java
+public interface FormDslConfigurer
+        extends AuthenticationFactorConfigurer<FormOptions, FormAsepAttributes, FormDslConfigurer> {
+    FormDslConfigurer loginPage(String loginPageUrl);
+    FormDslConfigurer usernameParameter(String usernameParameter);
+    FormDslConfigurer passwordParameter(String passwordParameter);
+    FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse);
+    FormDslConfigurer failureUrl(String failureUrl);
+    FormDslConfigurer permitAll();
+    FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer);
+}
+
+// MfaDslConfigurer.java
+public interface MfaDslConfigurer extends SecurityConfigurerDsl {
+    MfaDslConfigurer order(int order);
+    MfaDslConfigurer form(Customizer<FormDslConfigurer> formConfigurer);
+    MfaDslConfigurer rest(Customizer<RestDslConfigurer> restConfigurer);
+    MfaDslConfigurer ott(Customizer<OttDslConfigurer> ottConfigurer);
+    MfaDslConfigurer passkey(Customizer<PasskeyDslConfigurer> passkeyConfigurer);
+    MfaDslConfigurer recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer);
+    MfaDslConfigurer mfaContinuationHandler(MfaContinuationHandler continuationHandler);
+    MfaDslConfigurer mfaFailureHandler(AuthenticationFailureHandler failureHandler);
+    MfaDslConfigurer finalSuccessHandler(AuthenticationSuccessHandler handler);
+    MfaDslConfigurer policyProvider(MfaPolicyProvider policyProvider);
+    MfaDslConfigurer defaultRetryPolicy(Customizer<RetryPolicyDslConfigurer> c);
+    MfaDslConfigurer defaultAdaptivePolicy(Customizer<AdaptiveDslConfigurer> c);
+    MfaDslConfigurer defaultDeviceTrustEnabled(boolean enable);
+    AuthenticationFlowConfig build();
+    MfaDslConfigurer asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer);
+    MfaDslConfigurer primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfig);
+}
+
+// OttDslConfigurer.java
+public interface OttDslConfigurer extends AuthenticationFactorConfigurer<OttOptions, OttAsepAttributes, OttDslConfigurer> {
+    OttDslConfigurer defaultSubmitPageUrl(String url);
+    OttDslConfigurer tokenGeneratingUrl(String url);
+    OttDslConfigurer showDefaultSubmitPage(boolean show);
+    OttDslConfigurer tokenService(OneTimeTokenService service);
+    OttDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler);
+}
+
+// PasskeyDslConfigurer.java
+public interface PasskeyDslConfigurer extends AuthenticationFactorConfigurer<PasskeyOptions, PasskeyAsepAttributes, PasskeyDslConfigurer> {
+    PasskeyDslConfigurer assertionOptionsEndpoint(String url);
+    PasskeyDslConfigurer rpName(String rpName);
+    PasskeyDslConfigurer rpId(String rpId);
+    PasskeyDslConfigurer allowedOrigins(List<String> origins);
+    PasskeyDslConfigurer allowedOrigins(String... origins);
+    PasskeyDslConfigurer allowedOrigins(Set<String> origins);
+}
+
+// PrimaryAuthDslConfigurer.java
+public interface PrimaryAuthDslConfigurer {
+    PrimaryAuthDslConfigurer formLogin(Customizer<FormDslConfigurer> formLoginCustomizer);
+    PrimaryAuthDslConfigurer restLogin(Customizer<RestDslConfigurer> restLoginCustomizer);
+    PrimaryAuthenticationOptions buildOptions();
+}
+
+// RecoveryCodeDslConfigurer.java
+public interface RecoveryCodeDslConfigurer extends AuthenticationFactorConfigurer<RecoveryCodeOptions, BaseAsepAttributes, RecoveryCodeDslConfigurer>  {
+    RecoveryCodeDslConfigurer codeLength(int length);
+    RecoveryCodeDslConfigurer numberOfCodesToGenerate(int number);
+    RecoveryCodeDslConfigurer emailOtpEndpoint(String endpoint);
+    RecoveryCodeDslConfigurer smsOtpEndpoint(String endpoint);
+}
+
+// RestDslConfigurer.java
+public interface RestDslConfigurer extends AuthenticationFactorConfigurer<RestOptions, RestAsepAttributes, RestDslConfigurer> {
+}
+
+// StepDslConfigurer.java
+public interface StepDslConfigurer {
+    AuthenticationStepConfig toConfig();
+    int getOrder();
+    StepDslConfigurer order(int order);
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
+
+// FormDslConfigurerImpl.java
+public final class FormDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<FormDslConfigurerImpl, FormOptions, FormOptions.Builder, FormDslConfigurer>
+        implements FormDslConfigurer {
+    public FormDslConfigurerImpl() { super(null); }
+    @Override
+    public FormDslConfigurer order(int order) { return null; }
+    @Override
+    public FormDslConfigurer loginPage(String loginPageUrl) { return null; }
+    @Override
+    public FormDslConfigurer loginProcessingUrl(String loginProcessingUrl) { return null; }
+    @Override
+    public FormDslConfigurer usernameParameter(String usernameParameter) { return null; }
+    @Override
+    public FormDslConfigurer passwordParameter(String passwordParameter) { return null; }
+    @Override
+    public FormDslConfigurer defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) { return null; }
+    @Override
+    public FormDslConfigurer failureUrl(String failureUrl) { return null; }
+    @Override
+    public FormDslConfigurer permitAll() { return null; }
+    @Override
+    public FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler) { return null; }
+    @Override
+    public FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler) { return null; }
+    @Override
+    public FormDslConfigurer securityContextRepository(SecurityContextRepository repository) { return null; }
+    @Override
+    public FormDslConfigurer rawFormLogin(SafeHttpFormLoginCustomizer customizer) { return null; }
+    @Override
+    public FormDslConfigurer asep(Customizer<FormAsepAttributes> formAsepAttributesCustomizer) { return null; }
+    @Override
+    protected FormDslConfigurerImpl self() { return null; }
+}
+
+// MfaDslConfigurerImpl.java
+public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
+        implements MfaDslConfigurer {
+    public MfaDslConfigurerImpl(ApplicationContext applicationContext) {}
+    @Override
+    public MfaDslConfigurerImpl<H> order(int order) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> primaryAuthentication(Customizer<PrimaryAuthDslConfigurer> primaryAuthConfigCustomizer) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> form(Customizer<FormDslConfigurer> formConfigurerCustomizer) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> rest(Customizer<RestDslConfigurer> restConfigurerCustomizer) { return null; }
+    private <O_FACTOR extends AuthenticationProcessingOptions,
+            A_FACTOR extends BaseAsepAttributes,
+            C_FACTOR extends AuthenticationFactorConfigurer<O_FACTOR, A_FACTOR, C_FACTOR>> MfaDslConfigurerImpl<H> configureMfaFactor(
+            AuthType authType,
+            Customizer<C_FACTOR> factorConfigurerCustomizer,
+            Class<C_FACTOR> configurerInterfaceType) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> ott(Customizer<OttDslConfigurer> ottConfigurerCustomizer) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> passkey(Customizer<PasskeyDslConfigurer> passkeyConfigurerCustomizer) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> mfaContinuationHandler(MfaContinuationHandler continuationHandler) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> mfaFailureHandler(AuthenticationFailureHandler failureHandler) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> policyProvider(MfaPolicyProvider policyProvider) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> finalSuccessHandler(AuthenticationSuccessHandler handler) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> defaultRetryPolicy(Customizer<RetryPolicyDslConfigurer> c) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> defaultAdaptivePolicy(Customizer<AdaptiveDslConfigurer> c) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> defaultDeviceTrustEnabled(boolean enable) { return null; }
+    @Override
+    public MfaDslConfigurerImpl<H> asep(Customizer<MfaAsepAttributes> mfaAsepAttributesCustomizer) { return null; }
+    @Override
+    public AuthenticationFlowConfig build() { return null; }
+}
+
+// OttDslConfigurerImpl.java
+public final class OttDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<OttDslConfigurerImpl, OttOptions, OttOptions.Builder, OttDslConfigurer>
+        implements OttDslConfigurer {
+    public OttDslConfigurerImpl(ApplicationContext applicationContext) { super(null); }
+    @Override
+    public OttDslConfigurer order(int order) { return null; }
+    @Override
+    public OttDslConfigurer defaultSubmitPageUrl(String url) { return null; }
+    @Override
+    public OttDslConfigurer tokenGeneratingUrl(String url) { return null; }
+    @Override
+    public OttDslConfigurer showDefaultSubmitPage(boolean show) { return null; }
+    @Override
+    public OttDslConfigurer tokenService(OneTimeTokenService service) { return null; }
+    @Override
+    public OttDslConfigurer tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) { return null; }
+    @Override
+    public OttDslConfigurer asep(Customizer<OttAsepAttributes> ottAsepAttributesCustomizer) { return null; }
+    @Override
+    protected OttDslConfigurerImpl self() { return null; }
+}
+
+// PasskeyDslConfigurerImpl.java
+public final class PasskeyDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<PasskeyDslConfigurerImpl, PasskeyOptions, PasskeyOptions.Builder, PasskeyDslConfigurer>
+        implements PasskeyDslConfigurer {
+    public PasskeyDslConfigurerImpl() { super(null); }
+    @Override
+    public PasskeyDslConfigurer order(int order) { return null; }
+    @Override
+    public PasskeyDslConfigurer assertionOptionsEndpoint(String url) { return null; }
+    @Override
+    public PasskeyDslConfigurer rpName(String rpName) { return null; }
+    @Override
+    public PasskeyDslConfigurer rpId(String rpId) { return null; }
+    @Override
+    public PasskeyDslConfigurer allowedOrigins(List<String> origins) { return null; }
+    @Override
+    public PasskeyDslConfigurer allowedOrigins(String... origins) { return null; }
+    @Override
+    public PasskeyDslConfigurer allowedOrigins(Set<String> origins) { return null; }
+    @Override
+    public PasskeyDslConfigurer asep(Customizer<PasskeyAsepAttributes> passkeyAsepAttributesCustomizer){ return null; }
+    @Override
+    protected PasskeyDslConfigurerImpl self() { return null; }
+}
+
+// PrimaryAuthDslConfigurerImpl.java
+public final class PrimaryAuthDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
+        implements PrimaryAuthDslConfigurer {
+    public PrimaryAuthDslConfigurerImpl(ApplicationContext applicationContext) {}
+    @Override
+    public PrimaryAuthDslConfigurer formLogin(Customizer<FormDslConfigurer> formLoginCustomizer) { return null; }
+    @Override
+    public PrimaryAuthDslConfigurer restLogin(Customizer<RestDslConfigurer> restLoginCustomizer) { return null; }
+    @Override
+    public PrimaryAuthenticationOptions buildOptions() { return null; }
+    // Getters
+    public Customizer<FormDslConfigurer> getFormLoginCustomizer() { return null; }
+    public Customizer<RestDslConfigurer> getRestLoginCustomizer() { return null; }
+}
+
+// RecoveryCodeDslConfigurerImpl.java
+public class RecoveryCodeDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<RecoveryCodeDslConfigurerImpl, RecoveryCodeOptions, RecoveryCodeOptions.Builder, RecoveryCodeDslConfigurer>
+        implements RecoveryCodeDslConfigurer {
+    public RecoveryCodeDslConfigurerImpl() { super(null); }
+    @Override
+    public RecoveryCodeDslConfigurer codeLength(int length) { return null; }
+    @Override
+    public RecoveryCodeDslConfigurer numberOfCodesToGenerate(int number) { return null; }
+    @Override
+    public RecoveryCodeDslConfigurer emailOtpEndpoint(String endpoint) { return null; }
+    @Override
+    public RecoveryCodeDslConfigurer smsOtpEndpoint(String endpoint) { return null; }
+    @Override
+    public RecoveryCodeDslConfigurer order(int order) { return null; }
+    @Override
+    public RecoveryCodeDslConfigurer asep(Customizer<BaseAsepAttributes> asepAttributesCustomizer) { return null; }
+    @Override
+    protected RecoveryCodeDslConfigurerImpl self() { return null; }
+}
+
+// RestAuthenticationConfigurer.java
+public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>>
+        extends AbstractHttpConfigurer<RestAuthenticationConfigurer<H>, H> {
+    public RestAuthenticationConfigurer() {}
+    @Override
+    public void init(H http) throws Exception {}
+    @Override
+    public void configure(H http) throws Exception {}
+    public RestAuthenticationConfigurer<H> loginProcessingUrl(String loginProcessingUrl) { return null; }
+    public RestAuthenticationConfigurer<H> successHandler(AuthenticationSuccessHandler successHandler) { return null; }
+    public RestAuthenticationConfigurer<H> failureHandler(AuthenticationFailureHandler failureHandler) { return null; }
+    public RestAuthenticationConfigurer<H> securityContextRepository(SecurityContextRepository repository) { return null; }
+    public RestAuthenticationConfigurer<H> mfaInitiateUrl(String mfaInitiateUrl) { return null; }
+}
+
+// RestDslConfigurerImpl.java
+public final class RestDslConfigurerImpl
+        extends AbstractOptionsBuilderConfigurer<RestDslConfigurerImpl, RestOptions, RestOptions.Builder, RestDslConfigurer>
+        implements RestDslConfigurer {
+    public RestDslConfigurerImpl() { super(null); }
+    @Override
+    public RestDslConfigurer order(int order) { return null; }
+    @Override
+    public RestDslConfigurer asep(Customizer<RestAsepAttributes> restAsepAttributesCustomizer){ return null; }
+    @Override
+    protected RestDslConfigurerImpl self() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl.factory =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl.factory;
+
+// AuthMethodConfigurerFactory.java
+public final class AuthMethodConfigurerFactory {
+    public AuthMethodConfigurerFactory(ApplicationContext applicationContext) {}
+    public <O extends AuthenticationProcessingOptions,
+            A extends BaseAsepAttributes,
+            S extends AuthenticationFactorConfigurer<O, A, S>>
+    S createFactorConfigurer(AuthType authType, Class<S> configurerInterfaceType) { return null; }
+    public <H extends HttpSecurityBuilder<H>> PrimaryAuthDslConfigurerImpl<H> createPrimaryAuthConfigurer(ApplicationContext context) { return null; }
+    public <H extends HttpSecurityBuilder<H>> MfaDslConfigurerImpl<H> createMfaConfigurer(ApplicationContext context) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.dsl.option =====
+
+package io.springsecurity.springsecurity6x.security.core.dsl.option;
+
+// AbstractOptions.java
+public abstract class AbstractOptions {
+    protected AbstractOptions(Builder<?, ?> builder) {}
+    public void applyCommonSecurityConfigs(HttpSecurity http) throws Exception {}
+    // Getters
+    public boolean isCsrfDisabled() { return false; }
+    public Customizer<CorsConfigurer<HttpSecurity>> getCorsCustomizer() { return null; }
+    public Customizer<HeadersConfigurer<HttpSecurity>> getHeadersCustomizer() { return null; }
+    public Customizer<SessionManagementConfigurer<HttpSecurity>> getSessionManagementCustomizer() { return null; }
+    public Customizer<LogoutConfigurer<HttpSecurity>> getLogoutCustomizer() { return null; }
+    public List<String> getStaticMatchers() { return null; }
+    public List<SafeHttpCustomizer<HttpSecurity>> getRawHttpCustomizers() { return null; }
+
+    public abstract static class Builder<O extends AbstractOptions, B extends Builder<O, B>> {
+        protected abstract B self();
+        public B csrfDisabled(boolean csrfDisabled) { return null; }
+        public B cors(Customizer<CorsConfigurer<HttpSecurity>> customizer) { return null; }
+        public B headers(Customizer<HeadersConfigurer<HttpSecurity>> customizer) { return null; }
+        public B sessionManagement(Customizer<SessionManagementConfigurer<HttpSecurity>> customizer) { return null; }
+        public B logout(Customizer<LogoutConfigurer<HttpSecurity>> customizer) { return null; }
+        public B authorizeStaticPermitAll(List<String> patterns) { return null; }
+        public B authorizeStaticPermitAll(String... patterns) { return null; }
+        public B rawHttp(SafeHttpCustomizer<HttpSecurity> customizer) { return null; }
+        public abstract O build();
+    }
+}
+
+// AuthenticationProcessingOptions.java
+public abstract class AuthenticationProcessingOptions extends AbstractOptions {
+    protected AuthenticationProcessingOptions(AbstractAuthenticationProcessingOptionsBuilder<?, ?> builder) { super(null); }
+    // Getters
+    public String getLoginProcessingUrl() { return null; }
+    public int getOrder() { return 0; }
+    public AuthenticationSuccessHandler getSuccessHandler() { return null; }
+    public AuthenticationFailureHandler getFailureHandler() { return null; }
+    public SecurityContextRepository getSecurityContextRepository() { return null; }
+
+    public abstract static class AbstractAuthenticationProcessingOptionsBuilder
+            <O extends AuthenticationProcessingOptions, B extends AbstractAuthenticationProcessingOptionsBuilder<O, B>>
+            extends AbstractOptions.Builder<O, B> {
+        public B loginProcessingUrl(String processingUrl) { return null; }
+        public B order(int order) { return null; }
+        public B successHandler(AuthenticationSuccessHandler successHandler) { return null; }
+        public B failureHandler(AuthenticationFailureHandler failureHandler) { return null; }
+        public B securityContextRepository(SecurityContextRepository securityContextRepository) { return null; }
+    }
+}
+
+// FormOptions.java
+public final class FormOptions extends AuthenticationProcessingOptions {
+    private FormOptions(Builder builder) { super(null); }
+    public static Builder builder() { return null; }
+    // Getters
+    public String getLoginPage() { return null; }
+    public String getUsernameParameter() { return null; }
+    public String getPasswordParameter() { return null; }
+    public String getDefaultSuccessUrl() { return null; }
+    public String getFailureUrl() { return null; }
+    public boolean isPermitAll() { return false; }
+    public boolean isAlwaysUseDefaultSuccessUrl() { return false; }
+    public SafeHttpFormLoginCustomizer getRawFormLoginCustomizer() { return null; }
+    public FormAsepAttributes getAsepAttributes() { return null; }
+
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<FormOptions, Builder> {
+        public Builder() {}
+        @Override
+        protected Builder self() { return null; }
+        public Builder loginPage(String loginPage) { return null; }
+        public Builder usernameParameter(String usernameParameter) { return null; }
+        public Builder passwordParameter(String passwordParameter) { return null; }
+        public Builder defaultSuccessUrl(String defaultSuccessUrl) { return null; }
+        public Builder defaultSuccessUrl(String defaultSuccessUrl, boolean alwaysUse) { return null; }
+        public Builder failureUrl(String failureUrl) { return null; }
+        public Builder permitAll(boolean permitAll) { return null; }
+        public Builder permitAll() { return null; }
+        public Builder alwaysUseDefaultSuccessUrl(boolean alwaysUseDefaultSuccessUrl) { return null; }
+        public Builder rawFormLoginCustomizer(SafeHttpFormLoginCustomizer rawFormLoginCustomizer) { return null; }
+        public Builder asepAttributes(FormAsepAttributes attributes) { return null; }
+        @Override
+        public FormOptions build() { return null; }
+    }
+}
+
+// OttOptions.java
+public final class OttOptions extends AuthenticationProcessingOptions {
+    private OttOptions(Builder builder) { super(null); }
+    public static Builder builder(ApplicationContext applicationContext) { return null; }
+    // Getters
+    public String getTokenGeneratingUrl() { return null; }
+    public String getDefaultSubmitPageUrl() { return null; }
+    public String getUsernameParameter() { return null; }
+    public String getTokenParameter() { return null; }
+    public boolean isShowDefaultSubmitPage() { return false; }
+    public OneTimeTokenService getOneTimeTokenService() { return null; }
+    public OneTimeTokenGenerationSuccessHandler getTokenGenerationSuccessHandler() { return null; }
+    public OttAsepAttributes getAsepAttributes() { return null; }
+
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<OttOptions, Builder> {
+        public Builder(ApplicationContext applicationContext) {}
+        @Override
+        protected Builder self() { return null; }
+        public Builder tokenGeneratingUrl(String url) { return null; }
+        public Builder defaultSubmitPageUrl(String url) { return null; }
+        public Builder usernameParameter(String usernameParameter) { return null; }
+        public Builder tokenParameter(String tokenParameter) { return null; }
+        public Builder showDefaultSubmitPage(boolean show) { return null; }
+        public Builder oneTimeTokenService(OneTimeTokenService service) { return null; }
+        public Builder tokenGenerationSuccessHandler(OneTimeTokenGenerationSuccessHandler handler) { return null; }
+        public Builder asepAttributes(OttAsepAttributes attributes) { return null; }
+        @Override
+        public OttOptions build() { return null; }
+    }
+}
+
+// PasskeyOptions.java
+public final class PasskeyOptions extends AuthenticationProcessingOptions {
+    private PasskeyOptions(Builder builder) { super(null); }
+    public static Builder builder() { return null; }
+    // Getters
+    public String getAssertionOptionsEndpoint() { return null; }
+    public String getRpName() { return null; }
+    public String getRpId() { return null; }
+    public Set<String> getAllowedOrigins() { return null; }
+    public PasskeyAsepAttributes getAsepAttributes() { return null; }
+
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<PasskeyOptions, Builder> {
+        public Builder() {}
+        @Override
+        protected Builder self() { return null; }
+        public Builder assertionOptionsEndpoint(String url) { return null; }
+        public Builder rpName(String rpName) { return null; }
+        public Builder rpId(String rpId) { return null; }
+        public Builder allowedOrigins(Set<String> origins) { return null; }
+        public Builder allowedOrigins(List<String> origins) { return null; }
+        public Builder allowedOrigins(String... origins) { return null; }
+        public Builder asepAttributes(PasskeyAsepAttributes attributes) { return null; }
+        @Override
+        public PasskeyOptions build() { return null; }
+    }
+}
+
+// RecoveryCodeOptions.java
+public final class RecoveryCodeOptions extends AuthenticationProcessingOptions {
+    private RecoveryCodeOptions(Builder builder) { super(null); }
+    public static Builder builder() { return null; }
+    // Getters
+    public int getCodeLength() { return 0; }
+    public int getNumberOfCodesToGenerate() { return 0; }
+    public String getEmailOtpEndpoint() { return null; }
+    public String getSmsOtpEndpoint() { return null; }
+
+    public static class Builder extends AbstractAuthenticationProcessingOptionsBuilder<RecoveryCodeOptions, Builder> {
+        public Builder() {}
+        public Builder codeLength(int codeLength) { return null; }
+        public Builder numberOfCodesToGenerate(int numberOfCodesToGenerate) { return null; }
+        public Builder emailOtpEndpoint(String emailOtpEndpoint) { return null; }
+        public Builder smsOtpEndpoint(String smsOtpEndpoint) { return null; }
+        @Override
+        protected Builder self() { return null; }
+        @Override
+        public RecoveryCodeOptions build() { return null; }
+    }
+}
+
+// RestOptions.java
+public final class RestOptions extends AuthenticationProcessingOptions {
+    private RestOptions(Builder builder) { super(null); }
+    public static Builder builder() { return null; }
+    // Getters
+    public String getUsernameParameter() { return null; }
+    public String getPasswordParameter() { return null; }
+    public RestAsepAttributes getAsepAttributes() { return null; }
+
+    public static final class Builder extends AbstractAuthenticationProcessingOptionsBuilder<RestOptions, Builder> {
+        public Builder() {}
+        @Override
+        protected Builder self() { return null; }
+        public Builder usernameParameter(String usernameParameter) { return null; }
+        public Builder passwordParameter(String passwordParameter) { return null; }
+        public Builder asepAttributes(RestAsepAttributes attributes) { return null; }
+        @Override
+        public RestOptions build() { return null; }
+    }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa;
+
+// AdaptiveConfig.java
+public record AdaptiveConfig(boolean geolocation, boolean devicePosture) {}
+
+// AuditEventPublisher.java
+public interface AuditEventPublisher {
+    void publish(String eventType, Map<String, Object> details);
+}
+
+// ChallengeGenerator.java
+public interface ChallengeGenerator {
+    Map<String,Object> generate(FactorContext ctx);
+}
+
+// ChallengeRouter.java
+public class ChallengeRouter {
+    public ChallengeRouter(ChallengeGenerator generator) {}
+    public void writeNextChallenge(HttpServletResponse res, FactorContext ctx) throws IOException {}
+    public void writeError(HttpServletResponse res, int status, String errorCode, String message) throws IOException {}
+}
+
+// DefaultAuditEventPublisher.java
+public class DefaultAuditEventPublisher implements AuditEventPublisher {
+    @Override
+    public void publish(String eventType, Map<String, Object> details) {}
+}
+
+// DefaultChallengeGenerator.java
+public class DefaultChallengeGenerator implements ChallengeGenerator {
+    @Override
+    public Map<String, Object> generate(FactorContext ctx) { return null; }
+    private void handleOptionTypeError(Map<String, Object> payload, AuthType expectedAuthType, @Nullable AuthenticationProcessingOptions actualOptions, String sessionId) {}
+}
+
+// DefaultRecoveryService.java
+public class DefaultRecoveryService implements RecoveryService {
+    @Override
+    public void initiateRecovery(HttpServletRequest request, HttpServletResponse response,
+                                 RecoveryConfig config) throws IOException {}
+}
+
+// DefaultTrustedDeviceService.java
+public class DefaultTrustedDeviceService implements TrustedDeviceService {
+    @Override
+    public boolean isTrusted(HttpServletRequest request) { return false; }
+    @Override
+    public String getDeviceId(HttpServletRequest request) { return null; }
+    public void registerDevice(String deviceId) {}
+}
+
+// RecoveryConfig.java
+public class RecoveryConfig {
+    public RecoveryConfig(String emailOtpEndpoint, String smsOtpEndpoint) {}
+    public String getEmailOtpEndpoint() { return null; }
+    public String getSmsOtpEndpoint() { return null; }
+}
+
+// RecoveryService.java
+public interface RecoveryService {
+    void initiateRecovery(HttpServletRequest request,
+                          HttpServletResponse response,
+                          RecoveryConfig config) throws IOException;
+}
+
+// RetryPolicy.java
+public class RetryPolicy {
+    public RetryPolicy(int maxAttempts) {}
+    public static RetryPolicy defaultPolicy() { return null; }
+    public boolean canRetry(FactorContext factorContext, String stepId) { return false; }
+    // Getter
+    public int getMaxAttempts() { return 0; }
+}
+
+// RiskAssessmentResult.java
+public class RiskAssessmentResult {
+    public RiskAssessmentResult(int score, boolean highRisk) {}
+    public int getScore() { return 0; }
+    public boolean isHighRisk() { return false; }
+}
+
+// RiskEngine.java
+public interface RiskEngine {
+    RiskAssessmentResult assess(HttpServletRequest request);
+}
+
+// TrustedDeviceService.java
+public interface TrustedDeviceService {
+    boolean isTrusted(HttpServletRequest request);
+    String getDeviceId(HttpServletRequest request);
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa.configurer =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa.configurer;
+
+// AdaptiveDslConfigurer.java
+public interface AdaptiveDslConfigurer  {
+    AdaptiveDslConfigurer geolocation(boolean enable);
+    AdaptiveDslConfigurer devicePosture(boolean enable);
+    AdaptiveConfig build();
+}
+
+// AdaptiveDslConfigurerImpl.java
+public class AdaptiveDslConfigurerImpl implements AdaptiveDslConfigurer {
+    @Override
+    public AdaptiveDslConfigurer geolocation(boolean enable) { return null; }
+    @Override
+    public AdaptiveDslConfigurer devicePosture(boolean enable) { return null; }
+    @Override
+    public AdaptiveConfig build() { return null; }
+}
+
+// RecoveryDslConfigurer.java
+public interface RecoveryDslConfigurer{
+    RecoveryDslConfigurer emailOtpEndpoint(String endpoint);
+    RecoveryDslConfigurer smsOtpEndpoint(String endpoint);
+    RecoveryConfig build();
+}
+
+// RecoveryDslConfigurerImpl.java
+public class RecoveryDslConfigurerImpl implements RecoveryDslConfigurer {
+    public RecoveryDslConfigurerImpl() {}
+    @Override
+    public RecoveryDslConfigurer emailOtpEndpoint(String endpoint) { return null; }
+    @Override
+    public RecoveryDslConfigurer smsOtpEndpoint(String endpoint) { return null; }
+    @Override
+    public RecoveryConfig build() { return null; }
+}
+
+// RetryPolicyDslConfigurer.java
+public interface RetryPolicyDslConfigurer{
+    RetryPolicyDslConfigurer maxAttempts(int max);
+    RetryPolicyDslConfigurer lockoutSec(long seconds);
+    RetryPolicy build();
+}
+
+// RetryPolicyDslConfigurerImpl.java
+public class RetryPolicyDslConfigurerImpl implements RetryPolicyDslConfigurer {
+    @Override
+    public RetryPolicyDslConfigurer maxAttempts(int max) { return null; }
+    @Override
+    public RetryPolicyDslConfigurer lockoutSec(long seconds) { return null; }
+    @Override
+    public RetryPolicy build() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa.context =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa.context;
+
+// ContextPersistence.java
+public interface ContextPersistence {
+    @Nullable
+    FactorContext contextLoad(HttpServletRequest request);
+    @Nullable
+    default FactorContext loadContext(String sessionId, HttpServletRequest request) { return null; }
+    void saveContext(@Nullable FactorContext ctx, HttpServletRequest request);
+    void deleteContext(HttpServletRequest request);
+}
+
+// FactorContext.java
+public class FactorContext implements FactorContextExtensions {
+    public FactorContext(String mfaSessionId, Authentication primaryAuthentication, MfaState initialState, @Nullable String flowTypeName) {}
+    public MfaState getCurrentState() { return null; }
+    public void changeState(MfaState newState) {}
+    public void addCompletedFactor(AuthenticationStepConfig completedFactor) {}
+    public int getNumberOfCompletedFactors() { return 0; }
+    public int getLastCompletedFactorOrder() { return 0; }
+    public int incrementAttemptCount(@Nullable AuthType factorType) { return 0; }
+    public int getAttemptCount(@Nullable AuthType factorType) { return 0; }
+    public void recordAttempt(@Nullable AuthType factorType, boolean success, String detail) {}
+    public int incrementFailedAttempts(String factorTypeOrStepId) { return 0; }
+    public int getFailedAttempts(String factorTypeOrStepId) { return 0; }
+    public void resetFailedAttempts(String factorTypeOrStepId) {}
+    public void resetAllFailedAttempts() {}
+    public void setAttribute(String name, Object value) {}
+    @Nullable
+    public Object getAttribute(String name) { return null; }
+    public void removeAttribute(String name) {}
+    public boolean isFullyAuthenticated() { return false; }
+    public void setRegisteredMfaFactors(String key, @Nullable Object value) {}
+    public void updateLastActivityTimestamp() {}
+    @Override
+    public int getRetryCount() { return 0; }
+    @Override
+    public Set<AuthType> getAvailableFactors() { return null; }
+    @Override
+    public List<AuthenticationStepConfig> getCompletedFactors() { return null; }
+    @Override
+    public String getLastError() { return null; }
+    @Override
+    public long getCreatedAt() { return 0; }
+    // Getters for final fields
+    public String getMfaSessionId() { return null; }
+    public Authentication getPrimaryAuthentication() { return null; }
+    public String getUsername() { return null; }
+    public String getFlowTypeName() { return null; }
+    public void setFlowTypeName(String flowTypeName) {}
+    public AuthType getCurrentProcessingFactor() { return null; }
+    public void setCurrentProcessingFactor(AuthType factor) {}
+    public String getCurrentStepId() { return null; }
+    public void setCurrentStepId(String stepId) {}
+    public AuthenticationProcessingOptions getCurrentFactorOptions() { return null; }
+    public void setCurrentFactorOptions(AuthenticationProcessingOptions options) {}
+    public boolean isMfaRequiredAsPerPolicy() { return false; }
+    public void setMfaRequiredAsPerPolicy(boolean required) {}
+    public void setLastError(String error) {}
+    public void setRetryCount(int count) {}
+
+    public static class MfaAttemptDetail implements Serializable {
+        public MfaAttemptDetail(@Nullable AuthType factorType, boolean success, String detail) {}
+        // Getters
+        @Nullable public AuthType getFactorType() { return null; }
+        public boolean isSuccess() { return false; }
+        public Instant getTimestamp() { return null; }
+        public String getDetail() { return null; }
+    }
+    public boolean isCompleted() { return false; }
+    public boolean isTerminal() { return false; }
+    @Nullable
+    public AuthenticationStepConfig getNextStepToProcess(AuthenticationFlowConfig flowConfig, List<AuthType> userRegisteredFactors) { return null; }
+    public List<AuthType> getRegisteredMfaFactors() { return null; }
+    public List<AuthType> getRegisteredMfaFactors(AuthenticationFlowConfig mfaFlowConfig) { return null; }
+    public void setRegisteredMfaFactors(List<AuthType> registeredFactors) {}
+    public void clearCurrentFactorProcessingState() {}
+    public boolean isFactorCompleted(String stepId) { return false; }
+    public static class CompletedFactorInfo implements Serializable {
+        public CompletedFactorInfo(AuthType factorType, String stepId, Instant completionTime, @Nullable AuthenticationProcessingOptions factorOptions) {}
+        @Override
+        public String toString() { return null; }
+        // Getters
+        public AuthType getFactorType() { return null; }
+        public String getStepId() { return null; }
+        public Instant getCompletionTime() { return null; }
+        @Nullable public AuthenticationProcessingOptions getFactorOptions() { return null; }
+    }
+}
+
+// FactorContextExtensions.java
+public interface FactorContextExtensions {
+    int getRetryCount();
+    Set<AuthType> getAvailableFactors();
+    List<AuthenticationStepConfig> getCompletedFactors();
+    String getLastError();
+    long getCreatedAt();
+}
+
+// FactorContextManager.java
+public interface FactorContextManager {
+    FactorContext load(HttpServletRequest req);
+    void save(FactorContext ctx, HttpServletRequest req);
+    void clear(HttpServletRequest req);
+}
+
+// FactorIdentifier.java
+public record FactorIdentifier(String flowName, String stepId) {
+    public FactorIdentifier(String flowName, String stepId) {
+        this.flowName = flowName.toLowerCase();
+        this.stepId = stepId;
+    }
+    @Override
+    public boolean equals(Object o) { return false; }
+    @Override
+    public String toString() { return null; }
+    public static FactorIdentifier of(String flowName, String stepId) { return null; }
+}
+
+// HttpSessionContextPersistence.java
+public class HttpSessionContextPersistence implements ContextPersistence {
+    @Override
+    @Nullable
+    public FactorContext contextLoad(HttpServletRequest request) { return null; }
+    @Override
+    public void saveContext(@Nullable FactorContext ctx, HttpServletRequest request) {}
+    @Override
+    public void deleteContext(HttpServletRequest request) {}
+}
+
+// SessionFactorContextManager.java
+public class SessionFactorContextManager implements FactorContextManager {
+    @Override
+    @Nullable
+    public FactorContext load(HttpServletRequest req) { return null; }
+    @Override
+    public void save(@Nullable FactorContext ctx, HttpServletRequest req) {}
+    @Override
+    public void clear(HttpServletRequest req) {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa.handler =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa.handler;
+
+// MfaContinuationHandler.java
+public interface MfaContinuationHandler {
+    void
+    continueMfaFlow(HttpServletRequest request,
+                    HttpServletResponse response,
+                    Authentication authentication,
+                    FactorContext factorContext,
+                    AuthenticationFlowConfig flowConfig,
+                    Object o) throws IOException, ServletException;
+}
+
+// MfaFailureHandler.java
+public interface MfaFailureHandler {
+    void onFactorFailure(HttpServletRequest request,
+                         HttpServletResponse response,
+                         AuthenticationException exception,
+                         AuthType failedFactorType,
+                         FactorContext factorContext) throws IOException, ServletException;
+    void onGlobalMfaFailure(HttpServletRequest request,
+                            HttpServletResponse response,
+                            AuthenticationException exception,
+                            FactorContext factorContext) throws IOException, ServletException;
+}
+
+// MfaStateHandler.java
+public interface MfaStateHandler {
+    boolean supports(MfaState state);
+    MfaState handleEvent(MfaEvent event, FactorContext ctx) throws InvalidTransitionException, IllegalStateException;
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa.options =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa.options;
+
+// PrimaryAuthenticationOptions.java
+public final class PrimaryAuthenticationOptions {
+    private PrimaryAuthenticationOptions(Builder builder) {}
+    public boolean isFormLogin() { return false; }
+    public boolean isRestLogin() { return false; }
+    public static Builder builder() { return null; }
+    // Getters
+    public FormOptions getFormOptions() { return null; }
+    public RestOptions getRestOptions() { return null; }
+    public AuthType getPrimaryAuthType() { return null; }
+    public String getPrimaryAuthStepId() { return null; }
+
+    public static class Builder {
+        public Builder formOptions(FormOptions formOptions) { return null; }
+        public Builder restOptions(RestOptions restOptions) { return null; }
+        public Builder loginProcessingUrl(String loginProcessingUrl) { return null; }
+        public Builder primaryAuthStepId(String primaryAuthStepId) { return null; }
+        public PrimaryAuthenticationOptions build() { return null; }
+    }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.core.mfa.policy =====
+
+package io.springsecurity.springsecurity6x.security.core.mfa.policy;
+
+// DefaultMfaPolicyProvider.java
+public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
+    public DefaultMfaPolicyProvider(UserRepository userRepository, ApplicationContext applicationContext) {}
+    @Override
+    public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {}
+    @Override
+    public void determineNextFactorToProcess(FactorContext ctx) {}
+    public void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {}
+    @Nullable
+    private AuthType determineNextFactorInternal(List<AuthType> registeredFactors, List<AuthenticationStepConfig> completedFactorSteps, List<AuthenticationStepConfig> flowSteps) { return null; }
+    @Override
+    public RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx) { return null; }
+    @Override
+    public boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx) { return false; }
+    @Override
+    public RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step) { return null; }
+    private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) { return null; }
+    public List<AuthType> getRegisteredMfaFactorsForUser(String username) { return null; }
+    private Set<AuthType> parseMfaFactors(Users user) { return null; }
+    @Nullable
+    private AuthenticationFlowConfig findMfaFlowConfig() { return null; }
+    @Override
+    public Integer getRequiredFactorCount(String userId, String flowType) { return null; }
+}
+
+// MfaPolicyProvider.java
+public interface MfaPolicyProvider {
+    void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx);
+    void determineNextFactorToProcess(FactorContext ctx);
+    RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx);
+    boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx);
+    RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step);
+    default Integer getRequiredFactorCount(String userId, String flowType) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.filter =====
+
+package io.springsecurity.springsecurity6x.security.filter;
+
+// JwtAuthorizationFilter.java
+public class JwtAuthorizationFilter extends OncePerRequestFilter {
+    public JwtAuthorizationFilter(TokenService tokenService, LogoutHandler logoutHandler) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {}
+}
+
+// JwtPreAuthenticationFilter.java
+public class JwtPreAuthenticationFilter extends OncePerRequestFilter {
+    public JwtPreAuthenticationFilter(TokenService tokenService) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {}
+}
+
+// JwtRefreshAuthenticationFilter.java
+public class JwtRefreshAuthenticationFilter extends OncePerRequestFilter {
+    public JwtRefreshAuthenticationFilter(TokenService tokenService,
+                                          LogoutHandler logoutHandler,
+                                          AuthResponseWriter responseWriter) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {}
+    private void handleFailure(HttpServletRequest request, HttpServletResponse response, int status, String errorCode, String errorMessage) throws IOException {}
+}
+
+// MfaContinuationFilter.java
+public class MfaContinuationFilter extends OncePerRequestFilter {
+    public MfaContinuationFilter(ContextPersistence contextPersistence,
+                                 MfaPolicyProvider mfaPolicyProvider,
+                                 AuthContextProperties authContextProperties,
+                                 AuthResponseWriter responseWriter,
+                                 ApplicationContext applicationContext) {}
+    private <T_STEP_OPT extends AuthenticationProcessingOptions> String determineUrlFromStepOptions(
+            Optional<T_STEP_OPT> stepOptionsOpt,
+            Function<T_STEP_OPT, String> urlExtractor,
+            String defaultUrl, String urlDescription) { return null; }
+    private <T extends AuthenticationProcessingOptions> Optional<T> getFirstMfaFactorOptionsByType(
+            @Nullable AuthenticationFlowConfig mfaFlowConfig, AuthType factorType, Class<T> optionClass) { return Optional.empty(); }
+    private <T extends AuthenticationProcessingOptions> Optional<T> getMfaFactorOptionsByStepId(
+            @Nullable AuthenticationFlowConfig mfaFlowConfig, String stepId, AuthType factorType, Class<T> optionClass) { return Optional.empty(); }
+    private <T extends AuthenticationProcessingOptions> Optional<T> getSpecificOptionFromStep(AuthenticationStepConfig step, Class<T> optionClass) { return Optional.empty(); }
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {}
+    private void handleMfaInitiationRequest(HttpServletRequest request, HttpServletResponse response, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {}
+    private void handleSelectFactorPageRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx) throws IOException, ServletException {}
+    private void handleMfaOttRequestCodeUiPageRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {}
+    private void handleFactorChallengeInputUiPageRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthType requestedFactor, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {}
+    private void handleTokenGenerationRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {}
+    private void handleLoginProcessingRequest(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain, FactorContext ctx, AuthenticationFlowConfig flowConfig) throws IOException, ServletException {}
+    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response, String errorCode, String errorMessage) throws IOException {}
+    private void handleTerminalContext(HttpServletRequest request, HttpServletResponse response, FactorContext ctx) throws IOException {}
+    private void handleConfigError(HttpServletResponse response, HttpServletRequest request, String errorCode, String errorMessage) throws IOException {}
+    private void handleGenericError(HttpServletRequest request, HttpServletResponse response, FactorContext ctx, Exception e) throws IOException {}
+    private void setFactorOptionsByStepIdInContext(FactorContext ctx, AuthType factorType, String stepId, @Nullable AuthenticationFlowConfig flowConfig) {}
+    private Optional<AuthenticationStepConfig> findStepConfigByFactorTypeAndMinOrder(AuthenticationFlowConfig flowConfig, AuthType factorType, int minOrderExclusive) { return Optional.empty(); }
+    @Nullable
+    private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName) { return null; }
+}
+
+// MfaStepFilterWrapper.java
+public class MfaStepFilterWrapper extends OncePerRequestFilter {
+    public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
+                                ContextPersistence contextPersistence,
+                                RequestMatcher mfaFactorProcessingMatcher) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {}
+}
+
+// OttForwardingFilter.java
+public class OttForwardingFilter extends OncePerRequestFilter {
+    public OttForwardingFilter(CodeStore codeStore,
+                               String ottProcessingUrl,
+                               String failureUrl,
+                               String filterProcessesGetUrl,
+                               @Nullable String usernameParameterName,
+                               @Nullable String tokenParameterName,
+                               @Nullable ContextPersistence contextPersistence) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {}
+    private String buildRedirectUrlWithReason(HttpServletRequest request, String baseUrl, String reason) { return null; }
+}
+
+// RestAuthenticationFilter.java
+public class RestAuthenticationFilter extends OncePerRequestFilter {
+    public RestAuthenticationFilter(AuthenticationManager authenticationManager, ContextPersistence contextPersistence,
+                                    ApplicationContext applicationContext) {}
+    public void setRequestMatcher(RequestMatcher requestMatcher) {}
+    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {}
+    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {}
+    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {}
+    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {}
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {}
+    private Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
+            throws AuthenticationException { return null; }
+    private void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+                                          Authentication authentication) throws IOException, ServletException {}
+    @Nullable
+    private AuthenticationFlowConfig findMfaFlowConfig(String flowTypeName) { return null; }
+    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                            AuthenticationException failed) throws IOException, ServletException {}
+    private String getOrCreateDeviceId(HttpServletRequest request) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.handler =====
+
+package io.springsecurity.springsecurity6x.security.handler;
+
+// MfaFactorProcessingSuccessHandler.java
+public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessHandler {
+    public MfaFactorProcessingSuccessHandler(ContextPersistence contextPersistence, MfaPolicyProvider mfaPolicyProvider, AuthResponseWriter authResponseWriter, AuthContextProperties properties, ApplicationContext applicationContext, UnifiedAuthenticationSuccessHandler successHandler) {}
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authentication) throws IOException, ServletException {}
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {}
+    @Nullable
+    private AuthenticationFlowConfig findMfaFlowConfig(String flowTypeName) { return null; }
+    private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request, String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {}
+    private void handleConfigError(HttpServletResponse response, HttpServletRequest request, FactorContext ctx, String message) throws IOException {}
+    private void handleGenericError(HttpServletResponse response, HttpServletRequest request, FactorContext ctx, String message) throws IOException {}
+}
+
+// OneTimeRedirectSuccessHandler.java
+public class OneTimeRedirectSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
+    public OneTimeRedirectSuccessHandler(String targetUrl, AuthResponseWriter responseWriter) {}
+    public OneTimeRedirectSuccessHandler(String targetUrl, AuthResponseWriter responseWriter, boolean dummy) {}
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
+            throws IOException, ServletException {}
+}
+
+// OneTimeTokenCreationSuccessHandler.java
+public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
+    public OneTimeTokenCreationSuccessHandler(ContextPersistence contextPersistence, AuthContextProperties authContextProperties) {}
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
+            throws IOException, ServletException {}
+}
+
+// SimpleRedirectSuccessHandler.java
+public class SimpleRedirectSuccessHandler implements AuthenticationSuccessHandler {
+    public SimpleRedirectSuccessHandler(String targetUrl, AuthResponseWriter responseWriter) {}
+    public SimpleRedirectSuccessHandler(String targetUrl, AuthResponseWriter responseWriter, boolean dummy) {}
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException {}
+}
+
+// UnifiedAuthenticationFailureHandler.java
+public class UnifiedAuthenticationFailureHandler implements AuthenticationFailureHandler {
+    public UnifiedAuthenticationFailureHandler(ContextPersistence contextPersistence, MfaPolicyProvider mfaPolicyProvider, AuthResponseWriter responseWriter, AuthContextProperties authContextProperties) {}
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        AuthenticationException exception) throws IOException, ServletException {}
+    private boolean isApiRequest(HttpServletRequest request) { return false; }
+}
+
+// UnifiedAuthenticationSuccessHandler.java
+public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler{
+    public UnifiedAuthenticationSuccessHandler(ContextPersistence contextPersistence, MfaPolicyProvider mfaPolicyProvider, TokenService tokenService, AuthResponseWriter authResponseWriter, AuthContextProperties authContextProperties, ApplicationContext applicationContext) {}
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException, ServletException {}
+    private void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+                                                  Authentication finalAuthentication, @Nullable FactorContext factorContext) throws IOException {}
+    private String getEffectiveDeviceId(HttpServletRequest request) { return null; }
+    protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) { return null; }
+    @Nullable
+    private AuthenticationFlowConfig findFlowConfigByName(String flowTypeName) { return null; }
+    private void handleConfigError(HttpServletResponse response, HttpServletRequest request, @Nullable FactorContext ctx, String message) throws IOException {}
+    private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request, String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.handler.authentication =====
+
+package io.springsecurity.springsecurity6x.security.handler.authentication;
+
+// AuthenticationHandlers.java
+public interface AuthenticationHandlers {
+    default AuthenticationSuccessHandler successHandler() { return null; }
+    default AuthenticationFailureHandler failureHandler() { return null; }
+    default LogoutHandler logoutHandler() { return null; }
+}
+
+// DefaultAuthenticationHandlers.java
+public class DefaultAuthenticationHandlers implements AuthenticationHandlers {
+    public DefaultAuthenticationHandlers() {}
+    @Override
+    public AuthenticationSuccessHandler successHandler() { return null; }
+    @Override
+    public AuthenticationFailureHandler failureHandler() { return null; }
+}
+
+// OAuth2AuthenticationHandlers.java
+public class OAuth2AuthenticationHandlers implements AuthenticationHandlers {
+    public OAuth2AuthenticationHandlers(TokenService tokenService) {}
+    @Override
+    public AuthenticationSuccessHandler successHandler() { return null; }
+    @Override
+    public AuthenticationFailureHandler failureHandler() { return null; }
+    public LogoutHandler logoutHandler(){ return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.handler.logout =====
+
+package io.springsecurity.springsecurity6x.security.handler.logout;
+
+// JwtLogoutHandler.java
+public class JwtLogoutHandler implements LogoutHandler {
+    public JwtLogoutHandler(TokenService tokenService, AuthResponseWriter responseWriter) {}
+    @Override
+    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {}
+}
+
+// JwtLogoutSuccessHandler.java
+public class JwtLogoutSuccessHandler implements LogoutSuccessHandler {
+    public JwtLogoutSuccessHandler(ObjectMapper objectMapper) {}
+    @Override
+    public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException {}
+}
+
+// OAuth2LogoutHandler.java
+public class OAuth2LogoutHandler implements LogoutHandler {
+    public OAuth2LogoutHandler(TokenService tokenService) {}
+    @Override
+    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.properties =====
+
+package io.springsecurity.springsecurity6x.security.properties;
+
+// AuthContextProperties.java
+public class AuthContextProperties {
+    // Getters and Setters
+    public StateType getStateType() { return null; }
+    public void setStateType(StateType stateType) {}
+    public TokenTransportType getTokenTransportType() { return null; }
+    public void setTokenTransportType(TokenTransportType tokenTransportType) {}
+    public TokenIssuer getTokenIssuer() { return null; }
+    public void setTokenIssuer(TokenIssuer tokenIssuer) {}
+    public MfaSettings getMfa() { return null; }
+    public void setMfa(MfaSettings mfa) {}
+    public JwtsTokenSettings getInternal() { return null; }
+    public void setInternal(JwtsTokenSettings internal) {}
+    public OAuth2TokenSettings getOauth2() { return null; }
+    public void setOauth2(OAuth2TokenSettings oauth2) {}
+    public long getAccessTokenValidity() { return 0L; }
+    public void setAccessTokenValidity(long accessTokenValidity) {}
+    public long getRefreshTokenValidity() { return 0L; }
+    public void setRefreshTokenValidity(long refreshTokenValidity) {}
+    public long getRefreshRotateThreshold() { return 0L; }
+    public void setRefreshRotateThreshold(long refreshRotateThreshold) {}
+    public boolean isEnableRefreshToken() { return false; }
+    public void setEnableRefreshToken(boolean enableRefreshToken) {}
+    public boolean isAllowMultipleLogins() { return false; }
+    public void setAllowMultipleLogins(boolean allowMultipleLogins) {}
+    public int getMaxConcurrentLogins() { return 0; }
+    public void setMaxConcurrentLogins(int maxConcurrentLogins) {}
+    public boolean isCookieSecure() { return false; }
+    public void setCookieSecure(boolean cookieSecure) {}
+    public String getTokenPrefix() { return null; }
+    public void setTokenPrefix(String tokenPrefix) {}
+    public String getRolesClaim() { return null; }
+    public void setRolesClaim(String rolesClaim) {}
+    public String getScopesClaim() { return null; }
+    public void setScopesClaim(String scopesClaim) {}
+}
+
+// JwtsTokenSettings.java
+public class JwtsTokenSettings {
+    // Getters and Setters
+    public String getLoginUri() { return null; }
+    public void setLoginUri(String loginUri) {}
+    public String getLogoutUri() { return null; }
+    public void setLogoutUri(String logoutUri) {}
+    public String getRefreshUri() { return null; }
+    public void setRefreshUri(String refreshUri) {}
+}
+
+// MfaSettings.java
+public class MfaSettings {
+    // Getters and Setters
+    public String getInitiateUrl() { return null; }
+    public void setInitiateUrl(String initiateUrl) {}
+    public String getSelectFactorUrl() { return null; }
+    public void setSelectFactorUrl(String selectFactorUrl) {}
+    public String getFailureUrl() { return null; }
+    public void setFailureUrl(String failureUrl) {}
+    public int getOtpTokenValiditySeconds() { return 0; }
+    public void setOtpTokenValiditySeconds(int otpTokenValiditySeconds) {}
+    public PasskeyFactorSettings getPasskeyFactor() { return null; }
+    public void setPasskeyFactor(PasskeyFactorSettings passkeyFactor) {}
+    public OttFactorSettings getOttFactor() { return null; }
+    public void setOttFactor(OttFactorSettings ottFactor) {}
+}
+
+// OAuth2TokenSettings.java
+public class OAuth2TokenSettings {
+    // Getters and Setters
+    public String getClientId() { return null; }
+    public void setClientId(String clientId) {}
+    public String getClientSecret() { return null; }
+    public void setClientSecret(String clientSecret) {}
+    public String getIssuerUri() { return null; }
+    public void setIssuerUri(String issuerUri) {}
+    public String getTokenEndpoint() { return null; }
+    public void setTokenEndpoint(String tokenEndpoint) {}
+    public String getScope() { return null; }
+    public void setScope(String scope) {}
+}
+
+// OttFactorSettings.java
+public class OttFactorSettings {
+    // Getters and Setters
+    public String getRequestCodeUiUrl() { return null; }
+    public void setRequestCodeUiUrl(String requestCodeUiUrl) {}
+    public String getCodeGenerationUrl() { return null; }
+    public void setCodeGenerationUrl(String codeGenerationUrl) {}
+    public String getCodeSentUrl() { return null; }
+    public void setCodeSentUrl(String codeSentUrl) {}
+    public String getChallengeUrl() { return null; }
+    public void setChallengeUrl(String challengeUrl) {}
+    public String getLoginProcessingUrl() { return null; }
+    public void setLoginProcessingUrl(String loginProcessingUrl) {}
+    public String getDefaultFailureUrl() { return null; }
+    public void setDefaultFailureUrl(String defaultFailureUrl) {}
+    public int getTokenValiditySeconds() { return 0; }
+    public void setTokenValiditySeconds(int tokenValiditySeconds) {}
+    public String getSingleOttRequestEmailUrl() { return null; }
+    public void setSingleOttRequestEmailUrl(String singleOttRequestEmailUrl) {}
+    public String getSingleOttCodeGenerationUrl() { return null; }
+    public void setSingleOttCodeGenerationUrl(String singleOttCodeGenerationUrl) {}
+    public String getSingleOttChallengeUrl() { return null; }
+    public void setSingleOttChallengeUrl(String singleOttChallengeUrl) {}
+}
+
+// PasskeyFactorSettings.java
+public class PasskeyFactorSettings {
+    // Getters and Setters
+    public String getChallengeUrl() { return null; }
+    public void setChallengeUrl(String challengeUrl) {}
+    public String getDefaultFailureUrl() { return null; }
+    public void setDefaultFailureUrl(String defaultFailureUrl) {}
+    public int getTimeoutSeconds() { return 0; }
+    public void setTimeoutSeconds(int timeoutSeconds) {}
+    public String getRegistrationRequestUrl() { return null; }
+    public void setRegistrationRequestUrl(String registrationRequestUrl) {}
+    public String getRegistrationProcessingUrl() { return null; }
+    public void setRegistrationProcessingUrl(String registrationProcessingUrl) {}
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.action =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.action;
+
+// AbstractMfaStateAction.java
+public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEvent> {
+    public AbstractMfaStateAction(FactorContextStateAdapter factorContextAdapter, StateContextHelper stateContextHelper) {}
+    @Override
+    public final void execute(StateContext<MfaState, MfaEvent> context) {}
+    protected abstract void doExecute(StateContext<MfaState, MfaEvent> context,
+                                      FactorContext factorContext) throws Exception;
+    protected String extractSessionId(StateContext<MfaState, MfaEvent> context) { return null; }
+    protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) { return null; }
+    protected void updateStateMachineVariables(StateContext<MfaState, MfaEvent> context,
+                                               FactorContext factorContext) {}
+    protected void handleError(StateContext<MfaState, MfaEvent> context, Exception e) {}
+    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+}
+
+// CompleteMfaAction.java
+public class CompleteMfaAction extends AbstractMfaStateAction {
+    public CompleteMfaAction(FactorContextStateAdapter factorContextAdapter,
+                             StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+    private void performCompletionTasks(FactorContext factorContext) {}
+    @Override
+    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+}
+
+// HandleFailureAction.java
+public class HandleFailureAction extends AbstractMfaStateAction {
+    public HandleFailureAction(FactorContextStateAdapter factorContextAdapter,
+                               StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+}
+
+// InitializeMfaAction.java
+public class InitializeMfaAction extends AbstractMfaStateAction {
+    public InitializeMfaAction(FactorContextStateAdapter factorContextAdapter,
+                               StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+}
+
+// InitiateChallengeAction.java
+public class InitiateChallengeAction extends AbstractMfaStateAction {
+    public InitiateChallengeAction(FactorContextStateAdapter factorContextAdapter,
+                                   StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+}
+
+// MfaStateAction.java
+public interface MfaStateAction extends Action<MfaState, MfaEvent> {
+    default boolean validateContext(FactorContext context) { return false; }
+    String getActionName();
+}
+
+// SelectFactorAction.java
+public class SelectFactorAction extends AbstractMfaStateAction {
+    public SelectFactorAction(FactorContextStateAdapter factorContextAdapter,
+                              StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+}
+
+// VerifyFactorAction.java
+public class VerifyFactorAction extends AbstractMfaStateAction {
+    public VerifyFactorAction(FactorContextStateAdapter factorContextAdapter,
+                              StateContextHelper stateContextHelper) { super(null,null); }
+    @Override
+    protected void doExecute(StateContext<MfaState, MfaEvent> context,
+                             FactorContext factorContext) throws Exception {}
+    private AuthenticationStepConfig createCompletedStep(String stepId,
+                                                         String factorType,
+                                                         FactorContext factorContext) { return null; }
+    private void updateVerificationSuccess(FactorContext factorContext,
+                                           AuthenticationStepConfig completedStep) {}
+    private String extractFactorTypeFromContext(StateContext<MfaState, MfaEvent> context) { return null; }
+    @Override
+    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.adapter =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.adapter;
+
+// FactorContextStateAdapter.java
+public interface FactorContextStateAdapter {
+    Map<Object, Object> toStateMachineVariables(FactorContext factorContext);
+    void updateFactorContext(StateMachine<MfaState, MfaEvent> stateMachine, FactorContext factorContext);
+    void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext, FactorContext factorContext);
+}
+
+// FactorContextStateAdapterImpl.java
+public class FactorContextStateAdapterImpl implements FactorContextStateAdapter {
+    @Override
+    public Map<Object, Object> toStateMachineVariables(FactorContext factorContext) { return null; }
+    @Override
+    public void updateFactorContext(StateMachine<MfaState, MfaEvent> stateMachine,
+                                    FactorContext factorContext) {}
+    @Override
+    public void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext,
+                                    FactorContext factorContext) {}
+    private void updateFactorContextFromVariables(FactorContext factorContext,
+                                                  Map<Object, Object> variables) {}
+    private String serializeCompletedFactors(FactorContext factorContext) { return null; }
+    private String serializeAvailableFactors(Set<?> availableFactors) { return null; }
+}
+
+// MfaEventAdapter.java
+public interface MfaEventAdapter {
+    MfaEvent determineEvent(String action, FactorContext context);
+    boolean canTriggerEvent(MfaEvent event, FactorContext context);
+    int getMaxRetries();
+    long calculateSessionDuration(FactorContext context);
+    default Message<MfaEvent> toStateMachineMessage(MfaEvent event, FactorContext context) { return null; }
+}
+
+// MfaEventAdapterImpl.java
+public class MfaEventAdapterImpl implements MfaEventAdapter {
+    public MfaEventAdapterImpl(AuthContextProperties authContextProperties) {}
+    @Override
+    public MfaEvent determineEvent(String action, FactorContext context) { return null; }
+    @Override
+    public boolean canTriggerEvent(MfaEvent event, FactorContext context) { return false; }
+    @Override
+    public int getMaxRetries() { return 0; }
+    @Override
+    public long calculateSessionDuration(FactorContext context) { return 0L; }
+    @Override
+    public Message<MfaEvent> toStateMachineMessage(MfaEvent event, FactorContext context) { return null; }
+    private MfaEvent mapActionToEvent(String action) { return null; }
+    private MfaEvent adjustEventBasedOnContext(MfaEvent event, FactorContext context) { return null; }
+    private boolean isRetryEvent(MfaEvent event) { return false; }
+    private boolean isSessionExpired(FactorContext context) { return false; }
+    public String getEventDescription(MfaEvent event) { return null; }
+}
+
+// MfaStateMachineFeature.java
+public class MfaStateMachineFeature implements StateAdapter {
+    @Override
+    public String getId() { return null; }
+    @Override
+    public void apply(HttpSecurity http, PlatformContext context) {}
+}
+
+// StateTransitionAdapter.java
+public class StateTransitionAdapter {
+    public boolean isValidTransition(MfaState currentState, MfaEvent event) { return false; }
+    public MfaState getTargetState(MfaState currentState, MfaEvent event) { return null; }
+    public TransitionInfo extractTransitionInfo(Transition<MfaState, MfaEvent> transition) { return null; }
+    // 내부 record TransitionInfo 는 생략 (데이터 클래스)
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.config =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.config;
+
+// InMemoryPersistenceConfig.java
+public class InMemoryPersistenceConfig {
+    public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist() { return null; }
+    public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(
+            StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist) { return null; }
+}
+
+// MfaStateMachineConfiguration.java
+public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdapter<MfaState, MfaEvent> {
+    public MfaStateMachineConfiguration(InitializeMfaAction initializeMfaAction, SelectFactorAction selectFactorAction, InitiateChallengeAction initiateChallengeAction, VerifyFactorAction verifyFactorAction, CompleteMfaAction completeMfaAction, HandleFailureAction handleFailureAction, AllFactorsCompletedGuard allFactorsCompletedGuard, RetryLimitGuard retryLimitGuard) {}
+    @Override
+    public void configure(StateMachineConfigurationConfigurer<MfaState, MfaEvent> config) throws Exception {}
+    @Override
+    public void configure(StateMachineStateConfigurer<MfaState, MfaEvent> states) throws Exception {}
+    @Override
+    public void configure(StateMachineTransitionConfigurer<MfaState, MfaEvent> transitions) throws Exception {}
+    @Bean
+    public StateMachineListener<MfaState, MfaEvent> listener() { return null; }
+}
+
+// RedisConfiguration.java
+public class RedisConfiguration {
+    @Bean(name = "stateMachineRedisTemplate")
+    @ConditionalOnMissingBean(name = "stateMachineRedisTemplate")
+    public RedisTemplate<String, byte[]> stateMachineRedisTemplate(RedisConnectionFactory connectionFactory) { return null; }
+}
+
+// RedisPersistenceConfig.java
+public class RedisPersistenceConfig {
+    public RedisPersistenceConfig(StateMachineProperties properties) {}
+    @Bean
+    @Primary
+    public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
+            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, byte[]> redisTemplate) { return null; }
+    @Bean
+    public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(
+            StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist) { return null; }
+}
+
+// StateMachineAutoConfiguration.java
+public class StateMachineAutoConfiguration {
+    public StateMachineAutoConfiguration(StateMachineProperties properties, AuthContextProperties authContextProperties) {}
+    @Bean
+    @ConditionalOnProperty(prefix = "security.statemachine.mfa", name = "enableMetrics", havingValue = "true", matchIfMissing = true)
+    public MfaStateChangeListener mfaStateChangeListener() { return null; }
+}
+
+// StateMachineProperties.java
+public class StateMachineProperties {
+    // Getters and Setters for all fields
+    public boolean isEnabled() { return false; }
+    public void setEnabled(boolean enabled) {}
+    public boolean isEnablePersistence() { return false; }
+    public void setEnablePersistence(boolean enablePersistence) {}
+    public Integer getContextTtlMinutes() { return null; }
+    public void setContextTtlMinutes(Integer contextTtlMinutes) {}
+    public MfaProperties getMfa() { return null; }
+    public void setMfa(MfaProperties mfa) {}
+    public RedisProperties getRedis() { return null; }
+    public void setRedis(RedisProperties redis) {}
+
+    public static class MfaProperties {
+        public boolean isEnableMetrics() { return false; }
+        public void setEnableMetrics(boolean enableMetrics) {}
+        public Integer getMaxRetries() { return null; }
+        public void setMaxRetries(Integer maxRetries) {}
+        public Integer getSessionTimeoutMinutes() { return null; }
+        public void setSessionTimeoutMinutes(Integer sessionTimeoutMinutes) {}
+    }
+    public static class RedisProperties {
+        public boolean isEnabled() { return false; }
+        public void setEnabled(boolean enabled) {}
+        public Integer getTtlMinutes() { return null; }
+        public void setTtlMinutes(Integer ttlMinutes) {}
+        public String getKeyPrefix() { return null; }
+        public void setKeyPrefix(String keyPrefix) {}
+    }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.core =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.core;
+
+// InMemoryStateMachinePersist.java
+public class InMemoryStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
+    @Override
+    public void write(StateMachineContext<MfaState, MfaEvent> context, String contextObj) throws Exception {}
+    @Override
+    public StateMachineContext<MfaState, MfaEvent> read(String contextObj) throws Exception { return null; }
+    public void delete(String contextObj) {}
+}
+
+// MfaEventListener.java
+@FunctionalInterface
+public interface MfaEventListener {
+    void onEvent(MfaEvent event, FactorContext context, String sessionId);
+}
+
+// MfaEventPublisher.java
+public interface MfaEventPublisher {
+    void publishStateChange(String sessionId, MfaState state, MfaEvent event);
+    void publishError(String sessionId, Exception error);
+    void publishCustomEvent(String eventType, Object payload);
+}
+
+// MfaEventPublisherImpl.java
+public class MfaEventPublisherImpl implements MfaEventPublisher {
+    public MfaEventPublisherImpl(ApplicationEventPublisher applicationEventPublisher) {}
+    @Override
+    public void publishStateChange(String sessionId, MfaState state, MfaEvent event) {}
+    @Override
+    public void publishError(String sessionId, Exception error) {}
+    @Override
+    public void publishCustomEvent(String eventType, Object payload) {}
+    // 내부 static 클래스 MfaStateChangeEvent, MfaErrorEvent의 Getter들은 생략
+}
+
+// MfaStateMachineFactory.java
+public interface MfaStateMachineFactory {
+    StateMachine<MfaState, MfaEvent> createStateMachine(String machineId);
+    StateMachine<MfaState, MfaEvent> createStateMachine();
+    StateMachine<MfaState, MfaEvent> restoreStateMachine(String machineId);
+    void releaseStateMachine(String machineId);
+}
+
+// MfaStateMachineFactoryImpl.java
+public class MfaStateMachineFactoryImpl implements MfaStateMachineFactory {
+    public MfaStateMachineFactoryImpl(StateMachineFactory<MfaState, MfaEvent> stateMachineFactory, StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister) {}
+    @Override
+    public StateMachine<MfaState, MfaEvent> createStateMachine(String machineId) { return null; }
+    @Override
+    public StateMachine<MfaState, MfaEvent> createStateMachine() { return null; }
+    @Override
+    public StateMachine<MfaState, MfaEvent> restoreStateMachine(String machineId) { return null; }
+    @Override
+    public void releaseStateMachine(String machineId) {}
+    private String generateMachineId() { return null; }
+    public boolean isStateMachineValid(StateMachine<MfaState, MfaEvent> stateMachine) { return false; }
+}
+
+// MfaStateMachineService.java
+public interface MfaStateMachineService {
+    void initializeStateMachine(FactorContext context, HttpServletRequest request);
+    boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request);
+    MfaState getCurrentState(String sessionId);
+    void releaseStateMachine(String sessionId);
+}
+
+// MfaStateMachineServiceImpl.java
+public class MfaStateMachineServiceImpl implements MfaStateMachineService {
+    // 내부 static 클래스 CachedStateMachine 생략
+    public MfaStateMachineServiceImpl(MfaStateMachineFactory stateMachineFactory,
+                                      StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister,
+                                      FactorContextStateAdapter factorContextAdapter,
+                                      ContextPersistence contextPersistence,
+                                      MfaEventPublisher eventPublisher) {}
+    @Override
+    public void initializeStateMachine(FactorContext context, HttpServletRequest request) {}
+    @Override
+    public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) { return false; }
+    @Override
+    public MfaState getCurrentState(String sessionId) { return null; }
+    @Override
+    public void releaseStateMachine(String sessionId) {}
+    private StateMachine<MfaState, MfaEvent> acquireStateMachine(String sessionId,
+                                                                 FactorContext context) { return null; }
+    private void persistStateMachine(StateMachine<MfaState, MfaEvent> stateMachine, String sessionId) {}
+    private boolean isStateMachineValid(StateMachine<MfaState, MfaEvent> stateMachine) { return false; }
+    private StateMachine<MfaState, MfaEvent> getActiveStateMachine(String sessionId) { return null; }
+    private void cleanupExpiredMachines() {}
+    public void shutdown() {}
+}
+
+// RedisStateMachinePersist.java
+public class RedisStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
+    public RedisStateMachinePersist(RedisTemplate<String, byte[]> redisTemplate, int ttlMinutes) {}
+    @Override
+    public void write(StateMachineContext<MfaState, MfaEvent> context, String contextObj) throws Exception {}
+    @Override
+    public StateMachineContext<MfaState, MfaEvent> read(String contextObj) throws Exception { return null; }
+    public void delete(String contextObj) {}
+    private String generateKey(String sessionId) { return null; }
+    private byte[] serialize(StateMachineContext<MfaState, MfaEvent> context) throws IOException { return null; }
+    private StateMachineContext<MfaState, MfaEvent> deserialize(byte[] data) throws IOException, ClassNotFoundException { return null; }
+    public Map<String, StateMachineContext<MfaState, MfaEvent>> readAll() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.enums =====
+// Enum 클래스들은 메서드 시그니처가 아닌 상수 정의가 주이므로, 여기서는 생략합니다.
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.guard =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.guard;
+
+// AbstractMfaStateGuard.java
+public abstract class AbstractMfaStateGuard implements Guard<MfaState, MfaEvent>, MfaStateGuard {
+    @Override
+    public final boolean evaluate(StateContext<MfaState, MfaEvent> context) { return false; }
+    protected abstract boolean doEvaluate(StateContext<MfaState, MfaEvent> context,
+                                          FactorContext factorContext);
+    protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) { return null; }
+    public Guard<MfaState, MfaEvent> negate() { return null; }
+    @Override
+    public abstract String getFailureReason();
+    @Override
+    public abstract String getGuardName();
+}
+
+// AllFactorsCompletedGuard.java
+public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
+    public AllFactorsCompletedGuard(MfaPolicyProvider mfaPolicyProvider) {}
+    @Override
+    protected boolean doEvaluate(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+    private int getRequiredFactorCount(FactorContext factorContext) { return 0; }
+    private int getDefaultRequiredFactorCount(String flowType) { return 0; }
+    @Override
+    public String getFailureReason() { return null; }
+    public boolean isFactorTypeCompleted(FactorContext factorContext, String factorType) { return false; }
+    public boolean needsMoreFactors(FactorContext factorContext) { return false; }
+    @Override
+    public String getGuardName() { return null; }
+}
+
+// FactorAvailabilityGuard.java
+public class FactorAvailabilityGuard extends AbstractMfaStateGuard {
+    public FactorAvailabilityGuard() {}
+    @Override
+    protected boolean doEvaluate(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) { return false; }
+    @Override
+    public String getGuardName() { return null; }
+    @Override
+    public String getFailureReason() { return null; }
+}
+
+// MfaPolicyGuard.java
+public class MfaPolicyGuard extends AbstractMfaStateGuard {
+    public MfaPolicyGuard(MfaPolicyProvider mfaPolicyProvider) {}
+    @Override
+    protected boolean doEvaluate(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+    @Override
+    public String getFailureReason() { return null; }
+    @Override
+    public String getGuardName() { return null; }
+    public boolean allRequiredFactorsCompleted(FactorContext factorContext) { return false; }
+    public boolean needsAdditionalFactors(FactorContext factorContext) { return false; }
+}
+
+// MfaStateGuard.java
+public interface MfaStateGuard {
+    String getGuardName();
+    String getFailureReason();
+}
+
+// RetryLimitGuard.java
+public class RetryLimitGuard extends AbstractMfaStateGuard {
+    public RetryLimitGuard(AuthContextProperties authContextProperties) {}
+    @Override
+    protected boolean doEvaluate(StateContext<MfaState, MfaEvent> context,
+                                 FactorContext factorContext) { return false; }
+    private int getMaxRetries() { return 0; }
+    private int getFactorMaxRetries(String factorType) { return 0; }
+    private Integer getFactorRetryCount(FactorContext factorContext, String factorType) { return null; }
+    public void incrementRetryCount(FactorContext factorContext) {}
+    public void resetRetryCount(FactorContext factorContext, String factorType) {}
+    @Override
+    public String getFailureReason() { return null; }
+    public int getRemainingRetries(FactorContext factorContext) { return 0; }
+    public int getFactorRemainingRetries(FactorContext factorContext, String factorType) { return 0; }
+    @Override
+    public String getGuardName() { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.integration =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.integration;
+
+// MfaStateMachineConfigurer.java
+public class MfaStateMachineConfigurer implements SecurityConfigurer {
+    public MfaStateMachineConfigurer(MfaStateMachineService stateMachineService) {}
+    @Override
+    public void init(PlatformContext ctx, PlatformConfig config) {}
+    @Override
+    public void configure(FlowContext fc) throws Exception {}
+    @Override
+    public int getOrder() { return 0; }
+}
+
+// StateMachineFilterIntegration.java
+public interface StateMachineFilterIntegration {
+    boolean preProcess(HttpServletRequest request, HttpServletResponse response,
+                       FactorContext context);
+    void postProcess(HttpServletRequest request, HttpServletResponse response,
+                     FactorContext context, Object result);
+    boolean canProceed(HttpServletRequest request, FactorContext context);
+}
+
+// StateMachineFilterIntegrationImpl.java
+public class StateMachineFilterIntegrationImpl implements StateMachineFilterIntegration {
+    public StateMachineFilterIntegrationImpl(MfaStateMachineService stateMachineService) {}
+    @Override
+    public boolean preProcess(HttpServletRequest request, HttpServletResponse response,
+                              FactorContext context) { return false; }
+    @Override
+    public void postProcess(HttpServletRequest request, HttpServletResponse response,
+                            FactorContext context, Object result) {}
+    @Override
+    public boolean canProceed(HttpServletRequest request, FactorContext context) { return false; }
+    private MfaEvent determineEventFromResult(HttpServletRequest request, Object result) { return null; }
+    private boolean isBlockingState(MfaState state) { return false; }
+}
+
+// StateMachineHandlerAdvice.java
+public interface StateMachineHandlerAdvice {
+    boolean beforeHandler(String handlerName, FactorContext context,
+                          HttpServletRequest request);
+    void afterHandler(String handlerName, FactorContext context,
+                      HttpServletRequest request, Object result);
+    void onHandlerError(String handlerName, FactorContext context,
+                        HttpServletRequest request, Exception error);
+}
+
+// StateMachineHandlerAdviceImpl.java
+public class StateMachineHandlerAdviceImpl implements StateMachineHandlerAdvice {
+    public StateMachineHandlerAdviceImpl(MfaStateMachineService stateMachineService) {}
+    @Override
+    public boolean beforeHandler(String handlerName, FactorContext context,
+                                 HttpServletRequest request) { return false; }
+    @Override
+    public void afterHandler(String handlerName, FactorContext context,
+                             HttpServletRequest request, Object result) {}
+    @Override
+    public void onHandlerError(String handlerName, FactorContext context,
+                               HttpServletRequest request, Exception error) {}
+    private boolean isHandlerAllowedInState(String handlerName, MfaState currentState) { return false; }
+    private MfaEvent determineEventFromHandler(String handlerName, Object result,
+                                               FactorContext context) { return null; }
+    private MfaEvent determineErrorEvent(Exception error) { return null; }
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.listener =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.listener;
+
+// MfaStateChangeListener.java
+public class MfaStateChangeListener extends StateMachineListenerAdapter<MfaState, MfaEvent>
+        implements MfaStateMachineListener {
+    @Override
+    public void stateChanged(State<MfaState, MfaEvent> from, State<MfaState, MfaEvent> to) {}
+    @Override
+    public void transition(Transition<MfaState, MfaEvent> transition) {}
+    @Override
+    public void stateMachineError(org.springframework.statemachine.StateMachine<MfaState, MfaEvent> stateMachine,
+                                  Exception exception) {}
+    @Override
+    public void onSuccessfulTransition(String sessionId, MfaState fromState, MfaState toState, MfaEvent event) {}
+    @Override
+    public void onFailedTransition(String sessionId, MfaState currentState, MfaEvent event, Exception error) {}
+    private void recordStateChange(String fromState, String toState) {}
+    private void handleStateMachineError(String machineId, Exception exception) {}
+    public long getStateChangeCount(String fromState, String toState) { return 0L; }
+    public long getEventCount(String event) { return 0L; }
+}
+
+// MfaStateMachineListener.java
+public interface MfaStateMachineListener {
+    void onSuccessfulTransition(String sessionId, MfaState fromState, MfaState toState, MfaEvent event);
+    void onFailedTransition(String sessionId, MfaState currentState, MfaEvent event, Exception error);
+}
+
+// ===== 패키지: io.springsecurity.springsecurity6x.security.statemachine.support =====
+
+package io.springsecurity.springsecurity6x.security.statemachine.support;
+
+// StateContextHelper.java
+public class StateContextHelper {
+    public StateContextHelper(ContextPersistence contextPersistence) {}
+    public FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) { return null; }
+    private Authentication extractAuthentication(StateContext<MfaState, MfaEvent> context,
+                                                 String mfaSessionId) { return null; }
+    private void restoreFactorContextFields(FactorContext factorContext,
+                                            Map<Object, Object> variables) {}
+    private void restoreCompletedFactors(FactorContext factorContext,
+                                         Map<Object, Object> variables) {}
+    private List<AuthenticationStepConfig> parseCompletedFactors(String completedFactorsStr,
+                                                                 String flowTypeName) { return null; }
+    private void restoreAvailableFactors(FactorContext factorContext,
+                                         Map<Object, Object> variables) {}
+    private void restoreAdditionalData(FactorContext factorContext,
+                                       Map<Object, Object> variables) {}
+    private MfaState extractCurrentState(Map<Object, Object> variables) { return null; }
+    private HttpServletRequest extractHttpServletRequest(StateContext<MfaState, MfaEvent> context) { return null; }
+    public void saveFactorContext(StateContext<MfaState, MfaEvent> context,
+                                  FactorContext factorContext) {}
+    private String serializeCompletedFactors(List<AuthenticationStepConfig> completedFactors) { return null; }
+}

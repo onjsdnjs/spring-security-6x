@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
+import org.springframework.session.web.context.AbstractHttpSessionApplicationInitializer;
 
 /**
  * 분산 세션 설정
@@ -14,8 +16,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 @Configuration
 @EnableRedisHttpSession(
         maxInactiveIntervalInSeconds = 1800,  // 30분
-        redisNamespace = "spring:session",
-        cleanupCron = "0 * * * * *"  // 매분마다 만료된 세션 정리
+        redisNamespace = "spring:session"
 )
 public class DistributedSessionConfig extends AbstractHttpSessionApplicationInitializer {
 

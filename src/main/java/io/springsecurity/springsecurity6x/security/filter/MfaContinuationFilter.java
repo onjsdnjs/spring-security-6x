@@ -7,7 +7,6 @@ import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHand
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,6 +18,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -48,13 +49,13 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.urlMatcher = new MfaUrlMatcher(authContextProperties, applicationContext);
         this.requestMatcher = urlMatcher.createRequestMatcher();
 
-        // 요청 핸들러 초기화
+        // 요청 핸들러 초기화 (State Machine 서비스 없이)
         this.requestHandler = new MfaRequestHandler(
                 contextPersistence, mfaPolicyProvider, authContextProperties,
                 responseWriter, applicationContext, urlMatcher
         );
 
-        log.info("MfaContinuationFilter initialized with URLs: {}", urlMatcher.getConfiguredUrls());
+        log.info("MfaContinuationFilter initialized");
     }
 
     @Override
@@ -71,13 +72,11 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
         FactorContext ctx = contextPersistence.contextLoad(request);
         if (!isValidMfaContext(ctx)) {
-            requestHandler.handleInvalidContext(request, response);
+            handleInvalidContext(request, response);
             return;
         }
 
-        MfaState currentState = ctx.getCurrentState();
-
-        if (currentState.isTerminal()) {
+        if (ctx.getCurrentState().isTerminal()) {
             requestHandler.handleTerminalContext(request, response, ctx);
             return;
         }
@@ -97,5 +96,19 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         return ctx != null &&
                 ctx.getMfaSessionId() != null &&
                 "MFA".equalsIgnoreCase(ctx.getFlowTypeName());
+    }
+
+    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        log.warn("Invalid MFA context for request: {}", request.getRequestURI());
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", "MFA_SESSION_INVALID");
+        errorResponse.put("message", "MFA 세션이 유효하지 않습니다.");
+        errorResponse.put("redirectUrl", request.getContextPath() + "/loginForm");
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다.",
+                request.getRequestURI(), errorResponse);
     }
 }

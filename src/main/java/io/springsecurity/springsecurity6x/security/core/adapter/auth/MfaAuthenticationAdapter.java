@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
@@ -108,7 +108,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
                         String processingUrl = procOpts.getLoginProcessingUrl();
                         if (processingUrl != null) {
                             // 일반적으로 MFA Factor 검증은 POST 요청
-                            factorProcessingMatchers.add(new AntPathRequestMatcher(processingUrl, "POST"));
+                            factorProcessingMatchers.add(new ParameterRequestMatcher(processingUrl, "POST"));
                             log.debug("MfaAuthenticationAdapter: Added AntPathRequestMatcher for MFA factor processing URL: POST {}", processingUrl);
                         }
                     }

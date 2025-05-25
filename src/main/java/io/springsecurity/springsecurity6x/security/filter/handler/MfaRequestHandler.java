@@ -6,6 +6,8 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -34,7 +36,8 @@ public class MfaRequestHandler {
                               HttpServletResponse response, FactorContext ctx,
                               FilterChain filterChain) throws IOException, ServletException {
 
-        log.debug("Handling {} request for session: {}", requestType, ctx.getMfaSessionId());
+        log.debug("Handling {} request for session: {} in state: {}",
+                requestType, ctx.getMfaSessionId(), ctx.getCurrentState());
 
         switch (requestType) {
             case MFA_INITIATE:
@@ -46,8 +49,11 @@ public class MfaRequestHandler {
                 break;
 
             case TOKEN_GENERATION:
+                handleTokenGeneration(request, response, ctx, filterChain);
+                break;
+
             case LOGIN_PROCESSING:
-                // 이런 요청들은 다른 필터로 위임
+                // 실제 인증 처리는 다른 필터로 위임
                 filterChain.doFilter(request, response);
                 break;
 
@@ -60,30 +66,44 @@ public class MfaRequestHandler {
 
     private void handleMfaInitiate(HttpServletRequest request, HttpServletResponse response,
                                    FactorContext ctx) throws IOException {
-        // MFA 시작 페이지 렌더링 또는 리다이렉트
-        String selectFactorUrl = request.getContextPath() +
-                authContextProperties.getMfa().getSelectFactorUrl();
-        response.sendRedirect(selectFactorUrl);
+        MfaState currentState = ctx.getCurrentState();
+
+        if (currentState == MfaState.AWAITING_FACTOR_SELECTION) {
+            String selectFactorUrl = request.getContextPath() +
+                    authContextProperties.getMfa().getSelectFactorUrl();
+            response.sendRedirect(selectFactorUrl);
+        } else if (currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION) {
+            String challengeUrl = determineChalllengeUrl(ctx, request);
+            response.sendRedirect(challengeUrl);
+        } else {
+            log.warn("Unexpected state {} for MFA initiate request", currentState);
+            handleInvalidState(request, response, ctx);
+        }
     }
 
     private void handleSelectFactor(HttpServletRequest request, HttpServletResponse response,
                                     FactorContext ctx) throws IOException {
-        // 팩터 선택 페이지는 컨트롤러에서 처리하므로 패스
-        // 실제로는 이 필터가 처리하지 않고 컨트롤러로 전달됨
+        if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
+            log.warn("Invalid state {} for factor selection", ctx.getCurrentState());
+            handleInvalidState(request, response, ctx);
+            return;
+        }
+
+        // 실제 렌더링은 컨트롤러에서 처리하므로 패스
     }
 
-    public void handleInvalidContext(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
-        log.warn("Invalid MFA context for request: {}", request.getRequestURI());
+    private void handleTokenGeneration(HttpServletRequest request, HttpServletResponse response,
+                                       FactorContext ctx, FilterChain filterChain)
+            throws IOException, ServletException {
+        if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
+                ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_INITIATED) {
+            log.warn("Invalid state {} for token generation", ctx.getCurrentState());
+            handleInvalidState(request, response, ctx);
+            return;
+        }
 
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", "MFA_SESSION_INVALID");
-        errorResponse.put("message", "MFA 세션이 유효하지 않습니다.");
-        errorResponse.put("redirectUrl", request.getContextPath() + "/loginForm");
-
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
-                "MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다.",
-                request.getRequestURI(), errorResponse);
+        // 실제 토큰 생성은 다음 필터에서 처리
+        filterChain.doFilter(request, response);
     }
 
     public void handleTerminalContext(HttpServletRequest request, HttpServletResponse response,
@@ -99,8 +119,28 @@ public class MfaRequestHandler {
             default -> "MFA 인증을 진행할 수 없습니다.";
         };
 
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("currentState", ctx.getCurrentState().name());
+        errorResponse.put("isTerminal", true);
+
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
-                "MFA_TERMINAL_STATE", message, request.getRequestURI());
+                "MFA_TERMINAL_STATE", message, request.getRequestURI(), errorResponse);
+    }
+
+    public void handleInvalidStateTransition(HttpServletRequest request, HttpServletResponse response,
+                                             FactorContext ctx, MfaEvent event) throws IOException {
+        log.error("Invalid state transition: {} -> {} for session: {}",
+                ctx.getCurrentState(), event, ctx.getMfaSessionId());
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", "INVALID_STATE_TRANSITION");
+        errorResponse.put("message", "현재 상태에서 요청한 작업을 수행할 수 없습니다.");
+        errorResponse.put("currentState", ctx.getCurrentState().name());
+        errorResponse.put("attemptedEvent", event.name());
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "INVALID_STATE_TRANSITION", "잘못된 상태 전이",
+                request.getRequestURI(), errorResponse);
     }
 
     public void handleGenericError(HttpServletRequest request, HttpServletResponse response,
@@ -108,8 +148,43 @@ public class MfaRequestHandler {
         log.error("Error processing MFA request for session: {}",
                 ctx.getMfaSessionId(), e);
 
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", "MFA_PROCESSING_ERROR");
+        errorResponse.put("message", "MFA 처리 중 오류가 발생했습니다.");
+        if (ctx != null) {
+            errorResponse.put("currentState", ctx.getCurrentState().name());
+            errorResponse.put("errorType", e.getClass().getSimpleName());
+        }
+
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "MFA_PROCESSING_ERROR", "MFA 처리 중 오류가 발생했습니다.",
-                request.getRequestURI());
+                request.getRequestURI(), errorResponse);
+    }
+
+    private void handleInvalidState(HttpServletRequest request, HttpServletResponse response,
+                                    FactorContext ctx) throws IOException {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", "INVALID_STATE");
+        errorResponse.put("message", "잘못된 MFA 상태입니다.");
+        errorResponse.put("currentState", ctx.getCurrentState().name());
+        errorResponse.put("redirectUrl", request.getContextPath() + "/mfa/select-factor");
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "INVALID_STATE", "잘못된 MFA 상태",
+                request.getRequestURI(), errorResponse);
+    }
+
+    private String determineChalllengeUrl(FactorContext ctx, HttpServletRequest request) {
+        if (ctx.getCurrentProcessingFactor() == null) {
+            return request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        }
+
+        return switch (ctx.getCurrentProcessingFactor()) {
+            case OTT -> request.getContextPath() +
+                    authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
+            case PASSKEY -> request.getContextPath() +
+                    authContextProperties.getMfa().getPasskeyFactor().getChallengeUrl();
+            default -> request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        };
     }
 }

@@ -20,17 +20,17 @@ import org.springframework.context.ApplicationContext;
 import java.io.IOException;
 
 @Slf4j
-public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
+public class StateMachineAwareMfaRequestHandler extends MfaRequestHandler {
 
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-    public MfaRequestHandlerWithStateMachine(ContextPersistence contextPersistence,
-                                             MfaPolicyProvider mfaPolicyProvider,
-                                             AuthContextProperties authContextProperties,
-                                             AuthResponseWriter responseWriter,
-                                             ApplicationContext applicationContext,
-                                             MfaUrlMatcher urlMatcher,
-                                             MfaStateMachineIntegrator stateMachineIntegrator) {
+    public StateMachineAwareMfaRequestHandler(ContextPersistence contextPersistence,
+                                              MfaPolicyProvider mfaPolicyProvider,
+                                              AuthContextProperties authContextProperties,
+                                              AuthResponseWriter responseWriter,
+                                              ApplicationContext applicationContext,
+                                              MfaUrlMatcher urlMatcher,
+                                              MfaStateMachineIntegrator stateMachineIntegrator) {
         super(contextPersistence, mfaPolicyProvider, authContextProperties,
                 responseWriter, applicationContext, urlMatcher);
         this.stateMachineIntegrator = stateMachineIntegrator;
@@ -41,7 +41,7 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
                               HttpServletResponse response, FactorContext ctx,
                               FilterChain filterChain) throws IOException, ServletException {
 
-        log.debug("Handling {} request for session: {} in state: {}",
+        log.debug("Processing {} request with State Machine for session: {} in state: {}",
                 requestType, ctx.getMfaSessionId(), ctx.getCurrentState());
 
         switch (requestType) {
@@ -58,8 +58,8 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
                 break;
 
             case LOGIN_PROCESSING:
-                // 실제 인증 처리는 다른 필터로 위임
-                filterChain.doFilter(request, response);
+                // OTT 검증 등의 실제 인증 처리
+                handleLoginProcessingWithStateMachine(request, response, ctx, filterChain);
                 break;
 
             default:
@@ -72,7 +72,7 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
                                                    FactorContext ctx) throws IOException {
         MfaState currentState = ctx.getCurrentState();
 
-        // State Machine 이벤트 전송
+        // 필요한 경우 State Machine 이벤트 전송
         if (currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED) {
             boolean accepted = stateMachineIntegrator.sendEvent(
                     MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
@@ -84,7 +84,7 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
             }
         }
 
-        // 부모 클래스의 handleMfaInitiate 호출
+        // 기존 로직 실행
         super.handleMfaInitiate(request, response, ctx);
     }
 
@@ -92,11 +92,10 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
                                                     HttpServletResponse response,
                                                     FactorContext ctx) throws IOException {
         if (!"POST".equals(request.getMethod())) {
-            // GET 요청은 단순 페이지 렌더링
+            // GET 요청은 페이지 렌더링
             return;
         }
 
-        // POST 요청: Factor 선택 처리
         String selectedFactor = request.getParameter("factor");
         if (selectedFactor == null) {
             getResponseWriter().writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
@@ -106,11 +105,10 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
         }
 
         try {
-            // Factor 설정
             AuthType authType = AuthType.valueOf(selectedFactor.toUpperCase());
             ctx.setCurrentProcessingFactor(authType);
 
-            // State Machine에 FACTOR_SELECTED 이벤트 전송
+            // FACTOR_SELECTED 이벤트 전송
             boolean accepted = stateMachineIntegrator.sendEvent(
                     MfaEvent.FACTOR_SELECTED, ctx, request);
 
@@ -151,10 +149,27 @@ public class MfaRequestHandlerWithStateMachine extends MfaRequestHandler {
                 MfaEvent.INITIATE_CHALLENGE, ctx, request);
 
         if (accepted) {
-            // State Machine이 토큰 생성 요청을 승인했으므로 다음 필터로 진행
+            // GenerateOneTimeTokenFilter로 위임
             filterChain.doFilter(request, response);
         } else {
             handleInvalidStateTransition(request, response, ctx, MfaEvent.INITIATE_CHALLENGE);
         }
+    }
+
+    private void handleLoginProcessingWithStateMachine(HttpServletRequest request,
+                                                       HttpServletResponse response,
+                                                       FactorContext ctx,
+                                                       FilterChain filterChain)
+            throws IOException, ServletException {
+
+        // State Machine 상태 확인
+        if (ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
+            log.warn("Invalid state {} for login processing", ctx.getCurrentState());
+            handleInvalidState(request, response, ctx);
+            return;
+        }
+
+        // MfaStepFilterWrapper로 위임 (SUBMIT_FACTOR_CREDENTIAL 이벤트는 거기서 처리)
+        filterChain.doFilter(request, response);
     }
 }

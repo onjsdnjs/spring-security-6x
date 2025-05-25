@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersi
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
-import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandlerWithStateMachine;
+import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
@@ -56,7 +56,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
         // 요청 핸들러 초기화 - State Machine 통합자 추가
-        this.requestHandler = new MfaRequestHandlerWithStateMachine(
+        this.requestHandler = new StateMachineAwareMfaRequestHandler(
                 contextPersistence, mfaPolicyProvider, authContextProperties,
                 responseWriter, applicationContext, urlMatcher, stateMachineIntegrator
         );

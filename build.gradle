@@ -77,17 +77,22 @@ dependencies {
     // OAuth2
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
+    // JWT (JSON Web Token) - 최신 버전 사용
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'  // JSON 처리를 위한 Jackson 통합
+
     // Kryo (State Machine 직렬화)
     implementation 'com.esotericsoftware:kryo:5.5.0'
     implementation 'org.springframework.statemachine:spring-statemachine-kryo:4.0.0'
+
+    //ModelMapper
+    implementation("org.modelmapper:modelmapper:3.2.3")
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.statemachine:spring-statemachine-test:4.0.0'
-    testImplementation 'org.testcontainers:testcontainers:1.19.1'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.1'
-    testImplementation 'org.testcontainers:redis:1.19.1'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'

@@ -126,7 +126,7 @@ public class AsyncEventListener {
             message.put("fromState", event.getFromState() != null ? event.getFromState().name() : null);
             message.put("toState", event.getToState().name());
             message.put("event", event.getEvent().name());
-            message.put("timestamp", event.getTimestamp().toString());
+            message.put("timestamp", event.getOccurredAt().toString());  // occurredAt 사용
             if (event.getDuration() != null) {
                 message.put("duration", event.getDuration().toMillis());
             }
@@ -153,7 +153,7 @@ public class AsyncEventListener {
             message.put("errorType", event.getErrorType().name());
             message.put("error", event.getError().getClass().getSimpleName());
             message.put("message", event.getError().getMessage());
-            message.put("timestamp", event.getTimestamp().toString());
+            message.put("timestamp", event.getOccurredAt().toString());
 
             redisTemplate.convertAndSend("mfa:events:error", message);
 
@@ -204,7 +204,6 @@ public class AsyncEventListener {
         log.info("AUDIT: MFA {} for session {} at {}",
                 event.getToState(),
                 event.getSessionId(),
-                event.getTimestamp());
-        // TODO: 감사 로그 시스템 연동
+                event.getOccurredAt());  // occurredAt 사용
     }
 }

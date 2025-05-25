@@ -2,12 +2,13 @@ package io.springsecurity.springsecurity6x.security.statemachine.core.event;
 
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
-import lombok.Builder;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * MFA State Machine 이벤트 정의
@@ -23,7 +24,7 @@ public class MfaStateMachineEvents {
         private final MfaState fromState;
         private final MfaState toState;
         private final MfaEvent event;
-        private final LocalDateTime timestamp;
+        private final LocalDateTime occurredAt;  // timestamp 대신 occurredAt 사용
         private final Duration duration;
 
         public StateChangeEvent(Object source, String sessionId,
@@ -34,12 +35,22 @@ public class MfaStateMachineEvents {
             this.fromState = fromState;
             this.toState = toState;
             this.event = event;
-            this.timestamp = LocalDateTime.now();
+            this.occurredAt = LocalDateTime.now();
             this.duration = duration;
         }
 
         public String getTransitionKey() {
-            return fromState + "_to_" + toState;
+            return (fromState != null ? fromState.name() : "INITIAL") + "_to_" + toState.name();
+        }
+
+        /**
+         * ApplicationEvent의 timestamp를 LocalDateTime으로 변환
+         */
+        public LocalDateTime getEventTimestamp() {
+            return LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(getTimestamp()),
+                    ZoneId.systemDefault()
+            );
         }
     }
 
@@ -52,7 +63,7 @@ public class MfaStateMachineEvents {
         private final MfaState currentState;
         private final MfaEvent event;
         private final Exception error;
-        private final LocalDateTime timestamp;
+        private final LocalDateTime occurredAt;  // timestamp 대신 occurredAt 사용
         private final ErrorType errorType;
 
         public ErrorEvent(Object source, String sessionId,
@@ -63,7 +74,7 @@ public class MfaStateMachineEvents {
             this.currentState = currentState;
             this.event = event;
             this.error = error;
-            this.timestamp = LocalDateTime.now();
+            this.occurredAt = LocalDateTime.now();
             this.errorType = categorizeError(error);
         }
 
@@ -74,6 +85,16 @@ public class MfaStateMachineEvents {
                 if (error.getMessage().contains("limit")) return ErrorType.LIMIT_EXCEEDED;
             }
             return ErrorType.SYSTEM;
+        }
+
+        /**
+         * ApplicationEvent의 timestamp를 LocalDateTime으로 변환
+         */
+        public LocalDateTime getEventTimestamp() {
+            return LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(getTimestamp()),
+                    ZoneId.systemDefault()
+            );
         }
 
         public enum ErrorType {
@@ -91,7 +112,7 @@ public class MfaStateMachineEvents {
         private final double threshold;
         private final double actualValue;
         private final Severity severity;
-        private final LocalDateTime timestamp;
+        private final LocalDateTime occurredAt;  // timestamp 대신 occurredAt 사용
 
         public PerformanceAlertEvent(Object source, AlertType alertType,
                                      String description, double threshold,
@@ -102,7 +123,17 @@ public class MfaStateMachineEvents {
             this.threshold = threshold;
             this.actualValue = actualValue;
             this.severity = severity;
-            this.timestamp = LocalDateTime.now();
+            this.occurredAt = LocalDateTime.now();
+        }
+
+        /**
+         * ApplicationEvent의 timestamp를 LocalDateTime으로 변환
+         */
+        public LocalDateTime getEventTimestamp() {
+            return LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(getTimestamp()),
+                    ZoneId.systemDefault()
+            );
         }
 
         public enum AlertType {
@@ -122,13 +153,23 @@ public class MfaStateMachineEvents {
     public static class CustomEvent extends ApplicationEvent {
         private final String eventType;
         private final Object payload;
-        private final LocalDateTime timestamp;
+        private final LocalDateTime occurredAt;  // timestamp 대신 occurredAt 사용
 
         public CustomEvent(Object source, String eventType, Object payload) {
             super(source);
             this.eventType = eventType;
             this.payload = payload;
-            this.timestamp = LocalDateTime.now();
+            this.occurredAt = LocalDateTime.now();
+        }
+
+        /**
+         * ApplicationEvent의 timestamp를 LocalDateTime으로 변환
+         */
+        public LocalDateTime getEventTimestamp() {
+            return LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(getTimestamp()),
+                    ZoneId.systemDefault()
+            );
         }
     }
 }

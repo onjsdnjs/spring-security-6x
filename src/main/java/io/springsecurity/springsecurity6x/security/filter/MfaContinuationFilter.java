@@ -7,7 +7,6 @@ import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHand
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
@@ -76,8 +75,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 상태 머신에서 현재 상태 조회 (상태 직접 변경하지 않음)
-        MfaState currentState = stateMachineService.getCurrentState(ctx.getMfaSessionId());
+        MfaState currentState = ctx.getCurrentState();
 
         if (currentState.isTerminal()) {
             requestHandler.handleTerminalContext(request, response, ctx);
@@ -87,39 +85,11 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         try {
             MfaRequestType requestType = urlMatcher.getRequestType(request);
 
-            // 요청 타입에 따른 이벤트 결정
-            MfaEvent event = determineEventFromRequest(requestType, request);
-
-            if (event != null) {
-                // 상태 머신으로 이벤트 전송
-                boolean accepted = stateMachineService.sendEvent(event, ctx, request);
-
-                if (!accepted) {
-                    log.warn("Event {} not accepted for session {} in state {}",
-                            event, ctx.getMfaSessionId(), currentState);
-                }
-            }
-
             // 요청 처리
             requestHandler.handleRequest(requestType, request, response, ctx, filterChain);
 
         } catch (Exception e) {
             requestHandler.handleGenericError(request, response, ctx, e);
-        }
-    }
-
-    private MfaEvent determineEventFromRequest(MfaRequestType requestType, HttpServletRequest request) {
-        switch (requestType) {
-            case MFA_INITIATE:
-                return null; // 이미 처리됨
-            case SELECT_FACTOR:
-                return null; // UI 렌더링만
-            case TOKEN_GENERATION:
-                return MfaEvent.INITIATE_CHALLENGE;
-            case LOGIN_PROCESSING:
-                return MfaEvent.SUBMIT_FACTOR_CREDENTIAL;
-            default:
-                return null;
         }
     }
 

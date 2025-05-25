@@ -6,6 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class PasskeyFactorSettings {
+    private String loginProcessingUrl = "/login/mfa-webauthn"; // Passkey 인증 UI 및 처리 URL (GET & POST)
     private String challengeUrl = "/mfa/challenge/passkey"; // Passkey 인증 UI 및 처리 URL (GET & POST)
     private String defaultFailureUrl = "/mfa/challenge/passkey?error"; // Passkey 검증 실패 시 기본 리다이렉션 URL
     private int timeoutSeconds = 60; // Passkey assertion/registration timeout

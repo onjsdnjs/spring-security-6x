@@ -30,8 +30,6 @@ import java.util.stream.Collectors;
 @Setter
 public class FactorContext implements FactorContextExtensions {
 
-    private static final long serialVersionUID = 20250522_01L;
-
     private final String mfaSessionId;
     private final AtomicReference<MfaState> currentMfaState;
     private final AtomicInteger version = new AtomicInteger(0);

@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersi
 import io.springsecurity.springsecurity6x.security.core.mfa.context.HttpSessionContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.DefaultMfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
@@ -49,9 +50,10 @@ public class MfaInfrastructureAutoConfiguration {
     public UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(ContextPersistence contextPersistence,
                                                                                     AuthResponseWriter authResponseWriter,
                                                                                     MfaPolicyProvider mfaPolicyProvider,
-                                                                                   ApplicationContext applicationContext) {
+                                                                                   ApplicationContext applicationContext,
+                                                                                   MfaStateMachineIntegrator MfaStateMachineIntegrator) {
         return new UnifiedAuthenticationSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,authResponseWriter,
-                                                        authContextProperties, applicationContext);
+                                                        authContextProperties, applicationContext, MfaStateMachineIntegrator);
     }
 
     @Bean

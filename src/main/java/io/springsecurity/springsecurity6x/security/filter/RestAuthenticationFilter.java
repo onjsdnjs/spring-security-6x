@@ -81,6 +81,31 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.secureRandom = new SecureRandom();
     }
 
+    public void setRequestMatcher(RequestMatcher requestMatcher) {
+        Assert.notNull(requestMatcher, "requestMatcher cannot be null");
+        this.requestMatcher = requestMatcher;
+    }
+
+    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
+        Assert.notNull(successHandler, "successHandler cannot be null");
+        this.successHandler = successHandler;
+    }
+
+    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
+        Assert.notNull(failureHandler, "failureHandler cannot be null");
+        this.failureHandler = failureHandler;
+    }
+
+    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
+        Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
+        this.securityContextRepository = securityContextRepository;
+    }
+
+    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+        Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
+        this.securityContextHolderStrategy = securityContextHolderStrategy;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

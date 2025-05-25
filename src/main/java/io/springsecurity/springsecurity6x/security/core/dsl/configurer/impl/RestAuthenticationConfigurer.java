@@ -17,6 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -32,7 +33,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     private String mfaInitiateUrl;
 
     public RestAuthenticationConfigurer() {
-        this.requestMatcher = new AntPathRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+        this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
     }
 
     @Override
@@ -72,7 +73,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
 
         // requestMatcher가 loginProcessingUrl에 의해 설정되었는지 확인
         if (this.requestMatcher == null) {
-            this.requestMatcher = new AntPathRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+            this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
         }
         Assert.notNull(this.mfaInitiateUrl, "mfaInitiateUrl must be configured or have a default value.");
 
@@ -99,7 +100,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     public RestAuthenticationConfigurer<H> loginProcessingUrl(String loginProcessingUrl) {
         Assert.hasText(loginProcessingUrl, "loginProcessingUrl must not be null or empty");
         this.loginProcessingUrl = loginProcessingUrl;
-        this.requestMatcher = new AntPathRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+        this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
         return this;
     }
 

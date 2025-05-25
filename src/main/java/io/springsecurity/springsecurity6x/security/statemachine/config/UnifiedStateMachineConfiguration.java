@@ -5,7 +5,14 @@ import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConf
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.core.*;
+import io.springsecurity.springsecurity6x.security.statemachine.core.InMemoryStateMachinePersist;
+import io.springsecurity.springsecurity6x.security.statemachine.core.MfaEventPublisher;
+import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.ResilientRedisStateMachinePersist;
+import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
+import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
+import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.OptimizedMfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStateChangeListener;
@@ -27,10 +34,12 @@ import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
 import org.springframework.statemachine.persist.StateMachinePersister;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * 통합 State Machine 설정
  * - 모든 State Machine 관련 설정을 하나로 통합
- * - 중복 제거 및 명확한 의존성 관리
+ * - 최적화된 구성 요소 사용
  */
 @Slf4j
 @Configuration
@@ -43,19 +52,44 @@ public class UnifiedStateMachineConfiguration {
     private final AuthContextProperties authContextProperties;
 
     /**
+     * State Machine Pool 설정
+     */
+    @Bean
+    @Primary
+    public StateMachinePool stateMachinePool(
+            StateMachineFactory<MfaState, MfaEvent> stateMachineFactory,
+            StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister) {
+
+        int corePoolSize = properties.getPool() != null ? properties.getPool().getCoreSize() : 10;
+        int maxPoolSize = properties.getPool() != null ? properties.getPool().getMaxSize() : 50;
+        long keepAliveTime = properties.getPool() != null ? properties.getPool().getKeepAliveTime() : 10;
+
+        log.info("Creating State Machine Pool - Core: {}, Max: {}, KeepAlive: {}min",
+                corePoolSize, maxPoolSize, keepAliveTime);
+
+        return new StateMachinePool(
+                stateMachineFactory,
+                stateMachinePersister,
+                corePoolSize,
+                maxPoolSize,
+                keepAliveTime,
+                TimeUnit.MINUTES
+        );
+    }
+
+    /**
      * State Machine 영속화 전략
      */
     @Bean
     @Primary
     public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
             @Value("${security.statemachine.persistence.type:memory}") String persistenceType,
-            @Qualifier("stateMachinePersistRedisTemplate") RedisTemplate<String, byte[]> redisTemplate) {
+            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
 
         log.info("Configuring State Machine persistence with type: {}", persistenceType);
 
         switch (persistenceType.toLowerCase()) {
             case "redis":
-                // Fallback 설정
                 StateMachinePersist<MfaState, MfaEvent, String> fallback = null;
                 if (properties.getPersistence() != null && properties.getPersistence().isEnableFallback()) {
                     fallback = new InMemoryStateMachinePersist();
@@ -64,15 +98,7 @@ public class UnifiedStateMachineConfiguration {
                 int ttlMinutes = properties.getPersistence() != null && properties.getPersistence().getTtlMinutes() != null
                         ? properties.getPersistence().getTtlMinutes() : 30;
 
-                // RedisTemplate<String, String>으로 변환 필요
-                @SuppressWarnings("unchecked")
-                RedisTemplate<String, String> stringRedisTemplate = (RedisTemplate<String, String>) (RedisTemplate<?, ?>) redisTemplate;
-
-                return new ResilientRedisStateMachinePersist(
-                        stringRedisTemplate,
-                        fallback,
-                        ttlMinutes
-                );
+                return new ResilientRedisStateMachinePersist(redisTemplate, fallback, ttlMinutes);
 
             case "memory":
             default:
@@ -90,70 +116,58 @@ public class UnifiedStateMachineConfiguration {
     }
 
     /**
-     * 분산 락 서비스
-     * - RedisDistributedLockService를 사용
-     * - Bean 이름을 명확히 지정하여 충돌 방지
+     * Optimistic Lock 관리자
      */
-    @Bean(name = "RedisDistributedLockService")
+    @Bean
     @Primary
-    @ConditionalOnMissingBean(RedisDistributedLockService.class)
-    public RedisDistributedLockService RedisDistributedLockService(
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
-        log.info("Creating practical distributed lock service");
-        return new RedisDistributedLockService(redisTemplate);
+    public OptimisticLockManager optimisticLockManager() {
+        log.info("Creating Optimistic Lock Manager");
+        return new OptimisticLockManager();
     }
 
     /**
-     * MFA 이벤트 발행자
+     * 비동기 이벤트 발행자
      */
-    @Bean(name = "mfaEventPublisher")
+    @Bean
     @Primary
-    public MfaEventPublisher mfaEventPublisher(
+    public AsyncEventPublisher asyncEventPublisher(
             ApplicationEventPublisher applicationEventPublisher,
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
 
-        // Properties에서 events 설정 확인
-        boolean eventsEnabled = properties.getEvents() != null && properties.getEvents().isEnabled();
-        String eventType = properties.getEvents() != null ? properties.getEvents().getType() : "local";
-
-        if (!eventsEnabled) {
-            log.info("Event publishing disabled");
-            return new NoOpEventPublisher();
-        }
-
-        log.info("Event publishing enabled with type: {}", eventType);
-
-        switch (eventType.toLowerCase()) {
-            case "redis":
-                return new RedisBasedEventPublisher(redisTemplate, applicationEventPublisher);
-            case "local":
-            default:
-                return new MfaEventPublisherImpl(applicationEventPublisher);
-        }
+        log.info("Creating Async Event Publisher");
+        return new AsyncEventPublisher(applicationEventPublisher, redisTemplate);
     }
 
     /**
-     * MFA State Machine Service
+     * MFA 이벤트 발행자 (AsyncEventPublisher 사용)
+     */
+    @Bean(name = "mfaEventPublisher")
+    public MfaEventPublisher mfaEventPublisher(AsyncEventPublisher asyncEventPublisher) {
+        return asyncEventPublisher;
+    }
+
+    /**
+     * 최적화된 MFA State Machine Service
      */
     @Bean
     @Primary
     public MfaStateMachineService mfaStateMachineService(
-            StateMachineFactory<MfaState, MfaEvent> stateMachineFactory,
-            StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister,
+            StateMachinePool stateMachinePool,
             FactorContextStateAdapter factorContextAdapter,
             ContextPersistence contextPersistence,
-            @Qualifier("mfaEventPublisher") MfaEventPublisher eventPublisher,
-            @Qualifier("RedisDistributedLockService") RedisDistributedLockService lockService,
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+            AsyncEventPublisher eventPublisher,
+            DistributedLockManager distributedLockManager,
+            OptimisticLockManager optimisticLockManager) {
 
-        return new ScalableMfaStateMachineService(
-                stateMachineFactory,
-                stateMachinePersister,
+        log.info("Creating Optimized MFA State Machine Service");
+
+        return new OptimizedMfaStateMachineService(
+                stateMachinePool,
                 factorContextAdapter,
                 contextPersistence,
                 eventPublisher,
-                lockService,
-                redisTemplate
+                distributedLockManager,
+                optimisticLockManager
         );
     }
 
@@ -173,81 +187,52 @@ public class UnifiedStateMachineConfiguration {
     }
 
     /**
-     * Properties에 persistence와 events 설정 추가 필요
+     * Redis Distributed Lock Service
      */
-    @Bean
-    @ConditionalOnMissingBean
-    public StateMachineProperties.PersistenceProperties persistenceProperties() {
-        StateMachineProperties.PersistenceProperties props = new StateMachineProperties.PersistenceProperties();
-        props.setType("memory");
-        props.setEnableFallback(true);
-        props.setTtlMinutes(30);
-        return props;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public StateMachineProperties.EventsProperties eventsProperties() {
-        StateMachineProperties.EventsProperties props = new StateMachineProperties.EventsProperties();
-        props.setEnabled(true);
-        props.setType("local");
-        return props;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public StateMachineProperties.CacheProperties cacheProperties() {
-        StateMachineProperties.CacheProperties props = new StateMachineProperties.CacheProperties();
-        props.setMaxSize(1000);
-        props.setTtlMinutes(5);
-        return props;
+    @Bean(name = "RedisDistributedLockService")
+    @Primary
+    @ConditionalOnMissingBean(RedisDistributedLockService.class)
+    public RedisDistributedLockService redisDistributedLockService(
+            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+        log.info("Creating Redis Distributed Lock Service");
+        return new RedisDistributedLockService(redisTemplate);
     }
 
     /**
-     * No-Op 이벤트 발행자
+     * State Machine Properties 기본값 설정
      */
-    private static class NoOpEventPublisher implements MfaEventPublisher {
-        @Override
-        public void publishStateChange(String sessionId, MfaState state, MfaEvent event) {
-            // Do nothing
-        }
+    @Bean
+    @ConditionalOnMissingBean
+    public StateMachineProperties stateMachineProperties() {
+        StateMachineProperties props = new StateMachineProperties();
 
-        @Override
-        public void publishError(String sessionId, Exception error) {
-            // Do nothing
-        }
+        // Pool 설정
+        StateMachineProperties.PoolProperties poolProps = new StateMachineProperties.PoolProperties();
+        poolProps.setCoreSize(10);
+        poolProps.setMaxSize(50);
+        poolProps.setKeepAliveTime(10L);
+        props.setPool(poolProps);
 
-        @Override
-        public void publishCustomEvent(String eventType, Object payload) {
-            // Do nothing
-        }
-    }
+        // Persistence 설정
+        StateMachineProperties.PersistenceProperties persistenceProps = new StateMachineProperties.PersistenceProperties();
+        persistenceProps.setType("memory");
+        persistenceProps.setEnableFallback(true);
+        persistenceProps.setTtlMinutes(30);
+        props.setPersistence(persistenceProps);
 
-    /**
-     * Redis 기반 이벤트 발행자
-     */
-    private static class RedisBasedEventPublisher extends MfaEventPublisherImpl {
-        private final RedisTemplate<String, String> redisTemplate;
+        // Events 설정
+        StateMachineProperties.EventsProperties eventsProps = new StateMachineProperties.EventsProperties();
+        eventsProps.setEnabled(true);
+        eventsProps.setType("local");
+        props.setEvents(eventsProps);
 
-        public RedisBasedEventPublisher(RedisTemplate<String, String> redisTemplate,
-                                        ApplicationEventPublisher applicationEventPublisher) {
-            super(applicationEventPublisher);
-            this.redisTemplate = redisTemplate;
-        }
+        // MFA 설정
+        StateMachineProperties.MfaProperties mfaProps = new StateMachineProperties.MfaProperties();
+        mfaProps.setEnableMetrics(true);
+        mfaProps.setMaxRetries(3);
+        mfaProps.setSessionTimeoutMinutes(30);
+        props.setMfa(mfaProps);
 
-        @Override
-        public void publishStateChange(String sessionId, MfaState state, MfaEvent event) {
-            // 로컬 발행
-            super.publishStateChange(sessionId, state, event);
-
-            // Redis Pub/Sub
-            try {
-                String message = String.format("{\"sessionId\":\"%s\",\"state\":\"%s\",\"event\":\"%s\",\"timestamp\":%d}",
-                        sessionId, state.name(), event.name(), System.currentTimeMillis());
-                redisTemplate.convertAndSend("mfa:events:state-change", message);
-            } catch (Exception e) {
-                log.error("Failed to publish event to Redis", e);
-            }
-        }
+        return props;
     }
 }

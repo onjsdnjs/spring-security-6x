@@ -1,0 +1,412 @@
+package io.springsecurity.springsecurity6x.security.statemachine.core.service;
+
+import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributedLockService;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
+import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
+import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
+import io.springsecurity.springsecurity6x.security.statemachine.core.pool.PooledStateMachine;
+import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.statemachine.StateMachine;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * 최적화된 MFA State Machine 서비스
+ * - State Machine Pool 활용
+ * - 비동기 이벤트 처리
+ * - Optimistic Locking
+ * - Circuit Breaker 패턴
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OptimizedMfaStateMachineService implements MfaStateMachineService {
+
+    private final StateMachinePool stateMachinePool;
+    private final FactorContextStateAdapter factorContextAdapter;
+    private final ContextPersistence contextPersistence;
+    private final AsyncEventPublisher eventPublisher;
+    private final RedisDistributedLockService distributedLockService;
+    private final OptimisticLockManager optimisticLockManager;
+
+    // 비동기 처리를 위한 Executor
+    private final ExecutorService asyncExecutor = new ThreadPoolExecutor(
+            10, 50,
+            60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(1000),
+            new ThreadFactory() {
+                private int counter = 0;
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread thread = new Thread(r, "MfaStateMachine-Async-" + counter++);
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
+
+    // Circuit Breaker 상태
+    private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
+    private volatile long lastFailureTime = 0;
+    private final AtomicReference<Integer> failureCount = new AtomicReference<>(0);
+
+    @Value("${security.statemachine.circuit-breaker.failure-threshold:5}")
+    private int failureThreshold;
+
+    @Value("${security.statemachine.circuit-breaker.timeout-seconds:30}")
+    private int circuitBreakerTimeout;
+
+    @Value("${security.statemachine.operation-timeout-seconds:10}")
+    private int operationTimeout;
+
+    @Override
+    public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
+        String sessionId = context.getMfaSessionId();
+        log.info("Initializing state machine for session: {}", sessionId);
+
+        // Circuit Breaker 확인
+        if (!isCircuitClosed()) {
+            throw new StateMachineException("Circuit breaker is open");
+        }
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            try {
+                // Distributed Lock 획득
+                distributedLockService.executeWithLock("sm:init:" + sessionId, Duration.ofSeconds(operationTimeout), () -> {
+
+                    // State Machine Pool에서 대여
+                    PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
+                            sessionId, operationTimeout, TimeUnit.SECONDS
+                    ).join();
+
+                    StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
+
+                    // 초기 컨텍스트 설정
+                    Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+                    stateMachine.getExtendedState().getVariables().putAll(variables);
+
+                    // State Machine 시작
+                    if (!stateMachine.isComplete() && stateMachine.getState() == null) {
+                        stateMachine.start();
+                    }
+
+                    // PRIMARY_AUTH_SUCCESS 이벤트 전송
+                    Message<MfaEvent> message = MessageBuilder
+                            .withPayload(MfaEvent.PRIMARY_AUTH_SUCCESS)
+                            .setHeader("sessionId", sessionId)
+                            .setHeader("timestamp", System.currentTimeMillis())
+                            .build();
+
+                    stateMachine.sendEvent(message);
+
+                    // Context 업데이트 및 저장
+                    factorContextAdapter.updateFactorContext(stateMachine, context);
+                    contextPersistence.saveContext(context, request);
+
+                    // State Machine 반환
+                    stateMachinePool.returnStateMachine(sessionId).join();
+
+                    // 이벤트 발행
+                    eventPublisher.publishStateChangeAsync(
+                            sessionId, MfaState.NONE, stateMachine.getState().getId(),
+                            MfaEvent.PRIMARY_AUTH_SUCCESS
+                    );
+
+                    // 성공 시 Circuit Breaker 리셋
+                    onSuccess();
+
+                    return null;
+                });
+            } catch (Exception e) {
+                onFailure();
+                throw new StateMachineException("Failed to initialize state machine", e);
+            }
+        }, asyncExecutor);
+
+        // 타임아웃 적용
+        try {
+            future.get(operationTimeout, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new StateMachineException("State machine initialization timeout", e);
+        } catch (Exception e) {
+            throw new StateMachineException("State machine initialization failed", e);
+        }
+    }
+
+    @Override
+    public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
+        String sessionId = context.getMfaSessionId();
+        log.info("Sending event {} for session: {}", event, sessionId);
+
+        // Circuit Breaker 확인
+        if (!isCircuitClosed()) {
+            log.error("Circuit breaker is open, rejecting event");
+            return false;
+        }
+
+        // Optimistic Lock으로 버전 확인
+        if (!optimisticLockManager.checkVersion(sessionId, context.getVersion().get())) {
+            log.warn("Version conflict detected for session: {}", sessionId);
+            // 최신 상태 다시 로드
+            FactorContext latestContext = contextPersistence.contextLoad(request);
+            if (latestContext != null) {
+                context.changeState(latestContext.getCurrentState());
+                context.getVersion().set(latestContext.getVersion().get());
+            }
+        }
+
+        CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                return distributedLockService.executeWithLock("sm:event:" + sessionId, Duration.ofSeconds(operationTimeout), () -> {
+
+                    // State Machine Pool에서 대여
+                    PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
+                            sessionId, operationTimeout, TimeUnit.SECONDS
+                    ).join();
+
+                    try {
+                        StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
+
+                        // 현재 상태 저장
+                        MfaState currentState = stateMachine.getState().getId();
+
+                        // Context 동기화
+                        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+                        stateMachine.getExtendedState().getVariables().putAll(variables);
+
+                        // 이벤트 메시지 생성
+                        Message<MfaEvent> message = createEventMessage(event, context, request);
+
+                        // 이벤트 전송
+                        boolean accepted = stateMachine.sendEvent(message);
+
+                        if (accepted) {
+                            MfaState newState = stateMachine.getState().getId();
+
+                            // Context 업데이트
+                            factorContextAdapter.updateFactorContext(stateMachine, context);
+
+                            // 버전 증가
+                            context.getVersion().incrementAndGet();
+                            optimisticLockManager.updateVersion(sessionId, context.getVersion().get());
+
+                            // Context 저장
+                            contextPersistence.saveContext(context, request);
+
+                            // 비동기 이벤트 발행
+                            eventPublisher.publishStateChangeAsync(sessionId, currentState, newState, event);
+
+                            log.info("Event {} accepted, state transition: {} -> {} for session: {}",
+                                    event, currentState, newState, sessionId);
+                        } else {
+                            log.warn("Event {} rejected in state {} for session: {}",
+                                    event, currentState, sessionId);
+                        }
+
+                        onSuccess();
+                        return accepted;
+
+                    } finally {
+                        // State Machine 반환
+                        stateMachinePool.returnStateMachine(sessionId);
+                    }
+                });
+            } catch (Exception e) {
+                onFailure();
+                log.error("Failed to send event {} for session: {}", event, sessionId, e);
+                return false;
+            }
+        }, asyncExecutor);
+
+        try {
+            return future.get(operationTimeout, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            log.error("Event processing timeout for session: {}", sessionId);
+            return false;
+        } catch (Exception e) {
+            log.error("Event processing failed for session: {}", sessionId, e);
+            return false;
+        }
+    }
+
+    @Override
+    public MfaState getCurrentState(String sessionId) {
+        try {
+            // 먼저 캐시된 상태 확인
+            MfaState cachedState = optimisticLockManager.getCachedState(sessionId);
+            if (cachedState != null) {
+                return cachedState;
+            }
+
+            // Pool에서 State Machine 가져와서 확인
+            return distributedLockManager.executeWithLock(sessionId, Duration.ofSeconds(5), () -> {
+
+                PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
+                        sessionId, 5, TimeUnit.SECONDS
+                ).join();
+
+                try {
+                    MfaState state = pooled.getStateMachine().getState().getId();
+
+                    // 캐시 업데이트
+                    optimisticLockManager.updateCachedState(sessionId, state);
+
+                    return state;
+                } finally {
+                    stateMachinePool.returnStateMachine(sessionId);
+                }
+            });
+        } catch (Exception e) {
+            log.error("Failed to get current state for session: {}", sessionId, e);
+
+            // Fallback: Context에서 상태 가져오기
+            try {
+                FactorContext context = contextPersistence.loadContext(sessionId, null);
+                return context != null ? context.getCurrentState() : MfaState.NONE;
+            } catch (Exception ex) {
+                return MfaState.NONE;
+            }
+        }
+    }
+
+    @Override
+    public void releaseStateMachine(String sessionId) {
+        log.info("Releasing state machine for session: {}", sessionId);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 캐시 정리
+                optimisticLockManager.clearCache(sessionId);
+
+                // Context 정리
+                contextPersistence.deleteContext(null);
+
+                // 완료 이벤트 발행
+                eventPublisher.publishCustomEventAsync("SESSION_CLEANUP", Map.of(
+                        "sessionId", sessionId,
+                        "timestamp", System.currentTimeMillis()
+                ));
+
+            } catch (Exception e) {
+                log.error("Error releasing state machine for session: {}", sessionId, e);
+            }
+        }, asyncExecutor);
+    }
+
+    /**
+     * 이벤트 메시지 생성
+     */
+    private Message<MfaEvent> createEventMessage(MfaEvent event, FactorContext context, HttpServletRequest request) {
+        return MessageBuilder
+                .withPayload(event)
+                .setHeader("sessionId", context.getMfaSessionId())
+                .setHeader("username", context.getUsername())
+                .setHeader("timestamp", System.currentTimeMillis())
+                .setHeader("authentication", context.getPrimaryAuthentication())
+                .setHeader("request", request)
+                .setHeader("version", context.getVersion().get())
+                .build();
+    }
+
+    /**
+     * Circuit Breaker 상태 확인
+     */
+    private boolean isCircuitClosed() {
+        CircuitState state = circuitState.get();
+
+        if (state == CircuitState.OPEN) {
+            // 타임아웃 확인
+            if (System.currentTimeMillis() - lastFailureTime > circuitBreakerTimeout * 1000) {
+                circuitState.compareAndSet(CircuitState.OPEN, CircuitState.HALF_OPEN);
+                log.info("Circuit breaker transitioned to HALF_OPEN");
+                return true;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 성공 처리
+     */
+    private void onSuccess() {
+        if (circuitState.get() == CircuitState.HALF_OPEN) {
+            circuitState.set(CircuitState.CLOSED);
+            failureCount.set(0);
+            log.info("Circuit breaker closed after successful operation");
+        }
+    }
+
+    /**
+     * 실패 처리
+     */
+    private void onFailure() {
+        lastFailureTime = System.currentTimeMillis();
+        int count = failureCount.updateAndGet(c -> c + 1);
+
+        if (count >= failureThreshold) {
+            circuitState.set(CircuitState.OPEN);
+            log.error("Circuit breaker opened after {} failures", count);
+        }
+    }
+
+    /**
+     * 서비스 종료
+     */
+    public void shutdown() {
+        log.info("Shutting down MFA State Machine Service");
+
+        asyncExecutor.shutdown();
+        try {
+            if (!asyncExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                asyncExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            asyncExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        stateMachinePool.shutdown();
+    }
+
+    /**
+     * Circuit Breaker 상태
+     */
+    private enum CircuitState {
+        CLOSED,     // 정상 작동
+        OPEN,       // 차단 상태
+        HALF_OPEN   // 테스트 상태
+    }
+
+    /**
+     * State Machine 예외
+     */
+    public static class StateMachineException extends RuntimeException {
+        public StateMachineException(String message) {
+            super(message);
+        }
+
+        public StateMachineException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+}

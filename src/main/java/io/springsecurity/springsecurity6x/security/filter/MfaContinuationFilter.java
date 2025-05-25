@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersi
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandlerWithStateMachine;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -33,6 +35,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private final RequestMatcher requestMatcher;
     private final MfaRequestHandler requestHandler;
     private final MfaUrlMatcher urlMatcher;
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
 
     public MfaContinuationFilter(ContextPersistence contextPersistence,
                                  MfaPolicyProvider mfaPolicyProvider,
@@ -49,13 +52,16 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.urlMatcher = new MfaUrlMatcher(authContextProperties, applicationContext);
         this.requestMatcher = urlMatcher.createRequestMatcher();
 
-        // 요청 핸들러 초기화 (State Machine 서비스 없이)
-        this.requestHandler = new MfaRequestHandler(
+        // State Machine 통합자 초기화 (빈으로 가져오기)
+        this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+
+        // 요청 핸들러 초기화 - State Machine 통합자 추가
+        this.requestHandler = new MfaRequestHandlerWithStateMachine(
                 contextPersistence, mfaPolicyProvider, authContextProperties,
-                responseWriter, applicationContext, urlMatcher
+                responseWriter, applicationContext, urlMatcher, stateMachineIntegrator
         );
 
-        log.info("MfaContinuationFilter initialized");
+        log.info("MfaContinuationFilter initialized with State Machine integration");
     }
 
     @Override
@@ -76,6 +82,9 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // State Machine 초기화 및 동기화
+        stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+
         if (ctx.getCurrentState().isTerminal()) {
             requestHandler.handleTerminalContext(request, response, ctx);
             return;
@@ -84,7 +93,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         try {
             MfaRequestType requestType = urlMatcher.getRequestType(request);
 
-            // 요청 처리
+            // State Machine 통합된 요청 처리
             requestHandler.handleRequest(requestType, request, response, ctx, filterChain);
 
         } catch (Exception e) {

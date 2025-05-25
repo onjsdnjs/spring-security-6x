@@ -41,11 +41,7 @@ public class MfaApiController {
 
             // 이벤트와 함께 선택된 팩터 정보 전달
             boolean accepted = stateMachineService.sendEvent(
-                    MessageBuilder
-                            .withPayload(event)
-                            .setHeader("selectedFactor", factorType)
-                            .setHeader("sessionId", ctx.getMfaSessionId())
-                            .build(),
+                    MfaEvent.FACTOR_SELECTED_OTT,
                     ctx,
                     httpRequest
             );

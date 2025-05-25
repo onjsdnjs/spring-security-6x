@@ -29,16 +29,15 @@ public class MfaSupportService { // 클래스명 변경
 
         return userRepository.findByUsername(username)
                 .map(user -> {
-                    String mfaFactorsString = user.getMfaFactors();
-                    if (StringUtils.hasText(mfaFactorsString)) {
+                    if (!user.getMfaFactors().isEmpty()) {
                         try {
-                            return java.util.Arrays.stream(mfaFactorsString.split(","))
+                            return user.getMfaFactors().stream()
                                     .map(String::trim)
                                     .map(String::toUpperCase)
                                     .map(AuthType::valueOf)
                                     .collect(Collectors.toCollection(() -> EnumSet.noneOf(AuthType.class)));
                         } catch (IllegalArgumentException e) {
-                            log.warn("Invalid AuthType string found in mfaFactors for user {}: '{}'", username, mfaFactorsString, e);
+                            log.warn("Invalid AuthType string found in mfaFactors for user {}: '{}'", username, user.getMfaFactors(), e);
                             return EnumSet.noneOf(AuthType.class);
                         }
                     }

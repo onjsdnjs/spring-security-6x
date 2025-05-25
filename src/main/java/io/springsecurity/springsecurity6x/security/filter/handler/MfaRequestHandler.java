@@ -13,6 +13,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -23,6 +24,7 @@ import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
+@Getter
 public class MfaRequestHandler {
 
     private final ContextPersistence contextPersistence;
@@ -64,7 +66,7 @@ public class MfaRequestHandler {
         }
     }
 
-    private void handleMfaInitiate(HttpServletRequest request, HttpServletResponse response,
+    protected void handleMfaInitiate(HttpServletRequest request, HttpServletResponse response,
                                    FactorContext ctx) throws IOException {
         MfaState currentState = ctx.getCurrentState();
 
@@ -81,7 +83,7 @@ public class MfaRequestHandler {
         }
     }
 
-    private void handleSelectFactor(HttpServletRequest request, HttpServletResponse response,
+    protected void handleSelectFactor(HttpServletRequest request, HttpServletResponse response,
                                     FactorContext ctx) throws IOException {
         if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
             log.warn("Invalid state {} for factor selection", ctx.getCurrentState());
@@ -92,7 +94,7 @@ public class MfaRequestHandler {
         // 실제 렌더링은 컨트롤러에서 처리하므로 패스
     }
 
-    private void handleTokenGeneration(HttpServletRequest request, HttpServletResponse response,
+    protected void handleTokenGeneration(HttpServletRequest request, HttpServletResponse response,
                                        FactorContext ctx, FilterChain filterChain)
             throws IOException, ServletException {
         if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
@@ -127,7 +129,7 @@ public class MfaRequestHandler {
                 "MFA_TERMINAL_STATE", message, request.getRequestURI(), errorResponse);
     }
 
-    public void handleInvalidStateTransition(HttpServletRequest request, HttpServletResponse response,
+    protected void handleInvalidStateTransition(HttpServletRequest request, HttpServletResponse response,
                                              FactorContext ctx, MfaEvent event) throws IOException {
         log.error("Invalid state transition: {} -> {} for session: {}",
                 ctx.getCurrentState(), event, ctx.getMfaSessionId());
@@ -161,7 +163,7 @@ public class MfaRequestHandler {
                 request.getRequestURI(), errorResponse);
     }
 
-    private void handleInvalidState(HttpServletRequest request, HttpServletResponse response,
+    protected void handleInvalidState(HttpServletRequest request, HttpServletResponse response,
                                     FactorContext ctx) throws IOException {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("error", "INVALID_STATE");
@@ -174,7 +176,7 @@ public class MfaRequestHandler {
                 request.getRequestURI(), errorResponse);
     }
 
-    private String determineChalllengeUrl(FactorContext ctx, HttpServletRequest request) {
+    protected String determineChalllengeUrl(FactorContext ctx, HttpServletRequest request) {
         if (ctx.getCurrentProcessingFactor() == null) {
             return request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
         }

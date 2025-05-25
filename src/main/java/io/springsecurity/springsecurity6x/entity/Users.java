@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor; // 기본 생성자 추가
 
+import java.util.List;
+
 @Entity
 @Data
 @NoArgsConstructor // JPA 엔티티는 기본 생성자가 필요할 수 있음
@@ -34,7 +36,7 @@ public class Users {
      * 예: "OTT,PASSKEY" 또는 "OTT" 등. 비어있으면 등록된 MFA 없음.
      * EnumSet을 직접 저장하는 것보다 문자열로 저장하고 파싱하는 것이 일반적.
      */
-    private String registeredMfaFactors;
+    private List<String> registeredMfaFactors;
 
     public Users(String username, String password, String name, String roles) {
         this.username = username;
@@ -44,12 +46,12 @@ public class Users {
     }
 
     // registeredMfaFactors 필드에 대한 getter (MfaWorkflowService 에서 사용)
-    public String getMfaFactors() {
+    public List<String> getMfaFactors() {
         return registeredMfaFactors;
     }
 
     // 필요시 mfaFactors를 설정하는 setter도 추가 가능
-    public void setMfaFactors(String factors) {
-        this.registeredMfaFactors = factors;
+    public void setMfaFactors(String[] factors) {
+        this.registeredMfaFactors = List.of(factors);
     }
 }

@@ -8,6 +8,8 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,7 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.authentication.*;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -41,7 +43,7 @@ import java.util.UUID;
 public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
-    private RequestMatcher requestMatcher = new AntPathRequestMatcher("/api/auth/login", "POST");
+    private RequestMatcher requestMatcher = new ParameterRequestMatcher("/api/auth/login", "POST");
     private final ObjectMapper mapper = new ObjectMapper();
 
     private AuthenticationSuccessHandler successHandler = new SavedRequestAwareAuthenticationSuccessHandler();
@@ -52,39 +54,18 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private final AuthenticationManager authenticationManager;
     private final ContextPersistence contextPersistence;
     private final ApplicationContext applicationContext;
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-
-    public RestAuthenticationFilter(AuthenticationManager authenticationManager, ContextPersistence contextPersistence,
+    public RestAuthenticationFilter(AuthenticationManager authenticationManager,
+                                    ContextPersistence contextPersistence,
                                     ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
         this.authenticationManager = authenticationManager;
         this.contextPersistence = contextPersistence;
-    }
 
-    public void setRequestMatcher(RequestMatcher requestMatcher) {
-        Assert.notNull(requestMatcher, "requestMatcher cannot be null");
-        this.requestMatcher = requestMatcher;
-    }
-
-    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
-        Assert.notNull(successHandler, "successHandler cannot be null");
-        this.successHandler = successHandler;
-    }
-
-    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
-        Assert.notNull(failureHandler, "failureHandler cannot be null");
-        this.failureHandler = failureHandler;
-    }
-
-    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
-        Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
-        this.securityContextRepository = securityContextRepository;
-    }
-
-    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
-        Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
-        this.securityContextHolderStrategy = securityContextHolderStrategy;
+        // State Machine 통합자 초기화
+        this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
     }
 
     @Override
@@ -129,55 +110,92 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         securityContextHolderStrategy.setContext(context);
         securityContextRepository.saveContext(context, request, response);
 
-        // 기존 FactorContext가 있다면 삭제 (1차 인증은 항상 새로운 MFA 세션 시작 또는 단일 인증 완료로 간주)
+        // 기존 FactorContext가 있다면 삭제
         FactorContext existingContext = contextPersistence.contextLoad(request);
         if (existingContext != null) {
             log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
                     existingContext.getMfaSessionId(), authentication.getName());
+
+            // State Machine도 해제
+            if (existingContext.getMfaSessionId() != null) {
+                stateMachineIntegrator.releaseStateMachine(existingContext.getMfaSessionId());
+            }
+
             contextPersistence.deleteContext(request);
         }
 
         String mfaSessionId = UUID.randomUUID().toString();
-        // 1차 인증 성공 시점에서는 flowTypeName을 아직 확정하지 않거나, 'primary' 로 설정.
-        // UnifiedAuthenticationSuccessHandler 에서 MFA 필요 여부에 따라 'mfa'로 설정하거나,
-        // 단일 인증으로 처리.
-        String flowTypeNameForContext = AuthType.MFA.name().toLowerCase(); // 또는 null
+        String flowTypeNameForContext = AuthType.MFA.name().toLowerCase();
 
+        // FactorContext 생성 (초기 상태: PRIMARY_AUTHENTICATION_COMPLETED)
         FactorContext factorContext = new FactorContext(
                 mfaSessionId,
-                authentication, // 인증된 Authentication 객체
-                MfaState.PRIMARY_AUTHENTICATION_COMPLETED, // 1차 인증 완료 상태
-                flowTypeNameForContext // 초기 flowTypeName (SuccessHandler 에서 MFA 여부에 따라 변경될 수 있음)
+                authentication,
+                MfaState.PRIMARY_AUTHENTICATION_COMPLETED,
+                flowTypeNameForContext
         );
 
         String deviceId = getOrCreateDeviceId(request);
         factorContext.setAttribute("deviceId", deviceId);
-        // FactorContext에 registeredMfaFactors 설정은 MfaPolicyProvider가 evaluate 시 수행하도록 함.
 
+        // Context 저장
         contextPersistence.saveContext(factorContext, request);
-        log.info("FactorContext (ID: {}) created and saved after primary authentication for user: {}. Initial state: {}, FlowType: {}",
-                factorContext.getMfaSessionId(), factorContext.getUsername(), factorContext.getCurrentState(), factorContext.getFlowTypeName());
 
+        // State Machine 초기화
+        stateMachineIntegrator.initializeStateMachine(factorContext, request);
+
+        // PRIMARY_AUTH_SUCCESS 이벤트 전송
+        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
+
+        if (!accepted) {
+            log.error("State Machine rejected PRIMARY_AUTH_SUCCESS event for session: {}", mfaSessionId);
+            // 에러 처리
+            unsuccessfulAuthentication(request, response,
+                    new AuthenticationException("State Machine initialization failed") {});
+            return;
+        }
+
+        log.info("FactorContext (ID: {}) created with State Machine integration for user: {}. State: {}",
+                factorContext.getMfaSessionId(), factorContext.getUsername(), factorContext.getCurrentState());
+
+        // 첫 번째 단계를 완료된 것으로 마킹 (1차 인증)
         AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
-        AuthenticationStepConfig currentFactorJustCompleted = mfaFlowConfig.getStepConfigs().stream()
-                .findFirst()
-                .orElse(null);
+        if (mfaFlowConfig != null && !mfaFlowConfig.getStepConfigs().isEmpty()) {
+            AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
+                    .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
+                    .findFirst()
+                    .orElse(mfaFlowConfig.getStepConfigs().getFirst());
 
-        factorContext.addCompletedFactor(currentFactorJustCompleted);
+            factorContext.addCompletedFactor(primaryAuthStep);
+            contextPersistence.saveContext(factorContext, request);
+        }
 
         successHandler.onAuthenticationSuccess(request, response, authentication);
     }
 
+    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                            AuthenticationException failed) throws IOException, ServletException {
+        securityContextHolderStrategy.clearContext();
+
+        // State Machine 정리
+        FactorContext context = contextPersistence.contextLoad(request);
+        if (context != null && context.getMfaSessionId() != null) {
+            stateMachineIntegrator.releaseStateMachine(context.getMfaSessionId());
+        }
+
+        contextPersistence.deleteContext(request);
+        failureHandler.onAuthenticationFailure(request, response, failed);
+    }
+
     @Nullable
     private AuthenticationFlowConfig findMfaFlowConfig(String flowTypeName) {
-
-        if (!AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) { // MFA 플로우만 처리
-            log.warn("Attempting to find non-MFA flow config in MfaFactorProcessingSuccessHandler: {}", flowTypeName);
+        if (!AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) {
+            log.warn("Attempting to find non-MFA flow config: {}", flowTypeName);
             return null;
         }
         try {
             PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
-            if (platformConfig != null && platformConfig.getFlows() != null) {
+            if (platformConfig.getFlows() != null) {
                 return platformConfig.getFlows().stream()
                         .filter(flow -> flowTypeName.equalsIgnoreCase(flow.getTypeName()))
                         .findFirst()
@@ -187,13 +205,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             log.warn("Error retrieving PlatformConfig or flow configuration for type {}: {}", flowTypeName, e.getMessage());
         }
         return null;
-    }
-
-    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
-                                            AuthenticationException failed) throws IOException, ServletException {
-        securityContextHolderStrategy.clearContext();
-        contextPersistence.deleteContext(request);
-        failureHandler.onAuthenticationFailure(request, response, failed);
     }
 
     private String getOrCreateDeviceId(HttpServletRequest request) {
@@ -210,4 +221,5 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
         return deviceId;
     }
+
 }

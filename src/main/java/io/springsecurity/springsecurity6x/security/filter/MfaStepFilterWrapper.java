@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFact
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -11,6 +13,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,65 +23,139 @@ import java.util.Objects;
 @Slf4j
 public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
-    private final ConfiguredFactorFilterProvider configuredFactorFilterProvider; // 변경
+    private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
     private final ContextPersistence contextPersistence;
     private final RequestMatcher mfaFactorProcessingMatcher;
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-    public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider, // 변경
+    public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
                                 ContextPersistence contextPersistence,
-                                RequestMatcher mfaFactorProcessingMatcher) {
-        this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider, "ConfiguredFactorFilterProvider cannot be null.");
-        this.contextPersistence = Objects.requireNonNull(contextPersistence, "ContextPersistence cannot be null.");
-        this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher, "mfaFactorProcessingMatcher cannot be null for MfaStepFilterWrapper.");
-        log.info("MfaStepFilterWrapper initialized. Will process requests matching: {}", mfaFactorProcessingMatcher);
+                                RequestMatcher mfaFactorProcessingMatcher,
+                                ApplicationContext applicationContext) {
+        this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider);
+        this.contextPersistence = Objects.requireNonNull(contextPersistence);
+        this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher);
+
+        // State Machine 통합자 가져오기
+        this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+
+        log.info("MfaStepFilterWrapper initialized with State Machine integration");
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain chain) throws ServletException, IOException {
 
         if (!this.mfaFactorProcessingMatcher.matches(request)) {
             chain.doFilter(request, response);
             return;
         }
 
-        log.debug("MfaStepFilterWrapper processing factor submission request: {}", request.getRequestURI());
+        log.debug("MfaStepFilterWrapper processing factor submission request: {}",
+                request.getRequestURI());
 
         FactorContext ctx = contextPersistence.contextLoad(request);
 
-        if (ctx == null || ctx.getCurrentProcessingFactor() == null ||
-                ctx.getCurrentState() != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
-                ctx.getFlowTypeName() == null || ctx.getCurrentStepId() == null) { // flowTypeName, currentStepId null 체크 추가
-            log.warn("MfaStepFilterWrapper: Invalid attempt to process MFA factor. Context/State/Factor/Flow/StepId mismatch. URI: {}, State: {}, CurrentFactor: {}, Flow: {}, StepId: {}. SessionId: {}",
+        if (!isValidFactorProcessingContext(ctx)) {
+            log.warn("Invalid context for MFA factor processing. URI: {}, State: {}, Factor: {}",
                     request.getRequestURI(),
-                    (ctx != null ? ctx.getCurrentState() : "N/A"),
-                    (ctx != null ? ctx.getCurrentProcessingFactor() : "N/A"),
-                    (ctx != null ? ctx.getFlowTypeName() : "N/A"),
-                    (ctx != null ? ctx.getCurrentStepId() : "N/A"),
-                    (ctx != null ? ctx.getMfaSessionId() : "N/A"));
+                    ctx != null ? ctx.getCurrentState() : "null",
+                    ctx != null ? ctx.getCurrentProcessingFactor() : "null");
+
             if (!response.isCommitted()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid MFA step, session, or missing flow/step identifier.");
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                        "Invalid MFA step or session");
             }
             return;
         }
 
-        FactorIdentifier factorIdentifier = FactorIdentifier.of(ctx.getFlowTypeName(), ctx.getCurrentStepId());
+        // State Machine에 SUBMIT_FACTOR_CREDENTIAL 이벤트 전송
+        boolean accepted = stateMachineIntegrator.sendEvent(
+                MfaEvent.SUBMIT_FACTOR_CREDENTIAL, ctx, request);
+
+        if (!accepted) {
+            log.error("State Machine rejected SUBMIT_FACTOR_CREDENTIAL event for session: {} in state: {}",
+                    ctx.getMfaSessionId(), ctx.getCurrentState());
+
+            if (!response.isCommitted()) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                        "Invalid state for factor verification");
+            }
+            return;
+        }
+
+        FactorIdentifier factorIdentifier = FactorIdentifier.of(
+                ctx.getFlowTypeName(), ctx.getCurrentStepId());
 
         Filter delegateFactorFilter = configuredFactorFilterProvider.getFilter(factorIdentifier);
 
         if (delegateFactorFilter != null) {
-            log.info("MfaStepFilterWrapper: Delegating MFA step processing for factorIdentifier '{}' (type: {}) to filter: {}. Session: {}",
-                    factorIdentifier, ctx.getCurrentProcessingFactor(), delegateFactorFilter.getClass().getName(), ctx.getMfaSessionId());
-            delegateFactorFilter.doFilter(request, response, chain);
-            return;
+            log.info("Delegating MFA factor processing for {} to filter: {}",
+                    factorIdentifier, delegateFactorFilter.getClass().getName());
+
+            // FilterChain 래퍼로 State Machine 이벤트 처리 통합
+            FilterChain wrappedChain = new StateMachineAwareFilterChain(
+                    chain, ctx, request, stateMachineIntegrator);
+
+            delegateFactorFilter.doFilter(request, response, wrappedChain);
         } else {
-            log.error("MfaStepFilterWrapper: No delegate filter found in ConfiguredFactorFilterProvider for factorIdentifier: '{}' (type: {}). Critical configuration error. Session: {}",
-                    factorIdentifier, ctx.getCurrentProcessingFactor(), ctx.getMfaSessionId());
+            log.error("No delegate filter found for factorIdentifier: {}", factorIdentifier);
+
             if (!response.isCommitted()) {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "MFA factor processing misconfiguration for " + ctx.getCurrentProcessingFactor());
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "MFA factor processing misconfiguration");
             }
-            return;
+        }
+    }
+
+    private boolean isValidFactorProcessingContext(FactorContext ctx) {
+        return ctx != null &&
+                ctx.getCurrentProcessingFactor() != null &&
+                ctx.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION &&
+                ctx.getFlowTypeName() != null &&
+                ctx.getCurrentStepId() != null;
+    }
+
+    /**
+     * State Machine을 인식하는 FilterChain 래퍼
+     */
+    private static class StateMachineAwareFilterChain implements FilterChain {
+        private final FilterChain delegate;
+        private final FactorContext context;
+        private final HttpServletRequest request;
+        private final MfaStateMachineIntegrator stateMachineIntegrator;
+
+        public StateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
+                                            HttpServletRequest request,
+                                            MfaStateMachineIntegrator stateMachineIntegrator) {
+            this.delegate = delegate;
+            this.context = context;
+            this.request = request;
+            this.stateMachineIntegrator = stateMachineIntegrator;
+        }
+
+        @Override
+        public void doFilter(jakarta.servlet.ServletRequest request,
+                             jakarta.servlet.ServletResponse response)
+                throws IOException, ServletException {
+
+            HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+            // 필터 실행 전 상태
+            MfaState beforeState = context.getCurrentState();
+
+            // 실제 필터 실행
+            delegate.doFilter(request, response);
+
+            // 필터 실행 후 상태 확인 및 이벤트 전송
+            if (!httpResponse.isCommitted()) {
+                // 응답이 커밋되지 않았다면 실패로 간주
+                if (beforeState == context.getCurrentState()) {
+                    // 상태가 변경되지 않았다면 검증 실패
+                    stateMachineIntegrator.sendEvent(
+                            MfaEvent.FACTOR_VERIFICATION_FAILED, context, this.request);
+                }
+            }
         }
     }
 }
-

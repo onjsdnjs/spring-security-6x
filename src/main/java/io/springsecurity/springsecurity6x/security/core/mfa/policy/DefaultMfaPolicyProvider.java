@@ -8,6 +8,8 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +19,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,6 +32,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
+    private MfaStateMachineIntegrator stateMachineIntegrator;
 
     @Override
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
@@ -42,9 +48,21 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         boolean mfaRequired = evaluateMfaRequirement(user);
         ctx.setMfaRequiredAsPerPolicy(mfaRequired);
 
+        // State Machine 통합자 초기화 (lazy loading)
+        if (stateMachineIntegrator == null) {
+            stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+        }
+
+        HttpServletRequest request = getCurrentRequest();
+
         if (!mfaRequired) {
             log.info("MFA not required for user: {}", username);
             ctx.changeState(MfaState.MFA_NOT_REQUIRED);
+
+            // MFA_NOT_REQUIRED 이벤트 전송
+            if (request != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.MFA_NOT_REQUIRED, ctx, request);
+            }
             return;
         }
 
@@ -54,14 +72,34 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
         ctx.setRegisteredMfaFactors(new ArrayList<>(registeredFactors));
 
+        if (registeredFactors.isEmpty()) {
+            log.warn("MFA required but no factors registered for user: {}", username);
+            ctx.changeState(MfaState.MFA_CONFIGURATION_REQUIRED);
+            return;
+        }
+
         // 다음 진행할 Factor 결정
         determineNextFactorToProcess(ctx);
     }
 
     private boolean evaluateMfaRequirement(Users user) {
         // MFA 필요 여부 평가 로직
-        return user.getRoles().equals("ROLE_ADMIN") ||
-                (user.getMfaFactors() != null && !user.getMfaFactors().isEmpty());
+        // 1. 관리자 역할은 무조건 MFA 필요
+        if ("ROLE_ADMIN".equals(user.getRoles())) {
+            return true;
+        }
+
+        // 2. 사용자가 MFA 요소를 등록했으면 MFA 필요
+        if (user.getMfaFactors() != null && !user.getMfaFactors().isEmpty()) {
+            return true;
+        }
+
+        // 3. 조직 정책에 따른 MFA 요구사항 확인 (예시)
+        // if (organizationRequiresMfa(user.getOrganizationId())) {
+        //     return true;
+        // }
+
+        return false;
     }
 
     @Override
@@ -134,6 +172,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
             ctx.changeState(MfaState.ALL_FACTORS_COMPLETED);
+
+            // ALL_REQUIRED_FACTORS_COMPLETED 이벤트 전송
+            HttpServletRequest request = getCurrentRequest();
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
+            }
             return;
         }
 
@@ -179,10 +223,17 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private void updateContextState(FactorContext ctx, CompletionStatus status,
                                     AuthenticationFlowConfig flowConfig) {
+        HttpServletRequest request = getCurrentRequest();
+
         if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
             log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
                     ctx.getUsername(), flowConfig.getTypeName());
             ctx.changeState(MfaState.ALL_FACTORS_COMPLETED);
+
+            // ALL_REQUIRED_FACTORS_COMPLETED 이벤트 전송
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
+            }
         } else if (ctx.getCurrentState() == MfaState.ALL_FACTORS_COMPLETED) {
             log.debug("User {} in flow '{}' is already in ALL_FACTORS_COMPLETED state.",
                     ctx.getUsername(), flowConfig.getTypeName());
@@ -253,7 +304,13 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Assert.notNull(factorType, "FactorType cannot be null.");
         Assert.notNull(ctx, "FactorContext cannot be null.");
 
-        int maxAttempts = 3; // 기본값
+        // Factor 타입별 재시도 정책
+        int maxAttempts = switch (factorType) {
+            case OTT -> 5;  // OTT는 더 많은 재시도 허용
+            case PASSKEY -> 3;  // Passkey는 기본값
+//            case TOTP -> 3;
+            default -> 3;
+        };
 
         log.debug("Providing retry policy (max attempts: {}) for factor {} (user {}, session {})",
                 maxAttempts, factorType, ctx.getUsername(), ctx.getMfaSessionId());
@@ -266,10 +323,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Assert.hasText(username, "Username cannot be empty.");
         Assert.notNull(factorType, "FactorType cannot be null.");
 
+        // Context에서 먼저 확인
         if (ctx != null && !CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
             return ctx.getRegisteredMfaFactors().contains(factorType);
         }
 
+        // DB에서 확인
         Optional<Users> userOptional = userRepository.findByUsername(username);
         if (userOptional.isEmpty()) {
             log.warn("User not found for MFA availability check: {}", username);
@@ -282,16 +341,51 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     @Override
     public RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step) {
+        // Step별 재시도 정책 (Step 설정에 따라 다를 수 있음)
+        if (step.getOptions() != null) {
+            Integer maxRetries = (Integer) step.getOptions().get("maxRetries");
+            if (maxRetries != null) {
+                return new RetryPolicy(maxRetries);
+            }
+        }
+
+        // 기본값
         return new RetryPolicy(3);
     }
 
+    @Override
+    public Integer getRequiredFactorCount(String userId, String flowType) {
+        // 사용자별, 플로우별 필수 팩터 수 결정
+        Users user = userRepository.findByUsername(userId).orElse(null);
+
+        if (user != null) {
+            // 관리자는 2개 팩터 필수
+            if ("ROLE_ADMIN".equals(user.getRoles())) {
+                return 2;
+            }
+
+            // 사용자 설정에 따른 팩터 수
+            if (user.getRegisteredMfaFactors() != null) {
+                return user.getRegisteredMfaFactors().size();
+            }
+        }
+
+        // 플로우 타입에 따른 기본값
+        return switch (flowType.toLowerCase()) {
+            case "mfa" -> 2;
+            case "mfa-stepup" -> 1;
+            case "mfa-transactional" -> 1;
+            default -> 1;
+        };
+    }
+
     private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) {
-        if (user == null || !StringUtils.hasText(user.getMfaFactors())) {
+        if (user == null || !user.getMfaFactors().isEmpty()) {
             return Collections.emptySet();
         }
 
         try {
-            return Arrays.stream(user.getMfaFactors().split(","))
+            return user.getMfaFactors().stream()
                     .map(String::trim)
                     .map(this::parseAuthTypeSafely)
                     .filter(Objects::nonNull)
@@ -340,6 +434,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     e.getMessage());
         }
         return null;
+    }
+
+    private HttpServletRequest getCurrentRequest() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes)
+                RequestContextHolder.getRequestAttributes();
+        return attrs != null ? attrs.getRequest() : null;
     }
 
     // 내부 클래스 - 완료 상태 정보

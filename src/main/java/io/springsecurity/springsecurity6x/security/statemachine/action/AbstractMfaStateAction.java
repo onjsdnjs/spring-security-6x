@@ -132,7 +132,7 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
     }
 
     /**
-     * StateContext에서 세션 ID 추출
+     * StateContext 에서 세션 ID 추출
      */
     protected String extractSessionId(StateContext<MfaState, MfaEvent> context) {
         String sessionId = (String) context.getMessageHeader("mfaSessionId");
@@ -143,7 +143,7 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
     }
 
     /**
-     * StateContext에서 FactorContext 추출
+     * StateContext 에서 FactorContext 추출
      */
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
         return stateContextHelper.extractFactorContext(context);

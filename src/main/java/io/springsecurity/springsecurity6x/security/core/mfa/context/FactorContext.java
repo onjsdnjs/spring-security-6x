@@ -99,6 +99,61 @@ public class FactorContext implements FactorContextExtensions {
     }
 
     /**
+     * 버전 증가 - 스레드 안전
+     * @return 증가된 버전 번호
+     */
+    public int incrementVersion() {
+        int newVersion = this.version.incrementAndGet();
+        log.debug("FactorContext (ID: {}) version incremented to {} for user '{}'",
+                mfaSessionId, newVersion, this.username);
+        updateLastActivityTimestamp();
+        return newVersion;
+    }
+
+    /**
+     * 현재 버전 조회 - 스레드 안전
+     * @return 현재 버전 번호
+     */
+    public int getVersion() {
+        return this.version.get();
+    }
+
+    /**
+     * 버전을 특정 값으로 설정 (테스트 또는 복원 시 사용)
+     * @param newVersion 설정할 버전 번호
+     */
+    public void setVersion(int newVersion) {
+        if (newVersion < 0) {
+            throw new IllegalArgumentException("Version cannot be negative");
+        }
+        int oldVersion = this.version.getAndSet(newVersion);
+        if (oldVersion != newVersion) {
+            log.debug("FactorContext (ID: {}) version set from {} to {} for user '{}'",
+                    mfaSessionId, oldVersion, newVersion, this.username);
+            updateLastActivityTimestamp();
+        }
+    }
+
+    /**
+     * 버전을 원자적으로 비교하고 설정
+     * @param expectedVersion 예상 버전
+     * @param newVersion 새 버전
+     * @return 성공 여부
+     */
+    public boolean compareAndSetVersion(int expectedVersion, int newVersion) {
+        boolean success = this.version.compareAndSet(expectedVersion, newVersion);
+        if (success) {
+            log.debug("FactorContext (ID: {}) version CAS succeeded: {} -> {} for user '{}'",
+                    mfaSessionId, expectedVersion, newVersion, this.username);
+            updateLastActivityTimestamp();
+        } else {
+            log.debug("FactorContext (ID: {}) version CAS failed: expected {} but was {} for user '{}'",
+                    mfaSessionId, expectedVersion, this.version.get(), this.username);
+        }
+        return success;
+    }
+
+    /**
      * 완료된 팩터 추가 - 개선된 동시성 제어
      */
     public void addCompletedFactor(AuthenticationStepConfig completedFactor) {
@@ -111,7 +166,8 @@ public class FactorContext implements FactorContextExtensions {
 
             if (!alreadyExists) {
                 this.completedFactors.add(completedFactor);
-                this.version.incrementAndGet();
+                // 완료된 팩터 추가 시에도 버전 증가
+                incrementVersion();
                 log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) marked as completed for user {}. Total completed: {}",
                         mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username, this.completedFactors.size());
                 updateLastActivityTimestamp();
@@ -162,6 +218,8 @@ public class FactorContext implements FactorContextExtensions {
 
         int newCount = factorAttemptCounts.compute(factorType, (key, val) -> (val == null) ? 1 : val + 1);
         updateLastActivityTimestamp();
+        // 시도 횟수 증가 시에도 버전 증가
+        incrementVersion();
 
         log.debug("FactorContext (ID: {}): Attempt count for {} incremented to {} for user {}.",
                 mfaSessionId, factorType, newCount, this.username);
@@ -176,6 +234,8 @@ public class FactorContext implements FactorContextExtensions {
     public void recordAttempt(@Nullable AuthType factorType, boolean success, String detail) {
         this.mfaAttemptHistory.add(new MfaAttemptDetail(factorType, success, detail));
         updateLastActivityTimestamp();
+        // 시도 기록 시에도 버전 증가
+        incrementVersion();
         log.info("FactorContext (ID: {}): MFA attempt recorded: Factor={}, Success={}, Detail='{}' for user {}",
                 mfaSessionId, factorType, success, detail, this.username);
     }
@@ -189,9 +249,10 @@ public class FactorContext implements FactorContextExtensions {
         log.debug("FactorContext (ID: {}): Failed attempt for factor/step '{}' incremented to {}. User: {}",
                 mfaSessionId, factorTypeOrStepId, attempts, this.username);
         updateLastActivityTimestamp();
+        // 실패 시도 증가 시에도 버전 증가
+        incrementVersion();
         return attempts;
     }
-
 
     public int getFailedAttempts(String factorTypeOrStepId) {
         return this.failedAttempts.getOrDefault(factorTypeOrStepId, 0);
@@ -202,17 +263,22 @@ public class FactorContext implements FactorContextExtensions {
         log.debug("FactorContext (ID: {}): Failed attempts for factor/step '{}' reset. User: {}",
                 mfaSessionId, factorTypeOrStepId, this.username);
         updateLastActivityTimestamp();
+        // 실패 횟수 초기화 시에도 버전 증가
+        incrementVersion();
     }
 
     public void resetAllFailedAttempts() {
         this.failedAttempts.clear();
         log.debug("FactorContext (ID: {}): All failed attempts reset. User: {}", mfaSessionId, this.username);
         updateLastActivityTimestamp();
+        // 모든 실패 횟수 초기화 시에도 버전 증가
+        incrementVersion();
     }
 
     public void setAttribute(String name, Object value) {
         this.attributes.put(name, value);
-        this.version.incrementAndGet();
+        // 속성 변경 시에도 버전 증가
+        incrementVersion();
     }
 
     @Nullable
@@ -222,7 +288,8 @@ public class FactorContext implements FactorContextExtensions {
 
     public void removeAttribute(String name) {
         this.attributes.remove(name);
-        this.version.incrementAndGet();
+        // 속성 제거 시에도 버전 증가
+        incrementVersion();
     }
 
     public boolean isFullyAuthenticated() {
@@ -241,6 +308,8 @@ public class FactorContext implements FactorContextExtensions {
                     mfaSessionId, key, value.getClass().getSimpleName(), this.username);
         }
         updateLastActivityTimestamp();
+        // 등록된 MFA 팩터 변경 시에도 버전 증가
+        incrementVersion();
     }
 
     public void updateLastActivityTimestamp() {
@@ -284,8 +353,39 @@ public class FactorContext implements FactorContextExtensions {
         return this.createdAt;
     }
 
-    public void incrementVersion() {
-        version.set();
+    /**
+     * 상태 및 주요 정보 변경 감지를 위한 해시 계산
+     * @return 현재 상태의 해시값
+     */
+    public String calculateStateHash() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(mfaSessionId).append(":");
+        sb.append(currentMfaState.get()).append(":");
+        sb.append(version.get()).append(":");
+        sb.append(completedFactors.size()).append(":");
+        sb.append(currentProcessingFactor != null ? currentProcessingFactor : "null").append(":");
+        sb.append(currentStepId != null ? currentStepId : "null");
+
+        return Integer.toHexString(sb.toString().hashCode());
+    }
+
+    /**
+     * 디버깅을 위한 상태 스냅샷
+     * @return 현재 상태의 스냅샷
+     */
+    public Map<String, Object> getStateSnapshot() {
+        Map<String, Object> snapshot = new HashMap<>();
+        snapshot.put("mfaSessionId", mfaSessionId);
+        snapshot.put("username", username);
+        snapshot.put("currentState", currentMfaState.get());
+        snapshot.put("version", version.get());
+        snapshot.put("completedFactorsCount", completedFactors.size());
+        snapshot.put("currentProcessingFactor", currentProcessingFactor);
+        snapshot.put("currentStepId", currentStepId);
+        snapshot.put("retryCount", retryCount);
+        snapshot.put("lastActivityTimestamp", lastActivityTimestamp);
+        snapshot.put("createdAt", createdAt);
+        return Collections.unmodifiableMap(snapshot);
     }
 
     @Getter

@@ -1,10 +1,10 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.4'
+    id 'org.springframework.boot' version '3.5.0'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'io.springsecurity'
+group = 'io.spring'
 version = '0.0.1-SNAPSHOT'
 
 java {
@@ -17,44 +17,112 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+
+    // spring-statemachine-redis 의존성 제외
+    all {
+        exclude group: 'org.springframework.statemachine', module: 'spring-statemachine-redis'
+    }
 }
 
 repositories {
     mavenCentral()
-    maven {
-        url "https://build.shibboleth.net/nexus/content/repositories/releases/"
-    }
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-//    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
-//    implementation("org.springframework.boot:spring-boot-starter-oauth2-authorization-server")
+    // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-mail'
-    implementation("com.webauthn4j:webauthn4j-core:0.29.0.RELEASE")
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Spring State Machine 4.0.0 (redis 모듈 제외)
+    implementation('org.springframework.statemachine:spring-statemachine-starter:4.0.0') {
+        exclude group: 'org.springframework.statemachine', module: 'spring-statemachine-redis'
+    }
+    implementation 'org.springframework.statemachine:spring-statemachine-core:4.0.0'
+
+    // Spring Session
+    implementation 'org.springframework.session:spring-session-data-redis'
+
+    // Redis
+    implementation 'org.apache.commons:commons-pool2:2.11.1'
+
+    // Resilience4j
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-retry:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-bulkhead:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-timelimiter:2.1.0'
+
+    // Micrometer
+    implementation 'io.micrometer:micrometer-core'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Database
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.h2database:h2'
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-    implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    implementation("org.springframework.statemachine:spring-statemachine-starter:4.0.0")
-    implementation("org.springframework.session:spring-session-data-redis:3.5.0")
-    implementation("org.springframework.session:spring-session-core:3.5.0")
-    implementation("io.lettuce:lettuce-core")
-    implementation("org.springframework.statemachine:spring-statemachine-redis:1.2.14.RELEASE")
-    testImplementation("org.springframework.statemachine:spring-statemachine-test:4.0.0")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5") // JSON 파싱용
-    compileOnly 'org.projectlombok:lombok'
-    implementation 'org.modelmapper:modelmapper:3.1.1'
-    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-    annotationProcessor 'org.projectlombok:lombok'
+
+    // Mail
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // OAuth2
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Kryo (State Machine 직렬화)
+    implementation 'com.esotericsoftware:kryo:5.5.0'
+    implementation 'org.springframework.statemachine:spring-statemachine-kryo:4.0.0'
+
+    // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.springframework.statemachine:spring-statemachine-test:4.0.0'
+    testImplementation 'org.testcontainers:testcontainers:1.19.1'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.1'
+    testImplementation 'org.testcontainers:redis:1.19.1'
+    testImplementation 'org.assertj:assertj-core:3.24.2'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2022.0.4"
+        mavenBom "io.github.resilience4j:resilience4j-bom:2.1.0"
+    }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    jvmArgs '-Xmx1024m'
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+// 의존성 검증
+task checkDependencies {
+    doLast {
+        configurations.compileClasspath.each { file ->
+            if (file.name.contains('spring-statemachine-redis')) {
+                println "Found spring-statemachine-redis: ${file.name}"
+            }
+        }
+    }
 }

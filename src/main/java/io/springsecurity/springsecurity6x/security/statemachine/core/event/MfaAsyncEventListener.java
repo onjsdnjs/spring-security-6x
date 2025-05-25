@@ -21,11 +21,13 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class AsyncEventListener {
+public class MfaAsyncEventListener {
 
-    @Qualifier("stateMachineRedisTemplate")
     private final RedisTemplate<String, String> redisTemplate;
+
+    public MfaAsyncEventListener(@Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     /**
      * 상태 변경 이벤트 처리

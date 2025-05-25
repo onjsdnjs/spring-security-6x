@@ -25,6 +25,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
+import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 
 import javax.crypto.SecretKey;
@@ -68,7 +70,7 @@ public class SecurityPlatformConfiguration {
         Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,
                 "rest", RestAuthenticationFilter.class,
-                "ott", AuthenticationFilter.class, // Spring Security 6.x 에서는 org.springframework.security.web.authentication.AuthenticationFilter
+                "ott", OneTimeTokenAuthenticationFilter.class,
                 "passkey", WebAuthnAuthenticationFilter.class
         );
         return new SecurityFilterChainRegistrar(factorFilterProvider, stepFilterClasses);

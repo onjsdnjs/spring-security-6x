@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MfaStateMachineMonitor implements HealthIndicator {
+public class MfaStateMachineMonitor implements MfaStateMachineMonitorService, HealthIndicator {
 
     private final MeterRegistry meterRegistry;
     private final ApplicationEventPublisher eventPublisher;
@@ -238,6 +238,11 @@ public class MfaStateMachineMonitor implements HealthIndicator {
                 .withDetail("activeSessions", activeSessions.get())
                 .withDetail("stateDistribution", getStateDistributionMap())
                 .build();
+    }
+
+    @Override
+    public Map<String, Double> identifyBottlenecks() {
+        return Map.of();
     }
 
     /**

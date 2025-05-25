@@ -157,7 +157,7 @@ public class PlatformSecurityConfig {
                                 )
                         )
                         // 2차 인증 요소: OTT
-                        .ott(ottFactor -> ottFactor
+                        .ott(ott -> ott
 //                                .tokenService(emailOneTimeTokenService) // Spring Security OneTimeTokenService 사용
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 AuthenticationFilter(OTT용)로 위임됨.
                                 // 해당 필터는 주입된 EmailOneTimeTokenService를 사용하여 토큰을 검증.

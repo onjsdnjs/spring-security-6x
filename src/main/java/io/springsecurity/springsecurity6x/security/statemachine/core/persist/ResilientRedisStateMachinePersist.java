@@ -6,8 +6,12 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachinePersist;
@@ -16,16 +20,11 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-/**
- * 장애 복구를 고려한 Redis 기반 State Machine 영속화
- */
 @Slf4j
 @RequiredArgsConstructor
 public class ResilientRedisStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
@@ -66,16 +65,29 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
                 serialized = compress(serialized);
             }
 
-            // 메인 키에 저장
-            redisTemplate.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
+            // 파이프라인을 사용하여 메인 키와 백업 키를 동시에 저장
+            String finalSerialized = serialized;
+            List<Object> results = redisTemplate.executePipelined(new SessionCallback<Object>() {
+                @Override
+                public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
+                    @SuppressWarnings("unchecked")
+                    RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
 
-            // 백업 저장 (더 긴 TTL)
-            redisTemplate.opsForValue().set(backupKey, serialized, ttlMinutes * 2, TimeUnit.MINUTES);
+                    ops.opsForValue().set(key, finalSerialized, ttlMinutes, TimeUnit.MINUTES);
+                    ops.opsForValue().set(backupKey, finalSerialized, ttlMinutes * 2, TimeUnit.MINUTES);
 
-            // 성공 시 Circuit 상태 업데이트
-            onSuccess();
+                    return null;
+                }
+            });
 
-            log.debug("State machine context persisted for session: {}", contextObj);
+            // 파이프라인 결과 확인
+            if (results != null && results.stream().allMatch(Objects::nonNull)) {
+                // 성공 시 Circuit 상태 업데이트
+                onSuccess();
+                log.debug("State machine context persisted for session: {} (pipeline)", contextObj);
+            } else {
+                throw new IOException("Pipeline execution returned null results");
+            }
 
         } catch (RedisConnectionFailureException e) {
             onFailure();
@@ -99,18 +111,26 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
         String backupKey = BACKUP_PREFIX + contextObj;
 
         try {
-            // 메인 키에서 읽기 시도
-            String serialized = redisTemplate.opsForValue().get(key);
+            // 파이프라인을 사용하여 메인 키와 백업 키를 동시에 조회
+            List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                connection.get(key.getBytes(StandardCharsets.UTF_8));
+                connection.get(backupKey.getBytes(StandardCharsets.UTF_8));
+                return null;
+            });
 
-            // 메인 키가 없으면 백업에서 읽기
-            if (serialized == null) {
-                serialized = redisTemplate.opsForValue().get(backupKey);
+            String serialized = null;
 
-                if (serialized != null) {
-                    log.warn("Main key not found, restored from backup for session: {}", contextObj);
-                    // 메인 키 복원
-                    redisTemplate.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
-                }
+            // 메인 키 결과 확인
+            if (results.size() > 0 && results.get(0) != null) {
+                serialized = new String((byte[]) results.get(0), StandardCharsets.UTF_8);
+            }
+            // 메인 키가 없으면 백업 키 확인
+            else if (results.size() > 1 && results.get(1) != null) {
+                serialized = new String((byte[]) results.get(1), StandardCharsets.UTF_8);
+                log.warn("Main key not found, restored from backup for session: {}", contextObj);
+
+                // 메인 키 복원 (별도 트랜잭션)
+                redisTemplate.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
             }
 
             if (serialized == null) {
@@ -126,8 +146,11 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
             // 역직렬화
             StateMachineContext<MfaState, MfaEvent> context = deserialize(serialized);
 
-            // TTL 갱신
-            redisTemplate.expire(key, ttlMinutes, TimeUnit.MINUTES);
+            // TTL 갱신 (파이프라인 사용)
+            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                connection.expire(key.getBytes(StandardCharsets.UTF_8), TimeUnit.MINUTES.toSeconds(ttlMinutes));
+                return null;
+            });
 
             // 성공 시 Circuit 상태 업데이트
             onSuccess();
@@ -140,6 +163,61 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
             return readFallback(contextObj);
         } catch (Exception e) {
             log.error("Failed to read state machine context for session: {}", contextObj, e);
+            throw e;
+        }
+    }
+
+    /**
+     * 대량 작업을 위한 배치 쓰기
+     */
+    public void writeBatch(Map<String, StateMachineContext<MfaState, MfaEvent>> contexts) throws Exception {
+        if (isCircuitOpen()) {
+            log.warn("Circuit is open, using fallback for batch write");
+            contexts.forEach((contextObj, context) -> {
+                try {
+                    writeFallback(context, contextObj);
+                } catch (Exception e) {
+                    log.error("Failed to write to fallback for session: {}", contextObj, e);
+                }
+            });
+            return;
+        }
+
+        try {
+            redisTemplate.executePipelined(new SessionCallback<Object>() {
+                @Override
+                public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
+                    @SuppressWarnings("unchecked")
+                    RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
+
+                    contexts.forEach((contextObj, context) -> {
+                        try {
+                            String key = KEY_PREFIX + contextObj;
+                            String backupKey = BACKUP_PREFIX + contextObj;
+
+                            String serialized = serialize(context);
+                            if (serialized.length() > 1024) {
+                                serialized = compress(serialized);
+                            }
+
+                            ops.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
+                            ops.opsForValue().set(backupKey, serialized, ttlMinutes * 2, TimeUnit.MINUTES);
+
+                        } catch (Exception e) {
+                            log.error("Failed to serialize context for session: {}", contextObj, e);
+                        }
+                    });
+
+                    return null;
+                }
+            });
+
+            onSuccess();
+            log.debug("Batch write completed for {} contexts", contexts.size());
+
+        } catch (RedisConnectionFailureException e) {
+            onFailure();
+            log.error("Redis connection failed during batch write");
             throw e;
         }
     }

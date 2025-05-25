@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 @Getter
@@ -33,6 +35,10 @@ public class FactorContext implements FactorContextExtensions {
     private final String mfaSessionId;
     private final AtomicReference<MfaState> currentMfaState;
     private final AtomicInteger version = new AtomicInteger(0);
+
+    // 동시성 제어를 위한 ReadWriteLock 추가
+    private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
+    private final ReadWriteLock factorsLock = new ReentrantReadWriteLock();
 
     private final Authentication primaryAuthentication;
     private final String username;
@@ -74,51 +80,77 @@ public class FactorContext implements FactorContextExtensions {
         return this.currentMfaState.get();
     }
 
+    /**
+     * 상태 변경 - 동시성 안전 보장
+     */
     public void changeState(MfaState newState) {
-        MfaState previousState = this.currentMfaState.getAndSet(newState);
-        if (previousState != newState) {
-            this.version.incrementAndGet();
-            log.info("FactorContext (ID: {}) state changed from {} to {} for user '{}'. Version: {}",
-                    mfaSessionId, previousState, newState, this.username, this.version.get());
-            updateLastActivityTimestamp();
+        stateLock.writeLock().lock();
+        try {
+            MfaState previousState = this.currentMfaState.getAndSet(newState);
+            if (previousState != newState) {
+                this.version.incrementAndGet();
+                log.info("FactorContext (ID: {}) state changed from {} to {} for user '{}'. Version: {}",
+                        mfaSessionId, previousState, newState, this.username, this.version.get());
+                updateLastActivityTimestamp();
+            }
+        } finally {
+            stateLock.writeLock().unlock();
         }
     }
 
-    // Thread-safe 메서드로 개선
-    public synchronized void addCompletedFactor(AuthenticationStepConfig completedFactor) {
+    /**
+     * 완료된 팩터 추가 - 개선된 동시성 제어
+     */
+    public void addCompletedFactor(AuthenticationStepConfig completedFactor) {
         Assert.notNull(completedFactor, "completedFactor cannot be null");
 
-        boolean alreadyExists = this.completedFactors.stream()
-                .anyMatch(step -> step.getStepId().equals(completedFactor.getStepId()));
+        factorsLock.writeLock().lock();
+        try {
+            boolean alreadyExists = this.completedFactors.stream()
+                    .anyMatch(step -> step.getStepId().equals(completedFactor.getStepId()));
 
-        if (!alreadyExists) {
-            this.completedFactors.add(completedFactor);
-            log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) marked as completed for user {}. Total completed: {}",
-                    mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username, this.completedFactors.size());
-            updateLastActivityTimestamp();
-        } else {
-            log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) already completed for user {}. Not adding again.",
-                    mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username);
+            if (!alreadyExists) {
+                this.completedFactors.add(completedFactor);
+                this.version.incrementAndGet();
+                log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) marked as completed for user {}. Total completed: {}",
+                        mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username, this.completedFactors.size());
+                updateLastActivityTimestamp();
+            } else {
+                log.debug("FactorContext (ID: {}): Factor '{}' (StepId: {}) already completed for user {}. Not adding again.",
+                        mfaSessionId, completedFactor.getType(), completedFactor.getStepId(), this.username);
+            }
+        } finally {
+            factorsLock.writeLock().unlock();
         }
     }
 
     public int getNumberOfCompletedFactors() {
-        return this.completedFactors.size();
+        factorsLock.readLock().lock();
+        try {
+            return this.completedFactors.size();
+        } finally {
+            factorsLock.readLock().unlock();
+        }
     }
 
     public int getLastCompletedFactorOrder() {
-        if (completedFactors.isEmpty()) {
-            log.debug("FactorContext for user '{}': No completed factors, returning order 0.", username);
-            return 0;
+        factorsLock.readLock().lock();
+        try {
+            if (completedFactors.isEmpty()) {
+                log.debug("FactorContext for user '{}': No completed factors, returning order 0.", username);
+                return 0;
+            }
+
+            int maxOrder = completedFactors.stream()
+                    .mapToInt(AuthenticationStepConfig::getOrder)
+                    .max()
+                    .orElse(0);
+
+            log.debug("FactorContext for user '{}': Last completed factor order is {}.", username, maxOrder);
+            return maxOrder;
+        } finally {
+            factorsLock.readLock().unlock();
         }
-
-        int maxOrder = completedFactors.stream()
-                .mapToInt(AuthenticationStepConfig::getOrder)
-                .max()
-                .orElse(0);
-
-        log.debug("FactorContext for user '{}': Last completed factor order is {}.", username, maxOrder);
-        return maxOrder;
     }
 
     public int incrementAttemptCount(@Nullable AuthType factorType) {
@@ -159,6 +191,7 @@ public class FactorContext implements FactorContextExtensions {
         updateLastActivityTimestamp();
         return attempts;
     }
+
 
     public int getFailedAttempts(String factorTypeOrStepId) {
         return this.failedAttempts.getOrDefault(factorTypeOrStepId, 0);
@@ -227,10 +260,19 @@ public class FactorContext implements FactorContextExtensions {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * 완료된 팩터 목록 조회 - 읽기 전용 복사본 반환
+     */
     @Override
     public List<AuthenticationStepConfig> getCompletedFactors() {
-        return Collections.unmodifiableList(this.completedFactors);
+        factorsLock.readLock().lock();
+        try {
+            return List.copyOf(this.completedFactors);
+        } finally {
+            factorsLock.readLock().unlock();
+        }
     }
+
 
     @Override
     public String getLastError() {
@@ -240,6 +282,10 @@ public class FactorContext implements FactorContextExtensions {
     @Override
     public long getCreatedAt() {
         return this.createdAt;
+    }
+
+    public void incrementVersion() {
+        version.set();
     }
 
     @Getter
@@ -354,11 +400,21 @@ public class FactorContext implements FactorContextExtensions {
         this.version.incrementAndGet();
     }
 
+    /**
+     * 팩터 완료 여부 확인 - 스레드 안전
+     */
     public boolean isFactorCompleted(String stepId) {
         if (!StringUtils.hasText(stepId)) {
             return false;
         }
-        return this.completedFactors.stream().anyMatch(cf -> stepId.equals(cf.getStepId()));
+
+        factorsLock.readLock().lock();
+        try {
+            return this.completedFactors.stream()
+                    .anyMatch(cf -> stepId.equals(cf.getStepId()));
+        } finally {
+            factorsLock.readLock().unlock();
+        }
     }
 
     @Getter

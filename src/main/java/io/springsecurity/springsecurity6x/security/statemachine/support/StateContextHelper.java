@@ -19,12 +19,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-/**
- * State Machine Context와 FactorContext 간의 변환을 담당하는 헬퍼 클래스
- * - 효율적인 직렬화/역직렬화
- * - 타입 안전성 보장
- * - 메모리 최적화
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -34,6 +28,53 @@ public class StateContextHelper {
 
     // 직렬화 최적화를 위한 캐시
     private final Map<Class<?>, Map<String, java.lang.reflect.Field>> fieldCache = new ConcurrentHashMap<>();
+
+    // 변경 추적을 위한 델타 트래커
+    private final Map<String, DeltaTracker> deltaTrackers = new ConcurrentHashMap<>();
+
+    /**
+     * 델타 추적 클래스
+     */
+    private static class DeltaTracker {
+        private final Map<String, Object> originalValues = new HashMap<>();
+        private final Map<String, Object> changedFields = new HashMap<>();
+        private final Set<String> deletedFields = new HashSet<>();
+
+        public void trackOriginal(String field, Object value) {
+            if (!originalValues.containsKey(field)) {
+                originalValues.put(field, value);
+            }
+        }
+
+        public void trackChange(String field, Object value) {
+            Object original = originalValues.get(field);
+            if (!Objects.equals(original, value)) {
+                changedFields.put(field, value);
+            }
+        }
+
+        public void trackDeletion(String field) {
+            deletedFields.add(field);
+            changedFields.remove(field);
+        }
+
+        public boolean hasChanges() {
+            return !changedFields.isEmpty() || !deletedFields.isEmpty();
+        }
+
+        public Map<String, Object> getChanges() {
+            return new HashMap<>(changedFields);
+        }
+
+        public Set<String> getDeletions() {
+            return new HashSet<>(deletedFields);
+        }
+
+        public void reset() {
+            changedFields.clear();
+            deletedFields.clear();
+        }
+    }
 
     /**
      * StateContext에서 FactorContext 추출 (최적화)
@@ -58,16 +99,32 @@ public class StateContextHelper {
             }
         }
 
-        // 3. 개별 변수들로부터 재구성
+        // 3. 델타 정보가 있는지 확인
+        String sessionId = (String) variables.get("mfaSessionId");
+        if (sessionId != null) {
+            DeltaTracker tracker = deltaTrackers.get(sessionId);
+            if (tracker != null && tracker.hasChanges()) {
+                // 델타 정보로 업데이트
+                return applyDelta(variables, tracker);
+            }
+        }
+
+        // 4. 개별 변수들로부터 재구성
         return reconstructFactorContext(variables, context);
     }
 
     /**
-     * FactorContext를 StateContext에 저장 (최적화)
+     * FactorContext를 StateContext에 저장 (델타 방식)
      */
     public void saveFactorContext(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) {
         ExtendedState extendedState = context.getExtendedState();
         Map<Object, Object> variables = extendedState.getVariables();
+
+        String sessionId = factorContext.getMfaSessionId();
+        DeltaTracker tracker = deltaTrackers.computeIfAbsent(sessionId, k -> new DeltaTracker());
+
+        // 현재 값들을 원본으로 추적
+        trackCurrentValues(tracker, factorContext);
 
         // 크기에 따라 압축 여부 결정
         try {
@@ -78,14 +135,180 @@ public class StateContextHelper {
                 variables.put("factorContext_compressed", compressed);
                 log.debug("FactorContext compressed from {} to {} bytes", serialized.length, compressed.length);
             } else {
-                // 핵심 필드만 저장
-                saveEssentialFields(variables, factorContext);
+                // 변경된 필드만 저장
+                saveChangedFields(variables, factorContext, tracker);
             }
         } catch (Exception e) {
             log.error("Failed to save FactorContext", e);
             // Fallback: 기본 필드만 저장
             saveBasicFields(variables, factorContext);
         }
+
+        log.debug("Saved {} changed fields for session: {}",
+                tracker.getChanges().size(), sessionId);
+    }
+
+    /**
+     * 현재 값들을 원본으로 추적
+     */
+    private void trackCurrentValues(DeltaTracker tracker, FactorContext factorContext) {
+        // 기본 필드들
+        tracker.trackOriginal("currentState", factorContext.getCurrentState());
+        tracker.trackOriginal("version", factorContext.getVersion());
+        tracker.trackOriginal("retryCount", factorContext.getRetryCount());
+        tracker.trackOriginal("lastError", factorContext.getLastError());
+
+        // 현재 처리 정보
+        tracker.trackOriginal("currentProcessingFactor", factorContext.getCurrentProcessingFactor());
+        tracker.trackOriginal("currentStepId", factorContext.getCurrentStepId());
+
+        // 완료된 팩터들 (해시값으로 추적)
+        tracker.trackOriginal("completedFactorsHash",
+                calculateCompletedFactorsHash(factorContext.getCompletedFactors()));
+    }
+
+    /**
+     * 변경된 필드만 저장
+     */
+    private void saveChangedFields(Map<Object, Object> variables,
+                                   FactorContext factorContext,
+                                   DeltaTracker tracker) {
+        // 필수 필드는 항상 저장
+        variables.put("mfaSessionId", factorContext.getMfaSessionId());
+        variables.put("username", factorContext.getUsername());
+        variables.put("flowTypeName", factorContext.getFlowTypeName());
+
+        // 변경 추적 및 저장
+        trackAndSave(variables, tracker, "currentState", factorContext.getCurrentState());
+        trackAndSave(variables, tracker, "version", factorContext.getVersion());
+        trackAndSave(variables, tracker, "retryCount", factorContext.getRetryCount());
+        trackAndSave(variables, tracker, "lastError", factorContext.getLastError());
+        trackAndSave(variables, tracker, "mfaRequired", factorContext.isMfaRequiredAsPerPolicy());
+
+        // 현재 처리 정보
+        if (factorContext.getCurrentProcessingFactor() != null) {
+            trackAndSave(variables, tracker, "currentFactorType",
+                    factorContext.getCurrentProcessingFactor().name());
+        }
+        trackAndSave(variables, tracker, "currentStepId", factorContext.getCurrentStepId());
+
+        // 완료된 팩터들 (변경된 경우만)
+        String currentHash = calculateCompletedFactorsHash(factorContext.getCompletedFactors());
+        if (!currentHash.equals(tracker.originalValues.get("completedFactorsHash"))) {
+            variables.put("completedFactors", serializeCompletedFactors(factorContext.getCompletedFactors()));
+            tracker.trackChange("completedFactorsHash", currentHash);
+        }
+
+        // 타임스탬프
+        variables.put("lastModified", System.currentTimeMillis());
+        variables.put("createdAt", factorContext.getCreatedAt());
+
+        // 중요한 속성들
+        saveImportantAttributes(variables, factorContext);
+    }
+
+    /**
+     * 기본 필드만 저장 (Fallback)
+     */
+    private void saveBasicFields(Map<Object, Object> variables, FactorContext factorContext) {
+        variables.put("mfaSessionId", factorContext.getMfaSessionId());
+        variables.put("currentState", factorContext.getCurrentState().name());
+        variables.put("username", factorContext.getUsername());
+        variables.put("flowTypeName", factorContext.getFlowTypeName());
+    }
+
+    /**
+     * 중요한 속성 저장
+     */
+    private void saveImportantAttributes(Map<Object, Object> variables, FactorContext factorContext) {
+        // 디바이스 ID
+        Object deviceId = factorContext.getAttribute("deviceId");
+        if (deviceId != null) {
+            variables.put("attr_deviceId", deviceId);
+        }
+
+        // 타임스탬프
+        variables.put("createdAt", factorContext.getCreatedAt());
+        Object lastActivity = factorContext.getAttribute("lastActivityTimestamp");
+        if (lastActivity != null) {
+            variables.put("attr_lastActivityTimestamp", lastActivity);
+        }
+    }
+
+    /**
+     * 값 변경 추적 및 저장
+     */
+    private void trackAndSave(Map<Object, Object> variables, DeltaTracker tracker,
+                              String key, Object value) {
+        tracker.trackChange(key, value);
+        if (value != null) {
+            variables.put(key, value);
+        } else {
+            variables.remove(key);
+            tracker.trackDeletion(key);
+        }
+    }
+
+    /**
+     * 델타 정보 적용
+     */
+    private FactorContext applyDelta(Map<Object, Object> variables, DeltaTracker tracker) {
+        // 기존 컨텍스트 로드
+        String sessionId = (String) variables.get("mfaSessionId");
+        FactorContext context = loadStoredContext(sessionId);
+
+        if (context == null) {
+            // 새로 생성
+            return reconstructFactorContext(variables, null);
+        }
+
+        // 변경사항 적용
+        Map<String, Object> changes = tracker.getChanges();
+
+        // 상태 업데이트
+        if (changes.containsKey("currentState")) {
+            context.changeState((MfaState) changes.get("currentState"));
+        }
+
+        // 버전 업데이트
+        if (changes.containsKey("version")) {
+            // 버전은 AtomicInteger이므로 직접 설정 불가, 대신 증가
+            int targetVersion = (Integer) changes.get("version");
+            while (context.getVersion().get() < targetVersion) {
+                context.incrementVersion();
+            }
+        }
+
+        // 기타 필드 업데이트
+        applyFieldChanges(context, changes);
+
+        return context;
+    }
+
+    /**
+     * 필드 변경사항 적용
+     */
+    private void applyFieldChanges(FactorContext context, Map<String, Object> changes) {
+        changes.forEach((key, value) -> {
+            switch (key) {
+                case "retryCount":
+                    context.setRetryCount((Integer) value);
+                    break;
+                case "lastError":
+                    context.setLastError((String) value);
+                    break;
+                case "currentFactorType":
+                    context.setCurrentProcessingFactor(AuthType.valueOf((String) value));
+                    break;
+                case "currentStepId":
+                    context.setCurrentStepId((String) value);
+                    break;
+                case "mfaRequired":
+                    context.setMfaRequiredAsPerPolicy((Boolean) value);
+                    break;
+                // 기타 필드들...
+            }
+        });
     }
 
     /**
@@ -123,73 +346,17 @@ public class StateContextHelper {
     }
 
     /**
-     * 핵심 필드만 저장 (메모리 최적화)
-     */
-    private void saveEssentialFields(Map<Object, Object> variables, FactorContext factorContext) {
-        // 필수 필드
-        variables.put("mfaSessionId", factorContext.getMfaSessionId());
-        variables.put("currentState", factorContext.getCurrentState());
-        variables.put("flowTypeName", factorContext.getFlowTypeName());
-        variables.put("username", factorContext.getUsername());
-        variables.put("version", factorContext.getVersion().get());
-
-        // 현재 처리 정보
-        if (factorContext.getCurrentProcessingFactor() != null) {
-            variables.put("currentFactorType", factorContext.getCurrentProcessingFactor().name());
-        }
-        if (factorContext.getCurrentStepId() != null) {
-            variables.put("currentStepId", factorContext.getCurrentStepId());
-        }
-
-        // 상태 정보
-        variables.put("retryCount", factorContext.getRetryCount());
-        variables.put("mfaRequired", factorContext.isMfaRequiredAsPerPolicy());
-
-        // 완료된 팩터 (압축된 형태로)
-        if (!factorContext.getCompletedFactors().isEmpty()) {
-            variables.put("completedFactors", serializeCompletedFactors(factorContext.getCompletedFactors()));
-        }
-
-        // 중요한 속성들
-        saveImportantAttributes(variables, factorContext);
-    }
-
-    /**
-     * 기본 필드만 저장 (Fallback)
-     */
-    private void saveBasicFields(Map<Object, Object> variables, FactorContext factorContext) {
-        variables.put("mfaSessionId", factorContext.getMfaSessionId());
-        variables.put("currentState", factorContext.getCurrentState().name());
-        variables.put("username", factorContext.getUsername());
-        variables.put("flowTypeName", factorContext.getFlowTypeName());
-    }
-
-    /**
-     * 중요한 속성 저장
-     */
-    private void saveImportantAttributes(Map<Object, Object> variables, FactorContext factorContext) {
-        // 디바이스 ID
-        Object deviceId = factorContext.getAttribute("deviceId");
-        if (deviceId != null) {
-            variables.put("attr_deviceId", deviceId);
-        }
-
-        // 타임스탬프
-        variables.put("createdAt", factorContext.getCreatedAt());
-        Object lastActivity = factorContext.getAttribute("lastActivityTimestamp");
-        if (lastActivity != null) {
-            variables.put("attr_lastActivityTimestamp", lastActivity);
-        }
-    }
-
-    /**
      * 추가 필드 복원
      */
     private void restoreAdditionalFields(FactorContext factorContext, Map<Object, Object> variables) {
         // 버전
         Object version = variables.get("version");
         if (version instanceof Integer) {
-            factorContext.getVersion().set((Integer) version);
+            // 버전은 AtomicInteger이므로 직접 설정 불가, 대신 증가
+            int targetVersion = (Integer) version;
+            while (factorContext.getVersion().get() < targetVersion) {
+                factorContext.incrementVersion();
+            }
         }
 
         // 현재 처리 정보
@@ -227,6 +394,10 @@ public class StateContextHelper {
      * Authentication 추출 (최적화)
      */
     private Authentication extractAuthentication(StateContext<MfaState, MfaEvent> context, String mfaSessionId) {
+        if (context == null) {
+            return null;
+        }
+
         Map<Object, Object> variables = context.getExtendedState().getVariables();
 
         // 1. 저장된 Authentication
@@ -279,7 +450,7 @@ public class StateContextHelper {
         variables.entrySet().stream()
                 .filter(entry -> entry.getKey().toString().startsWith("attr_"))
                 .forEach(entry -> {
-                    String key = entry.getKey().toString().substring(5);
+                    String key = entry.getKey().toString().substring(5); // "attr_" 제거
                     factorContext.setAttribute(key, entry.getValue());
                 });
     }
@@ -351,6 +522,35 @@ public class StateContextHelper {
     }
 
     /**
+     * 완료된 팩터 해시 계산
+     */
+    private String calculateCompletedFactorsHash(List<AuthenticationStepConfig> completedFactors) {
+        if (completedFactors == null || completedFactors.isEmpty()) {
+            return "EMPTY";
+        }
+
+        String concatenated = completedFactors.stream()
+                .map(config -> config.getStepId() + ":" + config.getType() + ":" + config.getOrder())
+                .sorted()
+                .collect(Collectors.joining(","));
+
+        return Integer.toHexString(concatenated.hashCode());
+    }
+
+    /**
+     * 저장된 컨텍스트 로드
+     */
+    private FactorContext loadStoredContext(String sessionId) {
+        try {
+            HttpServletRequest request = null; // 현재 요청 컨텍스트에서 가져와야 함
+            return contextPersistence.loadContext(sessionId, request);
+        } catch (Exception e) {
+            log.warn("Failed to load stored context for session: {}", sessionId, e);
+            return null;
+        }
+    }
+
+    /**
      * FactorContext 직렬화
      */
     private byte[] serializeFactorContext(FactorContext factorContext) throws IOException {
@@ -384,5 +584,19 @@ public class StateContextHelper {
              ObjectInputStream ois = new ObjectInputStream(gzip)) {
             return (FactorContext) ois.readObject();
         }
+    }
+
+    /**
+     * 압축 여부 확인
+     */
+    private boolean isCompressed(String data) {
+        return data != null && data.startsWith("GZIP:");
+    }
+
+    /**
+     * 델타 트래커 정리
+     */
+    public void clearDeltaTracker(String sessionId) {
+        deltaTrackers.remove(sessionId);
     }
 }

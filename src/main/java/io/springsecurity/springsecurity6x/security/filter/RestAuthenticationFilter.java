@@ -27,6 +27,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.crypto.keygen.BytesKeyGenerator;
+import org.springframework.security.crypto.keygen.KeyGenerators;
 import org.springframework.security.web.authentication.*;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -37,6 +39,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.UUID;
 
 @Slf4j
@@ -56,6 +60,11 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private final ApplicationContext applicationContext;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
+    // 보안 강화를 위한 추가 필드
+    private final BytesKeyGenerator sessionIdGenerator;
+    private final SecureRandom secureRandom;
+    private final long authDelay = 100; // 타이밍 공격 방지를 위한 최소 지연
+
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
                                     ApplicationContext applicationContext) {
@@ -66,6 +75,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
         // State Machine 통합자 초기화
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+
+        // 보안 강화: 암호학적으로 안전한 랜덤 생성기
+        this.sessionIdGenerator = KeyGenerators.secureRandom(32);
+        this.secureRandom = new SecureRandom();
     }
 
     @Override
@@ -77,9 +90,13 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // 타이밍 공격 방지를 위한 시작 시간 기록
+        long startTime = System.currentTimeMillis();
+
         try {
             Authentication authResult = attemptAuthentication(request, response);
             if (authResult == null) {
+                ensureMinimumDelay(startTime);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -87,7 +104,22 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             successfulAuthentication(request, response, filterChain, authResult);
 
         } catch (AuthenticationException ex) {
+            ensureMinimumDelay(startTime);
             unsuccessfulAuthentication(request, response, ex);
+        }
+    }
+
+    /**
+     * 타이밍 공격 방지를 위한 최소 지연 보장
+     */
+    private void ensureMinimumDelay(long startTime) {
+        long elapsed = System.currentTimeMillis() - startTime;
+        if (elapsed < authDelay) {
+            try {
+                Thread.sleep(authDelay - elapsed);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -95,11 +127,34 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             throws AuthenticationException {
         try {
             LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
+
+            // 입력 검증
+            validateLoginRequest(login);
+
             UsernamePasswordAuthenticationToken authRequest =
                     new UsernamePasswordAuthenticationToken(login.username(), login.password());
             return authenticationManager.authenticate(authRequest);
         } catch (IOException e) {
             throw new RuntimeException("Authentication request body read failed", e);
+        }
+    }
+
+    /**
+     * 로그인 요청 검증
+     */
+    private void validateLoginRequest(LoginRequest login) {
+        if (!StringUtils.hasText(login.username()) || !StringUtils.hasText(login.password())) {
+            throw new IllegalArgumentException("Username and password must not be empty");
+        }
+
+        // 사용자명 길이 제한
+        if (login.username().length() > 100) {
+            throw new IllegalArgumentException("Username too long");
+        }
+
+        // 비밀번호 길이 제한
+        if (login.password().length() > 200) {
+            throw new IllegalArgumentException("Password too long");
         }
     }
 
@@ -124,7 +179,8 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             contextPersistence.deleteContext(request);
         }
 
-        String mfaSessionId = UUID.randomUUID().toString();
+        // 보안 강화: 암호학적으로 안전한 세션 ID 생성
+        String mfaSessionId = generateSecureSessionId();
         String flowTypeNameForContext = AuthType.MFA.name().toLowerCase();
 
         // FactorContext 생성 (초기 상태: PRIMARY_AUTHENTICATION_COMPLETED)
@@ -137,6 +193,11 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
         String deviceId = getOrCreateDeviceId(request);
         factorContext.setAttribute("deviceId", deviceId);
+
+        // 보안 정보 추가
+        factorContext.setAttribute("clientIp", getClientIpAddress(request));
+        factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
+        factorContext.setAttribute("loginTimestamp", System.currentTimeMillis());
 
         // Context 저장
         contextPersistence.saveContext(factorContext, request);
@@ -173,6 +234,43 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         successHandler.onAuthenticationSuccess(request, response, authentication);
     }
 
+    /**
+     * 암호학적으로 안전한 세션 ID 생성
+     */
+    private String generateSecureSessionId() {
+        byte[] bytes = sessionIdGenerator.generateKey();
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /**
+     * 클라이언트 IP 주소 추출 (프록시 고려)
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String[] headers = {
+                "X-Forwarded-For",
+                "Proxy-Client-IP",
+                "WL-Proxy-Client-IP",
+                "HTTP_X_FORWARDED_FOR",
+                "HTTP_X_FORWARDED",
+                "HTTP_X_CLUSTER_CLIENT_IP",
+                "HTTP_CLIENT_IP",
+                "HTTP_FORWARDED_FOR",
+                "HTTP_FORWARDED",
+                "HTTP_VIA",
+                "REMOTE_ADDR"
+        };
+
+        for (String header : headers) {
+            String ip = request.getHeader(header);
+            if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip)) {
+                // 첫 번째 IP만 사용 (여러 개인 경우)
+                return ip.split(",")[0].trim();
+            }
+        }
+
+        return request.getRemoteAddr();
+    }
+
     private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                             AuthenticationException failed) throws IOException, ServletException {
         securityContextHolderStrategy.clearContext();
@@ -184,6 +282,13 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
 
         contextPersistence.deleteContext(request);
+
+        // 보안 로깅
+        log.warn("Authentication failed for user: {} from IP: {}",
+                failed.getAuthenticationRequest() != null ?
+                        failed.getAuthenticationRequest().getName() : "unknown",
+                getClientIpAddress(request));
+
         failureHandler.onAuthenticationFailure(request, response, failed);
     }
 
@@ -210,16 +315,41 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private String getOrCreateDeviceId(HttpServletRequest request) {
         String deviceId = request.getHeader("X-Device-Id");
         if (StringUtils.hasText(deviceId)) {
-            return deviceId;
+            // 디바이스 ID 검증
+            if (!isValidDeviceId(deviceId)) {
+                log.warn("Invalid device ID received: {}", deviceId);
+                deviceId = null;
+            }
         }
-        HttpSession session = request.getSession(true);
-        deviceId = (String) session.getAttribute("transientDeviceId");
+
         if (!StringUtils.hasText(deviceId)) {
-            deviceId = UUID.randomUUID().toString();
-            session.setAttribute("transientDeviceId", deviceId);
-            log.debug("Generated and stored new transient deviceId in session: {}", deviceId);
+            HttpSession session = request.getSession(true);
+            deviceId = (String) session.getAttribute("transientDeviceId");
+            if (!StringUtils.hasText(deviceId)) {
+                // 보안 강화: 암호학적으로 안전한 디바이스 ID 생성
+                deviceId = generateSecureDeviceId();
+                session.setAttribute("transientDeviceId", deviceId);
+                log.debug("Generated and stored new transient deviceId in session: {}", deviceId);
+            }
         }
         return deviceId;
     }
 
+    /**
+     * 디바이스 ID 유효성 검증
+     */
+    private boolean isValidDeviceId(String deviceId) {
+        // UUID 형식 또는 Base64 인코딩된 값 허용
+        return deviceId.matches("^[a-zA-Z0-9_-]{22,}$") ||
+                deviceId.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+    }
+
+    /**
+     * 암호학적으로 안전한 디바이스 ID 생성
+     */
+    private String generateSecureDeviceId() {
+        byte[] bytes = new byte[24];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
 }

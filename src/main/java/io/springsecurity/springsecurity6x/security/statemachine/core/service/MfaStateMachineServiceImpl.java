@@ -24,9 +24,6 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * MFA State Machine 서비스 구현체
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,26 +32,15 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final StateMachinePool stateMachinePool;
     private final FactorContextStateAdapter factorContextAdapter;
     private final ContextPersistence contextPersistence;
-    private final MfaEventPublisher eventPublisher;  // MfaEventPublisher 사용
+    private final MfaEventPublisher eventPublisher;
     private final RedisDistributedLockService distributedLockService;
     private final OptimisticLockManager optimisticLockManager;
 
-    // 비동기 처리를 위한 Executor
-    private final ExecutorService asyncExecutor = new ThreadPoolExecutor(
-            10, 50,
-            60L, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(1000),
-            new ThreadFactory() {
-                private int counter = 0;
-                @Override
-                public Thread newThread(Runnable r) {
-                    Thread thread = new Thread(r, "MfaStateMachine-Async-" + counter++);
-                    thread.setDaemon(true);
-                    return thread;
-                }
-            },
-            new ThreadPoolExecutor.CallerRunsPolicy()
-    );
+    // 세션별 순차 처리를 위한 Executor 관리
+    private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();
+
+    // 세션별 처리 큐
+    private final ConcurrentHashMap<String, BlockingQueue<Runnable>> sessionQueues = new ConcurrentHashMap<>();
 
     // Circuit Breaker 상태
     private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
@@ -70,6 +56,23 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     @Value("${security.statemachine.operation-timeout-seconds:10}")
     private int operationTimeout;
 
+    /**
+     * 세션별 순차 처리를 보장하는 Executor 가져오기
+     */
+    private ExecutorService getSessionExecutor(String sessionId) {
+        return sessionExecutors.computeIfAbsent(sessionId, k -> {
+            ThreadFactory threadFactory = r -> {
+                Thread thread = new Thread(r, "MFA-Session-" + sessionId);
+                thread.setDaemon(true);
+                return thread;
+            };
+            return Executors.newSingleThreadExecutor(threadFactory);
+        });
+    }
+
+    /**
+     * State Machine 초기화 - 순차 처리 보장
+     */
     @Override
     public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -79,6 +82,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         if (!isCircuitClosed()) {
             throw new StateMachineException("Circuit breaker is open");
         }
+
+        ExecutorService executor = getSessionExecutor(sessionId);
 
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
             try {
@@ -90,43 +95,55 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                             sessionId, operationTimeout, TimeUnit.SECONDS
                     ).join();
 
-                    StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
+                    try {
+                        StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
 
-                    // 초기 컨텍스트 설정
-                    Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
-                    stateMachine.getExtendedState().getVariables().putAll(variables);
+                        // State Machine을 Primary Source로 설정
+                        synchronizeStateFromStateMachine(stateMachine, context);
 
-                    // State Machine 시작
-                    if (!stateMachine.isComplete() && stateMachine.getState() == null) {
-                        stateMachine.start();
+                        // 초기 컨텍스트 설정
+                        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+                        stateMachine.getExtendedState().getVariables().putAll(variables);
+
+                        // State Machine 시작
+                        if (!stateMachine.isComplete() && stateMachine.getState() == null) {
+                            stateMachine.start();
+                        }
+
+                        // PRIMARY_AUTH_SUCCESS 이벤트 전송
+                        Message<MfaEvent> message = MessageBuilder
+                                .withPayload(MfaEvent.PRIMARY_AUTH_SUCCESS)
+                                .setHeader("sessionId", sessionId)
+                                .setHeader("timestamp", System.currentTimeMillis())
+                                .build();
+
+                        boolean accepted = stateMachine.sendEvent(message);
+
+                        if (accepted) {
+                            // State Machine의 상태로 Context 업데이트
+                            synchronizeStateFromStateMachine(stateMachine, context);
+
+                            // Context 업데이트 및 저장
+                            factorContextAdapter.updateFactorContext(stateMachine, context);
+                            contextPersistence.saveContext(context, request);
+
+                            // 이벤트 발행
+                            eventPublisher.publishStateChange(
+                                    sessionId,
+                                    MfaState.NONE,
+                                    stateMachine.getState().getId(),
+                                    MfaEvent.PRIMARY_AUTH_SUCCESS
+                            );
+
+                            // 성공 시 Circuit Breaker 리셋
+                            onSuccess();
+                        } else {
+                            throw new StateMachineException("Failed to process PRIMARY_AUTH_SUCCESS event");
+                        }
+                    } finally {
+                        // State Machine 반환
+                        stateMachinePool.returnStateMachine(sessionId).join();
                     }
-
-                    // PRIMARY_AUTH_SUCCESS 이벤트 전송
-                    Message<MfaEvent> message = MessageBuilder
-                            .withPayload(MfaEvent.PRIMARY_AUTH_SUCCESS)
-                            .setHeader("sessionId", sessionId)
-                            .setHeader("timestamp", System.currentTimeMillis())
-                            .build();
-
-                    stateMachine.sendEvent(message);
-
-                    // Context 업데이트 및 저장
-                    factorContextAdapter.updateFactorContext(stateMachine, context);
-                    contextPersistence.saveContext(context, request);
-
-                    // State Machine 반환
-                    stateMachinePool.returnStateMachine(sessionId).join();
-
-                    // 이벤트 발행
-                    eventPublisher.publishStateChange(
-                            sessionId,
-                            MfaState.NONE,
-                            stateMachine.getState().getId(),
-                            MfaEvent.PRIMARY_AUTH_SUCCESS
-                    );
-
-                    // 성공 시 Circuit Breaker 리셋
-                    onSuccess();
 
                     return null;
                 });
@@ -134,7 +151,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 onFailure();
                 throw new StateMachineException("Failed to initialize state machine", e);
             }
-        }, asyncExecutor);
+        }, executor);
 
         // 타임아웃 적용
         try {
@@ -147,6 +164,9 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
+    /**
+     * 이벤트 전송 - 순차 처리 보장
+     */
     @Override
     public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -158,16 +178,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             return false;
         }
 
-        // Optimistic Lock으로 버전 확인
-        if (!optimisticLockManager.checkVersion(sessionId, context.getVersion().get())) {
-            log.warn("Version conflict detected for session: {}", sessionId);
-            // 최신 상태 다시 로드
-            FactorContext latestContext = contextPersistence.contextLoad(request);
-            if (latestContext != null) {
-                context.changeState(latestContext.getCurrentState());
-                context.getVersion().set(latestContext.getVersion().get());
-            }
-        }
+        ExecutorService executor = getSessionExecutor(sessionId);
 
         CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -182,6 +193,9 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                     try {
                         StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
+
+                        // State Machine의 현재 상태로 Context 동기화
+                        synchronizeStateFromStateMachine(stateMachine, context);
 
                         // 현재 상태 저장
                         MfaState currentState = stateMachine.getState().getId();
@@ -199,11 +213,14 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                         if (accepted) {
                             MfaState newState = stateMachine.getState().getId();
 
+                            // State Machine의 상태로 Context 업데이트
+                            synchronizeStateFromStateMachine(stateMachine, context);
+
                             // Context 업데이트
                             factorContextAdapter.updateFactorContext(stateMachine, context);
 
                             // 버전 증가
-                            context.getVersion().incrementAndGet();
+                            context.incrementVersion();
                             optimisticLockManager.updateVersion(sessionId, context.getVersion().get());
 
                             // Context 저장
@@ -244,7 +261,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 log.error("Failed to send event {} for session: {}", event, sessionId, e);
                 return false;
             }
-        }, asyncExecutor);
+        }, executor);
 
         try {
             return future.get(operationTimeout, TimeUnit.SECONDS);
@@ -258,6 +275,24 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
+    /**
+     * State Machine의 상태를 FactorContext에 동기화
+     */
+    private void synchronizeStateFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine,
+                                                  FactorContext context) {
+        if (stateMachine.getState() != null) {
+            MfaState currentState = stateMachine.getState().getId();
+            if (context.getCurrentState() != currentState) {
+                log.debug("Synchronizing state from State Machine: {} -> {}",
+                        context.getCurrentState(), currentState);
+                context.changeState(currentState);
+            }
+        }
+    }
+
+    /**
+     * 현재 상태 조회 - State Machine이 Primary Source
+     */
     @Override
     public MfaState getCurrentState(String sessionId) {
         try {
@@ -298,9 +333,26 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
+    /**
+     * State Machine 해제
+     */
     @Override
     public void releaseStateMachine(String sessionId) {
         log.info("Releasing state machine for session: {}", sessionId);
+
+        // 세션별 Executor 정리
+        ExecutorService executor = sessionExecutors.remove(sessionId);
+        if (executor != null) {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -319,7 +371,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             } catch (Exception e) {
                 log.error("Error releasing state machine for session: {}", sessionId, e);
             }
-        }, asyncExecutor);
+        });
     }
 
     /**
@@ -333,7 +385,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 .setHeader("timestamp", System.currentTimeMillis())
                 .setHeader("authentication", context.getPrimaryAuthentication())
                 .setHeader("request", request)
-                .setHeader("version", context.getVersion().get())
+                .setHeader("version", context.getVersion())
                 .build();
     }
 
@@ -386,15 +438,18 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     public void shutdown() {
         log.info("Shutting down MFA State Machine Service");
 
-        asyncExecutor.shutdown();
-        try {
-            if (!asyncExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
-                asyncExecutor.shutdownNow();
+        // 모든 세션 Executor 종료
+        sessionExecutors.forEach((sessionId, executor) -> {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
             }
-        } catch (InterruptedException e) {
-            asyncExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        });
+        sessionExecutors.clear();
 
         stateMachinePool.shutdown();
     }

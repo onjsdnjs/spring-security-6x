@@ -76,57 +76,82 @@ public class StateMachinePool {
     }
 
     /**
-     * State Machine 대여
+     * State Machine 대여 - 개선된 버전 (메모리 누수 방지)
      */
     public CompletableFuture<PooledStateMachine> borrowStateMachine(String sessionId, long timeout, TimeUnit unit) {
         return CompletableFuture.supplyAsync(() -> {
+            boolean acquired = false;
             try {
-                // 풀 크기 제한 확인
+                // 세마포어 획득 시도
                 if (!poolSemaphore.tryAcquire(timeout, unit)) {
                     throw new TimeoutException("Unable to acquire state machine from pool within timeout");
                 }
+                acquired = true;
 
                 PooledStateMachine pooled = null;
 
-                // 1. 사용 가능한 풀에서 가져오기 시도
-                pooled = availablePool.poll();
+                try {
+                    // 1. 사용 가능한 풀에서 가져오기 시도
+                    pooled = availablePool.poll();
 
-                // 2. 없으면 새로 생성 (maxPoolSize 제한 내에서)
-                if (pooled == null && currentSize.get() < maxPoolSize) {
-                    pooled = createNewStateMachine();
+                    // 2. 없으면 새로 생성 (maxPoolSize 제한 내에서)
+                    if (pooled == null && currentSize.get() < maxPoolSize) {
+                        pooled = createNewStateMachine();
+                    }
+
+                    // 3. 그래도 없으면 대기
+                    if (pooled == null) {
+                        long remainingTime = unit.toNanos(timeout);
+                        long deadline = System.nanoTime() + remainingTime;
+
+                        while (pooled == null && remainingTime > 0) {
+                            pooled = availablePool.poll(remainingTime, TimeUnit.NANOSECONDS);
+                            remainingTime = deadline - System.nanoTime();
+                        }
+                    }
+
+                    if (pooled == null) {
+                        throw new TimeoutException("No available state machine in pool");
+                    }
+
+                    // 4. 상태 복원
+                    prepareStateMachine(pooled, sessionId);
+
+                    // 5. 사용 중 풀로 이동
+                    pooled.setInUse(true);
+                    pooled.setCurrentSessionId(sessionId);
+                    inUsePool.put(sessionId, pooled);
+                    totalBorrowed.incrementAndGet();
+
+                    log.debug("Borrowed state machine for session: {}, Pool stats - available: {}, inUse: {}",
+                            sessionId, availablePool.size(), inUsePool.size());
+
+                    return pooled;
+
+                } catch (Exception e) {
+                    // 에러 발생 시 생성된 인스턴스 정리
+                    if (pooled != null) {
+                        try {
+                            destroyStateMachine(pooled);
+                        } catch (Exception ex) {
+                            log.error("Error destroying state machine after borrow failure", ex);
+                        }
+                    }
+                    throw new CompletionException("Failed to borrow state machine", e);
                 }
-
-                // 3. 그래도 없으면 대기
-                if (pooled == null) {
-                    pooled = availablePool.poll(timeout, unit);
-                }
-
-                if (pooled == null) {
-                    poolSemaphore.release();
-                    throw new TimeoutException("No available state machine in pool");
-                }
-
-                // 4. 상태 복원
-                prepareStateMachine(pooled, sessionId);
-
-                // 5. 사용 중 풀로 이동
-                inUsePool.put(sessionId, pooled);
-                totalBorrowed.incrementAndGet();
-
-                log.debug("Borrowed state machine for session: {}, Pool stats - available: {}, inUse: {}",
-                        sessionId, availablePool.size(), inUsePool.size());
-
-                return pooled;
 
             } catch (Exception e) {
-                poolSemaphore.release();
-                throw new CompletionException("Failed to borrow state machine", e);
+                // 세마포어 해제 (acquired가 true인 경우만)
+                if (acquired) {
+                    poolSemaphore.release();
+                }
+                throw new CompletionException("Failed to acquire pool semaphore", e);
             }
         });
     }
 
     /**
-     * State Machine 반환
+     * State Machine 반환 - 개선된 버전
      */
     public CompletableFuture<Void> returnStateMachine(String sessionId) {
         return CompletableFuture.runAsync(() -> {
@@ -139,25 +164,39 @@ public class StateMachinePool {
 
             try {
                 // 상태 영속화
-                persister.persist(pooled.getStateMachine(), sessionId);
+                if (pooled.getStateMachine() != null && !pooled.getStateMachine().hasStateMachineError()) {
+                    persister.persist(pooled.getStateMachine(), sessionId);
+                }
 
                 // 상태 머신 리셋
                 resetStateMachine(pooled);
 
                 // 유효성 검사
                 if (isStateMachineHealthy(pooled)) {
+                    pooled.setInUse(false);
+                    pooled.setLastReturnedAt(System.currentTimeMillis());
                     // 사용 가능한 풀로 반환
-                    availablePool.offer(pooled);
-                    totalReturned.incrementAndGet();
+                    if (!availablePool.offer(pooled)) {
+                        log.warn("Failed to return state machine to available pool, destroying it");
+                        destroyStateMachine(pooled);
+                    } else {
+                        totalReturned.incrementAndGet();
+                    }
                 } else {
                     // 문제가 있으면 폐기
+                    log.info("Destroying unhealthy state machine for session: {}", sessionId);
                     destroyStateMachine(pooled);
                 }
 
             } catch (Exception e) {
                 log.error("Error returning state machine for session: {}", sessionId, e);
-                destroyStateMachine(pooled);
+                try {
+                    destroyStateMachine(pooled);
+                } catch (Exception ex) {
+                    log.error("Error destroying state machine after return failure", ex);
+                }
             } finally {
+                // 항상 세마포어 해제
                 poolSemaphore.release();
             }
 
@@ -458,19 +497,35 @@ public class StateMachinePool {
     }
 
     /**
-     * 풀 종료
+     * 풀 종료 - 개선된 버전
      */
     public void shutdown() {
         log.info("Shutting down state machine pool");
 
         poolMaintenanceExecutor.shutdown();
 
-        // 모든 상태 머신 정리
-        availablePool.forEach(this::destroyStateMachine);
-        inUsePool.values().forEach(this::destroyStateMachine);
+        // 사용 중인 State Machine들 대기
+        int waitAttempts = 10;
+        while (!inUsePool.isEmpty() && waitAttempts > 0) {
+            log.info("Waiting for {} in-use state machines to be returned...", inUsePool.size());
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            waitAttempts--;
+        }
 
-        availablePool.clear();
+        // 강제 정리
+        inUsePool.values().forEach(this::destroyStateMachine);
         inUsePool.clear();
+
+        // 사용 가능한 State Machine 정리
+        PooledStateMachine pooled;
+        while ((pooled = availablePool.poll()) != null) {
+            destroyStateMachine(pooled);
+        }
 
         try {
             if (!poolMaintenanceExecutor.awaitTermination(10, TimeUnit.SECONDS)) {

@@ -32,7 +32,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     // 보안 강화를 위한 추가 필드
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
     private static final long VERIFICATION_TIMEOUT = TimeUnit.MINUTES.toMillis(5);
-    private static final long MIN_VERIFICATION_DELAY = 500; // 최소 검증 지연 (밀리초)
+    public static final long MIN_VERIFICATION_DELAY = 500; // 최소 검증 지연 (밀리초)
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
                                 ContextPersistence contextPersistence,
@@ -198,7 +198,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     /**
      * 보안 강화된 State Machine 인식 FilterChain 래퍼
-     */
+     *//*
     private static class SecureStateMachineAwareFilterChain implements FilterChain {
         private final FilterChain delegate;
         private final FactorContext context;
@@ -266,5 +266,5 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 }
             }
         }
-    }
+    }*/
 }

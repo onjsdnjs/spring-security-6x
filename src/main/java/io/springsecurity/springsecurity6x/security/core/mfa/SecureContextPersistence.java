@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.core.mfa;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
@@ -86,9 +87,11 @@ public class SecureContextPersistence implements ContextPersistence {
         }
     }
 
-    /**
+    */
+/**
      * 챌린지 nonce 생성 및 저장 (재생 공격 방지)
-     */
+     *//*
+
     public String generateChallengeNonce(String sessionId, String factorType) {
         byte[] nonceBytes = new byte[32];
         secureRandom.nextBytes(nonceBytes);
@@ -100,9 +103,11 @@ public class SecureContextPersistence implements ContextPersistence {
         return nonce;
     }
 
-    /**
+    */
+/**
      * 챌린지 nonce 검증 및 제거 (일회성 보장)
-     */
+     *//*
+
     public boolean validateAndConsumeChallengeNonce(String sessionId, String factorType, String nonce) {
         String key = sessionId + ":" + factorType;
         ChallengeNonce storedNonce = challengeNonces.remove(key);
@@ -151,3 +156,4 @@ public class SecureContextPersistence implements ContextPersistence {
         }
     }
 }
+*/

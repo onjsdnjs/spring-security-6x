@@ -139,7 +139,6 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
         throw new IllegalStateException("Cannot determine factor type from context");
     }
 
-    @Override
     protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
                                  FactorContext factorContext) {
         // 현재 검증 중인 팩터가 없으면 실행하지 않음

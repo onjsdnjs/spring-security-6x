@@ -79,7 +79,6 @@ public class CompleteMfaAction extends AbstractMfaStateAction {
         context.getExtendedState().getVariables().put("completionStatus", "SUCCESS");
     }
 
-    @Override
     protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
                                  FactorContext factorContext) {
         // MFA가 이미 완료된 경우 실행하지 않음

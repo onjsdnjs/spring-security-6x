@@ -221,7 +221,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                             // 버전 증가
                             context.incrementVersion();
-                            optimisticLockManager.updateVersion(sessionId, context.getVersion().get());
+                            optimisticLockManager.updateVersion(sessionId, context.getVersion());
 
                             // Context 저장
                             contextPersistence.saveContext(context, request);

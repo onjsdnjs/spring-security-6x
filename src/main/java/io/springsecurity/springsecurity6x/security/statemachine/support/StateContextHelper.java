@@ -274,7 +274,7 @@ public class StateContextHelper {
         if (changes.containsKey("version")) {
             // 버전은 AtomicInteger이므로 직접 설정 불가, 대신 증가
             int targetVersion = (Integer) changes.get("version");
-            while (context.getVersion().get() < targetVersion) {
+            while (context.getVersion() < targetVersion) {
                 context.incrementVersion();
             }
         }
@@ -354,7 +354,7 @@ public class StateContextHelper {
         if (version instanceof Integer) {
             // 버전은 AtomicInteger이므로 직접 설정 불가, 대신 증가
             int targetVersion = (Integer) version;
-            while (factorContext.getVersion().get() < targetVersion) {
+            while (factorContext.getVersion() < targetVersion) {
                 factorContext.incrementVersion();
             }
         }

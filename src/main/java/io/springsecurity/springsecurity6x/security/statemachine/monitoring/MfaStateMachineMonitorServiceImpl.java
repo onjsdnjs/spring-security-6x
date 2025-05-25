@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MfaStateMachineMonitor implements MfaStateMachineMonitorService, HealthIndicator {
+public class MfaStateMachineMonitorServiceImpl implements MfaStateMachineMonitorService, HealthIndicator {
 
     private final MeterRegistry meterRegistry;
     private final ApplicationEventPublisher eventPublisher;

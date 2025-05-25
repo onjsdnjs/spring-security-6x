@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributed
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
+import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
 import io.springsecurity.springsecurity6x.security.statemachine.core.pool.PooledStateMachine;
 import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
@@ -25,21 +25,17 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 최적화된 MFA State Machine 서비스
- * - State Machine Pool 활용
- * - 비동기 이벤트 처리
- * - Optimistic Locking
- * - Circuit Breaker 패턴
+ * MFA State Machine 서비스 구현체
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DefaultMfaStateMachineService implements MfaStateMachineService {
+public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
     private final StateMachinePool stateMachinePool;
     private final FactorContextStateAdapter factorContextAdapter;
     private final ContextPersistence contextPersistence;
-    private final AsyncEventPublisher eventPublisher;
+    private final MfaEventPublisher eventPublisher;  // MfaEventPublisher 사용
     private final RedisDistributedLockService distributedLockService;
     private final OptimisticLockManager optimisticLockManager;
 
@@ -122,8 +118,10 @@ public class DefaultMfaStateMachineService implements MfaStateMachineService {
                     stateMachinePool.returnStateMachine(sessionId).join();
 
                     // 이벤트 발행
-                    eventPublisher.publishStateChangeAsync(
-                            sessionId, MfaState.NONE, stateMachine.getState().getId(),
+                    eventPublisher.publishStateChange(
+                            sessionId,
+                            MfaState.NONE,
+                            stateMachine.getState().getId(),
                             MfaEvent.PRIMARY_AUTH_SUCCESS
                     );
 
@@ -172,6 +170,8 @@ public class DefaultMfaStateMachineService implements MfaStateMachineService {
         }
 
         CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+            long startTime = System.currentTimeMillis();
+
             try {
                 return distributedLockService.executeWithLock("sm:event:" + sessionId, Duration.ofSeconds(operationTimeout), () -> {
 
@@ -209,8 +209,11 @@ public class DefaultMfaStateMachineService implements MfaStateMachineService {
                             // Context 저장
                             contextPersistence.saveContext(context, request);
 
-                            // 비동기 이벤트 발행
-                            eventPublisher.publishStateChangeAsync(sessionId, currentState, newState, event);
+                            // 전이 시간 계산
+                            Duration duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
+
+                            // 이벤트 발행
+                            eventPublisher.publishStateChange(sessionId, currentState, newState, event, duration);
 
                             log.info("Event {} accepted, state transition: {} -> {} for session: {}",
                                     event, currentState, newState, sessionId);
@@ -229,6 +232,15 @@ public class DefaultMfaStateMachineService implements MfaStateMachineService {
                 });
             } catch (Exception e) {
                 onFailure();
+
+                // 에러 이벤트 발행
+                eventPublisher.publishError(
+                        sessionId,
+                        context.getCurrentState(),
+                        event,
+                        e
+                );
+
                 log.error("Failed to send event {} for session: {}", event, sessionId, e);
                 return false;
             }
@@ -299,7 +311,7 @@ public class DefaultMfaStateMachineService implements MfaStateMachineService {
                 contextPersistence.deleteContext(null);
 
                 // 완료 이벤트 발행
-                eventPublisher.publishCustomEventAsync("SESSION_CLEANUP", Map.of(
+                eventPublisher.publishCustomEvent("SESSION_CLEANUP", Map.of(
                         "sessionId", sessionId,
                         "timestamp", System.currentTimeMillis()
                 ));

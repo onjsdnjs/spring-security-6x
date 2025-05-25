@@ -5,14 +5,13 @@ import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConf
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.core.persist.InMemoryStateMachinePersist;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
-import io.springsecurity.springsecurity6x.security.statemachine.core.persist.ResilientRedisStateMachinePersist;
-import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
+import io.springsecurity.springsecurity6x.security.statemachine.core.persist.InMemoryStateMachinePersist;
+import io.springsecurity.springsecurity6x.security.statemachine.core.persist.ResilientRedisStateMachinePersist;
 import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.DefaultMfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineServiceImpl;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStateChangeListener;
@@ -38,12 +37,10 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 통합 State Machine 설정
- * - 모든 State Machine 관련 설정을 하나로 통합
- * - 최적화된 구성 요소 사용
  */
 @Slf4j
 @Configuration
-@Import(UnifiedRedisConfiguration.class)
+@Import({UnifiedRedisConfiguration.class, AsyncEventConfiguration.class})
 @EnableConfigurationProperties({StateMachineProperties.class, AuthContextProperties.class})
 @RequiredArgsConstructor
 public class UnifiedStateMachineConfiguration {
@@ -126,27 +123,17 @@ public class UnifiedStateMachineConfiguration {
     }
 
     /**
-     * 비동기 이벤트 발행자
+     * MFA 이벤트 발행자
      */
     @Bean
     @Primary
-    public AsyncEventPublisher asyncEventPublisher(ApplicationEventPublisher applicationEventPublisher,
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
-
-        log.info("Creating Async Event Publisher");
-        return new AsyncEventPublisher(applicationEventPublisher, redisTemplate);
+    public MfaEventPublisher mfaEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+        log.info("Creating MFA Event Publisher");
+        return new MfaEventPublisher(applicationEventPublisher);
     }
 
     /**
-     * MFA 이벤트 발행자 (AsyncEventPublisher 사용)
-     */
-    @Bean(name = "mfaEventPublisher")
-    public MfaEventPublisher mfaEventPublisher(AsyncEventPublisher asyncEventPublisher) {
-        return asyncEventPublisher;
-    }
-
-    /**
-     * 최적화된 MFA State Machine Service
+     * MFA State Machine Service
      */
     @Bean
     @Primary
@@ -154,18 +141,18 @@ public class UnifiedStateMachineConfiguration {
             StateMachinePool stateMachinePool,
             FactorContextStateAdapter factorContextAdapter,
             ContextPersistence contextPersistence,
-            AsyncEventPublisher eventPublisher,
-            RedisDistributedLockService redisDistributedLockService,
+            MfaEventPublisher eventPublisher,
+            @Qualifier("RedisDistributedLockService") RedisDistributedLockService distributedLockService,
             OptimisticLockManager optimisticLockManager) {
 
-        log.info("Creating Optimized MFA State Machine Service");
+        log.info("Creating MFA State Machine Service");
 
-        return new DefaultMfaStateMachineService(
+        return new MfaStateMachineServiceImpl(
                 stateMachinePool,
                 factorContextAdapter,
                 contextPersistence,
                 eventPublisher,
-                redisDistributedLockService,
+                distributedLockService,
                 optimisticLockManager
         );
     }

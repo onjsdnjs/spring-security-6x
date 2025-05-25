@@ -5,14 +5,14 @@ import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConf
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.core.InMemoryStateMachinePersist;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaEventPublisher;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
-import io.springsecurity.springsecurity6x.security.statemachine.core.ResilientRedisStateMachinePersist;
+import io.springsecurity.springsecurity6x.security.statemachine.core.persist.InMemoryStateMachinePersist;
+import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.persist.ResilientRedisStateMachinePersist;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
 import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.OptimizedMfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.DefaultMfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStateChangeListener;
@@ -130,8 +130,7 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     @Primary
-    public AsyncEventPublisher asyncEventPublisher(
-            ApplicationEventPublisher applicationEventPublisher,
+    public AsyncEventPublisher asyncEventPublisher(ApplicationEventPublisher applicationEventPublisher,
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
 
         log.info("Creating Async Event Publisher");
@@ -156,17 +155,17 @@ public class UnifiedStateMachineConfiguration {
             FactorContextStateAdapter factorContextAdapter,
             ContextPersistence contextPersistence,
             AsyncEventPublisher eventPublisher,
-            DistributedLockManager distributedLockManager,
+            RedisDistributedLockService redisDistributedLockService,
             OptimisticLockManager optimisticLockManager) {
 
         log.info("Creating Optimized MFA State Machine Service");
 
-        return new OptimizedMfaStateMachineService(
+        return new DefaultMfaStateMachineService(
                 stateMachinePool,
                 factorContextAdapter,
                 contextPersistence,
                 eventPublisher,
-                distributedLockManager,
+                redisDistributedLockService,
                 optimisticLockManager
         );
     }

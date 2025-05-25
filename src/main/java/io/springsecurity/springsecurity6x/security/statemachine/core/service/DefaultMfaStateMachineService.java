@@ -4,7 +4,6 @@ import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributed
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.AsyncEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
 import io.springsecurity.springsecurity6x.security.statemachine.core.pool.PooledStateMachine;
@@ -35,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OptimizedMfaStateMachineService implements MfaStateMachineService {
+public class DefaultMfaStateMachineService implements MfaStateMachineService {
 
     private final StateMachinePool stateMachinePool;
     private final FactorContextStateAdapter factorContextAdapter;
@@ -257,7 +256,7 @@ public class OptimizedMfaStateMachineService implements MfaStateMachineService {
             }
 
             // Pool에서 State Machine 가져와서 확인
-            return distributedLockManager.executeWithLock(sessionId, Duration.ofSeconds(5), () -> {
+            return distributedLockService.executeWithLock("sm:state:" + sessionId, Duration.ofSeconds(5), () -> {
 
                 PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
                         sessionId, 5, TimeUnit.SECONDS

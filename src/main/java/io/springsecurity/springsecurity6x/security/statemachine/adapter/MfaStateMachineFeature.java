@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.statemachine.config.MfaStateMachineConfiguration;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

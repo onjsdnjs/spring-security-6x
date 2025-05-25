@@ -2,57 +2,33 @@ package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.transition.Transition;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * State 전이 정보를 관리하는 어댑터
- * 전이 가능 여부 판단 및 전이 정보 제공
+ * StateMachineFactory 에서 실시간으로 전이 정보 조회
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class StateTransitionAdapter {
 
-    // 상태별 허용된 이벤트 매핑
-    private static final Map<MfaState, Map<MfaEvent, MfaState>> TRANSITION_MAP = new HashMap<>();
-
-    static {
-        // START_MFA 상태에서의 전이
-        Map<MfaEvent, MfaState> startTransitions = new HashMap<>();
-        startTransitions.put(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, MfaState.AWAITING_FACTOR_SELECTION);
-        startTransitions.put(MfaEvent.MFA_REQUIRED_INITIATE_CHALLENGE, MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
-        startTransitions.put(MfaEvent.MFA_NOT_REQUIRED, MfaState.ALL_FACTORS_COMPLETED);
-        TRANSITION_MAP.put(MfaState.START_MFA, startTransitions);
-
-        // AWAITING_FACTOR_SELECTION 상태에서의 전이
-        Map<MfaEvent, MfaState> selectionTransitions = new HashMap<>();
-        selectionTransitions.put(MfaEvent.FACTOR_SELECTED_OTT, MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
-        selectionTransitions.put(MfaEvent.FACTOR_SELECTED_PASSKEY, MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
-        selectionTransitions.put(MfaEvent.USER_ABORTED_MFA, MfaState.MFA_CANCELLED);
-        selectionTransitions.put(MfaEvent.SESSION_TIMEOUT, MfaState.MFA_SESSION_EXPIRED);
-        TRANSITION_MAP.put(MfaState.AWAITING_FACTOR_SELECTION, selectionTransitions);
-
-        // 더 많은 상태 전이 규칙 추가...
-    }
+    private final StateMachineFactory<MfaState, MfaEvent> stateMachineFactory;
 
     /**
      * 주어진 상태에서 특정 이벤트가 유효한지 확인
      */
     public boolean isValidTransition(MfaState currentState, MfaEvent event) {
-        Map<MfaEvent, MfaState> transitions = TRANSITION_MAP.get(currentState);
-        return transitions != null && transitions.containsKey(event);
-    }
-
-    /**
-     * 전이 후 도달할 상태 반환
-     */
-    public MfaState getTargetState(MfaState currentState, MfaEvent event) {
-        Map<MfaEvent, MfaState> transitions = TRANSITION_MAP.get(currentState);
-        return transitions != null ? transitions.get(event) : null;
+        // StateMachine 에서 직접 전이 가능 여부 확인
+        return stateMachineFactory.getStateMachine()
+                .getTransitions()
+                .stream()
+                .anyMatch(t -> t.getSource().getId().equals(currentState)
+                        && t.getTrigger().getEvent().equals(event));
     }
 
     /**
@@ -66,9 +42,6 @@ public class StateTransitionAdapter {
                 .build();
     }
 
-    /**
-     * 전이 정보 DTO
-     */
     @lombok.Builder
     @lombok.Getter
     public static class TransitionInfo {

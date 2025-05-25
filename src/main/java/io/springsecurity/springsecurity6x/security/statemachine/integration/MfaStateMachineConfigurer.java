@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.configurer.Sec
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.core;
+package io.springsecurity.springsecurity6x.security.statemachine.core.persist;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

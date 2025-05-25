@@ -3,7 +3,7 @@ package io.springsecurity.springsecurity6x.security.statemachine.integration;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaStateMachineService;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

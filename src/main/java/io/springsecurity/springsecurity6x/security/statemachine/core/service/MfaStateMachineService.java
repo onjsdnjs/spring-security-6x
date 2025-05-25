@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.core;
+package io.springsecurity.springsecurity6x.security.statemachine.core.service;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;

@@ -68,7 +68,7 @@ public class RedisDistributedLockService {
                     String.valueOf(timeout.getSeconds())
             );
 
-            boolean acquired = result != null && result == 1;
+            boolean acquired = result == 1;
 
             if (acquired) {
                 log.debug("Lock acquired for resource: {} by owner: {}", resourceKey, owner);

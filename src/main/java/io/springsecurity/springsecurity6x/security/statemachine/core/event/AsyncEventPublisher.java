@@ -1,13 +1,12 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core.event;
 
-import io.springsecurity.springsecurity6x.security.statemachine.core.MfaEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
-import lombok.RequiredArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -22,8 +21,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * - 실패 시 재시도 메커니즘
  */
 @Slf4j
-@Component
-@RequiredArgsConstructor
 public class AsyncEventPublisher implements MfaEventPublisher {
 
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -41,7 +38,9 @@ public class AsyncEventPublisher implements MfaEventPublisher {
     // 백프레셔 제어
     private final Semaphore backpressureSemaphore = new Semaphore(1000);
 
-    public AsyncEventPublisher() {
+    public AsyncEventPublisher(ApplicationEventPublisher applicationEventPublisher, RedisTemplate<String, String> redisTemplate) {
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.redisTemplate = redisTemplate;
         // 배치 처리 시작
         startBatchProcessor();
     }
@@ -323,8 +322,8 @@ public class AsyncEventPublisher implements MfaEventPublisher {
     /**
      * 이벤트 메시지
      */
-    @lombok.Builder
-    @lombok.Getter
+    @Builder
+    @Getter
     private static class EventMessage {
         private final EventType type;
         private final String sessionId;

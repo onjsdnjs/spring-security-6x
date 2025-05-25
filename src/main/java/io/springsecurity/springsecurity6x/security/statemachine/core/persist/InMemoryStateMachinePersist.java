@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.core;
+package io.springsecurity.springsecurity6x.security.statemachine.core.persist;
 
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;

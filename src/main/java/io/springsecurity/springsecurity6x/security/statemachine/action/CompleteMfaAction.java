@@ -14,10 +14,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * MFA 완료 액션
- * 모든 필수 팩터가 완료되었을 때 실행
- */
 @Slf4j
 @Component
 public class CompleteMfaAction extends AbstractMfaStateAction {
@@ -34,34 +30,34 @@ public class CompleteMfaAction extends AbstractMfaStateAction {
         log.info("Completing MFA for session: {}", sessionId);
 
         // 완료된 팩터 목록 로깅
-        List<AuthenticationStepConfig> completedFactors = factorContext.getCompletedFactors();
-        if (completedFactors != null && !completedFactors.isEmpty()) {
-            String completedFactorTypes = completedFactors.stream()
-                    .map(AuthenticationStepConfig::getType)
-                    .collect(Collectors.joining(", "));
-            log.info("MFA completed with factors: {} for session: {}",
-                    completedFactorTypes, sessionId);
-        }
+        logCompletedFactors(factorContext);
 
-        // MFA 완료 시간 설정 - FactorContext에 setCompletedAt 메서드가 없으므로 attributes 사용
+        // MFA 완료 시간 설정
         factorContext.setAttribute("completedAt", LocalDateTime.now());
 
-        // 상태를 완료로 변경 - changeState 메서드 사용
+        // 상태를 완료로 변경
         factorContext.changeState(MfaState.MFA_SUCCESSFUL);
 
         // 추가 완료 처리 로직
         performCompletionTasks(factorContext);
 
         // 이벤트 메타데이터 추가
-        context.getExtendedState().getVariables().put("mfaCompletedAt", LocalDateTime.now());
-        context.getExtendedState().getVariables().put("completionStatus", "SUCCESS");
+        updateEventMetadata(context);
 
         log.info("MFA successfully completed for session: {}", sessionId);
     }
 
-    /**
-     * MFA 완료 시 추가 작업 수행
-     */
+    private void logCompletedFactors(FactorContext factorContext) {
+        List<AuthenticationStepConfig> completedFactors = factorContext.getCompletedFactors();
+        if (completedFactors != null && !completedFactors.isEmpty()) {
+            String completedFactorTypes = completedFactors.stream()
+                    .map(AuthenticationStepConfig::getType)
+                    .collect(Collectors.joining(", "));
+            log.info("MFA completed with factors: {} for session: {}",
+                    completedFactorTypes, factorContext.getMfaSessionId());
+        }
+    }
+
     private void performCompletionTasks(FactorContext factorContext) {
         // 감사 로그 기록을 위한 준비
         factorContext.setAttribute("completionTimestamp", System.currentTimeMillis());
@@ -73,12 +69,14 @@ public class CompleteMfaAction extends AbstractMfaStateAction {
         }
 
         // 세션 지속 시간 계산
-        Long createdAt = (Long) factorContext.getAttribute("createdAt");
-        if (createdAt == null) {
-            createdAt = factorContext.getCreatedAt(); // getCreatedAt()은 long 타입 반환
-        }
+        long createdAt = factorContext.getCreatedAt();
         long durationSeconds = (System.currentTimeMillis() - createdAt) / 1000;
         factorContext.setAttribute("mfaDurationSeconds", durationSeconds);
+    }
+
+    private void updateEventMetadata(StateContext<MfaState, MfaEvent> context) {
+        context.getExtendedState().getVariables().put("mfaCompletedAt", LocalDateTime.now());
+        context.getExtendedState().getVariables().put("completionStatus", "SUCCESS");
     }
 
     @Override

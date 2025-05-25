@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.exception.MfaStateMachineExceptions.*;
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,10 +13,6 @@ import org.springframework.statemachine.action.Action;
 
 import java.util.Map;
 
-/**
- * MFA 상태 변경 액션의 추상 기본 클래스
- * 모든 MFA 관련 액션은 이 클래스를 상속받아 구현
- */
 @Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEvent> {
@@ -28,12 +25,16 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
         String sessionId = extractSessionId(context);
         log.debug("Executing action {} for session: {}", this.getClass().getSimpleName(), sessionId);
 
+        FactorContext factorContext = null;
         try {
             // FactorContext 추출
-            FactorContext factorContext = extractFactorContext(context);
+            factorContext = extractFactorContext(context);
             if (factorContext == null) {
                 throw new IllegalStateException("FactorContext not found in state machine context");
             }
+
+            // 전제조건 검증
+            validatePreconditions(context, factorContext);
 
             // 액션별 구체적인 로직 실행
             doExecute(context, factorContext);
@@ -44,11 +45,34 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
             log.debug("Action {} completed successfully for session: {}",
                     this.getClass().getSimpleName(), sessionId);
 
+        } catch (InvalidFactorException | ChallengeGenerationException |
+                 FactorVerificationException | StateTransitionException e) {
+            // 비즈니스 예외는 특정 오류 상태로 전이
+            log.error("Business exception in action {} for session: {}: {}",
+                    this.getClass().getSimpleName(), sessionId, e.getMessage());
+            handleBusinessException(context, factorContext, e);
+
+        } catch (SessionExpiredException e) {
+            // 세션 만료는 특별 처리
+            log.error("Session expired during action {} for session: {}",
+                    this.getClass().getSimpleName(), sessionId);
+            transitionToExpiredState(context, factorContext);
+
         } catch (Exception e) {
-            log.error("Error executing action {} for session: {}",
+            // 예상치 못한 예외
+            log.error("Unexpected error in action {} for session: {}",
                     this.getClass().getSimpleName(), sessionId, e);
-            handleError(context, e);
+            handleUnexpectedError(context, factorContext, e);
         }
+    }
+
+    /**
+     * 전제조건 검증
+     */
+    protected void validatePreconditions(StateContext<MfaState, MfaEvent> context,
+                                         FactorContext factorContext) throws Exception {
+        // 기본 구현은 아무것도 하지 않음
+        // 하위 클래스에서 필요시 오버라이드
     }
 
     /**
@@ -56,6 +80,56 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
      */
     protected abstract void doExecute(StateContext<MfaState, MfaEvent> context,
                                       FactorContext factorContext) throws Exception;
+
+    /**
+     * 비즈니스 예외 처리
+     */
+    protected void handleBusinessException(StateContext<MfaState, MfaEvent> context,
+                                           FactorContext factorContext,
+                                           RuntimeException e) {
+        // 에러 정보 저장
+        if (factorContext != null) {
+            factorContext.setLastError(e.getMessage());
+            factorContext.setAttribute("lastErrorType", e.getClass().getSimpleName());
+            factorContext.setAttribute("lastErrorTime", System.currentTimeMillis());
+        }
+
+        // 예외 타입에 따른 처리
+        if (e instanceof InvalidFactorException) {
+            context.getStateMachine().sendEvent(MfaEvent.SYSTEM_ERROR);
+        } else if (e instanceof ChallengeGenerationException) {
+            context.getStateMachine().sendEvent(MfaEvent.CHALLENGE_INITIATION_FAILED);
+        } else if (e instanceof FactorVerificationException) {
+            context.getStateMachine().sendEvent(MfaEvent.FACTOR_VERIFICATION_FAILED);
+        }
+    }
+
+    /**
+     * 세션 만료 상태로 전이
+     */
+    protected void transitionToExpiredState(StateContext<MfaState, MfaEvent> context,
+                                            FactorContext factorContext) {
+        if (factorContext != null) {
+            factorContext.changeState(MfaState.MFA_SESSION_EXPIRED);
+        }
+        context.getStateMachine().sendEvent(MfaEvent.SESSION_TIMEOUT);
+    }
+
+    /**
+     * 예상치 못한 에러 처리
+     */
+    protected void handleUnexpectedError(StateContext<MfaState, MfaEvent> context,
+                                         FactorContext factorContext,
+                                         Exception e) {
+        if (factorContext != null) {
+            factorContext.setLastError("Unexpected error: " + e.getMessage());
+            factorContext.changeState(MfaState.MFA_SYSTEM_ERROR);
+        }
+
+        // Dead Letter Queue로 전송할 수 있도록 이벤트 발행
+        context.getExtendedState().getVariables().put("unexpectedError", e);
+        context.getExtendedState().getVariables().put("errorTimestamp", System.currentTimeMillis());
+    }
 
     /**
      * StateContext에서 세션 ID 추출
@@ -70,7 +144,6 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
 
     /**
      * StateContext에서 FactorContext 추출
-     * StateContextHelper를 사용하여 안전하게 추출
      */
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
         return stateContextHelper.extractFactorContext(context);
@@ -81,32 +154,7 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
      */
     protected void updateStateMachineVariables(StateContext<MfaState, MfaEvent> context,
                                                FactorContext factorContext) {
-        // FactorContextStateAdapter의 toStateMachineVariables 메서드 사용
         Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(factorContext);
         context.getExtendedState().getVariables().putAll(variables);
-    }
-
-    /**
-     * 에러 처리 로직
-     * 기본적으로 RuntimeException 으로 래핑하되, 구체적인 에러 타입에 따라 처리
-     */
-    protected void handleError(StateContext<MfaState, MfaEvent> context, Exception e) {
-        if (e instanceof IllegalStateException || e instanceof IllegalArgumentException) {
-            // 비즈니스 로직 에러는 그대로 전파
-            throw (RuntimeException) e;
-        } else if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
-        } else {
-            // Checked exception은 RuntimeException 으로 래핑
-            throw new RuntimeException("Error executing MFA action", e);
-        }
-    }
-
-    /**
-     * 액션 실행 전 검증 로직 (선택적 구현)
-     */
-    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
-                                 FactorContext factorContext) {
-        return true;
     }
 }

@@ -105,7 +105,7 @@ public enum MfaState {
     TOKEN_ISSUANCE_REQUIRED("최종 토큰 발급 대기"),
 
     /** [MFA_COMPLETED_TOKEN_ISSUED로 대체 고려] MFA 흐름 최종 성공 (토큰 발급/세션 생성 완료) - 터미널 상태 */
-    MFA_FULLY_COMPLETED("MFA 최종 인증 성공"),
+    MFA_COMPLETE("MFA 최종 인증 성공"),
 
     /** MFA 처리 중 예상치 못한 시스템 오류 발생 - 터미널 상태 */
     MFA_SYSTEM_ERROR("MFA 시스템 오류"),
@@ -123,7 +123,7 @@ public enum MfaState {
     }
 
     public boolean isTerminal() {
-        return this == MFA_FULLY_COMPLETED || // MFA_COMPLETED_TOKEN_ISSUED로 대체되면 해당 값 사용
+        return this == MFA_COMPLETE || // MFA_COMPLETED_TOKEN_ISSUED로 대체되면 해당 값 사용
                 this == MFA_FAILURE_TERMINAL || // MFA_FAILED_TERMINAL과 동일
                 this == MFA_FAILED_TERMINAL ||
                 this == MFA_SESSION_EXPIRED ||

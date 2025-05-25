@@ -19,9 +19,6 @@ import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
 
-/**
- * MFA State Machine 구성
- */
 @Slf4j
 @Configuration
 @EnableStateMachineFactory
@@ -58,7 +55,8 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .end(MfaState.MFA_SUCCESSFUL)
                 .end(MfaState.MFA_FAILED_TERMINAL)
                 .end(MfaState.MFA_CANCELLED)
-                .end(MfaState.MFA_SESSION_EXPIRED);
+                .end(MfaState.MFA_SESSION_EXPIRED)
+                .end(MfaState.MFA_NOT_REQUIRED);
     }
 
     @Override
@@ -152,6 +150,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .withExternal()
                 .source(MfaState.FACTOR_VERIFICATION_COMPLETED)
                 .target(MfaState.AWAITING_FACTOR_SELECTION)
+                .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .guard(allFactorsCompletedGuard.negate())
                 .and()
 
@@ -184,7 +183,21 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .withExternal()
                 .source(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
                 .target(MfaState.MFA_SESSION_EXPIRED)
-                .event(MfaEvent.SESSION_TIMEOUT);
+                .event(MfaEvent.SESSION_TIMEOUT)
+                .and()
+
+                // 시스템 에러 처리
+                .withExternal()
+                .source(MfaState.FACTOR_VERIFICATION_PENDING)
+                .target(MfaState.MFA_SYSTEM_ERROR)
+                .event(MfaEvent.SYSTEM_ERROR)
+                .and()
+
+                // 재시도 한계 초과에서 실패로
+                .withExternal()
+                .source(MfaState.MFA_RETRY_LIMIT_EXCEEDED)
+                .target(MfaState.MFA_FAILED_TERMINAL)
+                .event(MfaEvent.RETRY_LIMIT_EXCEEDED);
     }
 
     @Bean

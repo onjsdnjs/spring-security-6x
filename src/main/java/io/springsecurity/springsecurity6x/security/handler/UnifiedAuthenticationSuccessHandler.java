@@ -59,7 +59,8 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         // 1. MFA 플로우가 이미 완료된 상태로 이 핸들러가 호출된 경우 (MfaFactorProcessingSuccessHandler 로부터의 위임)
         if (factorContext != null &&
                 Objects.equals(factorContext.getUsername(), username) &&
-                (factorContext.getCurrentState() == MfaState.MFA_FULLY_COMPLETED)) {
+                (factorContext.getCurrentState() == MfaState.ALL_FACTORS_COMPLETED ||
+                        factorContext.getCurrentState() == MfaState.MFA_SUCCESSFUL)) {
             log.info("MFA flow already completed for user: {}. Proceeding with final token issuance.", username);
             handleFinalAuthenticationSuccess(request, response, factorContext.getPrimaryAuthentication(), factorContext);
             return;
@@ -159,7 +160,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
                                                   Authentication finalAuthentication, @Nullable FactorContext factorContext) throws IOException {
 
         log.info("MFA not required or all factors completed for user: {}. Issuing final tokens.", finalAuthentication.getName());
-        String deviceIdFromCtx = (String) factorContext.getAttribute("deviceId");
+        String deviceIdFromCtx = factorContext != null ? (String) factorContext.getAttribute("deviceId") : null;
 
         String accessToken = tokenService.createAccessToken(finalAuthentication, deviceIdFromCtx);
         String refreshTokenVal = null;
@@ -167,7 +168,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             refreshTokenVal = tokenService.createRefreshToken(finalAuthentication, deviceIdFromCtx);
         }
 
-        contextPersistence.deleteContext(request); // MFA 컨텍스트 정리 (최종 성공이므로)
+        contextPersistence.deleteContext(request);
 
         TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
 

@@ -9,7 +9,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * 완전 일원화된 DefaultMfaPolicyProvider
  * - ContextPersistence 완전 제거
- * - MfaStateMachineService만 사용
+ * - MfastateMachineIntegrator만 사용
  * - 모든 상태 변경은 State Machine을 통해서만
  */
 @Slf4j
@@ -38,8 +37,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
-    // ContextPersistence 완전 제거
-    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
     /**
@@ -66,7 +63,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
             // State Machine에만 저장 (일원화)
             ctx.setMfaRequiredAsPerPolicy(false);
-            stateMachineService.saveFactorContext(ctx);
+            stateMachineIntegrator.saveFactorContext(ctx);
 
             // State Machine에 이벤트 전송
             if (request != null) {
@@ -83,7 +80,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         ctx.setMfaRequiredAsPerPolicy(true);
 
         // State Machine에만 저장 (일원화)
-        stateMachineService.saveFactorContext(ctx);
+        stateMachineIntegrator.saveFactorContext(ctx);
 
         if (registeredFactors.isEmpty()) {
             log.warn("MFA required but no factors registered for user: {}", username);
@@ -112,7 +109,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         String sessionId = ctx.getMfaSessionId();
 
         // State Machine에서 최신 컨텍스트 동기화 (일원화)
-        FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+        FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
         if (latestContext != null) {
             syncContextFromStateMachine(ctx, latestContext);
         }
@@ -149,7 +146,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
 
                 // State Machine에만 저장 (일원화)
-                stateMachineService.saveFactorContext(ctx);
+                stateMachineIntegrator.saveFactorContext(ctx);
 
                 log.info("Next MFA factor determined for user {}: Type={}, StepId={}",
                         ctx.getUsername(), nextFactorType, nextStep.getStepId());
@@ -183,7 +180,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         String sessionId = ctx.getMfaSessionId();
 
         // State Machine에서 최신 상태 동기화 (일원화)
-        FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+        FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
         if (latestContext != null) {
             syncContextFromStateMachine(ctx, latestContext);
         }
@@ -195,7 +192,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
 
             // State Machine에만 저장 (일원화)
-            stateMachineService.saveFactorContext(ctx);
+            stateMachineIntegrator.saveFactorContext(ctx);
 
             HttpServletRequest request = getCurrentRequest();
             if (request != null && stateMachineIntegrator != null) {
@@ -207,7 +204,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         CompletionStatus status = evaluateCompletionStatus(ctx, requiredSteps);
 
         // State Machine에만 저장 (일원화)
-        stateMachineService.saveFactorContext(ctx);
+        stateMachineIntegrator.saveFactorContext(ctx);
 
         HttpServletRequest request = getCurrentRequest();
 
@@ -293,7 +290,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         // State Machine에서 최신 컨텍스트 확인 (일원화)
         if (ctx != null) {
             String sessionId = ctx.getMfaSessionId();
-            FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
             if (latestContext != null) {
                 @SuppressWarnings("unchecked")
                 List<AuthType> registeredFactors = (List<AuthType>) latestContext.getAttribute("registeredMfaFactors");

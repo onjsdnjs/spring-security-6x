@@ -42,8 +42,6 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
-    // ContextPersistence 완전 제거
-    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final TokenService tokenService;
     private final AuthResponseWriter responseWriter;
@@ -188,7 +186,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
         try {
             // State Machine에서 직접 로드 (일원화)
-            return stateMachineIntegrator.getFactorContext(mfaSessionId);
+            return stateMachineIntegrator.loadFactorContext(mfaSessionId);
         } catch (Exception e) {
             log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
             return null;
@@ -311,7 +309,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             String oldSessionId = (String) session.getAttribute("MFA_SESSION_ID");
             if (oldSessionId != null) {
                 try {
-                    stateMachineService.releaseStateMachine(oldSessionId);
+                    stateMachineIntegrator.releaseStateMachine(oldSessionId);
                 } catch (Exception e) {
                     log.warn("Failed to release invalid State Machine session: {}", oldSessionId, e);
                 }

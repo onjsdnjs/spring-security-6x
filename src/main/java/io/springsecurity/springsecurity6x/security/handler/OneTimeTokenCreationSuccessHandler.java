@@ -118,7 +118,7 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
 
         try {
             // State Machine에서 직접 로드 (일원화)
-            FactorContext context = mfaStateMachineIntegrator.getFactorContext(mfaSessionId);
+            FactorContext context = mfaStateMachineIntegrator.loadFactorContext(mfaSessionId);
 
             if (context != null) {
                 log.debug("FactorContext loaded from unified State Machine for OTT generation: sessionId={}, state={}",

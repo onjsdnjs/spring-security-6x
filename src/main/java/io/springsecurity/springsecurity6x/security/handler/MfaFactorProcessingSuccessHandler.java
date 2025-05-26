@@ -130,8 +130,8 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         // 다음 MFA 단계 결정
         mfaPolicyProvider.determineNextFactorToProcess(factorContext);
 
-        // 최신 상태 동기화 - State Machine에서 다시 로드
-        FactorContext latestContext = stateMachineIntegrator.getFactorContext(factorContext.getMfaSessionId());
+        // 최신 상태 동기화 - State Machine 에서 다시 로드
+        FactorContext latestContext = stateMachineIntegrator.loadFactorContext(factorContext.getMfaSessionId());
         if (latestContext != null) {
             syncContextFromStateMachine(factorContext, latestContext);
         }
@@ -204,7 +204,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
         try {
             // State Machine에서 직접 로드 (일원화)
-            return stateMachineIntegrator.getFactorContext(mfaSessionId);
+            return stateMachineIntegrator.loadFactorContext(mfaSessionId);
         } catch (Exception e) {
             log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
             return null;

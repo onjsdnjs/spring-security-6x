@@ -43,7 +43,7 @@ public class MfaInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean
     public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext
             ,ContextPersistence contextPersistence,MfaStateMachineIntegrator mfaStateMachineIntegrator) {
-        return new DefaultMfaPolicyProvider(userRepository, applicationContext,contextPersistence,mfaStateMachineIntegrator);
+        return new DefaultMfaPolicyProvider(userRepository, applicationContext, mfaStateMachineIntegrator);
     }
 
     @Bean
@@ -53,7 +53,7 @@ public class MfaInfrastructureAutoConfiguration {
                                                                                     MfaPolicyProvider mfaPolicyProvider,
                                                                                    ApplicationContext applicationContext,
                                                                                    MfaStateMachineIntegrator MfaStateMachineIntegrator) {
-        return new UnifiedAuthenticationSuccessHandler(contextPersistence, mfaPolicyProvider, tokenService,authResponseWriter,
+        return new UnifiedAuthenticationSuccessHandler(mfaPolicyProvider, tokenService,authResponseWriter,
                                                         authContextProperties, applicationContext, MfaStateMachineIntegrator);
     }
 

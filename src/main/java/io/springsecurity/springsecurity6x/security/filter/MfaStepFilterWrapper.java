@@ -179,7 +179,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
         try {
             // State Machine 에서 직접 로드 (일원화)
-            return stateMachineIntegrator.getFactorContext(mfaSessionId);
+            return stateMachineIntegrator.loadFactorContext(mfaSessionId);
         } catch (Exception e) {
             log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
             return null;

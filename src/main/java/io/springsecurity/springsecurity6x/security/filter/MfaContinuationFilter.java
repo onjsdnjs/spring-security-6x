@@ -133,7 +133,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
         try {
             // State Machine에서 직접 로드 (일원화)
-            FactorContext context = stateMachineIntegrator.getFactorContext(mfaSessionId);
+            FactorContext context = stateMachineIntegrator.loadFactorContext(mfaSessionId);
 
             if (context != null) {
                 // 마지막 활동 시간 업데이트

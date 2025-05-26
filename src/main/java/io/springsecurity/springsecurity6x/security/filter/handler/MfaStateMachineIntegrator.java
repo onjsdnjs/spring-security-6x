@@ -112,7 +112,7 @@ public class MfaStateMachineIntegrator {
 
     /**
      * 완전 일원화: FactorContext 로드
-     * - State Machine에서만 로드
+     * - State Machine 에서만 로드
      */
     public FactorContext loadFactorContext(String sessionId) {
         try {

@@ -33,21 +33,13 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ContextPersistence contextPersistence() {
-        return new HttpSessionContextPersistence();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext
-            ,ContextPersistence contextPersistence,MfaStateMachineIntegrator mfaStateMachineIntegrator) {
+    public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext,MfaStateMachineIntegrator mfaStateMachineIntegrator) {
         return new DefaultMfaPolicyProvider(userRepository, applicationContext, mfaStateMachineIntegrator);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(ContextPersistence contextPersistence,
-                                                                                    AuthResponseWriter authResponseWriter,
+    public UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(AuthResponseWriter authResponseWriter,
                                                                                     MfaPolicyProvider mfaPolicyProvider,
                                                                                    ApplicationContext applicationContext,
                                                                                    MfaStateMachineIntegrator MfaStateMachineIntegrator) {
@@ -57,22 +49,22 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler(MfaPolicyProvider mfaPolicyProvider,
-                                                                          ContextPersistence contextPersistence,
+    public UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
+                                                                                   MfaPolicyProvider mfaPolicyProvider,
                                                                           AuthResponseWriter authResponseWriter,
                                                                           AuthContextProperties properties) {
-        return new UnifiedAuthenticationFailureHandler(contextPersistence, mfaPolicyProvider, authResponseWriter, properties);
+        return new UnifiedAuthenticationFailureHandler(mfaStateMachineIntegrator, mfaPolicyProvider, authResponseWriter, properties);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler(ContextPersistence contextPersistence,
+    public MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
                                                                                MfaPolicyProvider mfaPolicyProvider,
                                                                                AuthResponseWriter authResponseWriter,
                                                                                AuthContextProperties properties,
                                                                                ApplicationContext applicationContext,
                                                                                UnifiedAuthenticationSuccessHandler successHandler) {
-        return new MfaFactorProcessingSuccessHandler(contextPersistence,mfaPolicyProvider,successHandler,
+        return new MfaFactorProcessingSuccessHandler(mfaStateMachineIntegrator, mfaPolicyProvider,successHandler,
                                                     authResponseWriter, applicationContext, properties);
     }
 

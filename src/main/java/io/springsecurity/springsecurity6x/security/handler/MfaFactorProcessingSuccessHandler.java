@@ -46,7 +46,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
     private final AuthContextProperties authContextProperties;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-    public MfaFactorProcessingSuccessHandler(MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
+    public MfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator, // ContextPersistence 대신 사용
                                              MfaPolicyProvider mfaPolicyProvider,
                                              UnifiedAuthenticationSuccessHandler finalSuccessHandler,
                                              AuthResponseWriter responseWriter,
@@ -57,9 +57,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         this.responseWriter = responseWriter;
         this.applicationContext = applicationContext;
         this.authContextProperties = authContextProperties;
-
-        // State Machine 통합자 초기화
-        this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+        this.stateMachineIntegrator = mfaStateMachineIntegrator;
     }
 
     @Override

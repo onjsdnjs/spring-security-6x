@@ -32,7 +32,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UnifiedAuthenticationFailureHandler implements AuthenticationFailureHandler {
 
-    // ContextPersistence 완전 제거
     private final MfaStateMachineIntegrator stateMachineIntegrator; // 완전 일원화
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthResponseWriter responseWriter;

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.token.creator;
 
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 

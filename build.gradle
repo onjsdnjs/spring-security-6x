@@ -80,14 +80,12 @@ dependencies {
     // Kryo (State Machine 직렬화)
     implementation 'com.esotericsoftware:kryo:5.5.0'
     implementation 'org.springframework.statemachine:spring-statemachine-kryo:4.0.0'
+    implementation("io.jsonwebtoken:jjwt:0.12.6")
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.statemachine:spring-statemachine-test:4.0.0'
-    testImplementation 'org.testcontainers:testcontainers:1.19.1'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.1'
-    testImplementation 'org.testcontainers:redis:1.19.1'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'

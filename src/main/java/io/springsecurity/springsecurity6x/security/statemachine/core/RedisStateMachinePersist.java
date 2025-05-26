@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.statemachine.core;
 
 import org.springframework.data.redis.core.RedisTemplate;
@@ -7,10 +8,12 @@ import org.springframework.statemachine.StateMachinePersist;
 
 import java.util.concurrent.TimeUnit;
 
+*/
 /**
  * Spring State Machine 4.0.0을 위한 Redis 영속화 구현
  * KryoStateMachineSerialisationService를 사용하여 직렬화
- */
+ *//*
+
 public class RedisStateMachinePersist<S, E> implements StateMachinePersist<S, E, String> {
 
     private final RedisTemplate<String, byte[]> redisTemplate;
@@ -46,4 +49,4 @@ public class RedisStateMachinePersist<S, E> implements StateMachinePersist<S, E,
 
         return serializer.deserialiseStateMachineContext(data);
     }
-}
+}*/

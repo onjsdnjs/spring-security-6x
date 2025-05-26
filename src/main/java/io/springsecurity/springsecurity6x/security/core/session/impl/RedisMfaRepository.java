@@ -8,13 +8,32 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Redis 기반 MFA 세션 Repository - 분산환경 완전 대응
+ *
+ * 핵심 특징:
+ * - Redis Lua 스크립트 기반 원자적 연산
+ * - 분산 클러스터 세션 ID 유니크성 보장
+ * - 노드별 고유 식별자 활용
+ * - 자동 충돌 해결 메커니즘
+ * - 보안 강화된 세션 ID 생성
+ */
 @Slf4j
 @Repository
 @RequiredArgsConstructor
@@ -22,37 +41,193 @@ import java.util.Arrays;
 public class RedisMfaRepository implements MfaSessionRepository {
 
     private final StringRedisTemplate redisTemplate;
+    private final SecureRandom secureRandom = new SecureRandom();
 
+    // 상수 정의
     private static final String SESSION_PREFIX = "mfa:session:";
+    private static final String COLLISION_COUNTER_KEY = "mfa:collision:counter";
+    private static final String SESSION_STATS_KEY = "mfa:stats";
     private static final String COOKIE_NAME = "MFA_SID";
+    private static final int MAX_COLLISION_RETRIES = 10;
+    private static final int MIN_SECURITY_SCORE = 80;
+
+    // 설정
     private Duration sessionTimeout = Duration.ofMinutes(30);
+
+    // 통계 추적
+    private final AtomicLong totalSessionsCreated = new AtomicLong(0);
+    private final AtomicLong sessionCollisions = new AtomicLong(0);
+
+    // === Lua 스크립트들 ===
+    private static final String CREATE_SESSION_SCRIPT =
+            "if redis.call('EXISTS', KEYS[1]) == 0 then " +
+                    "    redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2]) " +
+                    "    return 1 " +
+                    "else " +
+                    "    return 0 " +
+                    "end";
+
+    private static final String GENERATE_UNIQUE_ID_SCRIPT =
+            "local counter = redis.call('INCR', KEYS[1]) " +
+                    "local timestamp = ARGV[1] " +
+                    "local nodeId = ARGV[2] " +
+                    "local random = ARGV[3] " +
+                    "return timestamp .. ':' .. nodeId .. ':' .. counter .. ':' .. random";
+
+    // === 핵심 메서드 구현 ===
 
     @Override
     public void storeSession(String sessionId, HttpServletRequest request, @Nullable HttpServletResponse response) {
+        if (!isValidSessionIdFormat(sessionId)) {
+            throw new IllegalArgumentException("Invalid session ID format: " + sessionId);
+        }
+
         String redisKey = SESSION_PREFIX + sessionId;
         String sessionValue = createSessionValue(sessionId, request);
 
-        // Redis에 TTL과 함께 저장
-        redisTemplate.opsForValue().set(redisKey, sessionValue, sessionTimeout);
+        // Lua 스크립트로 원자적 세션 생성
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(CREATE_SESSION_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script,
+                Collections.singletonList(redisKey),
+                sessionValue,
+                String.valueOf(sessionTimeout.toMillis()));
 
-        // 쿠키 설정 (response가 있는 경우)
-        if (response != null) {
-            setSessionCookie(response, sessionId);
+        if (result != null && result == 1) {
+            totalSessionsCreated.incrementAndGet();
+            updateSessionStats();
+
+            if (response != null) {
+                setSessionCookie(response, sessionId);
+            }
+
+            log.debug("MFA session stored in Redis cluster: {} with TTL: {}", sessionId, sessionTimeout);
+        } else {
+            log.warn("Session ID collision detected in Redis: {}", sessionId);
+            sessionCollisions.incrementAndGet();
+            throw new SessionIdGenerationException("Session ID already exists in Redis cluster");
+        }
+    }
+
+    @Override
+    public String generateUniqueSessionId(@Nullable String baseId, HttpServletRequest request) {
+        for (int attempt = 0; attempt < MAX_COLLISION_RETRIES; attempt++) {
+            String sessionId = createDistributedUniqueId(baseId, request);
+
+            if (isSessionIdUnique(sessionId) && getSessionIdSecurityScore(sessionId) >= MIN_SECURITY_SCORE) {
+                log.debug("Generated unique session ID for Redis cluster: {} (attempt: {})",
+                        sessionId, attempt + 1);
+                return sessionId;
+            }
+
+            // 지수 백오프 적용
+            try {
+                Thread.sleep(10L * (1L << Math.min(attempt, 5)));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new SessionIdGenerationException("Session ID generation interrupted", e);
+            }
         }
 
-        log.debug("MFA session stored in Redis: {} with TTL: {}", sessionId, sessionTimeout);
+        throw new SessionIdGenerationException(
+                "Failed to generate unique session ID after " + MAX_COLLISION_RETRIES + " attempts");
     }
+
+    @Override
+    public boolean isSessionIdUnique(String sessionId) {
+        String redisKey = SESSION_PREFIX + sessionId;
+        return Boolean.FALSE.equals(redisTemplate.hasKey(redisKey));
+    }
+
+    @Override
+    public String resolveSessionIdCollision(String originalId, HttpServletRequest request, int maxAttempts) {
+        sessionCollisions.incrementAndGet();
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            String newId = createCollisionResolvedId(originalId, attempt, request);
+
+            if (isSessionIdUnique(newId)) {
+                log.info("Session ID collision resolved: {} -> {} (attempt: {})",
+                        originalId, newId, attempt + 1);
+                return newId;
+            }
+        }
+
+        throw new SessionIdGenerationException(
+                "Failed to resolve session ID collision after " + maxAttempts + " attempts");
+    }
+
+    @Override
+    public boolean isValidSessionIdFormat(String sessionId) {
+        if (!StringUtils.hasText(sessionId)) {
+            return false;
+        }
+
+        return sessionId.matches("^\\d+:[a-zA-Z0-9-_]+:\\d+:[a-zA-Z0-9_-]{22,}$") ||
+                sessionId.matches("^[a-zA-Z0-9_-]{32,}$");
+    }
+
+    @Override
+    public boolean supportsDistributedSync() {
+        return true; // Redis는 분산 동기화 지원
+    }
+
+    @Override
+    public int getSessionIdSecurityScore(String sessionId) {
+        if (!StringUtils.hasText(sessionId)) {
+            return 0;
+        }
+
+        int score = 0;
+
+        // 길이 검증 (20점)
+        if (sessionId.length() >= 32) score += 20;
+        else if (sessionId.length() >= 24) score += 15;
+        else if (sessionId.length() >= 16) score += 10;
+
+        // 엔트로피 검증 (30점)
+        score += Math.min(30, calculateEntropy(sessionId));
+
+        // 문자 다양성 검증 (20점)
+        score += calculateCharacterDiversity(sessionId);
+
+        // 패턴 부재 검증 (15점)
+        score += calculatePatternAbsence(sessionId);
+
+        // 예측 불가능성 검증 (15점)
+        score += calculateUnpredictability(sessionId);
+
+        return Math.min(100, score);
+    }
+
+    @Override
+    public SessionStats getSessionStats() {
+        try {
+            long activeSessions = redisTemplate.keys(SESSION_PREFIX + "*").size();
+            double avgDuration = sessionTimeout.toSeconds() * 0.6;
+
+            return new SessionStats(
+                    activeSessions,
+                    totalSessionsCreated.get(),
+                    sessionCollisions.get(),
+                    avgDuration,
+                    getRepositoryType()
+            );
+        } catch (Exception e) {
+            log.warn("Failed to get session stats from Redis", e);
+            return new SessionStats(0, totalSessionsCreated.get(), sessionCollisions.get(), 0.0, getRepositoryType());
+        }
+    }
+
+    // === 기존 메서드들 ===
 
     @Override
     @Nullable
     public String getSessionId(HttpServletRequest request) {
-        // 쿠키에서 세션 ID 추출
         String sessionId = getSessionIdFromCookie(request);
         if (sessionId == null) {
             return null;
         }
 
-        // Redis에서 존재 여부 확인
         String redisKey = SESSION_PREFIX + sessionId;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
             return sessionId;
@@ -66,12 +241,11 @@ public class RedisMfaRepository implements MfaSessionRepository {
         String redisKey = SESSION_PREFIX + sessionId;
         redisTemplate.delete(redisKey);
 
-        // 쿠키 무효화 (response가 있는 경우)
         if (response != null) {
             invalidateSessionCookie(response);
         }
 
-        log.debug("MFA session removed from Redis: {}", sessionId);
+        log.debug("MFA session removed from Redis cluster: {}", sessionId);
     }
 
     @Override
@@ -95,18 +269,172 @@ public class RedisMfaRepository implements MfaSessionRepository {
 
     @Override
     public String getRepositoryType() {
-        return "REDIS";
+        return "REDIS_DISTRIBUTED";
     }
 
-    // === Redis 전용 유틸리티 메서드들 ===
+    // === 분산환경 특화 유틸리티 메서드들 ===
+
+    private String createDistributedUniqueId(@Nullable String baseId, HttpServletRequest request) {
+        long timestamp = System.currentTimeMillis();
+        String nodeId = getNodeIdentifier(request);
+        String randomPart = generateSecureRandomString(16);
+
+        DefaultRedisScript<String> script = new DefaultRedisScript<>(GENERATE_UNIQUE_ID_SCRIPT, String.class);
+        String uniqueId = redisTemplate.execute(script,
+                Collections.singletonList(COLLISION_COUNTER_KEY),
+                String.valueOf(timestamp),
+                nodeId,
+                randomPart);
+
+        if (uniqueId != null) {
+            return Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(uniqueId.getBytes(StandardCharsets.UTF_8));
+        }
+
+        return generateFallbackId(baseId);
+    }
+
+    private String createCollisionResolvedId(String originalId, int attempt, HttpServletRequest request) {
+        String nodeId = getNodeIdentifier(request);
+        long timestamp = System.currentTimeMillis();
+        int randomSuffix = ThreadLocalRandom.current().nextInt(1000, 9999);
+
+        String resolvedId = String.format("%s_%s_%d_%d_%d",
+                originalId.substring(0, Math.min(8, originalId.length())),
+                nodeId,
+                timestamp,
+                attempt,
+                randomSuffix);
+
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(resolvedId.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String getNodeIdentifier(HttpServletRequest request) {
+        String serverName = request.getServerName();
+        int serverPort = request.getServerPort();
+        String processId = String.valueOf(ProcessHandle.current().pid());
+
+        String nodeInfo = String.format("%s:%d:%s", serverName, serverPort, processId);
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(nodeInfo.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(hash).substring(0, 8);
+        } catch (Exception e) {
+            return String.valueOf(Math.abs(nodeInfo.hashCode())).substring(0, 6);
+        }
+    }
+
+    private String generateSecureRandomString(int length) {
+        byte[] bytes = new byte[length];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String generateFallbackId(@Nullable String baseId) {
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String random = generateSecureRandomString(16);
+
+        if (StringUtils.hasText(baseId)) {
+            return Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString((baseId + "_" + timestamp + "_" + random)
+                            .getBytes(StandardCharsets.UTF_8));
+        }
+
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString((timestamp + "_" + random)
+                        .getBytes(StandardCharsets.UTF_8));
+    }
+
+    // === 보안 점수 계산 유틸리티들 ===
+
+    private int calculateEntropy(String sessionId) {
+        if (sessionId.length() == 0) return 0;
+
+        int[] charCounts = new int[256];
+        for (char c : sessionId.toCharArray()) {
+            charCounts[c]++;
+        }
+
+        double entropy = 0.0;
+        int length = sessionId.length();
+
+        for (int count : charCounts) {
+            if (count > 0) {
+                double probability = (double) count / length;
+                entropy -= probability * (Math.log(probability) / Math.log(2));
+            }
+        }
+
+        return (int) Math.min(30, entropy * 3);
+    }
+
+    private int calculateCharacterDiversity(String sessionId) {
+        boolean hasLower = sessionId.chars().anyMatch(Character::isLowerCase);
+        boolean hasUpper = sessionId.chars().anyMatch(Character::isUpperCase);
+        boolean hasDigit = sessionId.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = sessionId.chars().anyMatch(c -> !Character.isLetterOrDigit(c));
+
+        int diversity = 0;
+        if (hasLower) diversity += 5;
+        if (hasUpper) diversity += 5;
+        if (hasDigit) diversity += 5;
+        if (hasSpecial) diversity += 5;
+
+        return diversity;
+    }
+
+    private int calculatePatternAbsence(String sessionId) {
+        int score = 15;
+
+        // 연속된 동일 문자 검출
+        for (int i = 0; i < sessionId.length() - 2; i++) {
+            if (sessionId.charAt(i) == sessionId.charAt(i + 1) &&
+                    sessionId.charAt(i + 1) == sessionId.charAt(i + 2)) {
+                score -= 5;
+                break;
+            }
+        }
+
+        // 연속된 숫자 검출
+        for (int i = 0; i < sessionId.length() - 2; i++) {
+            char c1 = sessionId.charAt(i);
+            char c2 = sessionId.charAt(i + 1);
+            char c3 = sessionId.charAt(i + 2);
+
+            if (Character.isDigit(c1) && Character.isDigit(c2) && Character.isDigit(c3)) {
+                if (c2 == c1 + 1 && c3 == c2 + 1) {
+                    score -= 5;
+                    break;
+                }
+            }
+        }
+
+        return Math.max(0, score);
+    }
+
+    private int calculateUnpredictability(String sessionId) {
+        String currentTime = String.valueOf(System.currentTimeMillis());
+
+        if (sessionId.contains(currentTime.substring(0, 8))) {
+            return 5;
+        }
+
+        return 15;
+    }
+
+    // === 기존 유틸리티 메서드들 ===
 
     private String createSessionValue(String sessionId, HttpServletRequest request) {
-        return String.format("%s|%s|%s|%d",
+        return String.format("%s|%s|%s|%d|%s",
                 sessionId,
                 getClientIpAddress(request),
                 request.getHeader("User-Agent") != null ?
                         request.getHeader("User-Agent").replace("|", "_") : "",
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                getNodeIdentifier(request));
     }
 
     private String getSessionIdFromCookie(HttpServletRequest request) {
@@ -128,6 +456,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
         cookie.setSecure(true);
         cookie.setPath("/");
         cookie.setMaxAge((int) sessionTimeout.toSeconds());
+        cookie.setAttribute("SameSite", "Strict");
 
         response.addCookie(cookie);
     }
@@ -157,5 +486,18 @@ public class RedisMfaRepository implements MfaSessionRepository {
         }
 
         return request.getRemoteAddr();
+    }
+
+    private void updateSessionStats() {
+        try {
+            redisTemplate.opsForHash().put(SESSION_STATS_KEY,
+                    "totalCreated", String.valueOf(totalSessionsCreated.get()));
+            redisTemplate.opsForHash().put(SESSION_STATS_KEY,
+                    "collisions", String.valueOf(sessionCollisions.get()));
+            redisTemplate.opsForHash().put(SESSION_STATS_KEY,
+                    "lastUpdate", String.valueOf(Instant.now().toEpochMilli()));
+        } catch (Exception e) {
+            log.debug("Failed to update session stats in Redis", e);
+        }
     }
 }

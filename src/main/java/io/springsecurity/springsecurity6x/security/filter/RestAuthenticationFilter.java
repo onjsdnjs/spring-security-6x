@@ -193,6 +193,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         // 기존 FactorContext가 있다면 State Machine에서 정리
         String sessionId = request.getSession().getId();
         FactorContext existingContext = stateMachineIntegrator.getFactorContext(sessionId);
+
         if (existingContext != null) {
             log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
                     existingContext.getMfaSessionId(), authentication.getName());

@@ -27,4 +27,7 @@ public interface FactorContextStateAdapter {
      * StateContext에서 FactorContext 업데이트
      */
     void updateFactorContext(StateContext<MfaState, MfaEvent> stateContext, FactorContext factorContext);
+
+    FactorContext reconstructFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine);
+
 }

@@ -57,12 +57,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
         Assert.notNull(authenticationManager, "AuthenticationManager cannot be null (is it shared from HttpSecurity?)");
 
-        // HttpSecurity의 공유 객체 저장소에서 ContextPersistence 와 MfaPolicyProvider 가져오기
-        ContextPersistence contextPersistence = http.getSharedObject(ContextPersistence.class);
-        Assert.notNull(contextPersistence, "ContextPersistence cannot be null (is it shared from HttpSecurity?)");
-
         ApplicationContext applicationContext = http.getSharedObject(ApplicationContext.class);
-        Assert.notNull(contextPersistence, "ContextPersistence cannot be null (is it shared from HttpSecurity?)");
 
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null (is it shared from HttpSecurity?)");
@@ -77,7 +72,6 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
 
         RestAuthenticationFilter restFilter = new RestAuthenticationFilter(
                 authenticationManager,
-                contextPersistence,
                 applicationContext
         );
 

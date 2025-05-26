@@ -155,7 +155,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
     }
 
     /**
-     * State Machine에서 FactorContext 완전 재구성
+     * State Machine 에서 FactorContext 완전 재구성
      */
     public FactorContext reconstructFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine) {
         ExtendedState extendedState = stateMachine.getExtendedState();

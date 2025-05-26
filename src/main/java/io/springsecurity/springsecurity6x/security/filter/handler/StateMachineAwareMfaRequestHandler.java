@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
-    private final MfaStateMachineService stateMachineService;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthContextProperties authContextProperties;
     private final AuthResponseWriter responseWriter;
@@ -47,14 +46,12 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
     private static final long STATE_SYNC_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
     private static final int MAX_RETRY_ATTEMPTS = 3;
 
-    public StateMachineAwareMfaRequestHandler(MfaStateMachineService stateMachineService,
-                                              MfaPolicyProvider mfaPolicyProvider,
+    public StateMachineAwareMfaRequestHandler(MfaPolicyProvider mfaPolicyProvider,
                                               AuthContextProperties authContextProperties,
                                               AuthResponseWriter responseWriter,
                                               ApplicationContext applicationContext,
                                               MfaUrlMatcher urlMatcher,
                                               MfaStateMachineIntegrator stateMachineIntegrator) {
-        this.stateMachineService = stateMachineService;
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.authContextProperties = authContextProperties;
         this.responseWriter = responseWriter;
@@ -101,7 +98,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                 sessionId, currentState);
 
         // State Machine에서 최신 상태 확인
-        MfaState latestState = stateMachineService.getCurrentState(sessionId);
+        MfaState latestState = stateMachineIntegrator.getCurrentState(sessionId);
         if (latestState != currentState) {
             log.warn("State mismatch detected: context={}, stateMachine={}", currentState, latestState);
             context.changeState(latestState);
@@ -245,7 +242,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             context.setAttribute("lastRequestProcessingTime", processingTime);
 
             // State Machine에 저장
-            stateMachineService.saveFactorContext(context);
+            stateMachineIntegrator.saveFactorContext(context);
 
             log.debug("Request processing finalized for session: {} in {}ms",
                     context.getMfaSessionId(), processingTime);
@@ -391,7 +388,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         MfaSettings mfaSettings = authContextProperties.getMfa();
 
         // State Machine에서 최신 상태 조회
-        MfaState latestState = stateMachineService.getCurrentState(sessionId);
+        MfaState latestState = stateMachineIntegrator.getCurrentState(sessionId);
 
         // 시간 관련 정보 계산
         Duration remainingSessionTime = MfaTimeUtils.getRemainingSessionTime(context, mfaSettings);
@@ -455,7 +452,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         context.updateLastActivityTimestamp();
 
         // State Machine에 저장
-        stateMachineService.saveFactorContext(context);
+        stateMachineIntegrator.saveFactorContext(context);
 
         // 타입 안전한 시간 계산
         Instant sessionExpiryTime = MfaTimeUtils.calculateSessionExpiry(context, mfaSettings);
@@ -681,7 +678,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                 .execute(() -> {
                     try {
                         Thread.sleep(5000); // 5초 후 정리
-                        stateMachineService.releaseStateMachine(sessionId);
+                        stateMachineIntegrator.releaseStateMachine(sessionId);
                         log.info("State Machine cleanup completed for session: {}", sessionId);
                     } catch (Exception e) {
                         log.error("Error during State Machine cleanup for session: {}", sessionId, e);

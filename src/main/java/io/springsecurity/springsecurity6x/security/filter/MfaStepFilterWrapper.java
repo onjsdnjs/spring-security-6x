@@ -33,7 +33,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
     // ContextPersistence 완전 제거
-    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final RequestMatcher mfaFactorProcessingMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
@@ -43,14 +42,10 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     public static final long MIN_VERIFICATION_DELAY = 500;
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
-                                MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
                                 RequestMatcher mfaFactorProcessingMatcher,
                                 ApplicationContext applicationContext) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider);
-        this.stateMachineService = Objects.requireNonNull(stateMachineService);
         this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher);
-
-        // State Machine 통합자 가져오기
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
         log.info("MfaStepFilterWrapper initialized with unified State Machine Service");
@@ -142,11 +137,11 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             ctx.setAttribute("verificationStartTime", System.currentTimeMillis());
 
             // State Machine에 저장 (일원화)
-            stateMachineService.saveFactorContext(ctx);
+            stateMachineIntegrator.saveFactorContext(ctx);
 
             // FilterChain 래퍼로 State Machine 이벤트 처리 통합
             FilterChain wrappedChain = new UnifiedStateMachineAwareFilterChain(
-                    chain, ctx, request, stateMachineIntegrator, startTime, stateMachineService); // ContextPersistence 대신 사용
+                    chain, ctx, request, stateMachineIntegrator, startTime); // ContextPersistence 대신 사용
 
             delegateFactorFilter.doFilter(request, response, wrappedChain);
         } else {
@@ -229,19 +224,16 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         private final HttpServletRequest request;
         private final MfaStateMachineIntegrator stateMachineIntegrator;
         private final long startTime;
-        private final MfaStateMachineService stateMachineService; // ContextPersistence 대신 사용
 
         public UnifiedStateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
                                                    HttpServletRequest request,
                                                    MfaStateMachineIntegrator stateMachineIntegrator,
-                                                   long startTime,
-                                                   MfaStateMachineService stateMachineService) { // ContextPersistence 대신 사용
+                                                   long startTime) { // ContextPersistence 대신 사용
             this.delegate = delegate;
             this.context = context;
             this.request = request;
             this.stateMachineIntegrator = stateMachineIntegrator;
             this.startTime = startTime;
-            this.stateMachineService = stateMachineService;
         }
 
         @Override

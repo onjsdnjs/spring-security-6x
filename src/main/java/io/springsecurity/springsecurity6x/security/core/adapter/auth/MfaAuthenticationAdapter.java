@@ -68,7 +68,6 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             Assert.notNull(this.applicationContext, "ApplicationContext not found in HttpSecurity sharedObjects and was not provided via constructor.");
         }
 
-        ContextPersistence ctxPersistence = http.getSharedObject(ContextPersistence.class);
         FeatureRegistry featureRegistry = applicationContext.getBean(FeatureRegistry.class);
         ConfiguredFactorFilterProvider factorFilterProvider = applicationContext.getBean(ConfiguredFactorFilterProvider.class);
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
@@ -81,14 +80,12 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             log.warn("EmailOneTimeTokenService bean not found, MfaContinuationFilter will be created without it (some features like OTT challenge initiation might be affected).");
         }
 
-        Assert.notNull(ctxPersistence, "ContextPersistence not found for MFA flow.");
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider not found for MFA flow.");
         Assert.notNull(authContextProperties, "AuthContextProperties not found for MFA flow.");
         Assert.notNull(responseWriter, "AuthResponseWriter not found for MFA flow.");
         Assert.notNull(featureRegistry, "FeatureRegistry bean not found.");
 
         MfaContinuationFilter mfaContinuationFilter = new MfaContinuationFilter(
-                ctxPersistence,
                 mfaPolicyProvider,
                 authContextProperties,
                 responseWriter,
@@ -124,7 +121,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             mfaFactorProcessingMatcherForWrapper = new OrRequestMatcher(factorProcessingMatchers);
         }
 
-        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(factorFilterProvider, ctxPersistence, mfaFactorProcessingMatcherForWrapper, applicationContext);
+        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(factorFilterProvider, mfaFactorProcessingMatcherForWrapper, applicationContext);
         http.addFilterBefore(mfaStepFilterWrapper, LogoutFilter.class);
 
         log.debug("MFA common filters (MfaContinuationFilter, MfaStepFilterWrapper) added for MFA flow.");

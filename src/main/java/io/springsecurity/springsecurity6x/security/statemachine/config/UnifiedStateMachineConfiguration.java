@@ -139,7 +139,6 @@ public class UnifiedStateMachineConfiguration {
     public MfaStateMachineService mfaStateMachineService(
             StateMachinePool stateMachinePool,
             FactorContextStateAdapter factorContextAdapter,
-            ContextPersistence contextPersistence,
             MfaEventPublisher eventPublisher,
             @Qualifier("RedisDistributedLockService") RedisDistributedLockService distributedLockService,
             OptimisticLockManager optimisticLockManager) {
@@ -149,7 +148,6 @@ public class UnifiedStateMachineConfiguration {
         return new MfaStateMachineServiceImpl(
                 stateMachinePool,
                 factorContextAdapter,
-                contextPersistence,
                 eventPublisher,
                 distributedLockService,
                 optimisticLockManager

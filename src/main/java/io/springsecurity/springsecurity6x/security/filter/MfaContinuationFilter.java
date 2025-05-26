@@ -34,8 +34,6 @@ import java.util.Objects;
 @Slf4j
 public class MfaContinuationFilter extends OncePerRequestFilter {
 
-    // ContextPersistence 완전 제거
-    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthContextProperties authContextProperties;
     private final AuthResponseWriter responseWriter;
@@ -45,12 +43,10 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private final MfaUrlMatcher urlMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-    public MfaContinuationFilter(MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
-                                 MfaPolicyProvider mfaPolicyProvider,
+    public MfaContinuationFilter(MfaPolicyProvider mfaPolicyProvider,
                                  AuthContextProperties authContextProperties,
                                  AuthResponseWriter responseWriter,
                                  ApplicationContext applicationContext) {
-        this.stateMachineService = Objects.requireNonNull(stateMachineService);
         this.mfaPolicyProvider = Objects.requireNonNull(mfaPolicyProvider);
         this.authContextProperties = Objects.requireNonNull(authContextProperties);
         this.responseWriter = Objects.requireNonNull(responseWriter);
@@ -183,7 +179,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             if (oldSessionId != null) {
                 // State Machine 정리
                 try {
-                    stateMachineService.releaseStateMachine(oldSessionId);
+                    stateMachineIntegrator.releaseStateMachine(oldSessionId);
                 } catch (Exception e) {
                     log.warn("Failed to release invalid State Machine session: {}", oldSessionId, e);
                 }

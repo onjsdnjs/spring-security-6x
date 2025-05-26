@@ -65,7 +65,6 @@ public class FlowContextFactory {
         boolean isMfaFlow = "mfa".equalsIgnoreCase(flowConfig.getTypeName());
         if (isMfaFlow) {
             log.debug("MFA flow detected for '{}', setting up MFA shared objects.", flowConfig.getTypeName());
-            setSharedObjectIfAbsent(http, ContextPersistence.class, () -> appContext.getBean(ContextPersistence.class));
             setSharedObjectIfAbsent(http, MfaPolicyProvider.class, () -> appContext.getBean(MfaPolicyProvider.class));
             /*flowConfig*/
             setSharedObjectIfAbsent(http, ObjectMapper.class, ObjectMapper::new);

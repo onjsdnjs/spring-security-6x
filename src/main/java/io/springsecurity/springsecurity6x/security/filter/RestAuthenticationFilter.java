@@ -52,8 +52,6 @@ import java.util.Base64;
 public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
-    // ContextPersistence 완전 제거
-//    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final ApplicationContext applicationContext;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
@@ -72,11 +70,9 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private SecurityContextRepository securityContextRepository = new RequestAttributeSecurityContextRepository();
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
-                                    MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
                                     ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
-        Assert.notNull(stateMachineService, "stateMachineService cannot be null");
 
         this.authenticationManager = authenticationManager;
 //        this.stateMachineService = stateMachineService;

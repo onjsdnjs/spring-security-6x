@@ -41,7 +41,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final RedisDistributedLockService distributedLockService;
     private final OptimisticLockManager optimisticLockManager;
 
-    // ContextPersistence 완전 제거 - State Machine이 유일한 저장소
     private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();
     private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
     private volatile long lastFailureTime = 0;

@@ -4,10 +4,12 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
@@ -16,6 +18,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -28,10 +31,14 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 최종 리팩토링된 MfaFactorProcessingSuccessHandler
+ * 통합된 ContextPersistence 사용
+ */
 @Slf4j
 public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessHandler {
 
-    private final ContextPersistence contextPersistence;
+    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final UnifiedAuthenticationSuccessHandler finalSuccessHandler;
     private final AuthResponseWriter responseWriter;
@@ -59,8 +66,12 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        log.debug("MFA Factor successfully processed for user: {}", authentication.getName());
+        log.debug("MFA Factor successfully processed for user: {} (persistence: {})",
+                authentication.getName(),
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
 
+        // ContextPersistence에서 로드 (저장소 타입에 관계없이)
         FactorContext factorContext = contextPersistence.contextLoad(request);
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
             handleInvalidContext(response, request, "MFA_FACTOR_SUCCESS_NO_CONTEXT",
@@ -116,18 +127,22 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         // 실패 횟수 초기화
         factorContext.resetFailedAttempts(currentStepId);
 
+        // ContextPersistence에 저장 (저장소 타입에 관계없이)
+        contextPersistence.saveContext(factorContext, request);
+
         // 다음 MFA 단계 결정
         mfaPolicyProvider.determineNextFactorToProcess(factorContext);
 
-        // State Machine과 동기화 후 저장
-        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-        contextPersistence.saveContext(factorContext, request);
+        // 최신 상태 동기화
+        FactorContext latestContext = contextPersistence.loadContext(factorContext.getMfaSessionId(), request);
+        if (latestContext != null) {
+            syncContextFromPersistence(factorContext, latestContext);
+        }
 
         if (factorContext.isCompleted()) {
             log.info("All MFA factors completed for user: {}. Proceeding to final authentication success.",
                     factorContext.getUsername());
 
-            // ALL_REQUIRED_FACTORS_COMPLETED 이벤트는 이미 DefaultMfaPolicyProvider에서 전송됨
             // 최종 성공 핸들러로 위임
             finalSuccessHandler.onAuthenticationSuccess(request, response,
                     factorContext.getPrimaryAuthentication());
@@ -144,17 +159,13 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
             String nextUiPageUrl = determineNextFactorUrl(nextFactorType, request);
 
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("status", "MFA_CONTINUE");
-            responseBody.put("message", "다음 인증 단계로 진행합니다: " + nextFactorType.name());
+            Map<String, Object> responseBody = createMfaContinueResponse(
+                    "다음 인증 단계로 진행합니다: " + nextFactorType.name(),
+                    factorContext,
+                    nextUiPageUrl
+            );
             responseBody.put("nextFactorType", nextFactorType.name());
             responseBody.put("nextStepId", nextStepId);
-            responseBody.put("nextStepUrl", nextUiPageUrl);
-            responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("stateMachine", Map.of(
-                    "currentState", factorContext.getCurrentState().name(),
-                    "sessionId", factorContext.getMfaSessionId()
-            ));
 
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
@@ -162,17 +173,12 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             log.info("MFA factor {} completed for user {}. Proceeding to factor selection page.",
                     currentFactorType, factorContext.getUsername());
 
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("status", "MFA_CONTINUE");
-            responseBody.put("message", "다음 인증 수단을 선택해주세요.");
-            responseBody.put("nextStepUrl", request.getContextPath() +
-                    authContextProperties.getMfa().getSelectFactorUrl());
-            responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("stateMachine", Map.of(
-                    "currentState", factorContext.getCurrentState().name(),
-                    "sessionId", factorContext.getMfaSessionId(),
-                    "availableFactors", factorContext.getRegisteredMfaFactors()
-            ));
+            Map<String, Object> responseBody = createMfaContinueResponse(
+                    "다음 인증 수단을 선택해주세요.",
+                    factorContext,
+                    request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()
+            );
+            responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
 
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
@@ -181,6 +187,54 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
                     factorContext.getCurrentState(), currentFactorType, factorContext.getUsername());
             handleGenericError(response, request, factorContext, "MFA 처리 중 예상치 못한 상태입니다.");
         }
+    }
+
+    /**
+     * MFA 계속 진행 응답 생성 (공통 로직)
+     */
+    private Map<String, Object> createMfaContinueResponse(String message, FactorContext factorContext, String nextStepUrl) {
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("status", "MFA_CONTINUE");
+        responseBody.put("message", message);
+        responseBody.put("nextStepUrl", nextStepUrl);
+        responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
+
+        // State Machine 정보
+        Map<String, Object> stateMachineInfo = new HashMap<>();
+        stateMachineInfo.put("currentState", factorContext.getCurrentState().name());
+        stateMachineInfo.put("sessionId", factorContext.getMfaSessionId());
+
+        // 저장소 타입 정보 추가
+        if (contextPersistence instanceof ExtendedContextPersistence) {
+            ExtendedContextPersistence extended = (ExtendedContextPersistence) contextPersistence;
+            stateMachineInfo.put("persistenceType", extended.getPersistenceType().name());
+        }
+
+        responseBody.put("stateMachine", stateMachineInfo);
+        return responseBody;
+    }
+
+    /**
+     * ContextPersistence와 컨텍스트 동기화
+     */
+    private void syncContextFromPersistence(FactorContext target, FactorContext source) {
+        if (target.getCurrentState() != source.getCurrentState()) {
+            target.changeState(source.getCurrentState());
+        }
+
+        while (target.getVersion() < source.getVersion()) {
+            target.incrementVersion();
+        }
+
+        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
+        target.setCurrentStepId(source.getCurrentStepId());
+        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
+        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
+
+        log.debug("Context synchronized from persistence: sessionId={}, version={}, type={}",
+                target.getMfaSessionId(), target.getVersion(),
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
     }
 
     private String determineNextFactorUrl(AuthType factorType, HttpServletRequest request) {
@@ -245,13 +299,17 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
     }
 
     private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request,
-                                      String errorCode, String logMessage,@Nullable Authentication authentication) throws IOException {
+                                      String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
         log.warn("MFA Factor Processing Success: Invalid FactorContext. Message: {}. User from auth: {}",
                 logMessage, (authentication != null ? authentication.getName() : "UnknownUser"));
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode,
                 "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI());
+
+        // ContextPersistence에서 컨텍스트 정리
         FactorContext existingCtx = contextPersistence.contextLoad(request);
-        if (existingCtx != null) contextPersistence.deleteContext(request);
+        if (existingCtx != null) {
+            contextPersistence.deleteContext(request);
+        }
     }
 
     private void handleConfigError(HttpServletResponse response, HttpServletRequest request,
@@ -259,6 +317,8 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         log.error("Configuration error for flow '{}': {}", ctx.getFlowTypeName(), message);
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "MFA_FLOW_CONFIG_ERROR", message, request.getRequestURI());
+
+        // ContextPersistence에서 컨텍스트 정리
         contextPersistence.deleteContext(request);
     }
 
@@ -267,6 +327,8 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         log.error("Generic error during MFA factor processing for user {}: {}", ctx.getUsername(), message);
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "MFA_PROCESSING_ERROR", message, request.getRequestURI());
+
+        // ContextPersistence에서 컨텍스트 정리
         contextPersistence.deleteContext(request);
     }
 }

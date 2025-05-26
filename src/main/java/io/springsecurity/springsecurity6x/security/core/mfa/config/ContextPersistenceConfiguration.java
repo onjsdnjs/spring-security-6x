@@ -6,10 +6,12 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.*;
 import io.springsecurity.springsecurity6x.security.statemachine.config.StateMachineProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -17,67 +19,76 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachinePersist;
 
 /**
- * ContextPersistence 설정
- * - 설정에 따라 Session 또는 Redis 기반 구현 선택
- * - State Machine과의 통합 저장 지원
+ * ContextPersistence 통합 설정 클래스
+ * 환경에 따라 적절한 저장 전략을 선택
  */
 @Slf4j
 @Configuration
+@EnableConfigurationProperties({
+        ContextPersistenceProperties.class,
+        ContextPersistenceMetricsProperties.class
+})
+@RequiredArgsConstructor
 public class ContextPersistenceConfiguration {
 
-    /**
-     * 기본 HTTP Session 기반 구현
-     */
-    @Bean
-    public HttpSessionContextPersistence httpSessionContextPersistence() {
-        log.info("Creating HttpSessionContextPersistence bean");
-        return new HttpSessionContextPersistence();
-    }
+    private final ContextPersistenceProperties properties;
 
     /**
-     * Redis 기반 구현 (Redis 사용 시)
-     */
-    @Bean
-    @ConditionalOnProperty(
-            prefix = "security.mfa.context-persistence",
-            name = "type",
-            havingValue = "redis"
-    )
-    public RedisContextPersistence redisContextPersistence(
-            @Qualifier("generalRedisTemplate") RedisTemplate<String, Object> redisTemplate,
-            RedisDistributedLockService distributedLockService,
-            ObjectMapper objectMapper) {
-        log.info("Creating RedisContextPersistence bean");
-        return new RedisContextPersistence(redisTemplate, distributedLockService, objectMapper);
-    }
-
-    /**
-     * 통합 ContextPersistence (Primary)
+     * 기본 ContextPersistence Bean
+     * 설정에 따라 적절한 구현체를 선택
      */
     @Bean
     @Primary
     public ContextPersistence contextPersistence(
-            @Value("${security.mfa.context-persistence.type:session}") String persistenceType,
-            @Value("${security.mfa.context-persistence.atomic-save:true}") boolean atomicSaveEnabled,
-            HttpSessionContextPersistence sessionPersistence,
+            ContextPersistenceFactory factory) {
+
+        ContextPersistence persistence = factory.createContextPersistence(properties.getType());
+
+        log.info("ContextPersistence configured: type={}, description={}",
+                properties.getType(),
+                persistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) persistence).getPersistenceType().getDescription() :
+                        "Unknown");
+
+        return persistence;
+    }
+
+    /**
+     * ContextPersistence 팩토리 Bean
+     */
+    @Bean
+    public ContextPersistenceFactory contextPersistenceFactory(
             @Qualifier("generalRedisTemplate") RedisTemplate<String, Object> redisTemplate,
             RedisDistributedLockService distributedLockService,
-            ObjectMapper objectMapper,
-            StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist,
-            StateMachineProperties stateMachineProperties) {
+            ObjectMapper objectMapper) {
 
-        log.info("Creating UnifiedContextPersistence with type: {}, atomicSave: {}",
-                persistenceType, atomicSaveEnabled);
-
-        return new UnifiedContextPersistence(
-                persistenceType,
-                atomicSaveEnabled,
-                sessionPersistence,
+        return new ContextPersistenceFactory(
                 redisTemplate,
                 distributedLockService,
                 objectMapper,
-                stateMachinePersist,
-                stateMachineProperties
+                properties
         );
+    }
+
+    /**
+     * ContextPersistence 모니터링 서비스
+     */
+    @Bean
+    @ConditionalOnProperty(name = "security.mfa.persistence.monitoring.enabled", havingValue = "true", matchIfMissing = true)
+    public ContextPersistenceMonitoringService monitoringService(
+            ContextPersistence contextPersistence,
+            ContextPersistenceMetricsProperties metricsProperties) {
+
+        return new ContextPersistenceMonitoringService(contextPersistence, metricsProperties);
+    }
+
+    /**
+     * ContextPersistence 헬스 체크 서비스
+     */
+    @Bean
+    public ContextPersistenceHealthIndicator healthIndicator(
+            ContextPersistence contextPersistence) {
+
+        return new ContextPersistenceHealthIndicator(contextPersistence);
     }
 }

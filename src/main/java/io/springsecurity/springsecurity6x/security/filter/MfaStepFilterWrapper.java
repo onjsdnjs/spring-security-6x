@@ -2,9 +2,11 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.Filter;
@@ -12,6 +14,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -21,18 +24,23 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+
+/**
+ * 리팩토링된 MfaStepFilterWrapper
+ * 통합된 ContextPersistence 사용
+ */
 @Slf4j
 public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
-    private final ContextPersistence contextPersistence;
+    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
     private final RequestMatcher mfaFactorProcessingMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
     // 보안 강화를 위한 추가 필드
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
     private static final long VERIFICATION_TIMEOUT = TimeUnit.MINUTES.toMillis(5);
-    public static final long MIN_VERIFICATION_DELAY = 500; // 최소 검증 지연 (밀리초)
+    public static final long MIN_VERIFICATION_DELAY = 500;
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
                                 ContextPersistence contextPersistence,
@@ -45,7 +53,9 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         // State Machine 통합자 가져오기
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
-        log.info("MfaStepFilterWrapper initialized with State Machine integration");
+        log.info("MfaStepFilterWrapper initialized with ContextPersistence type: {}",
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
     }
 
     @Override
@@ -60,9 +70,9 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         log.debug("MfaStepFilterWrapper processing factor submission request: {}",
                 request.getRequestURI());
 
-        // 타이밍 공격 방지를 위한 시작 시간 기록
         long startTime = System.currentTimeMillis();
 
+        // ContextPersistence에서 로드 (저장소 타입에 관계없이)
         FactorContext ctx = contextPersistence.contextLoad(request);
 
         if (!isValidFactorProcessingContext(ctx)) {
@@ -80,24 +90,20 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
-        // 세션 타임아웃 확인
+        // 세션 타임아웃 및 재시도 한계 확인
         if (isSessionExpired(ctx)) {
             log.warn("MFA session expired for session: {}", ctx.getMfaSessionId());
-
             stateMachineIntegrator.sendEvent(MfaEvent.SESSION_TIMEOUT, ctx, request);
             ensureMinimumDelay(startTime);
 
             if (!response.isCommitted()) {
-                response.sendError(HttpServletResponse.SC_FORBIDDEN,
-                        "MFA session expired");
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "MFA session expired");
             }
             return;
         }
 
-        // 재시도 횟수 확인
         if (isRetryLimitExceeded(ctx)) {
             log.warn("Retry limit exceeded for session: {}", ctx.getMfaSessionId());
-
             stateMachineIntegrator.sendEvent(MfaEvent.RETRY_LIMIT_EXCEEDED, ctx, request);
             ensureMinimumDelay(startTime);
 
@@ -137,9 +143,12 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             // 검증 시작 시간 기록
             ctx.setAttribute("verificationStartTime", System.currentTimeMillis());
 
+            // ContextPersistence에 저장
+            contextPersistence.saveContext(ctx, request);
+
             // FilterChain 래퍼로 State Machine 이벤트 처리 통합
             FilterChain wrappedChain = new SecureStateMachineAwareFilterChain(
-                    chain, ctx, request, stateMachineIntegrator, startTime);
+                    chain, ctx, request, stateMachineIntegrator, startTime, contextPersistence);
 
             delegateFactorFilter.doFilter(request, response, wrappedChain);
         } else {
@@ -162,9 +171,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 ctx.getCurrentStepId() != null;
     }
 
-    /**
-     * 세션 만료 확인
-     */
     private boolean isSessionExpired(FactorContext ctx) {
         Object challengeStartTime = ctx.getAttribute("challengeInitiatedAt");
         if (challengeStartTime instanceof Long) {
@@ -174,17 +180,11 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         return false;
     }
 
-    /**
-     * 재시도 한계 초과 확인
-     */
     private boolean isRetryLimitExceeded(FactorContext ctx) {
         int attempts = ctx.getAttemptCount(ctx.getCurrentProcessingFactor());
         return attempts >= MAX_VERIFICATION_ATTEMPTS;
     }
 
-    /**
-     * 타이밍 공격 방지를 위한 최소 지연 보장
-     */
     private void ensureMinimumDelay(long startTime) {
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed < MIN_VERIFICATION_DELAY) {
@@ -198,23 +198,26 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     /**
      * 보안 강화된 State Machine 인식 FilterChain 래퍼
-     *//*
+     */
     private static class SecureStateMachineAwareFilterChain implements FilterChain {
         private final FilterChain delegate;
         private final FactorContext context;
         private final HttpServletRequest request;
         private final MfaStateMachineIntegrator stateMachineIntegrator;
         private final long startTime;
+        private final ContextPersistence contextPersistence;
 
         public SecureStateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
                                                   HttpServletRequest request,
                                                   MfaStateMachineIntegrator stateMachineIntegrator,
-                                                  long startTime) {
+                                                  long startTime,
+                                                  ContextPersistence contextPersistence) {
             this.delegate = delegate;
             this.context = context;
             this.request = request;
             this.stateMachineIntegrator = stateMachineIntegrator;
             this.startTime = startTime;
+            this.contextPersistence = contextPersistence;
         }
 
         @Override
@@ -223,8 +226,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 throws IOException, ServletException {
 
             HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-            // 필터 실행 전 상태
             MfaState beforeState = context.getCurrentState();
 
             try {
@@ -234,6 +235,9 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 // 검증 시간 기록
                 long verificationTime = System.currentTimeMillis() - startTime;
                 context.setAttribute("lastVerificationTime", verificationTime);
+
+                // ContextPersistence에 저장
+                contextPersistence.saveContext(context, this.request);
 
                 // 필터 실행 후 상태 확인 및 이벤트 전송
                 if (!httpResponse.isCommitted()) {
@@ -266,5 +270,5 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 }
             }
         }
-    }*/
+    }
 }

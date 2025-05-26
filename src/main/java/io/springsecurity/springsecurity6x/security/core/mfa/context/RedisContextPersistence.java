@@ -7,26 +7,32 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * Redis 기반 FactorContext 영속화 구현
- * - 분산 환경 지원
- * - State Machine 상태와 원자적 저장
- * - 압축 및 최적화
+ * Redis 기반 ContextPersistence 구현체
+ * 분산 환경에 최적화
  */
 @Slf4j
+@Component
+@ConditionalOnProperty(name = "security.mfa.persistence.type", havingValue = "redis")
 @RequiredArgsConstructor
-public class RedisContextPersistence implements ContextPersistence {
+public class RedisContextPersistence implements ExtendedContextPersistence {
 
     @Qualifier("generalRedisTemplate")
     private final RedisTemplate<String, Object> redisTemplate;
@@ -42,6 +48,8 @@ public class RedisContextPersistence implements ContextPersistence {
     // Circuit Breaker 상태
     private volatile boolean circuitOpen = false;
     private volatile long lastFailureTime = 0;
+    private final AtomicLong operationCounter = new AtomicLong(0);
+    private final AtomicLong failureCounter = new AtomicLong(0);
     private static final long CIRCUIT_OPEN_DURATION = 30000; // 30초
 
     @Override
@@ -65,10 +73,13 @@ public class RedisContextPersistence implements ContextPersistence {
         }
 
         try {
+            operationCounter.incrementAndGet();
+
             // MFA 세션 ID로 직접 로드
             String contextKey = CONTEXT_PREFIX + mfaSessionId;
             return loadFromRedis(contextKey);
         } catch (Exception e) {
+            failureCounter.incrementAndGet();
             log.error("Failed to load context for mfaSessionId: {}", mfaSessionId, e);
             handleFailure();
             return null;
@@ -90,6 +101,8 @@ public class RedisContextPersistence implements ContextPersistence {
         String mappingKey = SESSION_MAPPING_PREFIX + sessionId;
 
         try {
+            operationCounter.incrementAndGet();
+
             // 분산 락을 사용하여 동시성 제어
             distributedLockService.executeWithLock(
                     "context:save:" + mfaSessionId,
@@ -98,7 +111,7 @@ public class RedisContextPersistence implements ContextPersistence {
                         // Redis 트랜잭션으로 원자적 저장
                         redisTemplate.execute(new SessionCallback<Object>() {
                             @Override
-                            public Object execute(org.springframework.data.redis.core.RedisOperations operations) {
+                            public Object execute(RedisOperations operations) {
                                 operations.multi();
 
                                 try {
@@ -109,7 +122,7 @@ public class RedisContextPersistence implements ContextPersistence {
                                     // 2. 세션 ID와 MFA 세션 ID 매핑
                                     operations.opsForValue().set(mappingKey, mfaSessionId, DEFAULT_TTL_MINUTES, TimeUnit.MINUTES);
 
-                                    // 3. State Machine과 동기화를 위한 버전 정보
+                                    // 3. 버전 정보
                                     String versionKey = contextKey + ":version";
                                     operations.opsForValue().set(versionKey, ctx.getVersion(), DEFAULT_TTL_MINUTES, TimeUnit.MINUTES);
 
@@ -123,17 +136,20 @@ public class RedisContextPersistence implements ContextPersistence {
                             }
                         });
 
-                        log.debug("FactorContext saved to Redis. SessionId: {}, MfaSessionId: {}, State: {}",
+                        log.debug("FactorContext saved to Redis: SessionId={}, MfaSessionId={}, State={}",
                                 sessionId, mfaSessionId, ctx.getCurrentState());
                         handleSuccess();
                         return null;
                     }
             );
         } catch (Exception e) {
+            failureCounter.incrementAndGet();
             log.error("Failed to save context to Redis", e);
             handleFailure();
+
             // Fallback: 세션에 저장
             session.setAttribute(HttpSessionContextPersistence.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME, ctx);
+            log.warn("FactorContext saved to HttpSession as fallback for session: {}", mfaSessionId);
         }
     }
 
@@ -147,6 +163,78 @@ public class RedisContextPersistence implements ContextPersistence {
             // 세션 속성도 제거
             session.removeAttribute(HttpSessionContextPersistence.MFA_CONTEXT_SESSION_ATTRIBUTE_NAME);
         }
+    }
+
+    @Override
+    public void deleteContext(String mfaSessionId) {
+        if (mfaSessionId == null) {
+            return;
+        }
+
+        try {
+            operationCounter.incrementAndGet();
+
+            String contextKey = CONTEXT_PREFIX + mfaSessionId;
+            String versionKey = contextKey + ":version";
+
+            // 트랜잭션으로 삭제
+            redisTemplate.execute(new SessionCallback<Object>() {
+                @Override
+                public Object execute(RedisOperations operations) {
+                    operations.multi();
+                    operations.delete(contextKey);
+                    operations.delete(versionKey);
+                    return operations.exec();
+                }
+            });
+
+            log.debug("FactorContext deleted from Redis: mfaSessionId={}", mfaSessionId);
+            handleSuccess();
+
+        } catch (Exception e) {
+            failureCounter.incrementAndGet();
+            log.error("Failed to delete context from Redis for mfaSessionId: {}", mfaSessionId, e);
+            handleFailure();
+        }
+    }
+
+    @Override
+    public boolean exists(String mfaSessionId) {
+        if (mfaSessionId == null) {
+            return false;
+        }
+
+        try {
+            String contextKey = CONTEXT_PREFIX + mfaSessionId;
+            return Boolean.TRUE.equals(redisTemplate.hasKey(contextKey));
+        } catch (Exception e) {
+            log.error("Failed to check context existence for mfaSessionId: {}", mfaSessionId, e);
+            return false;
+        }
+    }
+
+    @Override
+    public void refreshTtl(String mfaSessionId) {
+        if (mfaSessionId == null) {
+            return;
+        }
+
+        try {
+            String contextKey = CONTEXT_PREFIX + mfaSessionId;
+            String versionKey = contextKey + ":version";
+
+            redisTemplate.expire(contextKey, DEFAULT_TTL_MINUTES, TimeUnit.MINUTES);
+            redisTemplate.expire(versionKey, DEFAULT_TTL_MINUTES, TimeUnit.MINUTES);
+
+            log.trace("TTL refreshed for context: {}", mfaSessionId);
+        } catch (Exception e) {
+            log.error("Failed to refresh TTL for context: {}", mfaSessionId, e);
+        }
+    }
+
+    @Override
+    public PersistenceType getPersistenceType() {
+        return PersistenceType.REDIS;
     }
 
     /**
@@ -196,7 +284,7 @@ public class RedisContextPersistence implements ContextPersistence {
         // TTL 갱신
         redisTemplate.expire(key, DEFAULT_TTL_MINUTES, TimeUnit.MINUTES);
 
-        log.debug("FactorContext loaded from Redis. Key: {}, State: {}",
+        log.debug("FactorContext loaded from Redis: Key={}, State={}",
                 key, context.getCurrentState());
 
         handleSuccess();
@@ -216,7 +304,7 @@ public class RedisContextPersistence implements ContextPersistence {
                 // 2. 트랜잭션으로 모두 삭제
                 redisTemplate.execute(new SessionCallback<Object>() {
                     @Override
-                    public Object execute(org.springframework.data.redis.core.RedisOperations operations) {
+                    public Object execute(RedisOperations operations) {
                         operations.multi();
 
                         // 컨텍스트 삭제
@@ -230,7 +318,7 @@ public class RedisContextPersistence implements ContextPersistence {
                     }
                 });
 
-                log.debug("FactorContext deleted from Redis. SessionId: {}, MfaSessionId: {}",
+                log.debug("FactorContext deleted from Redis: SessionId={}, MfaSessionId={}",
                         sessionId, mfaSessionId);
             }
         } catch (Exception e) {
@@ -330,5 +418,17 @@ public class RedisContextPersistence implements ContextPersistence {
         lastFailureTime = System.currentTimeMillis();
         circuitOpen = true;
         log.warn("Circuit breaker opened due to Redis failure");
+    }
+
+    /**
+     * Redis 통계 정보 반환
+     */
+    public Map<String, Object> getRedisStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalOperations", operationCounter.get());
+        stats.put("failureCount", failureCounter.get());
+        stats.put("circuitOpen", circuitOpen);
+        stats.put("persistenceType", getPersistenceType().name());
+        return stats;
     }
 }

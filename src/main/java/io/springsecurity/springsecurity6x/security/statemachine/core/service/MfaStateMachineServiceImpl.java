@@ -19,10 +19,15 @@ import org.springframework.statemachine.StateMachine;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * MFA State Machine 서비스 구현체 - 단일 진실의 원천(Single Source of Truth)
+ * FactorContext의 모든 상태를 State Machine에서 관리
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,8 +40,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final OptimisticLockManager optimisticLockManager;
 
     // ContextPersistence 완전 제거 - State Machine이 유일한 저장소
-    // private final ContextPersistence contextPersistence;
-
     private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();
     private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
     private volatile long lastFailureTime = 0;
@@ -51,6 +54,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     @Value("${security.statemachine.operation-timeout-seconds:10}")
     private int operationTimeout;
 
+    // 세션별 전용 실행자 관리
     private ExecutorService getSessionExecutor(String sessionId) {
         return sessionExecutors.computeIfAbsent(sessionId, k -> {
             ThreadFactory threadFactory = r -> {
@@ -65,7 +69,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     @Override
     public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
-        log.info("Initializing state machine for session: {}", sessionId);
+        log.info("Initializing state machine for session: {} as single source of truth", sessionId);
 
         if (!isCircuitClosed()) {
             throw new StateMachineException("Circuit breaker is open");
@@ -84,18 +88,20 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     try {
                         StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
 
-                        // FactorContext를 State Machine에 저장 (유일한 저장소)
-                        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
-                        stateMachine.getExtendedState().getVariables().putAll(variables);
+                        // FactorContext를 State Machine에 완전히 저장 (유일한 저장소)
+                        storeFactorContextInStateMachine(stateMachine, context);
 
+                        // 상태 머신 시작
                         if (!stateMachine.isComplete() && stateMachine.getState() == null) {
-                            stateMachine.start();
+                            stateMachine.startReactively().block(Duration.ofSeconds(5));
                         }
 
+                        // 초기 이벤트 전송
                         Message<MfaEvent> message = MessageBuilder
                                 .withPayload(MfaEvent.PRIMARY_AUTH_SUCCESS)
                                 .setHeader("sessionId", sessionId)
                                 .setHeader("timestamp", System.currentTimeMillis())
+                                .setHeader("request", request)
                                 .build();
 
                         boolean accepted = stateMachine.sendEvent(message);
@@ -108,6 +114,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                                     MfaEvent.PRIMARY_AUTH_SUCCESS
                             );
                             onSuccess();
+                            log.info("State machine initialized successfully for session: {}", sessionId);
                         } else {
                             throw new StateMachineException("Failed to process PRIMARY_AUTH_SUCCESS event");
                         }
@@ -120,6 +127,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 });
             } catch (Exception e) {
                 onFailure();
+                log.error("Failed to initialize state machine for session: {}", sessionId, e);
                 throw new StateMachineException("Failed to initialize state machine", e);
             }
         }, executor);
@@ -137,7 +145,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     @Override
     public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
-        log.info("Sending event {} for session: {}", event, sessionId);
+        log.info("Sending event {} for session: {} via single source of truth", event, sessionId);
 
         if (!isCircuitClosed()) {
             log.error("Circuit breaker is open, rejecting event");
@@ -162,38 +170,43 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                         // State Machine의 현재 상태가 진실의 원천
                         MfaState currentState = stateMachine.getState().getId();
 
-                        // FactorContext는 State Machine의 데이터로 재구성
-                        FactorContext latestContext = reconstructFactorContext(stateMachine);
+                        // State Machine에서 최신 FactorContext 재구성
+                        FactorContext latestContext = reconstructFactorContextFromStateMachine(stateMachine);
 
-                        // 클라이언트 컨텍스트의 변경사항 병합 (속성만)
-                        mergeContextAttributes(latestContext, context);
+                        // 클라이언트 컨텍스트의 변경사항 병합 (속성 및 비즈니스 데이터만)
+                        mergeContextChanges(latestContext, context);
 
-                        // State Machine에 최신 데이터 반영
-                        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(latestContext);
-                        stateMachine.getExtendedState().getVariables().putAll(variables);
+                        // 병합된 최신 데이터를 State Machine에 다시 저장
+                        storeFactorContextInStateMachine(stateMachine, latestContext);
 
+                        // 이벤트 메시지 생성
                         Message<MfaEvent> message = createEventMessage(event, latestContext, request);
                         boolean accepted = stateMachine.sendEvent(message);
 
                         if (accepted) {
                             MfaState newState = stateMachine.getState().getId();
 
-                            // 상태 전환 완료
+                            // 상태 전환 완료 후 FactorContext 업데이트
+                            updateFactorContextFromStateMachine(latestContext, stateMachine);
+
+                            // 클라이언트 컨텍스트에 최신 상태 반영
+                            syncFactorContextStates(context, latestContext);
+
                             Duration duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
                             eventPublisher.publishStateChange(sessionId, currentState, newState, event, duration);
 
                             log.info("Event {} accepted, state transition: {} -> {} for session: {}",
                                     event, currentState, newState, sessionId);
+                            onSuccess();
                         } else {
                             log.warn("Event {} rejected in state {} for session: {}",
                                     event, currentState, sessionId);
                         }
 
-                        onSuccess();
                         return accepted;
 
                     } finally {
-                        // State Machine 반환 시 자동으로 저장됨
+                        // State Machine 반환 시 자동으로 Redis에 저장됨
                         stateMachinePool.returnStateMachine(sessionId);
                     }
                 });
@@ -217,28 +230,10 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
-    /**
-     * State Machine에서 FactorContext 재구성
-     */
-    private FactorContext reconstructFactorContext(StateMachine<MfaState, MfaEvent> stateMachine) {
-        return factorContextAdapter.reconstructFromStateMachine(stateMachine);
-    }
-
-    /**
-     * 컨텍스트 속성 병합 (상태는 변경하지 않음)
-     */
-    private void mergeContextAttributes(FactorContext target, FactorContext source) {
-        // 속성만 병합 (상태는 State Machine이 관리)
-        source.getAttributes().forEach((key, value) -> {
-            if (!"currentState".equals(key) && !"version".equals(key)) {
-                target.setAttribute(key, value);
-            }
-        });
-    }
-
     @Override
     public MfaState getCurrentState(String sessionId) {
         try {
+            // 캐시 우선 확인
             MfaState cachedState = optimisticLockManager.getCachedState(sessionId);
             if (cachedState != null) {
                 return cachedState;
@@ -265,7 +260,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     /**
-     * FactorContext 조회 (State Machine에서)
+     * FactorContext 조회 - State Machine에서만 조회 (단일 진실의 원천)
      */
     public FactorContext getFactorContext(String sessionId) {
         try {
@@ -276,7 +271,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 ).join();
 
                 try {
-                    return reconstructFactorContext(pooled.getStateMachine());
+                    return reconstructFactorContextFromStateMachine(pooled.getStateMachine());
                 } finally {
                     stateMachinePool.returnStateMachine(sessionId);
                 }
@@ -287,10 +282,37 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
+    /**
+     * FactorContext 저장 - State Machine에만 저장
+     */
+    public void saveFactorContext(FactorContext context) {
+        String sessionId = context.getMfaSessionId();
+        try {
+            distributedLockService.executeWithLock("sm:save:" + sessionId, Duration.ofSeconds(5), () -> {
+
+                PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
+                        sessionId, 5, TimeUnit.SECONDS
+                ).join();
+
+                try {
+                    storeFactorContextInStateMachine(pooled.getStateMachine(), context);
+                    log.debug("FactorContext saved to State Machine for session: {}", sessionId);
+                } finally {
+                    stateMachinePool.returnStateMachine(sessionId);
+                }
+
+                return null;
+            });
+        } catch (Exception e) {
+            log.error("Failed to save FactorContext for session: {}", sessionId, e);
+        }
+    }
+
     @Override
     public void releaseStateMachine(String sessionId) {
         log.info("Releasing state machine for session: {}", sessionId);
 
+        // 세션별 실행자 정리
         ExecutorService executor = sessionExecutors.remove(sessionId);
         if (executor != null) {
             executor.shutdown();
@@ -304,6 +326,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             }
         }
 
+        // 비동기 정리 작업
         CompletableFuture.runAsync(() -> {
             try {
                 optimisticLockManager.clearCache(sessionId);
@@ -317,6 +340,74 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         });
     }
 
+    /**
+     * State Machine에 FactorContext 저장
+     */
+    private void storeFactorContextInStateMachine(StateMachine<MfaState, MfaEvent> stateMachine,
+                                                  FactorContext context) {
+        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+
+        // 메타데이터 추가
+        variables.put("_lastUpdated", Instant.now().toEpochMilli());
+        variables.put("_version", context.getVersion());
+        variables.put("_stateHash", context.calculateStateHash());
+
+        // 완전 교체
+        stateMachine.getExtendedState().getVariables().clear();
+        stateMachine.getExtendedState().getVariables().putAll(variables);
+
+        log.debug("FactorContext stored in State Machine: sessionId={}, version={}, state={}",
+                context.getMfaSessionId(), context.getVersion(), context.getCurrentState());
+    }
+
+    /**
+     * State Machine에서 FactorContext 재구성
+     */
+    private FactorContext reconstructFactorContextFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine) {
+        return factorContextAdapter.reconstructFromStateMachine(stateMachine);
+    }
+
+    /**
+     * State Machine에서 FactorContext 업데이트
+     */
+    private void updateFactorContextFromStateMachine(FactorContext context,
+                                                     StateMachine<MfaState, MfaEvent> stateMachine) {
+        factorContextAdapter.updateFactorContext(stateMachine, context);
+    }
+
+    /**
+     * 컨텍스트 변경사항 병합 (상태는 제외하고 속성만)
+     */
+    private void mergeContextChanges(FactorContext target, FactorContext source) {
+        // 상태는 State Machine이 관리하므로 병합하지 않음
+        // 비즈니스 속성만 병합
+        source.getAttributes().forEach((key, value) -> {
+            if (!"currentState".equals(key) && !"version".equals(key) && !"lastUpdated".equals(key)) {
+                target.setAttribute(key, value);
+            }
+        });
+
+        // 시도 횟수 및 실패 정보 병합
+        target.setRetryCount(Math.max(target.getRetryCount(), source.getRetryCount()));
+        if (source.getLastError() != null) {
+            target.setLastError(source.getLastError());
+        }
+    }
+
+    /**
+     * FactorContext 상태 동기화 (State Machine -> FactorContext)
+     */
+    private void syncFactorContextStates(FactorContext target, FactorContext source) {
+        target.changeState(source.getCurrentState());
+        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
+        target.setCurrentStepId(source.getCurrentStepId());
+        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
+        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
+    }
+
+    /**
+     * 이벤트 메시지 생성
+     */
     private Message<MfaEvent> createEventMessage(MfaEvent event, FactorContext context, HttpServletRequest request) {
         return MessageBuilder
                 .withPayload(event)
@@ -326,9 +417,13 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 .setHeader("authentication", context.getPrimaryAuthentication())
                 .setHeader("request", request)
                 .setHeader("version", context.getVersion())
+                .setHeader("stateHash", context.calculateStateHash())
                 .build();
     }
 
+    /**
+     * Circuit Breaker 상태 관리
+     */
     private boolean isCircuitClosed() {
         CircuitState state = circuitState.get();
 

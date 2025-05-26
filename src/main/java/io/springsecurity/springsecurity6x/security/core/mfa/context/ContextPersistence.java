@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.lang.Nullable;
 
 /**
- * MFA 컨텍스트 영속화 인터페이스
+ * ContextPersistence 기본 인터페이스 (기존 호환성 유지)
  */
 public interface ContextPersistence {
 
@@ -19,7 +19,6 @@ public interface ContextPersistence {
      */
     @Nullable
     default FactorContext loadContext(String sessionId, HttpServletRequest request) {
-        // 기본 구현: contextLoad 메서드 호출
         return contextLoad(request);
     }
 

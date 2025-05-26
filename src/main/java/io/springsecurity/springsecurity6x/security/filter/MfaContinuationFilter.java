@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
@@ -9,11 +10,13 @@ import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachin
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -24,10 +27,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 리팩토링된 MfaContinuationFilter
+ * 통합된 ContextPersistence 사용
+ */
 @Slf4j
 public class MfaContinuationFilter extends OncePerRequestFilter {
 
-    private final ContextPersistence contextPersistence;
+    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthContextProperties authContextProperties;
     private final AuthResponseWriter responseWriter;
@@ -52,7 +59,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.urlMatcher = new MfaUrlMatcher(authContextProperties, applicationContext);
         this.requestMatcher = urlMatcher.createRequestMatcher();
 
-        // State Machine 통합자 초기화 (빈으로 가져오기)
+        // State Machine 통합자 초기화
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
         // 요청 핸들러 초기화 - State Machine 통합자 추가
@@ -61,7 +68,9 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 responseWriter, applicationContext, urlMatcher, stateMachineIntegrator
         );
 
-        log.info("MfaContinuationFilter initialized with State Machine integration");
+        log.info("MfaContinuationFilter initialized with ContextPersistence type: {}",
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
     }
 
     @Override
@@ -76,6 +85,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         log.debug("MfaContinuationFilter processing request: {} {}",
                 request.getMethod(), request.getRequestURI());
 
+        // ContextPersistence 에서 로드 (저장소 타입에 관계없이)
         FactorContext ctx = contextPersistence.contextLoad(request);
         if (!isValidMfaContext(ctx)) {
             handleInvalidContext(request, response);

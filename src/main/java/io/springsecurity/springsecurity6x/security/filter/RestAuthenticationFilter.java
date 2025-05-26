@@ -6,6 +6,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -41,10 +42,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.UUID;
 
+/**
+ * 리팩토링된 RestAuthenticationFilter
+ * 통합된 ContextPersistence 사용
+ */
 @Slf4j
 public class RestAuthenticationFilter extends OncePerRequestFilter {
+
+    private final AuthenticationManager authenticationManager;
+    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
+    private final ApplicationContext applicationContext;
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
+
+    // 보안 강화를 위한 필드들
+    private final BytesKeyGenerator sessionIdGenerator;
+    private final SecureRandom secureRandom;
+    private final long authDelay = 100;
 
     private SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
     private RequestMatcher requestMatcher = new ParameterRequestMatcher("/api/auth/login", "POST");
@@ -54,16 +68,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private AuthenticationFailureHandler failureHandler = new AuthenticationEntryPointFailureHandler(
             new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
     private SecurityContextRepository securityContextRepository = new RequestAttributeSecurityContextRepository();
-
-    private final AuthenticationManager authenticationManager;
-    private final ContextPersistence contextPersistence;
-    private final ApplicationContext applicationContext;
-    private final MfaStateMachineIntegrator stateMachineIntegrator;
-
-    // 보안 강화를 위한 추가 필드
-    private final BytesKeyGenerator sessionIdGenerator;
-    private final SecureRandom secureRandom;
-    private final long authDelay = 100; // 타이밍 공격 방지를 위한 최소 지연
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
                                     ContextPersistence contextPersistence,
@@ -79,31 +83,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         // 보안 강화: 암호학적으로 안전한 랜덤 생성기
         this.sessionIdGenerator = KeyGenerators.secureRandom(32);
         this.secureRandom = new SecureRandom();
-    }
 
-    public void setRequestMatcher(RequestMatcher requestMatcher) {
-        Assert.notNull(requestMatcher, "requestMatcher cannot be null");
-        this.requestMatcher = requestMatcher;
-    }
-
-    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
-        Assert.notNull(successHandler, "successHandler cannot be null");
-        this.successHandler = successHandler;
-    }
-
-    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
-        Assert.notNull(failureHandler, "failureHandler cannot be null");
-        this.failureHandler = failureHandler;
-    }
-
-    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
-        Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
-        this.securityContextRepository = securityContextRepository;
-    }
-
-    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
-        Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
-        this.securityContextHolderStrategy = securityContextHolderStrategy;
+        log.info("RestAuthenticationFilter initialized with ContextPersistence type: {}",
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
     }
 
     @Override
@@ -115,7 +98,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 타이밍 공격 방지를 위한 시작 시간 기록
         long startTime = System.currentTimeMillis();
 
         try {
@@ -134,9 +116,110 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * 타이밍 공격 방지를 위한 최소 지연 보장
-     */
+    private void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+                                          Authentication authentication) throws IOException, ServletException {
+        SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+        context.setAuthentication(authentication);
+        securityContextHolderStrategy.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
+
+        // 기존 FactorContext 정리 (저장소 타입에 관계없이)
+        FactorContext existingContext = contextPersistence.contextLoad(request);
+        if (existingContext != null) {
+            log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
+                    existingContext.getMfaSessionId(), authentication.getName());
+
+            // State Machine 해제
+            if (existingContext.getMfaSessionId() != null) {
+                stateMachineIntegrator.releaseStateMachine(existingContext.getMfaSessionId());
+            }
+
+            // ContextPersistence에서 삭제
+            contextPersistence.deleteContext(request);
+        }
+
+        // 보안 강화: 암호학적으로 안전한 세션 ID 생성
+        String mfaSessionId = generateSecureSessionId();
+        String flowTypeNameForContext = AuthType.MFA.name().toLowerCase();
+
+        // FactorContext 생성
+        FactorContext factorContext = new FactorContext(
+                mfaSessionId,
+                authentication,
+                MfaState.PRIMARY_AUTHENTICATION_COMPLETED,
+                flowTypeNameForContext
+        );
+
+        // 보안 정보 추가
+        String deviceId = getOrCreateDeviceId(request);
+        factorContext.setAttribute("deviceId", deviceId);
+        factorContext.setAttribute("clientIp", getClientIpAddress(request));
+        factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
+        factorContext.setAttribute("loginTimestamp", System.currentTimeMillis());
+
+        // ContextPersistence에 저장 (저장소 타입은 설정에 따라 결정)
+        contextPersistence.saveContext(factorContext, request);
+
+        // State Machine 초기화
+        stateMachineIntegrator.initializeStateMachine(factorContext, request);
+
+        // PRIMARY_AUTH_SUCCESS 이벤트 전송
+        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
+
+        if (!accepted) {
+            log.error("State Machine rejected PRIMARY_AUTH_SUCCESS event for session: {}", mfaSessionId);
+            unsuccessfulAuthentication(request, response,
+                    new AuthenticationException("State Machine initialization failed") {});
+            return;
+        }
+
+        log.info("FactorContext (ID: {}) created with persistence type: {} for user: {}. State: {}",
+                factorContext.getMfaSessionId(),
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC",
+                factorContext.getUsername(),
+                factorContext.getCurrentState());
+
+        // 첫 번째 단계를 완료된 것으로 마킹 (1차 인증)
+        AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
+        if (mfaFlowConfig != null && !mfaFlowConfig.getStepConfigs().isEmpty()) {
+            AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
+                    .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
+                    .findFirst()
+                    .orElse(mfaFlowConfig.getStepConfigs().getFirst());
+
+            factorContext.addCompletedFactor(primaryAuthStep);
+
+            // ContextPersistence에 저장 후 State Machine 이벤트 전송
+            contextPersistence.saveContext(factorContext, request);
+            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
+        }
+
+        successHandler.onAuthenticationSuccess(request, response, authentication);
+    }
+
+    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                            AuthenticationException failed) throws IOException, ServletException {
+        securityContextHolderStrategy.clearContext();
+
+        // ContextPersistence 정리
+        FactorContext context = contextPersistence.contextLoad(request);
+        if (context != null && context.getMfaSessionId() != null) {
+            stateMachineIntegrator.releaseStateMachine(context.getMfaSessionId());
+        }
+
+        contextPersistence.deleteContext(request);
+
+        // 보안 로깅
+        log.warn("Authentication failed for user: {} from IP: {}",
+                failed.getAuthenticationRequest() != null ?
+                        failed.getAuthenticationRequest().getName() : "unknown",
+                getClientIpAddress(request));
+
+        failureHandler.onAuthenticationFailure(request, response, failed);
+    }
+
+    // 유틸리티 메서드들 (동일하게 유지)
     private void ensureMinimumDelay(long startTime) {
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed < authDelay) {
@@ -152,8 +235,6 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             throws AuthenticationException {
         try {
             LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
-
-            // 입력 검증
             validateLoginRequest(login);
 
             UsernamePasswordAuthenticationToken authRequest =
@@ -164,162 +245,40 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * 로그인 요청 검증
-     */
     private void validateLoginRequest(LoginRequest login) {
         if (!StringUtils.hasText(login.username()) || !StringUtils.hasText(login.password())) {
             throw new IllegalArgumentException("Username and password must not be empty");
         }
 
-        // 사용자명 길이 제한
         if (login.username().length() > 100) {
             throw new IllegalArgumentException("Username too long");
         }
 
-        // 비밀번호 길이 제한
         if (login.password().length() > 200) {
             throw new IllegalArgumentException("Password too long");
         }
     }
 
-    private void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
-                                          Authentication authentication) throws IOException, ServletException {
-        SecurityContext context = securityContextHolderStrategy.createEmptyContext();
-        context.setAuthentication(authentication);
-        securityContextHolderStrategy.setContext(context);
-        securityContextRepository.saveContext(context, request, response);
-
-        // 기존 FactorContext가 있다면 State Machine에서 정리
-        String sessionId = request.getSession().getId();
-        FactorContext existingContext = stateMachineIntegrator.getFactorContext(sessionId);
-
-        if (existingContext != null) {
-            log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
-                    existingContext.getMfaSessionId(), authentication.getName());
-
-            // State Machine 해제
-            if (existingContext.getMfaSessionId() != null) {
-                stateMachineIntegrator.releaseStateMachine(existingContext.getMfaSessionId());
-            }
-
-            // ContextPersistence 제거 - State Machine이 유일한 저장소
-            // contextPersistence.deleteContext(request);
-        }
-
-        // 보안 강화: 암호학적으로 안전한 세션 ID 생성
-        String mfaSessionId = generateSecureSessionId();
-        String flowTypeNameForContext = AuthType.MFA.name().toLowerCase();
-
-        // FactorContext 생성 (초기 상태: PRIMARY_AUTHENTICATION_COMPLETED)
-        FactorContext factorContext = new FactorContext(
-                mfaSessionId,
-                authentication,
-                MfaState.PRIMARY_AUTHENTICATION_COMPLETED,
-                flowTypeNameForContext
-        );
-
-        String deviceId = getOrCreateDeviceId(request);
-        factorContext.setAttribute("deviceId", deviceId);
-
-        // 보안 정보 추가
-        factorContext.setAttribute("clientIp", getClientIpAddress(request));
-        factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
-        factorContext.setAttribute("loginTimestamp", System.currentTimeMillis());
-
-        // ContextPersistence 사용하지 않음 - State Machine 초기화 시 저장됨
-        // contextPersistence.saveContext(factorContext, request);
-
-        // State Machine 초기화 (여기서 FactorContext가 저장됨)
-        stateMachineIntegrator.initializeStateMachine(factorContext, request);
-
-        // PRIMARY_AUTH_SUCCESS 이벤트 전송
-        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
-
-        if (!accepted) {
-            log.error("State Machine rejected PRIMARY_AUTH_SUCCESS event for session: {}", mfaSessionId);
-            // 에러 처리
-            unsuccessfulAuthentication(request, response,
-                    new AuthenticationException("State Machine initialization failed") {});
-            return;
-        }
-
-        log.info("FactorContext (ID: {}) created with State Machine integration for user: {}. State: {}",
-                factorContext.getMfaSessionId(), factorContext.getUsername(), factorContext.getCurrentState());
-
-        // 첫 번째 단계를 완료된 것으로 마킹 (1차 인증)
-        AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
-        if (mfaFlowConfig != null && !mfaFlowConfig.getStepConfigs().isEmpty()) {
-            AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
-                    .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
-                    .findFirst()
-                    .orElse(mfaFlowConfig.getStepConfigs().getFirst());
-
-            factorContext.addCompletedFactor(primaryAuthStep);
-
-            // State Machine 이벤트로 전송하여 업데이트
-            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
-        }
-
-        successHandler.onAuthenticationSuccess(request, response, authentication);
-    }
-
-    /**
-     * 암호학적으로 안전한 세션 ID 생성
-     */
     private String generateSecureSessionId() {
         byte[] bytes = sessionIdGenerator.generateKey();
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /**
-     * 클라이언트 IP 주소 추출 (프록시 고려)
-     */
     private String getClientIpAddress(HttpServletRequest request) {
         String[] headers = {
-                "X-Forwarded-For",
-                "Proxy-Client-IP",
-                "WL-Proxy-Client-IP",
-                "HTTP_X_FORWARDED_FOR",
-                "HTTP_X_FORWARDED",
-                "HTTP_X_CLUSTER_CLIENT_IP",
-                "HTTP_CLIENT_IP",
-                "HTTP_FORWARDED_FOR",
-                "HTTP_FORWARDED",
-                "HTTP_VIA",
-                "REMOTE_ADDR"
+                "X-Forwarded-For", "Proxy-Client-IP", "WL-Proxy-Client-IP",
+                "HTTP_X_FORWARDED_FOR", "HTTP_X_FORWARDED", "HTTP_X_CLUSTER_CLIENT_IP",
+                "HTTP_CLIENT_IP", "HTTP_FORWARDED_FOR", "HTTP_FORWARDED", "HTTP_VIA", "REMOTE_ADDR"
         };
 
         for (String header : headers) {
             String ip = request.getHeader(header);
             if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip)) {
-                // 첫 번째 IP만 사용 (여러 개인 경우)
                 return ip.split(",")[0].trim();
             }
         }
 
         return request.getRemoteAddr();
-    }
-
-    private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
-                                            AuthenticationException failed) throws IOException, ServletException {
-        securityContextHolderStrategy.clearContext();
-
-        // State Machine 정리
-        FactorContext context = contextPersistence.contextLoad(request);
-        if (context != null && context.getMfaSessionId() != null) {
-            stateMachineIntegrator.releaseStateMachine(context.getMfaSessionId());
-        }
-
-        contextPersistence.deleteContext(request);
-
-        // 보안 로깅
-        log.warn("Authentication failed for user: {} from IP: {}",
-                failed.getAuthenticationRequest() != null ?
-                        failed.getAuthenticationRequest().getName() : "unknown",
-                getClientIpAddress(request));
-
-        failureHandler.onAuthenticationFailure(request, response, failed);
     }
 
     @Nullable
@@ -344,42 +303,54 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private String getOrCreateDeviceId(HttpServletRequest request) {
         String deviceId = request.getHeader("X-Device-Id");
-        if (StringUtils.hasText(deviceId)) {
-            // 디바이스 ID 검증
-            if (!isValidDeviceId(deviceId)) {
-                log.warn("Invalid device ID received: {}", deviceId);
-                deviceId = null;
-            }
+        if (StringUtils.hasText(deviceId) && isValidDeviceId(deviceId)) {
+            return deviceId;
         }
 
+        HttpSession session = request.getSession(true);
+        deviceId = (String) session.getAttribute("transientDeviceId");
         if (!StringUtils.hasText(deviceId)) {
-            HttpSession session = request.getSession(true);
-            deviceId = (String) session.getAttribute("transientDeviceId");
-            if (!StringUtils.hasText(deviceId)) {
-                // 보안 강화: 암호학적으로 안전한 디바이스 ID 생성
-                deviceId = generateSecureDeviceId();
-                session.setAttribute("transientDeviceId", deviceId);
-                log.debug("Generated and stored new transient deviceId in session: {}", deviceId);
-            }
+            deviceId = generateSecureDeviceId();
+            session.setAttribute("transientDeviceId", deviceId);
+            log.debug("Generated and stored new transient deviceId in session: {}", deviceId);
         }
         return deviceId;
     }
 
-    /**
-     * 디바이스 ID 유효성 검증
-     */
     private boolean isValidDeviceId(String deviceId) {
-        // UUID 형식 또는 Base64 인코딩된 값 허용
         return deviceId.matches("^[a-zA-Z0-9_-]{22,}$") ||
                 deviceId.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     }
 
-    /**
-     * 암호학적으로 안전한 디바이스 ID 생성
-     */
     private String generateSecureDeviceId() {
         byte[] bytes = new byte[24];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    // Setter 메서드들
+    public void setRequestMatcher(RequestMatcher requestMatcher) {
+        Assert.notNull(requestMatcher, "requestMatcher cannot be null");
+        this.requestMatcher = requestMatcher;
+    }
+
+    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
+        Assert.notNull(successHandler, "successHandler cannot be null");
+        this.successHandler = successHandler;
+    }
+
+    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
+        Assert.notNull(failureHandler, "failureHandler cannot be null");
+        this.failureHandler = failureHandler;
+    }
+
+    public void setSecurityContextRepository(SecurityContextRepository securityContextRepository) {
+        Assert.notNull(securityContextRepository, "securityContextRepository cannot be null");
+        this.securityContextRepository = securityContextRepository;
+    }
+
+    public void setSecurityContextHolderStrategy(SecurityContextHolderStrategy securityContextHolderStrategy) {
+        Assert.notNull(securityContextHolderStrategy, "securityContextHolderStrategy cannot be null");
+        this.securityContextHolderStrategy = securityContextHolderStrategy;
     }
 }

@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -14,6 +15,7 @@ import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -31,11 +33,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 최종 리팩토링된 UnifiedAuthenticationSuccessHandler
+ * 통합된 ContextPersistence 사용
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
-    private final ContextPersistence contextPersistence;
+    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final TokenService tokenService;
     private final AuthResponseWriter responseWriter;
@@ -48,9 +54,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {}",
-                authentication.getName());
+        log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} (persistence: {})",
+                authentication.getName(),
+                contextPersistence instanceof ExtendedContextPersistence ?
+                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
 
+        // ContextPersistence에서 로드 (저장소 타입에 관계없이)
         FactorContext factorContext = contextPersistence.contextLoad(request);
         String username = authentication.getName();
 
@@ -74,7 +83,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             return;
         }
 
-        // 2. 1차 인증 성공 직후 처리 (RestAuthenticationFilter에서 이미 State Machine 초기화됨)
+        // 2. 1차 인증 성공 직후 처리
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), username)) {
             log.error("Invalid FactorContext state after primary authentication");
             handleInvalidContext(response, request, "INVALID_CONTEXT",
@@ -86,9 +95,8 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         log.debug("Evaluating MFA requirement for user: {}", username);
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, factorContext);
 
-        // State Machine과 동기화 후 Context 저장
+        // State Machine과 동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-        contextPersistence.saveContext(factorContext, request);
 
         // MFA 필요 여부에 따른 이벤트 전송 및 응답 처리
         if (!factorContext.isMfaRequiredAsPerPolicy() || factorContext.getCurrentState() == MfaState.MFA_NOT_REQUIRED) {
@@ -103,15 +111,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             log.info("MFA configuration required for user: {}", username);
 
             String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("error", "MFA_CONFIG_REQUIRED");
-            responseBody.put("message", "MFA 설정이 필요합니다.");
-            responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("redirectUrl", mfaConfigUrl);
-            responseBody.put("stateMachine", Map.of(
-                    "currentState", factorContext.getCurrentState().name(),
-                    "sessionId", factorContext.getMfaSessionId()
-            ));
+            Map<String, Object> responseBody = createMfaResponseBody(
+                    "MFA_CONFIG_REQUIRED",
+                    "MFA 설정이 필요합니다.",
+                    factorContext,
+                    mfaConfigUrl
+            );
 
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
                     "MFA_CONFIG_REQUIRED", "MFA 설정이 필요합니다.", mfaConfigUrl, responseBody);
@@ -122,16 +127,13 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             // MFA_REQUIRED_SELECT_FACTOR 이벤트 전송
             stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, factorContext, request);
 
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("status", "MFA_REQUIRED");
-            responseBody.put("message", "추가 인증이 필요합니다. 인증 수단을 선택해주세요.");
-            responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("nextStepUrl", request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl());
-            responseBody.put("stateMachine", Map.of(
-                    "currentState", factorContext.getCurrentState().name(),
-                    "sessionId", factorContext.getMfaSessionId(),
-                    "availableFactors", factorContext.getRegisteredMfaFactors()
-            ));
+            Map<String, Object> responseBody = createMfaResponseBody(
+                    "MFA_REQUIRED",
+                    "추가 인증이 필요합니다. 인증 수단을 선택해주세요.",
+                    factorContext,
+                    request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()
+            );
+            responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
 
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
@@ -146,17 +148,14 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
             String nextUiPageUrl = determineChalllengeUrl(factorContext, request);
 
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("status", "MFA_REQUIRED");
-            responseBody.put("message", "추가 인증이 필요합니다.");
+            Map<String, Object> responseBody = createMfaResponseBody(
+                    "MFA_REQUIRED",
+                    "추가 인증이 필요합니다.",
+                    factorContext,
+                    nextUiPageUrl
+            );
             responseBody.put("nextFactorType", nextFactor.name());
-            responseBody.put("nextStepUrl", nextUiPageUrl);
             responseBody.put("nextStepId", factorContext.getCurrentStepId());
-            responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-            responseBody.put("stateMachine", Map.of(
-                    "currentState", factorContext.getCurrentState().name(),
-                    "sessionId", factorContext.getMfaSessionId()
-            ));
 
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
@@ -169,6 +168,32 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
             handleConfigError(response, request, factorContext, "MFA 처리 중 예상치 못한 상태입니다.");
         }
+    }
+
+    /**
+     * MFA 응답 본문 생성 (공통 로직)
+     */
+    private Map<String, Object> createMfaResponseBody(String status, String message,
+                                                      FactorContext factorContext, String nextStepUrl) {
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("status", status);
+        responseBody.put("message", message);
+        responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
+        responseBody.put("nextStepUrl", nextStepUrl);
+
+        // State Machine 정보 추가
+        Map<String, Object> stateMachineInfo = new HashMap<>();
+        stateMachineInfo.put("currentState", factorContext.getCurrentState().name());
+        stateMachineInfo.put("sessionId", factorContext.getMfaSessionId());
+
+        // 저장소 타입 정보 추가
+        if (contextPersistence instanceof ExtendedContextPersistence) {
+            ExtendedContextPersistence extended = (ExtendedContextPersistence) contextPersistence;
+            stateMachineInfo.put("persistenceType", extended.getPersistenceType().name());
+        }
+
+        responseBody.put("stateMachine", stateMachineInfo);
+        return responseBody;
     }
 
     private void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -191,6 +216,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
         }
 
+        // ContextPersistence 정리 (저장소 타입에 관계없이)
         contextPersistence.deleteContext(request);
 
         TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
@@ -210,6 +236,12 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         responseBody.put("accessToken", accessToken);
         if (refreshTokenVal != null) {
             responseBody.put("refreshToken", refreshTokenVal);
+        }
+
+        // 완료 통계 정보 추가
+        if (contextPersistence instanceof ExtendedContextPersistence) {
+            ExtendedContextPersistence extended = (ExtendedContextPersistence) contextPersistence;
+            responseBody.put("persistenceType", extended.getPersistenceType().name());
         }
 
         responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);

@@ -1,19 +1,18 @@
 package io.springsecurity.springsecurity6x.security.core.session.impl;
 
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
+import io.springsecurity.springsecurity6x.security.core.session.generator.SessionIdGenerator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,23 +24,27 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Slf4j
 @Repository
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "security.mfa.session.storage-type", havingValue = "memory")
 public class InMemoryMfaRepository implements MfaSessionRepository {
 
-    private final java.util.concurrent.ConcurrentHashMap<String, SessionEntry> sessions = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.concurrent.ScheduledExecutorService cleanupExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final ConcurrentHashMap<String, SessionEntry> sessions = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
+
+    private final SessionIdGenerator sessionIdGenerator;
+
     private Duration sessionTimeout = Duration.ofMinutes(30);
     private final AtomicLong totalSessionsCreated = new AtomicLong(0);
     private final AtomicLong sessionCollisions = new AtomicLong(0);
 
-    public InMemoryMfaRepository() {
-        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredSessions, 5, 5, java.util.concurrent.TimeUnit.MINUTES);
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredSessions, 5, 5, TimeUnit.MINUTES);
     }
 
     @Override
     public void storeSession(String sessionId, HttpServletRequest request, @Nullable HttpServletResponse response) {
-        SessionEntry entry = new SessionEntry(sessionId, java.time.Instant.now().plus(sessionTimeout));
+        SessionEntry entry = new SessionEntry(sessionId, Instant.now().plus(sessionTimeout));
 
         if (sessions.putIfAbsent(sessionId, entry) != null) {
             sessionCollisions.incrementAndGet();
@@ -68,7 +71,7 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
     public void refreshSession(String sessionId) {
         SessionEntry entry = sessions.get(sessionId);
         if (entry != null) {
-            entry.expiryTime = java.time.Instant.now().plus(sessionTimeout);
+            entry.expiryTime = Instant.now().plus(sessionTimeout);
             log.trace("Memory session refreshed for: {}", sessionId);
         }
     }
@@ -99,12 +102,10 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
         return "IN_MEMORY";
     }
 
-    // === 개선된 인터페이스 구현 ===
-
     @Override
     public String generateUniqueSessionId(@Nullable String baseId, HttpServletRequest request) {
         for (int attempt = 0; attempt < 10; attempt++) {
-            String sessionId = generateMemoryOptimizedId(baseId, request);
+            String sessionId = sessionIdGenerator.generate(baseId, request);
 
             if (isSessionIdUnique(sessionId)) {
                 return sessionId;
@@ -131,7 +132,7 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
         sessionCollisions.incrementAndGet();
 
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            String resolvedId = createMemoryCollisionResolvedId(originalId, attempt);
+            String resolvedId = sessionIdGenerator.resolveCollision(originalId, attempt, request);
             if (isSessionIdUnique(resolvedId)) {
                 return resolvedId;
             }
@@ -142,8 +143,7 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
 
     @Override
     public boolean isValidSessionIdFormat(String sessionId) {
-        return StringUtils.hasText(sessionId) &&
-                sessionId.matches("^[a-zA-Z0-9_-]{16,64}$");
+        return sessionIdGenerator.isValidFormat(sessionId);
     }
 
     @Override
@@ -185,38 +185,8 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
         );
     }
 
-    // === 유틸리티 메서드들 ===
-
-    private String generateMemoryOptimizedId(@Nullable String baseId, HttpServletRequest request) {
-        long timestamp = System.currentTimeMillis();
-        int threadId = Thread.currentThread().hashCode();
-
-        byte[] randomBytes = new byte[16];
-        secureRandom.nextBytes(randomBytes);
-        String randomPart = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-
-        String combined = timestamp + "_" + threadId + "_" + randomPart;
-        if (StringUtils.hasText(baseId)) {
-            combined = baseId.substring(0, Math.min(8, baseId.length())) + "_" + combined;
-        }
-
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(combined.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String createMemoryCollisionResolvedId(String originalId, int attempt) {
-        long nanoTime = System.nanoTime();
-        String suffix = String.valueOf(nanoTime + attempt * 1000000);
-
-        String resolved = originalId.substring(0, Math.min(12, originalId.length())) +
-                "_" + suffix;
-
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(resolved.getBytes(StandardCharsets.UTF_8));
-    }
-
     private void cleanupExpiredSessions() {
-        java.time.Instant now = java.time.Instant.now();
+        Instant now = Instant.now();
         int removed = 0;
 
         var iterator = sessions.entrySet().iterator();
@@ -235,15 +205,15 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
 
     private static class SessionEntry {
         final String sessionId;
-        volatile java.time.Instant expiryTime;
+        volatile Instant expiryTime;
 
-        SessionEntry(String sessionId, java.time.Instant expiryTime) {
+        SessionEntry(String sessionId, Instant expiryTime) {
             this.sessionId = sessionId;
             this.expiryTime = expiryTime;
         }
 
         boolean isExpired() {
-            return java.time.Instant.now().isAfter(expiryTime);
+            return Instant.now().isAfter(expiryTime);
         }
     }
 }

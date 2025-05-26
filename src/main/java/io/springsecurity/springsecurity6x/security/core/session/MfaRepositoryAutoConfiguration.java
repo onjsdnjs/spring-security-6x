@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.session;
 
+import io.springsecurity.springsecurity6x.security.core.session.generator.HttpSessionIdGenerator;
+import io.springsecurity.springsecurity6x.security.core.session.generator.InMemorySessionIdGenerator;
+import io.springsecurity.springsecurity6x.security.core.session.generator.RedisSessionIdGenerator;
 import io.springsecurity.springsecurity6x.security.core.session.impl.HttpSessionMfaRepository;
 import io.springsecurity.springsecurity6x.security.core.session.impl.InMemoryMfaRepository;
 import io.springsecurity.springsecurity6x.security.core.session.impl.RedisMfaRepository;
@@ -117,19 +120,16 @@ public class MfaRepositoryAutoConfiguration {
      */
     private MfaSessionRepository createRepositoryByType(String type) {
         return repositoryCache.computeIfAbsent(type, t -> {
-            switch (t) {
-                case "redis":
-                    return createRedisRepository();
-                case "memory":
-                    return createInMemoryRepository();
-                case "http-session":
-                    return createHttpSessionRepository();
-                case "auto":
-                    return createAutoSelectedRepository();
-                default:
+            return switch (t) {
+                case "redis" -> createRedisRepository();
+                case "memory" -> createInMemoryRepository();
+                case "http-session" -> createHttpSessionRepository();
+                case "auto" -> createAutoSelectedRepository();
+                default -> {
                     log.warn("❓ Unknown repository type: {}", t);
-                    return null;
-            }
+                    yield null;
+                }
+            };
         });
     }
 
@@ -143,7 +143,7 @@ public class MfaRepositoryAutoConfiguration {
             // Redis 연결 테스트
             redisTemplate.opsForValue().get("__health_check__");
 
-            RedisMfaRepository repository = new RedisMfaRepository(redisTemplate);
+            RedisMfaRepository repository = new RedisMfaRepository(redisTemplate, new RedisSessionIdGenerator(redisTemplate));
             repository.setSessionTimeout(properties.getMfa().getSessionTimeout());
 
             log.info("✅ Redis MFA Repository created successfully");
@@ -160,7 +160,7 @@ public class MfaRepositoryAutoConfiguration {
      */
     private MfaSessionRepository createInMemoryRepository() {
         try {
-            InMemoryMfaRepository repository = new InMemoryMfaRepository();
+            InMemoryMfaRepository repository = new InMemoryMfaRepository(new InMemorySessionIdGenerator());
             repository.setSessionTimeout(properties.getMfa().getSessionTimeout());
 
             log.info("✅ InMemory MFA Repository created successfully");
@@ -177,7 +177,7 @@ public class MfaRepositoryAutoConfiguration {
      */
     private MfaSessionRepository createHttpSessionRepository() {
         try {
-            HttpSessionMfaRepository repository = new HttpSessionMfaRepository();
+            HttpSessionMfaRepository repository = new HttpSessionMfaRepository(new HttpSessionIdGenerator());
             repository.setSessionTimeout(properties.getMfa().getSessionTimeout());
 
             log.info("✅ HttpSession MFA Repository created successfully");
@@ -203,7 +203,7 @@ public class MfaRepositoryAutoConfiguration {
         }
 
         log.warn("🚨 All repository creation failed, using final fallback: HttpSession");
-        return new HttpSessionMfaRepository();
+        return new HttpSessionMfaRepository(new HttpSessionIdGenerator());
     }
 
     /**

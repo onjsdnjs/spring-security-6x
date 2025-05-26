@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
@@ -223,7 +224,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
         // 팩터 옵션 복원
         String factorOptionsStr = (String) variables.get("currentFactorOptions");
         if (factorOptionsStr != null) {
-            factorContext.setCurrentFactorOptions(deserializeFactorOptions(factorOptionsStr));
+            factorContext.setCurrentFactorOptions((AuthenticationProcessingOptions) deserializeFactorOptions(factorOptionsStr));
         }
 
         // 재시도 및 에러 정보

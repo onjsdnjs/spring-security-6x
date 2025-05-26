@@ -5,8 +5,11 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
+
+import java.util.Objects;
 
 /**
  * 모든 필수 팩터가 완료되었는지 확인하는 Guard
@@ -15,10 +18,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
 
-    private final MfaPolicyProvider mfaPolicyProvider;
+    private final ApplicationContext applicationContext;
+    private MfaPolicyProvider  mfaPolicyProvider;
 
-    public AllFactorsCompletedGuard(MfaPolicyProvider mfaPolicyProvider) {
-        this.mfaPolicyProvider = mfaPolicyProvider;
+    public AllFactorsCompletedGuard(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
+
+    private MfaPolicyProvider getMfaPolicyProvider() {
+        if (mfaPolicyProvider == null) {
+            try {
+                mfaPolicyProvider = applicationContext.getBean(MfaPolicyProvider.class);
+            } catch (Exception e) {
+                log.warn("Failed to get MfaPolicyProvider, using direct calculation", e);
+                return null;
+            }
+        }
+        return mfaPolicyProvider;
     }
 
     @Override
@@ -65,7 +81,7 @@ public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
             String flowType = factorContext.getFlowTypeName();
 
             // 정책 조회
-            Integer requiredFactors = mfaPolicyProvider.getRequiredFactorCount(userId, flowType);
+            Integer requiredFactors = Objects.requireNonNull(getMfaPolicyProvider()).getRequiredFactorCount(userId, flowType);
 
             if (requiredFactors != null && requiredFactors > 0) {
                 log.debug("Policy requires {} factors for user: {} in flow: {}",

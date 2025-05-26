@@ -23,8 +23,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * InMemory 기반 MFA 세션 Repository - 개발/테스트 환경 최적화
  */
 @Slf4j
-@Repository
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "security.mfa.session.storage-type", havingValue = "memory")
 public class InMemoryMfaRepository implements MfaSessionRepository {
 
@@ -36,6 +34,10 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
     private Duration sessionTimeout = Duration.ofMinutes(30);
     private final AtomicLong totalSessionsCreated = new AtomicLong(0);
     private final AtomicLong sessionCollisions = new AtomicLong(0);
+
+    public InMemoryMfaRepository(SessionIdGenerator sessionIdGenerator) {
+        this.sessionIdGenerator = sessionIdGenerator;
+    }
 
     @jakarta.annotation.PostConstruct
     public void init() {

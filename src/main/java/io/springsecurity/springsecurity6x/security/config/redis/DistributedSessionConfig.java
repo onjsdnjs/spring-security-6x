@@ -33,7 +33,6 @@ public class DistributedSessionConfig extends AbstractHttpSessionApplicationInit
         return new GenericJackson2JsonRedisSerializer(objectMapper());
     }
 
-
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();

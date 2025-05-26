@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import jakarta.servlet.ServletException;
@@ -22,22 +22,27 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
- * OneTimeTokenCreationSuccessHandler - State Machine 통합 버전
+ * 완전 일원화된 OneTimeTokenCreationSuccessHandler
+ * - ContextPersistence 완전 제거
+ * - MfaStateMachineService만 사용
+ * - State Machine을 단일 진실의 원천으로 사용
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
 
-    private final MfaStateMachineService stateMachineService; // ContextPersistence 대신 사용
+    // ContextPersistence 완전 제거
+    private final MfaStateMachineIntegrator mfaStateMachineIntegrator; // State Machine Service만 사용
     private final AuthContextProperties authContextProperties;
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
             throws IOException, ServletException {
-        log.info("OneTimeTokenCreationSuccessHandler: Token generated for user '{}'", token.getUsername());
+        log.info("OneTimeTokenCreationSuccessHandler: Token generated for user '{}' via unified State Machine",
+                token.getUsername());
 
-        // State Machine에서 직접 로드 (단일 진실의 원천)
+        // 완전 일원화: State Machine에서만 FactorContext 로드
         FactorContext factorContext = loadContextFromStateMachine(request);
         String usernameFromToken = token.getUsername();
 
@@ -53,9 +58,10 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
             // 챌린지 발송 시간 기록
             factorContext.setAttribute("challengeInitiatedAt", System.currentTimeMillis());
             factorContext.setAttribute("ottTokenGenerated", true);
+            factorContext.setAttribute("ottTokenValue", token.getTokenValue()); // 토큰 값 저장 (필요시)
 
-            // State Machine에 저장
-            stateMachineService.saveFactorContext(factorContext);
+            // State Machine에만 저장 (일원화)
+            mfaStateMachineIntegrator.saveFactorContext(factorContext);
 
             String challengeUiUrl = authContextProperties.getMfa().getOttFactor().getChallengeUrl();
             if (!StringUtils.hasText(challengeUiUrl)) {
@@ -95,19 +101,36 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
     }
 
     /**
-     * State Machine에서 FactorContext 로드
+     * 완전 일원화: State Machine에서만 FactorContext 로드
      */
     private FactorContext loadContextFromStateMachine(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
+            log.trace("No HttpSession found for request. Cannot load FactorContext.");
             return null;
         }
 
         String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
         if (mfaSessionId == null) {
+            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
             return null;
         }
 
-        return stateMachineService.getFactorContext(mfaSessionId);
+        try {
+            // State Machine에서 직접 로드 (일원화)
+            FactorContext context = mfaStateMachineIntegrator.getFactorContext(mfaSessionId);
+
+            if (context != null) {
+                log.debug("FactorContext loaded from unified State Machine for OTT generation: sessionId={}, state={}",
+                        context.getMfaSessionId(), context.getCurrentState());
+            } else {
+                log.debug("No FactorContext found in unified State Machine for session: {}", mfaSessionId);
+            }
+
+            return context;
+        } catch (Exception e) {
+            log.error("Failed to load FactorContext from unified State Machine for session: {}", mfaSessionId, e);
+            return null;
+        }
     }
 }

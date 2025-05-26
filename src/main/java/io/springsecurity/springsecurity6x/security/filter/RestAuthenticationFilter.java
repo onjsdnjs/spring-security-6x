@@ -5,11 +5,10 @@ import io.springsecurity.springsecurity6x.domain.LoginRequest;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.FilterChain;
@@ -44,14 +43,17 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * 리팩토링된 RestAuthenticationFilter
- * 통합된 ContextPersistence 사용
+ * 완전 일원화된 RestAuthenticationFilter
+ * - ContextPersistence 완전 제거
+ * - MfaStateMachineService만 사용
+ * - 상태머신 초기화와 컨텍스트 저장 일원화
  */
 @Slf4j
 public class RestAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
-    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
+    // ContextPersistence 완전 제거
+//    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final ApplicationContext applicationContext;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
@@ -70,12 +72,14 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
     private SecurityContextRepository securityContextRepository = new RequestAttributeSecurityContextRepository();
 
     public RestAuthenticationFilter(AuthenticationManager authenticationManager,
-                                    ContextPersistence contextPersistence,
+                                    MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
                                     ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         Assert.notNull(authenticationManager, "authenticationManager cannot be null");
+        Assert.notNull(stateMachineService, "stateMachineService cannot be null");
+
         this.authenticationManager = authenticationManager;
-        this.contextPersistence = contextPersistence;
+//        this.stateMachineService = stateMachineService;
 
         // State Machine 통합자 초기화
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
@@ -84,9 +88,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         this.sessionIdGenerator = KeyGenerators.secureRandom(32);
         this.secureRandom = new SecureRandom();
 
-        log.info("RestAuthenticationFilter initialized with ContextPersistence type: {}",
-                contextPersistence instanceof ExtendedContextPersistence ?
-                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
+        log.info("RestAuthenticationFilter initialized with unified State Machine Service");
     }
 
     @Override
@@ -116,6 +118,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 완전 일원화: 인증 성공 처리
+     * - State Machine 초기화 및 FactorContext 저장 일원화
+     */
     private void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
                                           Authentication authentication) throws IOException, ServletException {
         SecurityContext context = securityContextHolderStrategy.createEmptyContext();
@@ -123,19 +129,11 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         securityContextHolderStrategy.setContext(context);
         securityContextRepository.saveContext(context, request, response);
 
-        // 기존 FactorContext 정리 (저장소 타입에 관계없이)
-        FactorContext existingContext = contextPersistence.contextLoad(request);
-        if (existingContext != null) {
-            log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
-                    existingContext.getMfaSessionId(), authentication.getName());
-
-            // State Machine 해제
-            if (existingContext.getMfaSessionId() != null) {
-                stateMachineIntegrator.releaseStateMachine(existingContext.getMfaSessionId());
-            }
-
-            // ContextPersistence에서 삭제
-            contextPersistence.deleteContext(request);
+        // 기존 State Machine 세션 정리 (일원화)
+        String oldSessionId = (String) request.getSession().getAttribute("MFA_SESSION_ID");
+        if (oldSessionId != null) {
+            log.debug("Releasing existing State Machine session: {} for new authentication", oldSessionId);
+            stateMachineIntegrator.releaseStateMachine(oldSessionId);
         }
 
         // 보안 강화: 암호학적으로 안전한 세션 ID 생성
@@ -157,58 +155,54 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
         factorContext.setAttribute("loginTimestamp", System.currentTimeMillis());
 
-        // ContextPersistence에 저장 (저장소 타입은 설정에 따라 결정)
-        contextPersistence.saveContext(factorContext, request);
+        // 세션에 MFA 세션 ID 저장 (최소한의 매핑)
+        request.getSession().setAttribute("MFA_SESSION_ID", mfaSessionId);
 
-        // State Machine 초기화
-        stateMachineIntegrator.initializeStateMachine(factorContext, request);
+        // 완전 일원화: State Machine 초기화 및 FactorContext 저장 동시 진행
+        try {
+            stateMachineIntegrator.initializeStateMachine(factorContext, request);
 
-        // PRIMARY_AUTH_SUCCESS 이벤트 전송
-        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
+            log.info("Unified State Machine initialized for user: {} with session: {}",
+                    factorContext.getUsername(), factorContext.getMfaSessionId());
 
-        if (!accepted) {
-            log.error("State Machine rejected PRIMARY_AUTH_SUCCESS event for session: {}", mfaSessionId);
+            // 첫 번째 단계를 완료된 것으로 마킹 (1차 인증)
+            AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
+            if (mfaFlowConfig != null && !mfaFlowConfig.getStepConfigs().isEmpty()) {
+                AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
+                        .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
+                        .findFirst()
+                        .orElse(mfaFlowConfig.getStepConfigs().getFirst());
+
+                factorContext.addCompletedFactor(primaryAuthStep);
+
+                // State Machine에 저장 및 이벤트 전송 (일원화)
+                stateMachineIntegrator.saveFactorContext(factorContext);
+                stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
+            }
+
+            successHandler.onAuthenticationSuccess(request, response, authentication);
+
+        } catch (Exception e) {
+            log.error("Failed to initialize unified State Machine for session: {}", mfaSessionId, e);
             unsuccessfulAuthentication(request, response,
-                    new AuthenticationException("State Machine initialization failed") {});
-            return;
+                    new AuthenticationException("State Machine initialization failed", e) {});
         }
-
-        log.info("FactorContext (ID: {}) created with persistence type: {} for user: {}. State: {}",
-                factorContext.getMfaSessionId(),
-                contextPersistence instanceof ExtendedContextPersistence ?
-                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC",
-                factorContext.getUsername(),
-                factorContext.getCurrentState());
-
-        // 첫 번째 단계를 완료된 것으로 마킹 (1차 인증)
-        AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
-        if (mfaFlowConfig != null && !mfaFlowConfig.getStepConfigs().isEmpty()) {
-            AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
-                    .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
-                    .findFirst()
-                    .orElse(mfaFlowConfig.getStepConfigs().getFirst());
-
-            factorContext.addCompletedFactor(primaryAuthStep);
-
-            // ContextPersistence에 저장 후 State Machine 이벤트 전송
-            contextPersistence.saveContext(factorContext, request);
-            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
-        }
-
-        successHandler.onAuthenticationSuccess(request, response, authentication);
     }
 
+    /**
+     * 완전 일원화: 인증 실패 처리
+     * - State Machine 정리
+     */
     private void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                             AuthenticationException failed) throws IOException, ServletException {
         securityContextHolderStrategy.clearContext();
 
-        // ContextPersistence 정리
-        FactorContext context = contextPersistence.contextLoad(request);
-        if (context != null && context.getMfaSessionId() != null) {
-            stateMachineIntegrator.releaseStateMachine(context.getMfaSessionId());
+        // State Machine 정리 (일원화)
+        String sessionId = (String) request.getSession().getAttribute("MFA_SESSION_ID");
+        if (sessionId != null) {
+            stateMachineIntegrator.releaseStateMachine(sessionId);
+            request.getSession().removeAttribute("MFA_SESSION_ID");
         }
-
-        contextPersistence.deleteContext(request);
 
         // 보안 로깅
         log.warn("Authentication failed for user: {} from IP: {}",
@@ -219,7 +213,8 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         failureHandler.onAuthenticationFailure(request, response, failed);
     }
 
-    // 유틸리티 메서드들 (동일하게 유지)
+    // === 유틸리티 메서드들 ===
+
     private void ensureMinimumDelay(long startTime) {
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed < authDelay) {

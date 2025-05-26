@@ -6,8 +6,6 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -29,8 +27,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 리팩토링된 DefaultMfaPolicyProvider
- * 새로운 ContextPersistence 전략과 호환
+ * 완전 일원화된 DefaultMfaPolicyProvider
+ * - ContextPersistence 완전 제거
+ * - MfaStateMachineService만 사용
+ * - 모든 상태 변경은 State Machine을 통해서만
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -38,9 +38,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
-    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
+    // ContextPersistence 완전 제거
+    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
+    /**
+     * 완전 일원화: MFA 요구사항 평가 및 초기 단계 결정
+     * - State Machine을 통해서만 상태 저장
+     */
     @Override
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
         Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null.");
@@ -59,9 +64,9 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (!mfaRequired) {
             log.info("MFA not required for user: {}", username);
 
-            // 통합된 ContextPersistence에 저장
+            // State Machine에만 저장 (일원화)
             ctx.setMfaRequiredAsPerPolicy(false);
-            contextPersistence.saveContext(ctx, request);
+            stateMachineService.saveFactorContext(ctx);
 
             // State Machine에 이벤트 전송
             if (request != null) {
@@ -77,8 +82,8 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         ctx.setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
         ctx.setMfaRequiredAsPerPolicy(true);
 
-        // 통합된 ContextPersistence에 저장
-        contextPersistence.saveContext(ctx, request);
+        // State Machine에만 저장 (일원화)
+        stateMachineService.saveFactorContext(ctx);
 
         if (registeredFactors.isEmpty()) {
             log.warn("MFA required but no factors registered for user: {}", username);
@@ -95,17 +100,21 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
     }
 
+    /**
+     * 완전 일원화: 다음 팩터 결정
+     * - State Machine에서 최신 상태 조회
+     * - State Machine을 통해서만 상태 저장
+     */
     @Override
     public void determineNextFactorToProcess(FactorContext ctx) {
         Assert.notNull(ctx, "FactorContext cannot be null.");
 
-        // 최신 컨텍스트 동기화 (타입에 관계없이 작동)
-        HttpServletRequest request = getCurrentRequest();
-        if (request != null) {
-            FactorContext latestContext = contextPersistence.loadContext(ctx.getMfaSessionId(), request);
-            if (latestContext != null) {
-                syncContextFromPersistence(ctx, latestContext);
-            }
+        String sessionId = ctx.getMfaSessionId();
+
+        // State Machine에서 최신 컨텍스트 동기화 (일원화)
+        FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+        if (latestContext != null) {
+            syncContextFromStateMachine(ctx, latestContext);
         }
 
         AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
@@ -139,15 +148,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 ctx.setCurrentStepId(nextStep.getStepId());
                 ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
 
-                // 통합된 ContextPersistence에 저장
-                if (request != null) {
-                    contextPersistence.saveContext(ctx, request);
-                }
+                // State Machine에만 저장 (일원화)
+                stateMachineService.saveFactorContext(ctx);
 
                 log.info("Next MFA factor determined for user {}: Type={}, StepId={}",
                         ctx.getUsername(), nextFactorType, nextStep.getStepId());
 
                 // State Machine에 이벤트 전송
+                HttpServletRequest request = getCurrentRequest();
                 if (request != null && stateMachineIntegrator != null) {
                     stateMachineIntegrator.sendEvent(MfaEvent.FACTOR_SELECTED, ctx, request);
                 }
@@ -158,46 +166,10 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     }
 
     /**
-     * ContextPersistence와 컨텍스트 동기화
-     * 저장소 타입에 관계없이 작동
+     * 완전 일원화: 모든 팩터 완료 확인
+     * - State Machine에서 최신 상태 조회
+     * - State Machine을 통해서만 상태 저장
      */
-    private void syncContextFromPersistence(FactorContext target, FactorContext source) {
-        if (target.getCurrentState() != source.getCurrentState()) {
-            target.changeState(source.getCurrentState());
-        }
-
-        while (target.getVersion() < source.getVersion()) {
-            target.incrementVersion();
-        }
-
-        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
-        target.setCurrentStepId(source.getCurrentStepId());
-        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
-        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
-
-        // 중요한 속성들 동기화
-        source.getAttributes().forEach((key, value) -> {
-            if (isImportantAttribute(key)) {
-                target.setAttribute(key, value);
-            }
-        });
-
-        log.debug("Context synchronized from persistence: sessionId={}, version={}, type={}",
-                target.getMfaSessionId(), target.getVersion(),
-                contextPersistence instanceof ExtendedContextPersistence ?
-                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
-    }
-
-    private boolean isImportantAttribute(String key) {
-        return "registeredMfaFactors".equals(key) ||
-                "deviceId".equals(key) ||
-                "clientIp".equals(key) ||
-                "userAgent".equals(key) ||
-                "loginTimestamp".equals(key) ||
-                key.startsWith("challenge") ||
-                key.startsWith("verification");
-    }
-
     public void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
         Assert.notNull(ctx, "FactorContext cannot be null");
         Assert.notNull(mfaFlowConfig, "AuthenticationFlowConfig cannot be null for MFA flow");
@@ -208,13 +180,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             return;
         }
 
-        // 최신 상태 동기화
-        HttpServletRequest request = getCurrentRequest();
-        if (request != null) {
-            FactorContext latestContext = contextPersistence.loadContext(ctx.getMfaSessionId(), request);
-            if (latestContext != null) {
-                syncContextFromPersistence(ctx, latestContext);
-            }
+        String sessionId = ctx.getMfaSessionId();
+
+        // State Machine에서 최신 상태 동기화 (일원화)
+        FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+        if (latestContext != null) {
+            syncContextFromStateMachine(ctx, latestContext);
         }
 
         List<AuthenticationStepConfig> requiredSteps = getRequiredSteps(mfaFlowConfig);
@@ -223,11 +194,10 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
 
-            // ContextPersistence에 저장
-            if (request != null) {
-                contextPersistence.saveContext(ctx, request);
-            }
+            // State Machine에만 저장 (일원화)
+            stateMachineService.saveFactorContext(ctx);
 
+            HttpServletRequest request = getCurrentRequest();
             if (request != null && stateMachineIntegrator != null) {
                 stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
             }
@@ -236,10 +206,10 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         CompletionStatus status = evaluateCompletionStatus(ctx, requiredSteps);
 
-        // 최신 상태 저장
-        if (request != null) {
-            contextPersistence.saveContext(ctx, request);
-        }
+        // State Machine에만 저장 (일원화)
+        stateMachineService.saveFactorContext(ctx);
+
+        HttpServletRequest request = getCurrentRequest();
 
         if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
             log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
@@ -271,7 +241,133 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
     }
 
-    // 나머지 메서드들은 동일하게 유지...
+    /**
+     * 완전 일원화: State Machine에서 컨텍스트 동기화
+     * - State Machine이 진실의 원천
+     */
+    private void syncContextFromStateMachine(FactorContext target, FactorContext source) {
+        if (target.getCurrentState() != source.getCurrentState()) {
+            target.changeState(source.getCurrentState());
+        }
+
+        // 버전 동기화
+        while (target.getVersion() < source.getVersion()) {
+            target.incrementVersion();
+        }
+
+        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
+        target.setCurrentStepId(source.getCurrentStepId());
+        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
+        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
+
+        // 중요한 속성들 동기화
+        source.getAttributes().forEach((key, value) -> {
+            if (isImportantAttribute(key)) {
+                target.setAttribute(key, value);
+            }
+        });
+
+        log.debug("Context synchronized from State Machine: sessionId={}, version={}, state={}",
+                target.getMfaSessionId(), target.getVersion(), target.getCurrentState());
+    }
+
+    private boolean isImportantAttribute(String key) {
+        return "registeredMfaFactors".equals(key) ||
+                "deviceId".equals(key) ||
+                "clientIp".equals(key) ||
+                "userAgent".equals(key) ||
+                "loginTimestamp".equals(key) ||
+                key.startsWith("challenge") ||
+                key.startsWith("verification");
+    }
+
+    /**
+     * 완전 일원화: 팩터 가용성 확인
+     * - State Machine에서 최신 상태 조회
+     */
+    @Override
+    public boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx) {
+        Assert.hasText(username, "Username cannot be empty.");
+        Assert.notNull(factorType, "FactorType cannot be null.");
+
+        // State Machine에서 최신 컨텍스트 확인 (일원화)
+        if (ctx != null) {
+            String sessionId = ctx.getMfaSessionId();
+            FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+            if (latestContext != null) {
+                @SuppressWarnings("unchecked")
+                List<AuthType> registeredFactors = (List<AuthType>) latestContext.getAttribute("registeredMfaFactors");
+                if (!CollectionUtils.isEmpty(registeredFactors)) {
+                    return registeredFactors.contains(factorType);
+                }
+            }
+        }
+
+        // DB에서 확인 (Fallback)
+        Optional<Users> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isEmpty()) {
+            log.warn("User not found for MFA availability check: {}", username);
+            return false;
+        }
+
+        Users user = userOptional.get();
+        return parseRegisteredMfaFactorsFromUser(user).contains(factorType);
+    }
+
+    // === 기존 메서드들 유지 (변경 없음) ===
+
+    @Override
+    public RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx) {
+        Assert.notNull(factorType, "FactorType cannot be null.");
+        Assert.notNull(ctx, "FactorContext cannot be null.");
+
+        int maxAttempts = switch (factorType) {
+            case OTT -> 5;
+            case PASSKEY -> 3;
+            default -> 3;
+        };
+
+        log.debug("Providing retry policy (max attempts: {}) for factor {} (user {}, session {})",
+                maxAttempts, factorType, ctx.getUsername(), ctx.getMfaSessionId());
+
+        return new RetryPolicy(maxAttempts);
+    }
+
+    @Override
+    public RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step) {
+        if (step.getOptions() != null) {
+            Integer maxRetries = (Integer) step.getOptions().get("maxRetries");
+            if (maxRetries != null) {
+                return new RetryPolicy(maxRetries);
+            }
+        }
+        return new RetryPolicy(3);
+    }
+
+    @Override
+    public Integer getRequiredFactorCount(String userId, String flowType) {
+        Users user = userRepository.findByUsername(userId).orElse(null);
+
+        if (user != null) {
+            if ("ROLE_ADMIN".equals(user.getRoles())) {
+                return 2;
+            }
+
+            if (user.getRegisteredMfaFactors() != null) {
+                return user.getRegisteredMfaFactors().size();
+            }
+        }
+
+        return switch (flowType.toLowerCase()) {
+            case "mfa" -> 2;
+            case "mfa-stepup" -> 1;
+            case "mfa-transactional" -> 1;
+            default -> 1;
+        };
+    }
+
+    // === 내부 유틸리티 메서드들 (변경 없음) ===
+
     private boolean evaluateMfaRequirement(Users user) {
         if ("ROLE_ADMIN".equals(user.getRoles())) {
             return true;
@@ -368,87 +464,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             log.warn("Invalid AuthType: {}", type);
             return null;
         }
-    }
-
-    @Override
-    public RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx) {
-        Assert.notNull(factorType, "FactorType cannot be null.");
-        Assert.notNull(ctx, "FactorContext cannot be null.");
-
-        int maxAttempts = switch (factorType) {
-            case OTT -> 5;
-            case PASSKEY -> 3;
-            default -> 3;
-        };
-
-        log.debug("Providing retry policy (max attempts: {}) for factor {} (user {}, session {})",
-                maxAttempts, factorType, ctx.getUsername(), ctx.getMfaSessionId());
-
-        return new RetryPolicy(maxAttempts);
-    }
-
-    @Override
-    public boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx) {
-        Assert.hasText(username, "Username cannot be empty.");
-        Assert.notNull(factorType, "FactorType cannot be null.");
-
-        // ContextPersistence에서 최신 컨텍스트 확인
-        if (ctx != null) {
-            HttpServletRequest request = getCurrentRequest();
-            if (request != null) {
-                FactorContext latestContext = contextPersistence.loadContext(ctx.getMfaSessionId(), request);
-                if (latestContext != null) {
-                    @SuppressWarnings("unchecked")
-                    List<AuthType> registeredFactors = (List<AuthType>) latestContext.getAttribute("registeredMfaFactors");
-                    if (!CollectionUtils.isEmpty(registeredFactors)) {
-                        return registeredFactors.contains(factorType);
-                    }
-                }
-            }
-        }
-
-        // DB에서 확인 (Fallback)
-        Optional<Users> userOptional = userRepository.findByUsername(username);
-        if (userOptional.isEmpty()) {
-            log.warn("User not found for MFA availability check: {}", username);
-            return false;
-        }
-
-        Users user = userOptional.get();
-        return parseRegisteredMfaFactorsFromUser(user).contains(factorType);
-    }
-
-    @Override
-    public RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step) {
-        if (step.getOptions() != null) {
-            Integer maxRetries = (Integer) step.getOptions().get("maxRetries");
-            if (maxRetries != null) {
-                return new RetryPolicy(maxRetries);
-            }
-        }
-        return new RetryPolicy(3);
-    }
-
-    @Override
-    public Integer getRequiredFactorCount(String userId, String flowType) {
-        Users user = userRepository.findByUsername(userId).orElse(null);
-
-        if (user != null) {
-            if ("ROLE_ADMIN".equals(user.getRoles())) {
-                return 2;
-            }
-
-            if (user.getRegisteredMfaFactors() != null) {
-                return user.getRegisteredMfaFactors().size();
-            }
-        }
-
-        return switch (flowType.toLowerCase()) {
-            case "mfa" -> 2;
-            case "mfa-stepup" -> 1;
-            case "mfa-transactional" -> 1;
-            default -> 1;
-        };
     }
 
     private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) {

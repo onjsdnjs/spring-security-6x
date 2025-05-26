@@ -1,12 +1,11 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
@@ -34,14 +33,17 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 최종 리팩토링된 UnifiedAuthenticationSuccessHandler
- * 통합된 ContextPersistence 사용
+ * 완전 일원화된 UnifiedAuthenticationSuccessHandler
+ * - ContextPersistence 완전 제거
+ * - MfaStateMachineService만 사용
+ * - State Machine에서 직접 컨텍스트 로드 및 관리
  */
 @Slf4j
 @RequiredArgsConstructor
 public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
-    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
+    // ContextPersistence 완전 제거
+    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final MfaPolicyProvider mfaPolicyProvider;
     private final TokenService tokenService;
     private final AuthResponseWriter responseWriter;
@@ -54,13 +56,11 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} (persistence: {})",
-                authentication.getName(),
-                contextPersistence instanceof ExtendedContextPersistence ?
-                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
+        log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} via unified State Machine",
+                authentication.getName());
 
-        // ContextPersistence에서 로드 (저장소 타입에 관계없이)
-        FactorContext factorContext = contextPersistence.contextLoad(request);
+        // 완전 일원화: State Machine에서만 FactorContext 로드
+        FactorContext factorContext = loadFactorContextFromStateMachine(request);
         String username = authentication.getName();
 
         // State Machine과 동기화
@@ -171,6 +171,31 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
     }
 
     /**
+     * 완전 일원화: State Machine에서만 FactorContext 로드
+     */
+    private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            log.trace("No HttpSession found for request. Cannot load FactorContext.");
+            return null;
+        }
+
+        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
+        if (mfaSessionId == null) {
+            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
+            return null;
+        }
+
+        try {
+            // State Machine에서 직접 로드 (일원화)
+            return stateMachineIntegrator.getFactorContext(mfaSessionId);
+        } catch (Exception e) {
+            log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
+            return null;
+        }
+    }
+
+    /**
      * MFA 응답 본문 생성 (공통 로직)
      */
     private Map<String, Object> createMfaResponseBody(String status, String message,
@@ -185,17 +210,17 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         Map<String, Object> stateMachineInfo = new HashMap<>();
         stateMachineInfo.put("currentState", factorContext.getCurrentState().name());
         stateMachineInfo.put("sessionId", factorContext.getMfaSessionId());
-
-        // 저장소 타입 정보 추가
-        if (contextPersistence instanceof ExtendedContextPersistence) {
-            ExtendedContextPersistence extended = (ExtendedContextPersistence) contextPersistence;
-            stateMachineInfo.put("persistenceType", extended.getPersistenceType().name());
-        }
+        stateMachineInfo.put("storageType", "UNIFIED_STATE_MACHINE");
 
         responseBody.put("stateMachine", stateMachineInfo);
         return responseBody;
     }
 
+    /**
+     * 완전 일원화: 최종 인증 성공 처리
+     * - State Machine 정리
+     * - 세션 정리
+     */
     private void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                                   Authentication finalAuthentication,
                                                   @Nullable FactorContext factorContext) throws IOException {
@@ -211,13 +236,16 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             refreshTokenVal = tokenService.createRefreshToken(finalAuthentication, deviceIdFromCtx);
         }
 
-        // State Machine 정리
+        // 완전 일원화: State Machine 정리
         if (factorContext != null && factorContext.getMfaSessionId() != null) {
             stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
         }
 
-        // ContextPersistence 정리 (저장소 타입에 관계없이)
-        contextPersistence.deleteContext(request);
+        // 세션에서 MFA 세션 ID 정리
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.removeAttribute("MFA_SESSION_ID");
+        }
 
         TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
 
@@ -239,10 +267,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         }
 
         // 완료 통계 정보 추가
-        if (contextPersistence instanceof ExtendedContextPersistence) {
-            ExtendedContextPersistence extended = (ExtendedContextPersistence) contextPersistence;
-            responseBody.put("persistenceType", extended.getPersistenceType().name());
-        }
+        responseBody.put("storageType", "UNIFIED_STATE_MACHINE");
 
         responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }
@@ -279,6 +304,21 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
                                       @Nullable Authentication authentication) throws IOException {
         log.warn("Invalid FactorContext: {}. User: {}", logMessage,
                 (authentication != null ? authentication.getName() : "Unknown"));
+
+        // 세션에서 잘못된 MFA 세션 ID 정리
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            String oldSessionId = (String) session.getAttribute("MFA_SESSION_ID");
+            if (oldSessionId != null) {
+                try {
+                    stateMachineService.releaseStateMachine(oldSessionId);
+                } catch (Exception e) {
+                    log.warn("Failed to release invalid State Machine session: {}", oldSessionId, e);
+                }
+                session.removeAttribute("MFA_SESSION_ID");
+            }
+        }
+
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode,
                 "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI());
     }

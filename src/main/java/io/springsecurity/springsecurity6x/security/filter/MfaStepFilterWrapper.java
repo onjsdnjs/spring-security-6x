@@ -1,8 +1,6 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ExtendedContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -24,16 +22,18 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-
 /**
- * 리팩토링된 MfaStepFilterWrapper
- * 통합된 ContextPersistence 사용
+ * 완전 일원화된 MfaStepFilterWrapper
+ * - ContextPersistence 완전 제거
+ * - MfaStateMachineService만 사용
+ * - FilterChain 래퍼도 State Machine Service 사용
  */
 @Slf4j
 public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
-    private final ContextPersistence contextPersistence; // 통합된 인터페이스 사용
+    // ContextPersistence 완전 제거
+    private final MfaStateMachineService stateMachineService; // State Machine Service만 사용
     private final RequestMatcher mfaFactorProcessingMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
@@ -43,19 +43,17 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     public static final long MIN_VERIFICATION_DELAY = 500;
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
-                                ContextPersistence contextPersistence,
+                                MfaStateMachineService stateMachineService, // ContextPersistence 대신 사용
                                 RequestMatcher mfaFactorProcessingMatcher,
                                 ApplicationContext applicationContext) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider);
-        this.contextPersistence = Objects.requireNonNull(contextPersistence);
+        this.stateMachineService = Objects.requireNonNull(stateMachineService);
         this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher);
 
         // State Machine 통합자 가져오기
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
-        log.info("MfaStepFilterWrapper initialized with ContextPersistence type: {}",
-                contextPersistence instanceof ExtendedContextPersistence ?
-                        ((ExtendedContextPersistence) contextPersistence).getPersistenceType() : "BASIC");
+        log.info("MfaStepFilterWrapper initialized with unified State Machine Service");
     }
 
     @Override
@@ -72,8 +70,8 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
         long startTime = System.currentTimeMillis();
 
-        // ContextPersistence에서 로드 (저장소 타입에 관계없이)
-        FactorContext ctx = contextPersistence.contextLoad(request);
+        // 완전 일원화: State Machine에서만 FactorContext 로드
+        FactorContext ctx = loadFactorContextFromStateMachine(request);
 
         if (!isValidFactorProcessingContext(ctx)) {
             log.warn("Invalid context for MFA factor processing. URI: {}, State: {}, Factor: {}",
@@ -143,12 +141,12 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             // 검증 시작 시간 기록
             ctx.setAttribute("verificationStartTime", System.currentTimeMillis());
 
-            // ContextPersistence에 저장
-            contextPersistence.saveContext(ctx, request);
+            // State Machine에 저장 (일원화)
+            stateMachineService.saveFactorContext(ctx);
 
             // FilterChain 래퍼로 State Machine 이벤트 처리 통합
-            FilterChain wrappedChain = new SecureStateMachineAwareFilterChain(
-                    chain, ctx, request, stateMachineIntegrator, startTime, contextPersistence);
+            FilterChain wrappedChain = new UnifiedStateMachineAwareFilterChain(
+                    chain, ctx, request, stateMachineIntegrator, startTime, stateMachineService); // ContextPersistence 대신 사용
 
             delegateFactorFilter.doFilter(request, response, wrappedChain);
         } else {
@@ -160,6 +158,31 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                         "MFA factor processing misconfiguration");
             }
+        }
+    }
+
+    /**
+     * 완전 일원화: State Machine에서만 FactorContext 로드
+     */
+    private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            log.trace("No HttpSession found for request. Cannot load FactorContext.");
+            return null;
+        }
+
+        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
+        if (mfaSessionId == null) {
+            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
+            return null;
+        }
+
+        try {
+            // State Machine 에서 직접 로드 (일원화)
+            return stateMachineIntegrator.getFactorContext(mfaSessionId);
+        } catch (Exception e) {
+            log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
+            return null;
         }
     }
 
@@ -197,27 +220,28 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     }
 
     /**
-     * 보안 강화된 State Machine 인식 FilterChain 래퍼
+     * 완전 일원화된 State Machine 인식 FilterChain 래퍼
+     * - ContextPersistence 제거하고 MfaStateMachineService만 사용
      */
-    private static class SecureStateMachineAwareFilterChain implements FilterChain {
+    private static class UnifiedStateMachineAwareFilterChain implements FilterChain {
         private final FilterChain delegate;
         private final FactorContext context;
         private final HttpServletRequest request;
         private final MfaStateMachineIntegrator stateMachineIntegrator;
         private final long startTime;
-        private final ContextPersistence contextPersistence;
+        private final MfaStateMachineService stateMachineService; // ContextPersistence 대신 사용
 
-        public SecureStateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
-                                                  HttpServletRequest request,
-                                                  MfaStateMachineIntegrator stateMachineIntegrator,
-                                                  long startTime,
-                                                  ContextPersistence contextPersistence) {
+        public UnifiedStateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
+                                                   HttpServletRequest request,
+                                                   MfaStateMachineIntegrator stateMachineIntegrator,
+                                                   long startTime,
+                                                   MfaStateMachineService stateMachineService) { // ContextPersistence 대신 사용
             this.delegate = delegate;
             this.context = context;
             this.request = request;
             this.stateMachineIntegrator = stateMachineIntegrator;
             this.startTime = startTime;
-            this.contextPersistence = contextPersistence;
+            this.stateMachineService = stateMachineService;
         }
 
         @Override
@@ -236,8 +260,8 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 long verificationTime = System.currentTimeMillis() - startTime;
                 context.setAttribute("lastVerificationTime", verificationTime);
 
-                // ContextPersistence에 저장
-                contextPersistence.saveContext(context, this.request);
+                // State Machine 에만 저장 (일원화)
+                stateMachineIntegrator.saveFactorContext(context);
 
                 // 필터 실행 후 상태 확인 및 이벤트 전송
                 if (!httpResponse.isCommitted()) {

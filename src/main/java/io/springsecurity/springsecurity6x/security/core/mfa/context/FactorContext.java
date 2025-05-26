@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Getter
 @Slf4j
 @Setter
-public class FactorContext implements FactorContextExtensions {
+public class FactorContext implements FactorContextExtensions,Serializable{
 
     private final String mfaSessionId;
     private final AtomicReference<MfaState> currentMfaState;

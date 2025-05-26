@@ -1,6 +1,9 @@
 package io.springsecurity.springsecurity6x.security.config.redis;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -15,6 +18,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 
 /**
  * 통합 Redis 설정
@@ -116,9 +120,11 @@ public class UnifiedRedisConfiguration {
     /**
      * ObjectMapper Bean
      */
-    @Bean
+/*    @Bean
     @ConditionalOnMissingBean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
-    }
+    }*/
+
+
 }

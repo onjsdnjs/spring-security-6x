@@ -36,6 +36,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // Spring Boot Starter Thymeleaf (권장)
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
     // Spring State Machine 4.0.0 (redis 모듈 제외)
     implementation('org.springframework.statemachine:spring-statemachine-starter:4.0.0') {
         exclude group: 'org.springframework.statemachine', module: 'spring-statemachine-redis'

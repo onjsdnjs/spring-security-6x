@@ -61,59 +61,55 @@ public class PlatformSecurityConfig {
 
         // 공통 HTTP 설정 (이전과 유사)
         SafeHttpCustomizer<HttpSecurity> globalHttpCustomizer = http -> {
-            try {
                 http
-                        .csrf(AbstractHttpConfigurer::disable)
-                        .authorizeHttpRequests(authReq -> authReq
-                                .requestMatchers( // 기존 permitAll 경로 유지
-                                        "/css/**", "/js/**", "/images/**", "/favicon.ico",
-                                        "/", "/authMode","/home",
-                                        "/loginForm", "/register",
-                                        "/loginOtt", "/ott/sent", // 단일 OTT 관련 페이지
-                                        "/loginPasskey",           // 단일 Passkey 관련 페이지
-                                        "/mfa/select-factor","/mfa/ott/request-code-ui", "/mfa/challenge/ott", "/mfa/challenge/passkey", "/mfa/failure", // MFA UI 페이지
-                                        "/api/register",
-                                        "/api/auth/login", "/api/auth/refresh",         // 1차 인증 및 토큰 API
-                                        "/api/ott/generate",                             // 단일 OTT 코드 생성 API
-                                        "/webauthn/registration/options", "/webauthn/registration/verify", // 단일 Passkey 등록 API (Spring 기본)
-                                        "/webauthn/assertion/options", "/webauthn/assertion/verify",       // 단일 Passkey 검증 API (Spring 기본, 또는 우리가 /login/webauthn 사용)
-                                        "/api/mfa/select-factor", "/api/mfa/request-ott-code", "/api/mfa/assertion/options" // MFA 제어 API
-                                ).permitAll()
-                                .requestMatchers("/users", "/api/users").hasRole("USER")
-                                .requestMatchers("/admin", "/api/admin/**").hasRole("ADMIN")
-                                .anyRequest().authenticated()
-                        )
-                        .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-                        .sessionManagement(session -> session // JWT 사용 시 Stateless, 세션 사용 시 IF_REQUIRED 등
-                                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // JWT 사용 가정
-                                // .sessionCreationPolicy(authContextProperties.isAllowMultipleLogins() ?
-                                // SessionCreationPolicy.IF_REQUIRED : SessionCreationPolicy.ALWAYS)
-                                // .maximumSessions(authContextProperties.isAllowMultipleLogins() ? authContextProperties.getMaxConcurrentLogins() : 1)
-                                // .expiredUrl("/loginForm?expired")
-                        )
-                        .exceptionHandling(e -> e
-                                        .authenticationEntryPoint(new TokenAuthenticationEntryPoint(objectMapper))
-                                // .accessDeniedHandler(...) // 필요시 AccessDeniedHandler 설정
-                        )
-                        .logout(logout -> logout
-                                .logoutUrl("/api/auth/logout") // JWT 로그아웃 URL
-                                .addLogoutHandler(applicationContext.getBean("jwtLogoutHandler", LogoutHandler.class))
-                                .logoutSuccessHandler((request, response, authentication) -> {
-                                    response.setStatus(HttpServletResponse.SC_OK);
-                                    response.setContentType("application/json;charset=UTF-8");
-                                    objectMapper.writeValue(response.getWriter(), Map.of("message", "로그아웃 되었습니다.", "redirectUrl", "/loginForm"));
-                                })
-                                .invalidateHttpSession(false) // JWT 사용 시 세션 무효화 불필요
-                                .clearAuthentication(true)
-                        );
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to apply global HttpSecurity customizer", e);
-            }
+//                    .csrf(AbstractHttpConfigurer::disable)
+                    .authorizeHttpRequests(authReq -> authReq
+                            .requestMatchers( // 기존 permitAll 경로 유지
+                                    "/css/**", "/js/**", "/images/**", "/favicon.ico",
+                                    "/", "/authMode","/home",
+                                    "/loginForm", "/register",
+                                    "/loginOtt", "/ott/sent", // 단일 OTT 관련 페이지
+                                    "/loginPasskey",           // 단일 Passkey 관련 페이지
+                                    "/mfa/select-factor","/mfa/ott/request-code-ui", "/mfa/challenge/ott", "/mfa/challenge/passkey", "/mfa/failure", // MFA UI 페이지
+                                    "/api/register",
+                                    "/api/auth/login", "/api/auth/refresh",         // 1차 인증 및 토큰 API
+                                    "/api/ott/generate",                             // 단일 OTT 코드 생성 API
+                                    "/webauthn/registration/options", "/webauthn/registration/verify", // 단일 Passkey 등록 API (Spring 기본)
+                                    "/webauthn/assertion/options", "/webauthn/assertion/verify",       // 단일 Passkey 검증 API (Spring 기본, 또는 우리가 /login/webauthn 사용)
+                                    "/api/mfa/select-factor", "/api/mfa/request-ott-code", "/api/mfa/assertion/options" // MFA 제어 API
+                            ).permitAll()
+                            .requestMatchers("/users", "/api/users").hasRole("USER")
+                            .requestMatchers("/admin", "/api/admin/**").hasRole("ADMIN")
+                            .anyRequest().authenticated()
+                    )
+                    .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+                    .sessionManagement(session -> session // JWT 사용 시 Stateless, 세션 사용 시 IF_REQUIRED 등
+                                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // JWT 사용 가정
+                            // .sessionCreationPolicy(authContextProperties.isAllowMultipleLogins() ?
+                            // SessionCreationPolicy.IF_REQUIRED : SessionCreationPolicy.ALWAYS)
+                            // .maximumSessions(authContextProperties.isAllowMultipleLogins() ? authContextProperties.getMaxConcurrentLogins() : 1)
+                            // .expiredUrl("/loginForm?expired")
+                    )
+                    .exceptionHandling(e -> e
+                                    .authenticationEntryPoint(new TokenAuthenticationEntryPoint(objectMapper))
+                            // .accessDeniedHandler(...) // 필요시 AccessDeniedHandler 설정
+                    )
+                    .logout(logout -> logout
+                            .logoutUrl("/api/auth/logout") // JWT 로그아웃 URL
+                            .addLogoutHandler(applicationContext.getBean("jwtLogoutHandler", LogoutHandler.class))
+                            .logoutSuccessHandler((request, response, authentication) -> {
+                                response.setStatus(HttpServletResponse.SC_OK);
+                                response.setContentType("application/json;charset=UTF-8");
+                                objectMapper.writeValue(response.getWriter(), Map.of("message", "로그아웃 되었습니다.", "redirectUrl", "/loginForm"));
+                            })
+                            .invalidateHttpSession(false) // JWT 사용 시 세션 무효화 불필요
+                            .clearAuthentication(true)
+                    );
         };
 
 
         return registry
-                .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
+//                .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
 
                 // --- 단일 인증 방식들 (MFA와 별개로 동작 가능) ---
                 /*.form(form -> form

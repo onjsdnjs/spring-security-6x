@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
@@ -58,11 +57,10 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         Assert.notNull(authenticationManager, "AuthenticationManager cannot be null (is it shared from HttpSecurity?)");
 
         ApplicationContext applicationContext = http.getSharedObject(ApplicationContext.class);
+        AuthContextProperties properties = applicationContext.getBean(AuthContextProperties.class);
 
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null (is it shared from HttpSecurity?)");
-
-        ObjectMapper objectMapper = applicationContext.getBean(ObjectMapper.class);
 
         // requestMatcher가 loginProcessingUrl에 의해 설정되었는지 확인
         if (this.requestMatcher == null) {
@@ -72,7 +70,8 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
 
         RestAuthenticationFilter restFilter = new RestAuthenticationFilter(
                 authenticationManager,
-                applicationContext
+                applicationContext,
+                properties
         );
 
         if (successHandler != null) {

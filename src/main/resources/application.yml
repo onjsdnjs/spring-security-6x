@@ -86,6 +86,7 @@ spring:
       detailed-logging-enabled: true
       metrics-enabled: true
       audit-logging-enabled: true
+      session-storage-type: http-session
 
 # Security State Machine 설정
 security:

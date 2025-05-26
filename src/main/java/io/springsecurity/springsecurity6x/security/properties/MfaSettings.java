@@ -169,6 +169,47 @@ public class MfaSettings {
      */
     private boolean auditLoggingEnabled = true;
 
+    /**
+     * 세션 저장소 타입 선택
+     * - http-session: HTTP Session 사용 (기본값, 단일 서버)
+     * - redis: Redis 사용 (분산 환경)
+     * - memory: In-Memory 사용 (개발/테스트)
+     * - auto: 환경에 따라 자동 선택
+     */
+    private String sessionStorageType = "http-session";
+
+    /**
+     * Repository 자동 선택 활성화
+     * true: 환경을 분석해서 최적의 Repository 자동 선택
+     * false: sessionStorageType 설정값만 사용
+     */
+    private boolean autoSelectRepository = false;
+
+    /**
+     * Repository 선택 우선순위 (쉼표로 구분)
+     * 예: "redis,memory,http-session"
+     */
+    private String repositoryPriority = "redis,memory,http-session";
+
+    /**
+     * Fallback Repository 타입
+     * 설정된 Repository 생성 실패 시 사용
+     */
+    private String fallbackRepositoryType = "http-session";
+
+    // === Repository별 세부 설정 ===
+
+    @NestedConfigurationProperty
+    private HttpSessionSettings httpSession = new HttpSessionSettings();
+
+    @NestedConfigurationProperty
+    private RedisSettings redis = new RedisSettings();
+
+    @NestedConfigurationProperty
+    private MemorySettings memory = new MemorySettings();
+
+
+
     // === 중첩된 팩터 설정 ===
     /**
      * MFA Passkey 팩터 설정
@@ -431,4 +472,43 @@ class EmailFactorSettings {
     private String templateId = "mfa_email_template";
     private int maxDailyAttempts = 5;
     private boolean enabled = true;
+}
+
+/**
+ * HTTP Session Repository 설정
+ */
+@Getter
+@Setter
+class HttpSessionSettings {
+    private boolean enabled = true;
+    private boolean createSessionIfNotExists = true;
+    private String sessionAttributeName = "MFA_SESSION_ID";
+}
+
+/**
+ * Redis Repository 설정
+ */
+@Getter
+@Setter
+class RedisSettings {
+    private boolean enabled = true;
+    private String keyPrefix = "mfa:session:";
+    private String cookieName = "MFA_SID";
+    private boolean secureCookie = true;
+    private boolean httpOnlyCookie = true;
+    private String sameSite = "Strict";
+    private int connectionTimeout = 3000;
+    private int maxRetries = 3;
+}
+
+/**
+ * Memory Repository 설정
+ */
+@Getter
+@Setter
+class MemorySettings {
+    private boolean enabled = true;
+    private int cleanupIntervalMinutes = 5;
+    private int maxSessions = 10000;
+    private boolean enableMetrics = true;
 }

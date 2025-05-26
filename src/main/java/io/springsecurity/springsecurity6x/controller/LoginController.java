@@ -5,7 +5,6 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.HttpSessionContextPersistence;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.http.HttpServletRequest;

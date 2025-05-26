@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -16,7 +15,6 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;

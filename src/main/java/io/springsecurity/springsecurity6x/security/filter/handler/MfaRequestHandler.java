@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.filter.handler;
 
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;

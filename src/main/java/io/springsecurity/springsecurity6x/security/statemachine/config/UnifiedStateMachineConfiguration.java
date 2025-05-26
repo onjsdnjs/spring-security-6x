@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.statemachine.config;
 
 import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributedLockService;
 import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConfiguration;
-import io.springsecurity.springsecurity6x.security.core.mfa.context.ContextPersistence;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;

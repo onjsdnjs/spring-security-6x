@@ -190,18 +190,20 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         securityContextHolderStrategy.setContext(context);
         securityContextRepository.saveContext(context, request, response);
 
-        // 기존 FactorContext가 있다면 삭제
-        FactorContext existingContext = contextPersistence.contextLoad(request);
+        // 기존 FactorContext가 있다면 State Machine에서 정리
+        String sessionId = request.getSession().getId();
+        FactorContext existingContext = stateMachineIntegrator.getFactorContext(sessionId);
         if (existingContext != null) {
             log.debug("Clearing existing FactorContext (ID: {}) on new primary authentication for user: {}",
                     existingContext.getMfaSessionId(), authentication.getName());
 
-            // State Machine도 해제
+            // State Machine 해제
             if (existingContext.getMfaSessionId() != null) {
                 stateMachineIntegrator.releaseStateMachine(existingContext.getMfaSessionId());
             }
 
-            contextPersistence.deleteContext(request);
+            // ContextPersistence 제거 - State Machine이 유일한 저장소
+            // contextPersistence.deleteContext(request);
         }
 
         // 보안 강화: 암호학적으로 안전한 세션 ID 생성
@@ -224,10 +226,10 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
         factorContext.setAttribute("loginTimestamp", System.currentTimeMillis());
 
-        // Context 저장
-        contextPersistence.saveContext(factorContext, request);
+        // ContextPersistence 사용하지 않음 - State Machine 초기화 시 저장됨
+        // contextPersistence.saveContext(factorContext, request);
 
-        // State Machine 초기화
+        // State Machine 초기화 (여기서 FactorContext가 저장됨)
         stateMachineIntegrator.initializeStateMachine(factorContext, request);
 
         // PRIMARY_AUTH_SUCCESS 이벤트 전송
@@ -253,7 +255,9 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
                     .orElse(mfaFlowConfig.getStepConfigs().getFirst());
 
             factorContext.addCompletedFactor(primaryAuthStep);
-            contextPersistence.saveContext(factorContext, request);
+
+            // State Machine 이벤트로 전송하여 업데이트
+            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
         }
 
         successHandler.onAuthenticationSuccess(request, response, authentication);

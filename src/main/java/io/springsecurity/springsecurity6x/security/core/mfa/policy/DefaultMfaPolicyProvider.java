@@ -10,7 +10,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -21,7 +21,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,7 +45,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         boolean mfaRequired = evaluateMfaRequirement(user);
-        ctx.setMfaRequiredAsPerPolicy(mfaRequired);
 
         // State Machine 통합자 초기화 (lazy loading)
         if (stateMachineIntegrator == null) {
@@ -57,9 +55,8 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         if (!mfaRequired) {
             log.info("MFA not required for user: {}", username);
-            ctx.changeState(MfaState.MFA_NOT_REQUIRED);
 
-            // MFA_NOT_REQUIRED 이벤트 전송
+            // State Machine에 이벤트 전송 (상태 변경은 State Machine이 처리)
             if (request != null) {
                 stateMachineIntegrator.sendEvent(MfaEvent.MFA_NOT_REQUIRED, ctx, request);
             }
@@ -68,18 +65,24 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         log.info("MFA is required for user: {}", username);
 
-        // 사용자가 등록한 MFA 요소들을 FactorContext에 저장
+        // 사용자가 등록한 MFA 요소들을 FactorContext의 속성에 저장
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
-        ctx.setRegisteredMfaFactors(new ArrayList<>(registeredFactors));
+        ctx.setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
+        ctx.setAttribute("mfaRequiredAsPerPolicy", true);
 
         if (registeredFactors.isEmpty()) {
             log.warn("MFA required but no factors registered for user: {}", username);
-            ctx.changeState(MfaState.MFA_CONFIGURATION_REQUIRED);
+            // State Machine이 MFA_CONFIGURATION_REQUIRED 상태로 전환하도록 이벤트 전송
+            if (request != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request);
+            }
             return;
         }
 
-        // 다음 진행할 Factor 결정
-        determineNextFactorToProcess(ctx);
+        // State Machine이 다음 팩터를 결정하도록 이벤트 전송
+        if (request != null) {
+            stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
+        }
     }
 
     private boolean evaluateMfaRequirement(Users user) {
@@ -109,41 +112,48 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
         if (mfaFlowConfig == null) {
             log.error("MFA flow configuration not found. Cannot determine next factor.");
-            ctx.changeState(MfaState.NONE);
             return;
         }
 
+        // FactorContext의 속성에서 등록된 팩터 가져오기
+        @SuppressWarnings("unchecked")
+        List<AuthType> registeredFactors = (List<AuthType>) ctx.getAttribute("registeredMfaFactors");
+        if (registeredFactors == null) {
+            registeredFactors = new ArrayList<>();
+        }
+
         AuthType nextFactorType = determineNextFactorInternal(
-                ctx.getRegisteredMfaFactors(),
+                registeredFactors,
                 ctx.getCompletedFactors(),
                 mfaFlowConfig.getStepConfigs()
         );
 
+        HttpServletRequest request = getCurrentRequest();
+
         if (nextFactorType != null) {
-            processNextFactor(ctx, nextFactorType, mfaFlowConfig);
+            // 다음 팩터 정보를 속성에 저장
+            Optional<AuthenticationStepConfig> nextStepConfigOpt = findNextStepConfig(
+                    mfaFlowConfig, nextFactorType, ctx
+            );
+
+            if (nextStepConfigOpt.isPresent()) {
+                AuthenticationStepConfig nextStep = nextStepConfigOpt.get();
+
+                // State Machine이 처리할 수 있도록 속성에 저장
+                ctx.setAttribute("nextFactorType", nextFactorType);
+                ctx.setAttribute("nextStepId", nextStep.getStepId());
+                ctx.setAttribute("nextFactorOptions", mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
+
+                log.info("Next MFA factor determined for user {}: Type={}, StepId={}",
+                        ctx.getUsername(), nextFactorType, nextStep.getStepId());
+
+                // State Machine에 이벤트 전송
+                if (request != null && stateMachineIntegrator != null) {
+                    stateMachineIntegrator.sendEvent(MfaEvent.FACTOR_SELECTED, ctx, request);
+                }
+            }
         } else {
-            checkAllFactorsCompleted(ctx, mfaFlowConfig);
-        }
-    }
-
-    private void processNextFactor(FactorContext ctx, AuthType nextFactorType,
-                                   AuthenticationFlowConfig mfaFlowConfig) {
-        Optional<AuthenticationStepConfig> nextStepConfigOpt = findNextStepConfig(
-                mfaFlowConfig, nextFactorType, ctx
-        );
-
-        if (nextStepConfigOpt.isPresent()) {
-            AuthenticationStepConfig nextStep = nextStepConfigOpt.get();
-            ctx.setCurrentProcessingFactor(nextFactorType);
-            ctx.setCurrentStepId(nextStep.getStepId());
-            ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
-            ctx.changeState(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION);
-
-            log.info("Next MFA factor for user {}: Type={}, StepId={}",
-                    ctx.getUsername(), nextFactorType, nextStep.getStepId());
-        } else {
-            log.warn("Next factor type {} determined, but no corresponding uncompleted step config found for user {}",
-                    nextFactorType, ctx.getUsername());
+            // 모든 팩터 완료 체크
             checkAllFactorsCompleted(ctx, mfaFlowConfig);
         }
     }
@@ -171,9 +181,8 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (requiredSteps.isEmpty()) {
             log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
-            ctx.changeState(MfaState.ALL_FACTORS_COMPLETED);
 
-            // ALL_REQUIRED_FACTORS_COMPLETED 이벤트 전송
+            // State Machine에 완료 이벤트 전송
             HttpServletRequest request = getCurrentRequest();
             if (request != null && stateMachineIntegrator != null) {
                 stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
@@ -182,7 +191,41 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
 
         CompletionStatus status = evaluateCompletionStatus(ctx, requiredSteps);
-        updateContextState(ctx, status, mfaFlowConfig);
+
+        HttpServletRequest request = getCurrentRequest();
+
+        if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
+            log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
+                    ctx.getUsername(), mfaFlowConfig.getTypeName());
+
+            // State Machine에 완료 이벤트 전송
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
+            }
+        } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty()) {
+            log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection.",
+                    ctx.getUsername());
+
+            // State Machine에 팩터 선택 이벤트 전송
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
+            }
+        } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
+            log.warn("MFA required for user {} but no MFA factors are registered.", ctx.getUsername());
+
+            // State Machine에 설정 필요 이벤트 전송
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request);
+            }
+        } else {
+            log.info("Not all required MFA factors completed for user: {}. Missing steps: {}",
+                    ctx.getUsername(), status.missingRequiredStepIds);
+
+            // State Machine에 추가 팩터 필요 이벤트 전송
+            if (request != null && stateMachineIntegrator != null) {
+                stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
+            }
+        }
     }
 
     private List<AuthenticationStepConfig> getRequiredSteps(AuthenticationFlowConfig flowConfig) {
@@ -219,41 +262,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     private boolean isStepCompleted(FactorContext ctx, String stepId) {
         return ctx.getCompletedFactors().stream()
                 .anyMatch(completedFactor -> stepId.equals(completedFactor.getStepId()));
-    }
-
-    private void updateContextState(FactorContext ctx, CompletionStatus status,
-                                    AuthenticationFlowConfig flowConfig) {
-        HttpServletRequest request = getCurrentRequest();
-
-        if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
-            log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
-                    ctx.getUsername(), flowConfig.getTypeName());
-            ctx.changeState(MfaState.ALL_FACTORS_COMPLETED);
-
-            // ALL_REQUIRED_FACTORS_COMPLETED 이벤트 전송
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
-            }
-        } else if (ctx.getCurrentState() == MfaState.ALL_FACTORS_COMPLETED) {
-            log.debug("User {} in flow '{}' is already in ALL_FACTORS_COMPLETED state.",
-                    ctx.getUsername(), flowConfig.getTypeName());
-        } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty() &&
-                ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
-            log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection.",
-                    ctx.getUsername());
-            ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
-            ctx.clearCurrentFactorProcessingState();
-        } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
-            log.warn("MFA required for user {} but no MFA factors are registered.", ctx.getUsername());
-            ctx.changeState(MfaState.MFA_CONFIGURATION_REQUIRED);
-        } else {
-            log.info("Not all required MFA factors completed for user: {}. Missing steps: {}",
-                    ctx.getUsername(), status.missingRequiredStepIds);
-            if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
-                ctx.changeState(MfaState.AWAITING_FACTOR_SELECTION);
-                ctx.clearCurrentFactorProcessingState();
-            }
-        }
     }
 
     @Nullable
@@ -324,8 +332,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Assert.notNull(factorType, "FactorType cannot be null.");
 
         // Context에서 먼저 확인
-        if (ctx != null && !CollectionUtils.isEmpty(ctx.getRegisteredMfaFactors())) {
-            return ctx.getRegisteredMfaFactors().contains(factorType);
+        if (ctx != null) {
+            @SuppressWarnings("unchecked")
+            List<AuthType> registeredFactors = (List<AuthType>) ctx.getAttribute("registeredMfaFactors");
+            if (!CollectionUtils.isEmpty(registeredFactors)) {
+                return registeredFactors.contains(factorType);
+            }
         }
 
         // DB에서 확인
@@ -380,7 +392,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     }
 
     private Set<AuthType> parseRegisteredMfaFactorsFromUser(Users user) {
-        if (user == null || !user.getMfaFactors().isEmpty()) {
+        if (user == null || user.getMfaFactors() == null || user.getMfaFactors().isEmpty()) {
             return Collections.emptySet();
         }
 

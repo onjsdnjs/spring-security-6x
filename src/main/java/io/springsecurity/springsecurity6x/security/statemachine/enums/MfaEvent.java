@@ -93,7 +93,10 @@ public enum MfaEvent {
     // --- 예외 및 특수 상황 이벤트 ---
     CHALLENGE_DELIVERY_FAILURE,   // (CHALLENGE_INITIATION_FAILED와 통합 가능) Factor 챌린지 전달 실패 (예: 이메일 발송 실패)
     SKIP_AUTO_ATTEMPT,            // (AUTO_ATTEMPT 기능 사용 시) 자동 시도 건너뛰기
-    REQUEST_RECOVERY;             // (RECOVER와 유사) 복구 흐름 요청
+    REQUEST_RECOVERY,
+
+    MFA_CONFIGURATION_REQUIRED,
+    PRIMARY_FACTOR_COMPLETED;             // (RECOVER와 유사) 복구 흐름 요청
 
     // --- 기존 이벤트 중 재검토 또는 대체된 이벤트 ---
     // SUBMIT_CREDENTIAL: FACTOR_VERIFICATION_PENDING 상태를 유발하는 더 일반적인 이벤트로 사용.

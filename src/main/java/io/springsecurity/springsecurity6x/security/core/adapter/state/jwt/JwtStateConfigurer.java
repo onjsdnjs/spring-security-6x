@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.filter.JwtAuthorizationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtPreAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.JwtRefreshAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.utils.JsonAuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;

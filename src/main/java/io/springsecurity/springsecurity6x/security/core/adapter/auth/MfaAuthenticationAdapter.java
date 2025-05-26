@@ -10,7 +10,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.Authenticatio
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.MfaContinuationFilter;
 import io.springsecurity.springsecurity6x.security.filter.MfaStepFilterWrapper;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import org.slf4j.Logger;

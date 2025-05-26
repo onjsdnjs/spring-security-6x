@@ -96,7 +96,8 @@ public enum MfaEvent {
     REQUEST_RECOVERY,
 
     MFA_CONFIGURATION_REQUIRED,
-    PRIMARY_FACTOR_COMPLETED;             // (RECOVER와 유사) 복구 흐름 요청
+    PRIMARY_FACTOR_COMPLETED,
+    CHALLENGE_TIMEOUT;             // (RECOVER와 유사) 복구 흐름 요청
 
     // --- 기존 이벤트 중 재검토 또는 대체된 이벤트 ---
     // SUBMIT_CREDENTIAL: FACTOR_VERIFICATION_PENDING 상태를 유발하는 더 일반적인 이벤트로 사용.

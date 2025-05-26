@@ -5,12 +5,11 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

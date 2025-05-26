@@ -9,7 +9,7 @@ import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,7 +65,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
         // 요청 핸들러 초기화 - State Machine 통합자 추가
         this.requestHandler = new StateMachineAwareMfaRequestHandler(
-                stateMachineService, // ContextPersistence 대신 사용
                 mfaPolicyProvider,
                 authContextProperties,
                 responseWriter,

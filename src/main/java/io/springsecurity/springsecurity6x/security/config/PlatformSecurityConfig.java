@@ -7,7 +7,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCusto
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.handler.*;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,7 +20,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;

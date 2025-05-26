@@ -77,6 +77,15 @@ spring:
       select-factor-url: "/mfa/select-factor"
       failure-url: "/mfa/failure"
       otp-token-validity-seconds: 300  # 5분
+      session-timeout-ms: 600000      # 10분
+      challenge-timeout-ms: 300000    # 5분
+      max-retry-attempts: 5
+      minimum-delay-ms: 500
+      state-machine-pool-size: 100
+      circuit-breaker-failure-threshold: 5
+      detailed-logging-enabled: true
+      metrics-enabled: true
+      audit-logging-enabled: true
 
 # Security State Machine 설정
 security:

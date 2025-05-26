@@ -10,8 +10,8 @@ import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSu
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
-import io.springsecurity.springsecurity6x.security.utils.JsonAuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.JsonAuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.utils;
+package io.springsecurity.springsecurity6x.security.utils.writer;
 
 import jakarta.servlet.http.HttpServletResponse;
 

@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.exception.TokenInvalidException;
-import io.springsecurity.springsecurity6x.security.utils.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import jakarta.servlet.FilterChain;

@@ -578,7 +578,10 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
     }
 
     private boolean isValidStateForVerification(FactorContext context) {
-        return context.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION;
+        MfaState currentState = context.getCurrentState();
+        return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
+                currentState == MfaState.FACTOR_VERIFICATION_PENDING||
+                currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
     }
 
     private String extractAndValidateSelectedFactor(HttpServletRequest request, HttpServletResponse response,

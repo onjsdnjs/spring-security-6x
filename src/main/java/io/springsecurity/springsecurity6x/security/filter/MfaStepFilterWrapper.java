@@ -4,27 +4,28 @@ import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFact
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
+import io.springsecurity.springsecurity6x.security.core.validator.MfaContextValidator;
+import io.springsecurity.springsecurity6x.security.core.validator.ValidationResult;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
-import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.properties.MfaSettings;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 완전 일원화된 MfaStepFilterWrapper
@@ -40,16 +41,18 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaSessionRepository sessionRepository;
     private final MfaSettings mfaSettings;
+    private final AuthResponseWriter responseWriter;
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
                                 RequestMatcher mfaFactorProcessingMatcher,
                                 ApplicationContext applicationContext,
-                                AuthContextProperties authContextProperties) {
+                                AuthContextProperties authContextProperties, AuthResponseWriter responseWriter) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider);
         this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher);
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
         this.sessionRepository = applicationContext.getBean(MfaSessionRepository.class);
         this.mfaSettings = authContextProperties.getMfa();
+        this.responseWriter = responseWriter;
 
         log.info("MfaStepFilterWrapper initialized with {} repository",
                 sessionRepository.getRepositoryType());
@@ -69,23 +72,32 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
         long startTime = System.currentTimeMillis();
 
-        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        // ✅ 개선: 통합된 검증 로직 사용
         FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
+        ValidationResult validation = MfaContextValidator.validateFactorProcessingContext(ctx, sessionRepository);
 
-        if (!isValidFactorProcessingContext(ctx)) {
-            log.warn("Invalid context for MFA factor processing using {} repository. URI: {}, State: {}, Factor: {}",
-                    sessionRepository.getRepositoryType(),
-                    request.getRequestURI(),
-                    ctx != null ? ctx.getCurrentState() : "null",
-                    ctx != null ? ctx.getCurrentProcessingFactor() : "null");
+        if (validation.hasErrors()) {
+            log.warn("Invalid context for MFA factor processing using {} repository. URI: {}, Errors: {}",
+                    sessionRepository.getRepositoryType(), request.getRequestURI(), validation.getErrors());
 
             ensureMinimumDelay(startTime);
 
             if (!response.isCommitted()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid MFA step or session");
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("errors", validation.getErrors());
+                errorResponse.put("warnings", validation.getWarnings());
+                errorResponse.put("repositoryType", sessionRepository.getRepositoryType());
+
+                responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "INVALID_MFA_CONTEXT", String.join(", ", validation.getErrors()),
+                        request.getRequestURI(), errorResponse);
             }
             return;
+        }
+
+        // 경고 로깅
+        if (validation.hasWarnings()) {
+            log.warn("MFA factor processing warnings: {}", validation.getWarnings());
         }
 
         // 개선: Repository를 통한 세션 검증

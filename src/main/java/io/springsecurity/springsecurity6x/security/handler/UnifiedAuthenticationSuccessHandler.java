@@ -58,30 +58,11 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} using {} repository",
                 authentication.getName(), sessionRepository.getRepositoryType());
 
-        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        // ✅ 수정: State Machine에서 FactorContext 로드 (Repository 패턴)
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
         String username = authentication.getName();
 
-        // State Machine과 동기화
-        if (factorContext != null) {
-            stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-        }
-
-        // 1. MFA 플로우가 이미 완료된 상태
-        if (factorContext != null &&
-                Objects.equals(factorContext.getUsername(), username) &&
-                (factorContext.getCurrentState() == MfaState.ALL_FACTORS_COMPLETED ||
-                        factorContext.getCurrentState() == MfaState.MFA_SUCCESSFUL)) {
-
-            log.info("MFA flow already completed for user: {}. Proceeding with final token issuance.", username);
-
-            stateMachineIntegrator.sendEvent(MfaEvent.ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN, factorContext, request);
-
-            handleFinalAuthenticationSuccess(request, response, factorContext.getPrimaryAuthentication(), factorContext);
-            return;
-        }
-
-        // 2. 1차 인증 성공 직후 처리
+        // ✅ 추가: FactorContext 유효성 검증
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), username)) {
             log.error("Invalid FactorContext state after primary authentication using {} repository",
                     sessionRepository.getRepositoryType());
@@ -89,7 +70,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             return;
         }
 
-        // 개선: Repository를 통한 세션 검증
+        //Repository를 통한 세션 검증
         if (!sessionRepository.existsSession(factorContext.getMfaSessionId())) {
             log.warn("MFA session {} not found in {} repository during authentication success",
                     factorContext.getMfaSessionId(), sessionRepository.getRepositoryType());
@@ -98,75 +79,107 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             return;
         }
 
+        //1차 인증 완료 처리 (RestAuthenticationFilter 에서 이관)
+        processPrimaryAuthenticationCompletion(factorContext, request);
+
+        // State Machine과 동기화
+        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
+
+        //MFA 정책 평가 (이벤트 전송은 PolicyProvider 에서)
         log.debug("Evaluating MFA requirement for user: {}", username);
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, factorContext);
 
+        //정책 평가 후 State Machine과 재동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
-        // MFA 필요 여부에 따른 이벤트 전송 및 응답 처리
-        if (!factorContext.isMfaRequiredAsPerPolicy() || factorContext.getCurrentState() == MfaState.MFA_NOT_REQUIRED) {
-            log.info("MFA not required for user: {}. Proceeding with final authentication success.", username);
+        //현재 상태에 따른 응답 생성 (상태 체크 로직 개선)
+        MfaState currentState = factorContext.getCurrentState();
 
-            stateMachineIntegrator.sendEvent(MfaEvent.MFA_NOT_REQUIRED, factorContext, request);
-            handleFinalAuthenticationSuccess(request, response, authentication, factorContext);
+        switch (currentState) {
+            case MFA_NOT_REQUIRED:
+                log.info("MFA not required for user: {}. Proceeding with final authentication success.", username);
+                handleFinalAuthenticationSuccess(request, response, authentication, factorContext);
+                break;
 
-        } else if (factorContext.getCurrentState() == MfaState.MFA_CONFIGURATION_REQUIRED) {
-            log.info("MFA configuration required for user: {}", username);
+            case MFA_CONFIGURATION_REQUIRED:
+                log.info("MFA configuration required for user: {}", username);
+                handleMfaConfigurationRequired(request, response, factorContext);
+                break;
 
-            String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
-            Map<String, Object> responseBody = createMfaResponseBody(
-                    "MFA_CONFIG_REQUIRED",
-                    "MFA 설정이 필요합니다.",
-                    factorContext,
-                    mfaConfigUrl
-            );
+            case AWAITING_FACTOR_SELECTION:
+                log.info("MFA required for user: {}. State: AWAITING_FACTOR_SELECTION", username);
+                handleFactorSelectionRequired(request, response, factorContext);
+                break;
 
-            responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
-                    "MFA_CONFIG_REQUIRED", "MFA 설정이 필요합니다.", mfaConfigUrl, responseBody);
+            case AWAITING_FACTOR_CHALLENGE_INITIATION:
+                log.info("MFA required for user: {}. Proceeding directly to challenge", username);
+                handleDirectChallenge(request, response, factorContext);
+                break;
 
-        } else if (factorContext.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION) {
-            log.info("MFA required for user: {}. State: AWAITING_FACTOR_SELECTION", username);
-
-            stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, factorContext, request);
-
-            Map<String, Object> responseBody = createMfaResponseBody(
-                    "MFA_REQUIRED",
-                    "추가 인증이 필요합니다. 인증 수단을 선택해주세요.",
-                    factorContext,
-                    request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()
-            );
-            responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
-
-            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
-
-        } else if (factorContext.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
-                factorContext.getCurrentProcessingFactor() != null) {
-
-            AuthType nextFactor = factorContext.getCurrentProcessingFactor();
-            log.info("MFA required for user: {}. Proceeding directly to {} challenge", username, nextFactor);
-
-            stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_INITIATE_CHALLENGE, factorContext, request);
-
-            String nextUiPageUrl = determineChalllengeUrl(factorContext, request);
-
-            Map<String, Object> responseBody = createMfaResponseBody(
-                    "MFA_REQUIRED",
-                    "추가 인증이 필요합니다.",
-                    factorContext,
-                    nextUiPageUrl
-            );
-            responseBody.put("nextFactorType", nextFactor.name());
-            responseBody.put("nextStepId", factorContext.getCurrentStepId());
-
-            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
-
-        } else {
-            log.error("Unexpected FactorContext state ({}) for user {} after policy evaluation",
-                    factorContext.getCurrentState(), username);
-
-            stateMachineIntegrator.sendEvent(MfaEvent.SYSTEM_ERROR, factorContext, request);
-            handleConfigError(response, request, factorContext, "MFA 처리 중 예상치 못한 상태입니다.");
+            default:
+                log.error("Unexpected FactorContext state ({}) for user {} after policy evaluation",
+                        currentState, username);
+                stateMachineIntegrator.sendEvent(MfaEvent.SYSTEM_ERROR, factorContext, request);
+                handleConfigError(response, request, factorContext, "MFA 처리 중 예상치 못한 상태입니다.");
         }
+    }
+
+    //RestAuthenticationFilter 에서 이관된 메서드
+    private void processPrimaryAuthenticationCompletion(FactorContext factorContext, HttpServletRequest request) {
+        // 1차 인증 완료 이벤트 전송
+        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_COMPLETED, factorContext, request);
+
+        if (accepted) {
+            log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
+        } else {
+            log.error("Failed to process PRIMARY_FACTOR_COMPLETED event for session: {}",
+                    factorContext.getMfaSessionId());
+            throw new RuntimeException("Primary authentication completion failed");
+        }
+    }
+
+    // ✅ 추가: 상태별 응답 처리 메서드들
+    private void handleFactorSelectionRequired(HttpServletRequest request, HttpServletResponse response,
+                                               FactorContext factorContext) throws IOException {
+        Map<String, Object> responseBody = createMfaResponseBody(
+                "MFA_REQUIRED",
+                "추가 인증이 필요합니다. 인증 수단을 선택해주세요.",
+                factorContext,
+                request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()
+        );
+        responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
+        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
+    }
+
+    private void handleDirectChallenge(HttpServletRequest request, HttpServletResponse response,
+                                       FactorContext factorContext) throws IOException {
+        AuthType nextFactor = factorContext.getCurrentProcessingFactor();
+        String nextUiPageUrl = determineChalllengeUrl(factorContext, request);
+
+        Map<String, Object> responseBody = createMfaResponseBody(
+                "MFA_REQUIRED",
+                "추가 인증이 필요합니다.",
+                factorContext,
+                nextUiPageUrl
+        );
+        responseBody.put("nextFactorType", nextFactor.name());
+        responseBody.put("nextStepId", factorContext.getCurrentStepId());
+
+        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
+    }
+
+    private void handleMfaConfigurationRequired(HttpServletRequest request, HttpServletResponse response,
+                                                FactorContext factorContext) throws IOException {
+        String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        Map<String, Object> responseBody = createMfaResponseBody(
+                "MFA_CONFIG_REQUIRED",
+                "MFA 설정이 필요합니다.",
+                factorContext,
+                mfaConfigUrl
+        );
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
+                "MFA_CONFIG_REQUIRED", "MFA 설정이 필요합니다.", mfaConfigUrl, responseBody);
     }
 
     /**

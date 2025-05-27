@@ -76,21 +76,21 @@ public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
      */
     private int getRequiredFactorCount(FactorContext factorContext) {
         try {
-            // MfaPolicyProvider를 통해 사용자별 정책 확인
-            String userId = factorContext.getPrimaryAuthentication().getName();
-            String flowType = factorContext.getFlowTypeName();
+            MfaPolicyProvider policyProvider = getMfaPolicyProvider();
+            if (policyProvider != null) {
+                String userId = factorContext.getPrimaryAuthentication().getName();
+                String flowType = factorContext.getFlowTypeName();
 
-            // 정책 조회
-            Integer requiredFactors = Objects.requireNonNull(getMfaPolicyProvider()).getRequiredFactorCount(userId, flowType);
-
-            if (requiredFactors != null && requiredFactors > 0) {
-                log.debug("Policy requires {} factors for user: {} in flow: {}",
-                        requiredFactors, userId, flowType);
-                return requiredFactors;
+                Integer requiredFactors = policyProvider.getRequiredFactorCount(userId, flowType);
+                if (requiredFactors != null && requiredFactors > 0) {
+                    log.debug("Policy requires {} factors for user: {} in flow: {}",
+                            requiredFactors, userId, flowType);
+                    return requiredFactors;
+                }
             }
 
-            // 기본값: 플로우 타입에 따라 결정
-            return getDefaultRequiredFactorCount(flowType);
+            // Fallback 로직 항상 실행
+            return getDefaultRequiredFactorCount(factorContext.getFlowTypeName());
 
         } catch (Exception e) {
             log.warn("Failed to get required factor count from policy, using default", e);

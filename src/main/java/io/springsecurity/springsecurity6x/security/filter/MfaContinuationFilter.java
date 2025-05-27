@@ -3,6 +3,8 @@ package io.springsecurity.springsecurity6x.security.filter;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
+import io.springsecurity.springsecurity6x.security.core.validator.MfaContextValidator;
+import io.springsecurity.springsecurity6x.security.core.validator.ValidationResult;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -85,19 +87,21 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         log.debug("MfaContinuationFilter processing request: {} {} using {} repository",
                 request.getMethod(), request.getRequestURI(), sessionRepository.getRepositoryType());
 
-        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        // ✅ 개선: 통합된 검증 로직 사용
         FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
-        if (!isValidMfaContext(ctx)) {
-            handleInvalidContext(request, response);
+        ValidationResult validation = MfaContextValidator.validateFactorSelectionContext(ctx, sessionRepository);
+
+        if (validation.hasErrors()) {
+            log.warn("Invalid MFA context for request: {} - Errors: {}",
+                    request.getRequestURI(), validation.getErrors());
+            handleInvalidContext(request, response, validation);
             return;
         }
 
-        // 개선: Repository를 통한 세션 유효성 검증
-        if (!sessionRepository.existsSession(ctx.getMfaSessionId())) {
-            log.warn("MFA session {} not found in {} repository",
-                    ctx.getMfaSessionId(), sessionRepository.getRepositoryType());
-            handleInvalidContext(request, response);
-            return;
+        // 경고 로깅
+        if (validation.hasWarnings()) {
+            log.warn("MFA context warnings for request: {} - Warnings: {}",
+                    request.getRequestURI(), validation.getWarnings());
         }
 
         ensureStateMachineInitialized(ctx, request);
@@ -118,10 +122,8 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     /**
      * 개선: Repository 패턴 통합 - 무효한 컨텍스트 처리
      */
-    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        log.warn("Invalid MFA context for request: {} using {} repository",
-                request.getRequestURI(), sessionRepository.getRepositoryType());
-
+    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response,
+                                      ValidationResult validation) throws IOException {
         String oldSessionId = sessionRepository.getSessionId(request);
         if (oldSessionId != null) {
             try {
@@ -135,11 +137,13 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("error", "MFA_SESSION_INVALID");
         errorResponse.put("message", "MFA 세션이 유효하지 않습니다.");
+        errorResponse.put("errors", validation.getErrors());
+        errorResponse.put("warnings", validation.getWarnings());
         errorResponse.put("redirectUrl", request.getContextPath() + "/loginForm");
-        errorResponse.put("repositoryType", sessionRepository.getRepositoryType()); // 추가: Repository 정보
+        errorResponse.put("repositoryType", sessionRepository.getRepositoryType());
 
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
-                "MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다.",
+                "MFA_SESSION_INVALID", String.join(", ", validation.getErrors()),
                 request.getRequestURI(), errorResponse);
     }
 

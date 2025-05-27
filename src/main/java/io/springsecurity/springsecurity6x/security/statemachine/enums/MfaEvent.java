@@ -96,7 +96,6 @@ public enum MfaEvent {
     REQUEST_RECOVERY,
 
     MFA_CONFIGURATION_REQUIRED,
-    PRIMARY_FACTOR_COMPLETED,
     CHALLENGE_TIMEOUT;             // (RECOVER와 유사) 복구 흐름 요청
 
     // --- 기존 이벤트 중 재검토 또는 대체된 이벤트 ---

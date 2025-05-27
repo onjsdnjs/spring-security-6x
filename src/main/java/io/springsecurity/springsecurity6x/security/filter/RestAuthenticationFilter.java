@@ -151,7 +151,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
         FactorContext factorContext = new FactorContext(
                 mfaSessionId,
                 authentication,
-                MfaState.PRIMARY_AUTHENTICATION_COMPLETED,
+                MfaState.NONE,
                 flowTypeNameForContext
         );
 
@@ -169,7 +169,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
                     sessionRepository.getSessionIdSecurityScore(mfaSessionId));
 
             // 1차 인증 완료 처리
-            processPrimaryAuthenticationCompletion(factorContext, request);
+/*            processPrimaryAuthenticationCompletion(factorContext, request);*/
 
             successHandler.onAuthenticationSuccess(request, response, authentication);
 
@@ -288,7 +288,7 @@ public class RestAuthenticationFilter extends OncePerRequestFilter {
             factorContext.addCompletedFactor(primaryAuthStep);
 
             stateMachineIntegrator.saveFactorContext(factorContext);
-            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_FACTOR_COMPLETED, factorContext, request);
+            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_COMPLETED, factorContext, request);
 
             log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
         }

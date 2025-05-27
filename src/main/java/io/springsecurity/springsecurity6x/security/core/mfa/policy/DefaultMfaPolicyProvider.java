@@ -267,6 +267,9 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                             event, ctx.getMfaSessionId(), operationDescription);
                     return false;
                 }
+
+                // 이벤트 전송 후 State Machine과 동기화
+                stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
             }
 
             log.debug("Standard event pattern completed successfully: {}", operationDescription);

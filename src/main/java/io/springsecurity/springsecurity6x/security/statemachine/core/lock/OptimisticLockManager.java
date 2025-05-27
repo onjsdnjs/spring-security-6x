@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core.lock;
 
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -102,11 +103,42 @@ public class OptimisticLockManager {
     }
 
     /**
+     * 캐시된 FactorContext 조회
+     */
+    public FactorContext getCachedContext(String sessionId) {
+        CachedContext cached = contextCache.get(sessionId);
+
+        if (cached != null && !cached.isExpired()) {
+            cached.hitCount.incrementAndGet();
+            return cached.context;
+        }
+
+        return null;
+    }
+
+    /**
+     * FactorContext 캐시 업데이트
+     */
+    public void updateCachedContext(String sessionId, FactorContext context) {
+        contextCache.put(sessionId, new CachedContext(context));
+    }
+    /**
      * 상태 캐시 업데이트
      */
     public void updateCachedState(String sessionId, MfaState state) {
         stateCache.put(sessionId, new CachedState(state));
     }
+
+    /**
+     * FactorContext 캐시 무효화
+     */
+    public void invalidateContextCache(String sessionId) {
+        contextCache.remove(sessionId);
+        log.debug("Context cache invalidated for session: {}", sessionId);
+    }
+
+    // 기존 필드에 추가
+    private final Map<String, CachedContext> contextCache = new ConcurrentHashMap<>();
 
     /**
      * 캐시 무효화
@@ -266,4 +298,52 @@ public class OptimisticLockManager {
             );
         }
     }
+
+    /**
+     * 캐시된 FactorContext
+     */
+    private static class CachedContext {
+        final FactorContext context;
+        final long cachedAt;
+        final AtomicInteger hitCount = new AtomicInteger(0);
+
+        CachedContext(FactorContext context) {
+            // ✅ 중요: 깊은 복사로 캐시 무결성 보장
+            this.context = createContextCopy(context);
+            this.cachedAt = System.currentTimeMillis();
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - cachedAt > TimeUnit.MINUTES.toMillis(5);
+        }
+
+        /**
+         * FactorContext 안전한 복사
+         */
+        private FactorContext createContextCopy(FactorContext original) {
+            // 새로운 FactorContext 생성 (참조 공유 방지)
+            FactorContext copy = new FactorContext(
+                    original.getMfaSessionId(),
+                    original.getPrimaryAuthentication(),
+                    original.getCurrentState(),
+                    original.getFlowTypeName()
+            );
+
+            // 핵심 필드들만 복사 (성능 고려)
+            copy.setCurrentProcessingFactor(original.getCurrentProcessingFactor());
+            copy.setCurrentStepId(original.getCurrentStepId());
+            copy.setMfaRequiredAsPerPolicy(original.isMfaRequiredAsPerPolicy());
+            copy.setRetryCount(original.getRetryCount());
+            copy.setLastError(original.getLastError());
+
+            // 버전 동기화
+            while (copy.getVersion() < original.getVersion()) {
+                copy.incrementVersion();
+            }
+
+            return copy;
+        }
+    }
+
 }
+

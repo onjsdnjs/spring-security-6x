@@ -20,6 +20,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.Assert;
@@ -128,26 +129,6 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             log.debug("AuthenticationFeature [{}]: Using successHandler from options: {}", getId(), options.getSuccessHandler().getClass().getSimpleName());
             return options.getSuccessHandler();
         }
-/*
-        if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName()) && allSteps != null) {
-            int currentStepIndex = allSteps.indexOf(myStepConfig);
-            boolean isFirstStepInMfaFlow = (currentStepIndex == 0);
-            boolean isLastStepInMfaFlow = (currentStepIndex == allSteps.size() - 1);
-
-            if (isFirstStepInMfaFlow) {
-                log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA primary step.", getId());
-                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
-            } else if (isLastStepInMfaFlow) {
-                log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA final factor step.", getId());
-                return Optional.ofNullable(currentFlow.getFinalSuccessHandler())
-                        .orElseGet(() -> appContext.getBean(UnifiedAuthenticationSuccessHandler.class));
-            } else {
-                log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
-                return appContext.getBean(MfaFactorProcessingSuccessHandler.class);
-            }
-        }
-        log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
-        return determineDefaultSuccessHandler(options, currentFlow, myStepConfig, allSteps, appContext);*/
 
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName()) && allSteps != null) {
             int currentStepIndex = allSteps.indexOf(myStepConfig);
@@ -162,7 +143,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
-        return determineDefaultSuccessHandler(options, currentFlow, myStepConfig, allSteps, appContext);
+        return new SavedRequestAwareAuthenticationSuccessHandler();
     }
 
     protected AuthenticationFailureHandler resolveFailureHandler(
@@ -190,20 +171,6 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         }
         log.debug("AuthenticationFeature [{}]: Resolving default failureHandler.", getId());
         return createDefaultFailureHandler(options, appContext);
-    }
-
-    protected AuthenticationSuccessHandler determineDefaultSuccessHandler(
-            O options, @Nullable AuthenticationFlowConfig currentFlow,
-            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
-            ApplicationContext appContext) {
-        try {
-            return appContext.getBean("unifiedAuthenticationFailureHandler", AuthenticationSuccessHandler.class);
-        } catch (Exception e) {
-            log.warn("AuthenticationFeature [{}]: Default success handler bean 'jwtEmittingAndMfaAwareSuccessHandler' not found. Defaulting to simple redirect to '/'.", getId(), e);
-            return (request, response, authentication) -> {
-                if (!response.isCommitted()) response.sendRedirect("/");
-            };
-        }
     }
 
     /**

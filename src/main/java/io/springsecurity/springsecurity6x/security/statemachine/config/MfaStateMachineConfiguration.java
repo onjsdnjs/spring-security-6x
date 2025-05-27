@@ -70,31 +70,38 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .action(initializeMfaAction)
                 .and()
 
-                // MFA 시작
+                // ✅ 추가: PRIMARY_AUTHENTICATION_COMPLETED 상태 처리
                 .withExternal()
                 .source(MfaState.START_MFA)
+                .target(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
+                .event(MfaEvent.PRIMARY_FACTOR_COMPLETED)
+                .and()
+
+                // MFA 시작 - 수정된 소스 상태
+                .withExternal()
+                .source(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
                 .target(MfaState.AWAITING_FACTOR_SELECTION)
                 .event(MfaEvent.MFA_REQUIRED_SELECT_FACTOR)
                 .and()
 
-                // MFA 불필요
+                // MFA 불필요 - 수정된 소스 상태
                 .withExternal()
-                .source(MfaState.START_MFA)
+                .source(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
                 .target(MfaState.MFA_NOT_REQUIRED)
                 .event(MfaEvent.MFA_NOT_REQUIRED)
                 .and()
 
-                // 팩터 선택
+                // ✅ 수정: 팩터 선택 후 직접 챌린지 시작 상태로
                 .withExternal()
                 .source(MfaState.AWAITING_FACTOR_SELECTION)
-                .target(MfaState.FACTOR_SELECTED)
+                .target(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                 .event(MfaEvent.FACTOR_SELECTED)
                 .action(selectFactorAction)
                 .and()
 
-                // 챌린지 시작
+                // 챌린지 시작 - 수정된 소스 상태
                 .withExternal()
-                .source(MfaState.FACTOR_SELECTED)
+                .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                 .target(MfaState.FACTOR_CHALLENGE_INITIATED)
                 .event(MfaEvent.INITIATE_CHALLENGE)
                 .action(initiateChallengeAction)
@@ -138,7 +145,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .event(MfaEvent.RETRY_LIMIT_EXCEEDED)
                 .and()
 
-                // 모든 팩터 완료 확인
+                // 모든 팩터 완료 - 성공
                 .withExternal()
                 .source(MfaState.FACTOR_VERIFICATION_COMPLETED)
                 .target(MfaState.ALL_FACTORS_COMPLETED)
@@ -160,6 +167,13 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.MFA_SUCCESSFUL)
                 .event(MfaEvent.ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN)
                 .action(completeMfaAction)
+                .and()
+
+                // ✅ 추가: MFA 구성 필요 상태 처리
+                .withExternal()
+                .source(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
+                .target(MfaState.MFA_CONFIGURATION_REQUIRED)
+                .event(MfaEvent.MFA_CONFIGURATION_REQUIRED)
                 .and()
 
                 // 사용자 취소

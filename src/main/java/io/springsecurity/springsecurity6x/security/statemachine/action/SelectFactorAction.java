@@ -39,7 +39,7 @@ public class SelectFactorAction extends AbstractMfaStateAction {
 
         log.info("Factor {} selected for session: {}", selectedFactor, sessionId);
 
-        // AuthType으로 변환
+        // AuthType 으로 변환
         AuthType authType;
         try {
             authType = AuthType.valueOf(selectedFactor.toUpperCase());
@@ -56,18 +56,13 @@ public class SelectFactorAction extends AbstractMfaStateAction {
         // 팩터별 추가 설정
         switch (authType) {
             case OTT:
-                factorContext.setAttribute("ottDeliveryMethod", "SMS"); // 기본값
+                factorContext.setAttribute("ottDeliveryMethod", "SMS");
                 break;
             case PASSKEY:
-                factorContext.setAttribute("passkeyType", "PLATFORM"); // 기본값
+                factorContext.setAttribute("passkeyType", "PLATFORM");
                 break;
             default:
                 log.debug("No additional settings for factor: {}", authType);
         }
-
-        // 상태 업데이트
-        factorContext.changeState(MfaState.FACTOR_SELECTED);
-
-        log.info("Factor selection completed for session: {}", sessionId);
     }
 }

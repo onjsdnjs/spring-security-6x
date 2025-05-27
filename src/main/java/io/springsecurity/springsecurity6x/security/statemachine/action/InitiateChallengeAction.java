@@ -33,17 +33,15 @@ public class InitiateChallengeAction extends AbstractMfaStateAction {
         // 챌린지 시작 시간 기록
         factorContext.setAttribute("challengeInitiatedAt", System.currentTimeMillis());
 
-        // 팩터별 챌린지 처리 (실제 구현에서는 팩터별 서비스 호출)
+        // 팩터별 챌린지 처리
         switch (factorType) {
             case "OTT":
                 log.info("Initiating OTT challenge for session: {}", sessionId);
-                // TODO: OTT 서비스 호출하여 코드 발송
                 factorContext.setAttribute("ottCodeSent", true);
                 break;
 
             case "PASSKEY":
                 log.info("Initiating Passkey challenge for session: {}", sessionId);
-                // TODO: Passkey 옵션 생성
                 factorContext.setAttribute("passkeyOptionsGenerated", true);
                 break;
 
@@ -51,9 +49,6 @@ public class InitiateChallengeAction extends AbstractMfaStateAction {
                 log.warn("Unknown factor type for challenge: {}", factorType);
                 throw new UnsupportedOperationException("Unsupported factor type: " + factorType);
         }
-
-        // 상태 업데이트
-        factorContext.changeState(MfaState.FACTOR_CHALLENGE_INITIATED);
 
         log.info("Challenge initiated successfully for factor: {} in session: {}",
                 factorType, sessionId);

@@ -79,14 +79,6 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
         config.setRequired(true);
         config.setOrder(factorContext.getCompletedFactors().size() + 1);
 
-        // flowTypeName 설정 - FactorContext에서 가져오기
-        String flowTypeName = factorContext.getFlowTypeName();
-        if (flowTypeName == null || flowTypeName.isEmpty()) {
-            flowTypeName = "mfa"; // 기본값
-            log.warn("flowTypeName is null, using default: 'mfa'");
-        }
-        config.setType(flowTypeName);
-
         return config;
     }
 

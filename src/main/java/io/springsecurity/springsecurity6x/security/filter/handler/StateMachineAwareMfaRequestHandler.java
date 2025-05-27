@@ -40,11 +40,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
     private final ApplicationContext applicationContext;
     private final MfaUrlMatcher urlMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
-
-    // 보안 및 성능 설정
-    private static final long REQUEST_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(30);
-    private static final long STATE_SYNC_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
-    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private final MfaSettings mfaSettings;
 
     public StateMachineAwareMfaRequestHandler(MfaPolicyProvider mfaPolicyProvider,
                                               AuthContextProperties authContextProperties,
@@ -58,6 +54,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         this.applicationContext = applicationContext;
         this.urlMatcher = urlMatcher;
         this.stateMachineIntegrator = stateMachineIntegrator;
+        this.mfaSettings = authContextProperties.getMfa();
 
         log.info("StateMachineAwareMfaRequestHandler initialized with unified State Machine");
     }
@@ -345,7 +342,6 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                                           FactorContext context, FilterChain filterChain)
             throws ServletException, IOException {
         String sessionId = context.getMfaSessionId();
-        MfaSettings mfaSettings = authContextProperties.getMfa();
 
         log.debug("Handling factor verification for session: {}", sessionId);
 
@@ -355,8 +351,8 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
-        // 챌린지 타임아웃 확인
-        if (MfaTimeUtils.isChallengeExpired(context, mfaSettings)) {
+        // 개선: MfaSettings 활용한 챌린지 타임아웃 확인
+        if (isChallengeExpiredUsingSettings(context)) {
             log.warn("Challenge expired for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.CHALLENGE_TIMEOUT, context, request);
             handleInvalidStateError(request, response, context, "CHALLENGE_EXPIRED",
@@ -364,8 +360,8 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
-        // 재시도 제한 확인
-        if (!mfaSettings.isRetryAllowed(context.getAttemptCount(context.getCurrentProcessingFactor()))) {
+        // 개선: MfaSettings 활용한 재시도 제한 확인
+        if (!isRetryAllowedUsingSettings(context)) {
             log.warn("Retry limit exceeded for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.RETRY_LIMIT_EXCEEDED, context, request);
             handleInvalidStateError(request, response, context, "RETRY_LIMIT_EXCEEDED",
@@ -374,12 +370,29 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         }
 
         // 검증 시작 시간 기록
-        Instant verificationStartTime = MfaTimeUtils.nowInstant();
-        context.setAttribute("verificationStartTime", MfaTimeUtils.toMillis(verificationStartTime));
+        context.setAttribute("verificationStartTime", System.currentTimeMillis());
 
-        // 팩터 검증은 전용 Filter에서 처리하므로 FilterChain으로 위임
         log.debug("Delegating factor verification to specialized filter for session: {}", sessionId);
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 개선: MfaSettings를 활용한 챌린지 만료 확인
+     */
+    private boolean isChallengeExpiredUsingSettings(FactorContext context) {
+        Object challengeStartTime = context.getAttribute("challengeInitiatedAt");
+        if (challengeStartTime instanceof Long challengeStartTimeMs) {
+            return mfaSettings.isChallengeExpired(challengeStartTimeMs);
+        }
+        return false;
+    }
+
+    /**
+     * 개선: MfaSettings를 활용한 재시도 허용 확인
+     */
+    private boolean isRetryAllowedUsingSettings(FactorContext context) {
+        int attempts = context.getAttemptCount(context.getCurrentProcessingFactor());
+        return mfaSettings.isRetryAllowed(attempts);
     }
 
     private void handleStatusCheck(HttpServletRequest request, HttpServletResponse response,

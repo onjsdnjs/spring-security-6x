@@ -3,7 +3,11 @@ package io.springsecurity.springsecurity6x.security.filter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
+import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.properties.MfaSettings;
 import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
@@ -32,23 +36,23 @@ import java.util.concurrent.TimeUnit;
 public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
-    // ContextPersistence 완전 제거
     private final RequestMatcher mfaFactorProcessingMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
-
-    // 보안 강화를 위한 추가 필드
-    private static final int MAX_VERIFICATION_ATTEMPTS = 5;
-    private static final long VERIFICATION_TIMEOUT = TimeUnit.MINUTES.toMillis(5);
-    public static final long MIN_VERIFICATION_DELAY = 500;
+    private final MfaSessionRepository sessionRepository;
+    private final MfaSettings mfaSettings;
 
     public MfaStepFilterWrapper(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
                                 RequestMatcher mfaFactorProcessingMatcher,
-                                ApplicationContext applicationContext) {
+                                ApplicationContext applicationContext,
+                                AuthContextProperties authContextProperties) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider);
         this.mfaFactorProcessingMatcher = Objects.requireNonNull(mfaFactorProcessingMatcher);
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+        this.sessionRepository = applicationContext.getBean(MfaSessionRepository.class);
+        this.mfaSettings = authContextProperties.getMfa();
 
-        log.info("MfaStepFilterWrapper initialized with unified State Machine Service");
+        log.info("MfaStepFilterWrapper initialized with {} repository",
+                sessionRepository.getRepositoryType());
     }
 
     @Override
@@ -60,16 +64,17 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
-        log.debug("MfaStepFilterWrapper processing factor submission request: {}",
-                request.getRequestURI());
+        log.debug("MfaStepFilterWrapper processing factor submission request: {} using {} repository",
+                request.getRequestURI(), sessionRepository.getRepositoryType());
 
         long startTime = System.currentTimeMillis();
 
-        // 완전 일원화: State Machine에서만 FactorContext 로드
-        FactorContext ctx = loadFactorContextFromStateMachine(request);
+        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
 
         if (!isValidFactorProcessingContext(ctx)) {
-            log.warn("Invalid context for MFA factor processing. URI: {}, State: {}, Factor: {}",
+            log.warn("Invalid context for MFA factor processing using {} repository. URI: {}, State: {}, Factor: {}",
+                    sessionRepository.getRepositoryType(),
                     request.getRequestURI(),
                     ctx != null ? ctx.getCurrentState() : "null",
                     ctx != null ? ctx.getCurrentProcessingFactor() : "null");
@@ -79,6 +84,17 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             if (!response.isCommitted()) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST,
                         "Invalid MFA step or session");
+            }
+            return;
+        }
+
+        // 개선: Repository를 통한 세션 검증
+        if (!sessionRepository.existsSession(ctx.getMfaSessionId())) {
+            log.warn("MFA session {} not found in {} repository during factor processing",
+                    ctx.getMfaSessionId(), sessionRepository.getRepositoryType());
+            ensureMinimumDelay(startTime);
+            if (!response.isCommitted()) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Session not found");
             }
             return;
         }
@@ -107,7 +123,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
-        // State Machine에 SUBMIT_FACTOR_CREDENTIAL 이벤트 전송
         boolean accepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.SUBMIT_FACTOR_CREDENTIAL, ctx, request);
 
@@ -130,23 +145,20 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         Filter delegateFactorFilter = configuredFactorFilterProvider.getFilter(factorIdentifier);
 
         if (delegateFactorFilter != null) {
-            log.info("Delegating MFA factor processing for {} to filter: {}",
-                    factorIdentifier, delegateFactorFilter.getClass().getName());
+            log.info("Delegating MFA factor processing for {} to filter: {} using {} repository",
+                    factorIdentifier, delegateFactorFilter.getClass().getName(),
+                    sessionRepository.getRepositoryType());
 
-            // 검증 시작 시간 기록
             ctx.setAttribute("verificationStartTime", System.currentTimeMillis());
-
-            // State Machine에 저장 (일원화)
             stateMachineIntegrator.saveFactorContext(ctx);
 
-            // FilterChain 래퍼로 State Machine 이벤트 처리 통합
-            FilterChain wrappedChain = new UnifiedStateMachineAwareFilterChain(
-                    chain, ctx, request, stateMachineIntegrator, startTime); // ContextPersistence 대신 사용
+            // FilterChain 래퍼에 Repository 정보 전달
+            FilterChain wrappedChain = new RepositoryAwareStateMachineFilterChain(
+                    chain, ctx, request, stateMachineIntegrator, sessionRepository, startTime,mfaSettings);
 
             delegateFactorFilter.doFilter(request, response, wrappedChain);
         } else {
             log.error("No delegate filter found for factorIdentifier: {}", factorIdentifier);
-
             ensureMinimumDelay(startTime);
 
             if (!response.isCommitted()) {
@@ -189,25 +201,37 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 ctx.getCurrentStepId() != null;
     }
 
+    /**
+     * 개선: MfaSettings를 활용한 세션 만료 확인 (하드코딩 상수 제거)
+     */
     private boolean isSessionExpired(FactorContext ctx) {
         Object challengeStartTime = ctx.getAttribute("challengeInitiatedAt");
-        if (challengeStartTime instanceof Long) {
-            long elapsed = System.currentTimeMillis() - (Long) challengeStartTime;
-            return elapsed > VERIFICATION_TIMEOUT;
+        if (challengeStartTime instanceof Long challengeStartTimeMs) {
+            // 개선: MfaSettings의 메서드 활용
+            return mfaSettings.isChallengeExpired(challengeStartTimeMs);
         }
         return false;
     }
 
+    /**
+     * 개선: MfaSettings를 활용한 재시도 한계 확인 (하드코딩 상수 제거)
+     */
     private boolean isRetryLimitExceeded(FactorContext ctx) {
         int attempts = ctx.getAttemptCount(ctx.getCurrentProcessingFactor());
-        return attempts >= MAX_VERIFICATION_ATTEMPTS;
+        // 개선: MfaSettings의 메서드 활용
+        return !mfaSettings.isRetryAllowed(attempts);
     }
 
+    /**
+     * 개선: MfaSettings를 활용한 최소 지연 보장 (하드코딩 상수 제거)
+     */
     private void ensureMinimumDelay(long startTime) {
         long elapsed = System.currentTimeMillis() - startTime;
-        if (elapsed < MIN_VERIFICATION_DELAY) {
+        // 개선: MfaSettings 에서 최소 지연 시간 가져오기
+        long minDelayMs = mfaSettings.getMinimumDelayMs();
+        if (elapsed < minDelayMs) {
             try {
-                Thread.sleep(MIN_VERIFICATION_DELAY - elapsed);
+                Thread.sleep(minDelayMs - elapsed);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -218,22 +242,27 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
      * 완전 일원화된 State Machine 인식 FilterChain 래퍼
      * - ContextPersistence 제거하고 MfaStateMachineService만 사용
      */
-    private static class UnifiedStateMachineAwareFilterChain implements FilterChain {
+    private static class RepositoryAwareStateMachineFilterChain implements FilterChain {
         private final FilterChain delegate;
         private final FactorContext context;
         private final HttpServletRequest request;
         private final MfaStateMachineIntegrator stateMachineIntegrator;
+        private final MfaSessionRepository sessionRepository; // 추가: Repository 정보
         private final long startTime;
+        private final MfaSettings mfaSettings; // 추가: 설정 정보
 
-        public UnifiedStateMachineAwareFilterChain(FilterChain delegate, FactorContext context,
-                                                   HttpServletRequest request,
-                                                   MfaStateMachineIntegrator stateMachineIntegrator,
-                                                   long startTime) { // ContextPersistence 대신 사용
+        public RepositoryAwareStateMachineFilterChain(FilterChain delegate, FactorContext context,
+                                                      HttpServletRequest request,
+                                                      MfaStateMachineIntegrator stateMachineIntegrator,
+                                                      MfaSessionRepository sessionRepository,
+                                                      long startTime, MfaSettings mfaSettings) {
             this.delegate = delegate;
             this.context = context;
             this.request = request;
             this.stateMachineIntegrator = stateMachineIntegrator;
+            this.sessionRepository = sessionRepository; // 추가
             this.startTime = startTime;
+            this.mfaSettings = mfaSettings;
         }
 
         @Override
@@ -252,35 +281,39 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
                 long verificationTime = System.currentTimeMillis() - startTime;
                 context.setAttribute("lastVerificationTime", verificationTime);
 
-                // State Machine 에만 저장 (일원화)
+                // 개선: Repository를 통한 세션 갱신
+                sessionRepository.refreshSession(context.getMfaSessionId());
+
                 stateMachineIntegrator.saveFactorContext(context);
 
                 // 필터 실행 후 상태 확인 및 이벤트 전송
                 if (!httpResponse.isCommitted()) {
-                    // 응답이 커밋되지 않았다면 실패로 간주
                     if (beforeState == context.getCurrentState()) {
-                        // 상태가 변경되지 않았다면 검증 실패
                         stateMachineIntegrator.sendEvent(
                                 MfaEvent.FACTOR_VERIFICATION_FAILED, context, this.request);
                     }
                 }
             } catch (Exception e) {
-                // 예외 발생 시 실패 이벤트 전송
-                log.error("Error during factor verification", e);
+                log.error("Error during factor verification using {} repository",
+                        sessionRepository.getRepositoryType(), e);
                 stateMachineIntegrator.sendEvent(
                         MfaEvent.FACTOR_VERIFICATION_FAILED, context, this.request);
                 throw e;
             } finally {
-                // 최소 지연 보장
                 ensureMinimumDelay(startTime);
             }
         }
 
+        /**
+         * 개선: MfaSettings를 활용한 최소 지연 보장
+         */
         private void ensureMinimumDelay(long startTime) {
             long elapsed = System.currentTimeMillis() - startTime;
-            if (elapsed < MIN_VERIFICATION_DELAY) {
+            // 개선: MfaSettings 에서 최소 지연 시간 가져오기
+            long minDelayMs = mfaSettings.getMinimumDelayMs();
+            if (elapsed < minDelayMs) {
                 try {
-                    Thread.sleep(MIN_VERIFICATION_DELAY - elapsed);
+                    Thread.sleep(minDelayMs - elapsed);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

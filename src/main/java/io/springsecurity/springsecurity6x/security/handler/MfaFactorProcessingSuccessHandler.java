@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
@@ -35,46 +36,54 @@ import java.util.stream.Collectors;
 @Slf4j
 public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessHandler {
 
-    // ContextPersistence 완전 제거
     private final MfaPolicyProvider mfaPolicyProvider;
     private final UnifiedAuthenticationSuccessHandler finalSuccessHandler;
     private final AuthResponseWriter responseWriter;
     private final ApplicationContext applicationContext;
     private final AuthContextProperties authContextProperties;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
+    private final MfaSessionRepository sessionRepository;
 
-    public MfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator, // ContextPersistence 대신 사용
+    public MfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
                                              MfaPolicyProvider mfaPolicyProvider,
                                              UnifiedAuthenticationSuccessHandler finalSuccessHandler,
                                              AuthResponseWriter responseWriter,
                                              ApplicationContext applicationContext,
-                                             AuthContextProperties authContextProperties) {
+                                             AuthContextProperties authContextProperties,
+                                             MfaSessionRepository sessionRepository) { // 추가
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.finalSuccessHandler = finalSuccessHandler;
         this.responseWriter = responseWriter;
         this.applicationContext = applicationContext;
         this.authContextProperties = authContextProperties;
         this.stateMachineIntegrator = mfaStateMachineIntegrator;
+        this.sessionRepository = sessionRepository; // 추가
     }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        log.debug("MFA Factor successfully processed for user: {} via unified State Machine",
-                authentication.getName());
+        log.debug("MFA Factor successfully processed for user: {} using {} repository",
+                authentication.getName(), sessionRepository.getRepositoryType());
 
-        // 완전 일원화: State Machine에서만 FactorContext 로드
-        FactorContext factorContext = loadFactorContextFromStateMachine(request);
+        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
             handleInvalidContext(response, request, "MFA_FACTOR_SUCCESS_NO_CONTEXT",
                     "MFA 팩터 처리 성공 후 컨텍스트를 찾을 수 없거나 사용자가 일치하지 않습니다.", authentication);
             return;
         }
 
-        // State Machine과 동기화
+        // 개선: Repository를 통한 세션 검증
+        if (!sessionRepository.existsSession(factorContext.getMfaSessionId())) {
+            log.warn("MFA session {} not found in {} repository during factor processing success",
+                    factorContext.getMfaSessionId(), sessionRepository.getRepositoryType());
+            handleSessionNotFound(response, request, factorContext);
+            return;
+        }
+
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
-        // FACTOR_VERIFIED_SUCCESS 이벤트 전송
         boolean accepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.FACTOR_VERIFIED_SUCCESS, factorContext, request);
 
@@ -101,7 +110,6 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             return;
         }
 
-        // 현재 완료된 AuthenticationStepConfig 찾기
         Optional<AuthenticationStepConfig> currentStepConfigOpt = mfaFlowConfig.getStepConfigs().stream()
                 .filter(step -> currentStepId.equals(step.getStepId()) &&
                         currentFactorType.name().equalsIgnoreCase(step.getType()))
@@ -115,27 +123,23 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
         AuthenticationStepConfig currentFactorJustCompleted = currentStepConfigOpt.get();
         factorContext.addCompletedFactor(currentFactorJustCompleted);
-
-        // 실패 횟수 초기화
         factorContext.resetFailedAttempts(currentStepId);
 
-        // State Machine에만 저장 (일원화)
-        stateMachineIntegrator.saveFactorContext(factorContext);
+        // 개선: Repository를 통한 세션 갱신
+        sessionRepository.refreshSession(factorContext.getMfaSessionId());
 
-        // 다음 MFA 단계 결정
+        stateMachineIntegrator.saveFactorContext(factorContext);
         mfaPolicyProvider.determineNextFactorToProcess(factorContext);
 
-        // 최신 상태 동기화 - State Machine 에서 다시 로드
         FactorContext latestContext = stateMachineIntegrator.loadFactorContext(factorContext.getMfaSessionId());
         if (latestContext != null) {
             syncContextFromStateMachine(factorContext, latestContext);
         }
 
         if (factorContext.isCompleted()) {
-            log.info("All MFA factors completed for user: {}. Proceeding to final authentication success.",
-                    factorContext.getUsername());
+            log.info("All MFA factors completed for user: {} using {} repository. Proceeding to final authentication success.",
+                    factorContext.getUsername(), sessionRepository.getRepositoryType());
 
-            // 최종 성공 핸들러로 위임
             finalSuccessHandler.onAuthenticationSuccess(request, response,
                     factorContext.getPrimaryAuthentication());
 
@@ -146,8 +150,8 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             AuthType nextFactorType = factorContext.getCurrentProcessingFactor();
             String nextStepId = factorContext.getCurrentStepId();
 
-            log.info("MFA factor {} completed for user {}. Proceeding to next factor: {}",
-                    currentFactorType, factorContext.getUsername(), nextFactorType);
+            log.info("MFA factor {} completed for user {} using {} repository. Proceeding to next factor: {}",
+                    currentFactorType, factorContext.getUsername(), sessionRepository.getRepositoryType(), nextFactorType);
 
             String nextUiPageUrl = determineNextFactorUrl(nextFactorType, request);
 
@@ -162,8 +166,8 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
         } else if (factorContext.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION) {
-            log.info("MFA factor {} completed for user {}. Proceeding to factor selection page.",
-                    currentFactorType, factorContext.getUsername());
+            log.info("MFA factor {} completed for user {} using {} repository. Proceeding to factor selection page.",
+                    currentFactorType, factorContext.getUsername(), sessionRepository.getRepositoryType());
 
             Map<String, Object> responseBody = createMfaContinueResponse(
                     "다음 인증 수단을 선택해주세요.",
@@ -175,10 +179,82 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
         } else {
-            log.error("Unexpected FactorContext state ({}) after processing factor {} for user {}.",
-                    factorContext.getCurrentState(), currentFactorType, factorContext.getUsername());
+            log.error("Unexpected FactorContext state ({}) after processing factor {} for user {} using {} repository.",
+                    factorContext.getCurrentState(), currentFactorType, factorContext.getUsername(),
+                    sessionRepository.getRepositoryType());
             handleGenericError(response, request, factorContext, "MFA 처리 중 예상치 못한 상태입니다.");
         }
+    }
+
+    /**
+     * 개선: Repository 정보를 포함한 MFA 계속 진행 응답 생성
+     */
+    private Map<String, Object> createMfaContinueResponse(String message, FactorContext factorContext, String nextStepUrl) {
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("status", "MFA_CONTINUE");
+        responseBody.put("message", message);
+        responseBody.put("nextStepUrl", nextStepUrl);
+        responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
+
+        // 개선: Repository 정보 추가
+        Map<String, Object> sessionInfo = new HashMap<>();
+        sessionInfo.put("currentState", factorContext.getCurrentState().name());
+        sessionInfo.put("sessionId", factorContext.getMfaSessionId());
+        sessionInfo.put("repositoryType", sessionRepository.getRepositoryType());
+        sessionInfo.put("distributedSync", sessionRepository.supportsDistributedSync());
+
+        responseBody.put("sessionInfo", sessionInfo);
+        return responseBody;
+    }
+
+    /**
+     * 개선: Repository 패턴을 통한 세션 미발견 처리
+     */
+    private void handleSessionNotFound(HttpServletResponse response, HttpServletRequest request,
+                                       FactorContext factorContext) throws IOException {
+        log.warn("Session not found in {} repository during factor processing success: {}",
+                sessionRepository.getRepositoryType(), factorContext.getMfaSessionId());
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("repositoryType", sessionRepository.getRepositoryType());
+        errorResponse.put("mfaSessionId", factorContext.getMfaSessionId());
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "SESSION_NOT_FOUND", "MFA 세션을 찾을 수 없습니다.", request.getRequestURI(), errorResponse);
+    }
+
+    /**
+     * 개선: Repository 패턴을 통한 무효한 컨텍스트 처리 (HttpSession 직접 접근 제거)
+     */
+    private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request,
+                                      String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
+        log.warn("MFA Factor Processing Success using {} repository: Invalid FactorContext. Message: {}. User from auth: {}",
+                sessionRepository.getRepositoryType(), logMessage,
+                (authentication != null ? authentication.getName() : "UnknownUser"));
+
+        // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
+        String oldSessionId = sessionRepository.getSessionId(request);
+        if (oldSessionId != null) {
+            try {
+                stateMachineIntegrator.releaseStateMachine(oldSessionId);
+                sessionRepository.removeSession(oldSessionId, request, null);
+
+                // HttpSession에서도 정리 (호환성 유지)
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    session.removeAttribute("MFA_SESSION_ID");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to release invalid session using {} repository: {}",
+                        sessionRepository.getRepositoryType(), oldSessionId, e);
+            }
+        }
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("repositoryType", sessionRepository.getRepositoryType()); // 추가
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode,
+                "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI(), errorResponse);
     }
 
     /**
@@ -207,27 +283,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
     }
 
     /**
-     * MFA 계속 진행 응답 생성 (공통 로직)
-     */
-    private Map<String, Object> createMfaContinueResponse(String message, FactorContext factorContext, String nextStepUrl) {
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("status", "MFA_CONTINUE");
-        responseBody.put("message", message);
-        responseBody.put("nextStepUrl", nextStepUrl);
-        responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
-
-        // State Machine 정보
-        Map<String, Object> stateMachineInfo = new HashMap<>();
-        stateMachineInfo.put("currentState", factorContext.getCurrentState().name());
-        stateMachineInfo.put("sessionId", factorContext.getMfaSessionId());
-        stateMachineInfo.put("storageType", "UNIFIED_STATE_MACHINE");
-
-        responseBody.put("stateMachine", stateMachineInfo);
-        return responseBody;
-    }
-
-    /**
-     * State Machine에서 컨텍스트 동기화
+     * State Machine 에서 컨텍스트 동기화
      */
     private void syncContextFromStateMachine(FactorContext target, FactorContext source) {
         if (target.getCurrentState() != source.getCurrentState()) {
@@ -307,30 +363,6 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
         return matchingFlows.get(0);
     }
-
-    private void handleInvalidContext(HttpServletResponse response, HttpServletRequest request,
-                                      String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
-        log.warn("MFA Factor Processing Success: Invalid FactorContext. Message: {}. User from auth: {}",
-                logMessage, (authentication != null ? authentication.getName() : "UnknownUser"));
-
-        // 세션에서 잘못된 MFA 세션 ID 정리
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            String oldSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-            if (oldSessionId != null) {
-                try {
-                    stateMachineIntegrator.releaseStateMachine(oldSessionId);
-                } catch (Exception e) {
-                    log.warn("Failed to release invalid State Machine session: {}", oldSessionId, e);
-                }
-                session.removeAttribute("MFA_SESSION_ID");
-            }
-        }
-
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode,
-                "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI());
-    }
-
     private void handleConfigError(HttpServletResponse response, HttpServletRequest request,
                                    FactorContext ctx, String message) throws IOException {
         log.error("Configuration error for flow '{}': {}", ctx.getFlowTypeName(), message);

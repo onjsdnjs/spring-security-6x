@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -42,6 +43,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private final MfaRequestHandler requestHandler;
     private final MfaUrlMatcher urlMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
+    private final MfaSessionRepository sessionRepository;
 
     public MfaContinuationFilter(MfaPolicyProvider mfaPolicyProvider,
                                  AuthContextProperties authContextProperties,
@@ -52,14 +54,12 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         this.responseWriter = Objects.requireNonNull(responseWriter);
         this.applicationContext = Objects.requireNonNull(applicationContext);
 
-        // URL 매처 초기화
         this.urlMatcher = new MfaUrlMatcher(authContextProperties, applicationContext);
         this.requestMatcher = urlMatcher.createRequestMatcher();
-
-        // State Machine 통합자 초기화
         this.stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
 
-        // 요청 핸들러 초기화 - State Machine 통합자 추가
+        this.sessionRepository = applicationContext.getBean(MfaSessionRepository.class);
+
         this.requestHandler = new StateMachineAwareMfaRequestHandler(
                 mfaPolicyProvider,
                 authContextProperties,
@@ -69,7 +69,8 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 stateMachineIntegrator
         );
 
-        log.info("MfaContinuationFilter initialized with unified State Machine Service");
+        log.info("MfaContinuationFilter initialized with {} repository",
+                sessionRepository.getRepositoryType());
     }
 
     @Override
@@ -81,17 +82,24 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             return;
         }
 
-        log.debug("MfaContinuationFilter processing request: {} {}",
-                request.getMethod(), request.getRequestURI());
+        log.debug("MfaContinuationFilter processing request: {} {} using {} repository",
+                request.getMethod(), request.getRequestURI(), sessionRepository.getRepositoryType());
 
-        // 완전 일원화: State Machine에서만 FactorContext 로드
-        FactorContext ctx = loadFactorContextFromStateMachine(request);
+        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
         if (!isValidMfaContext(ctx)) {
             handleInvalidContext(request, response);
             return;
         }
 
-        // State Machine 초기화 및 동기화 (필요한 경우에만)
+        // 개선: Repository를 통한 세션 유효성 검증
+        if (!sessionRepository.existsSession(ctx.getMfaSessionId())) {
+            log.warn("MFA session {} not found in {} repository",
+                    ctx.getMfaSessionId(), sessionRepository.getRepositoryType());
+            handleInvalidContext(request, response);
+            return;
+        }
+
         ensureStateMachineInitialized(ctx, request);
 
         if (ctx.getCurrentState().isTerminal()) {
@@ -101,53 +109,45 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
 
         try {
             MfaRequestType requestType = urlMatcher.getRequestType(request);
-
-            // State Machine 통합된 요청 처리
             requestHandler.handleRequest(requestType, request, response, ctx, filterChain);
-
         } catch (Exception e) {
             requestHandler.handleGenericError(request, response, ctx, e);
         }
     }
 
     /**
-     * 완전 일원화: State Machine에서만 FactorContext 로드
+     * 개선: Repository 패턴 통합 - 무효한 컨텍스트 처리
      */
-    private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            log.trace("No HttpSession found for request. Cannot load FactorContext.");
-            return null;
-        }
+    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        log.warn("Invalid MFA context for request: {} using {} repository",
+                request.getRequestURI(), sessionRepository.getRepositoryType());
 
-        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-        if (mfaSessionId == null) {
-            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
-            return null;
-        }
+        // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
+        String oldSessionId = sessionRepository.getSessionId(request);
+        if (oldSessionId != null) {
+            try {
+                stateMachineIntegrator.releaseStateMachine(oldSessionId);
+                sessionRepository.removeSession(oldSessionId, request, response);
 
-        try {
-            // State Machine에서 직접 로드 (일원화)
-            FactorContext context = stateMachineIntegrator.loadFactorContext(mfaSessionId);
-
-            if (context != null) {
-                // 마지막 활동 시간 업데이트
-                context.updateLastActivityTimestamp();
-
-                // State Machine에 저장 (활동 시간 업데이트 반영)
-                stateMachineIntegrator.saveFactorContext(context);
-
-                log.debug("FactorContext loaded from unified State Machine: sessionId={}, state={}",
-                        context.getMfaSessionId(), context.getCurrentState());
-            } else {
-                log.debug("No FactorContext found in State Machine for session: {}", mfaSessionId);
+                // HttpSession 정리 (기존 로직 유지)
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    session.removeAttribute("MFA_SESSION_ID");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to cleanup invalid session: {}", oldSessionId, e);
             }
-
-            return context;
-        } catch (Exception e) {
-            log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
-            return null;
         }
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", "MFA_SESSION_INVALID");
+        errorResponse.put("message", "MFA 세션이 유효하지 않습니다.");
+        errorResponse.put("redirectUrl", request.getContextPath() + "/loginForm");
+        errorResponse.put("repositoryType", sessionRepository.getRepositoryType()); // 추가: Repository 정보
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다.",
+                request.getRequestURI(), errorResponse);
     }
 
     /**
@@ -166,34 +166,5 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         return ctx != null &&
                 ctx.getMfaSessionId() != null &&
                 "MFA".equalsIgnoreCase(ctx.getFlowTypeName());
-    }
-
-    private void handleInvalidContext(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
-        log.warn("Invalid MFA context for request: {}", request.getRequestURI());
-
-        // 세션에서 잘못된 MFA 세션 ID 정리
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            String oldSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-            if (oldSessionId != null) {
-                // State Machine 정리
-                try {
-                    stateMachineIntegrator.releaseStateMachine(oldSessionId);
-                } catch (Exception e) {
-                    log.warn("Failed to release invalid State Machine session: {}", oldSessionId, e);
-                }
-                session.removeAttribute("MFA_SESSION_ID");
-            }
-        }
-
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", "MFA_SESSION_INVALID");
-        errorResponse.put("message", "MFA 세션이 유효하지 않습니다.");
-        errorResponse.put("redirectUrl", request.getContextPath() + "/loginForm");
-
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
-                "MFA_SESSION_INVALID", "MFA 세션이 유효하지 않습니다.",
-                request.getRequestURI(), errorResponse);
     }
 }

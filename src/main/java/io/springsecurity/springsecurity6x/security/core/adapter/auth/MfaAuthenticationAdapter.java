@@ -121,7 +121,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             mfaFactorProcessingMatcherForWrapper = new OrRequestMatcher(factorProcessingMatchers);
         }
 
-        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(factorFilterProvider, mfaFactorProcessingMatcherForWrapper, applicationContext);
+        MfaStepFilterWrapper mfaStepFilterWrapper = new MfaStepFilterWrapper(factorFilterProvider, mfaFactorProcessingMatcherForWrapper, applicationContext, authContextProperties);
         http.addFilterBefore(mfaStepFilterWrapper, LogoutFilter.class);
 
         log.debug("MFA common filters (MfaContinuationFilter, MfaStepFilterWrapper) added for MFA flow.");

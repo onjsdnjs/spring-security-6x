@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.security.handler;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -12,6 +13,7 @@ import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWrit
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.AuthenticationException;
@@ -32,10 +34,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UnifiedAuthenticationFailureHandler implements AuthenticationFailureHandler {
 
-    private final MfaStateMachineIntegrator stateMachineIntegrator; // 완전 일원화
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthResponseWriter responseWriter;
     private final AuthContextProperties authContextProperties;
+    // 추가: Repository 패턴 통합
+    private final MfaSessionRepository sessionRepository;
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
@@ -44,43 +48,50 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
 
         long failureStartTime = System.currentTimeMillis();
 
-        // 완전 일원화: State Machine 통합자에서 FactorContext 로드
+        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
 
         String usernameForLog = extractUsernameForLogging(factorContext, exception);
         String sessionIdForLog = extractSessionIdForLogging(factorContext);
 
-        // MFA 단계 중 실패인지, 1차 인증 실패인지 구분
+        log.debug("Processing authentication failure using {} repository for user: {} session: {}",
+                sessionRepository.getRepositoryType(), usernameForLog, sessionIdForLog);
+
         AuthType currentProcessingFactor = (factorContext != null) ? factorContext.getCurrentProcessingFactor() : null;
 
         if (isMfaFactorFailure(factorContext, currentProcessingFactor)) {
-            // MFA 팩터 검증 실패 처리
             handleMfaFactorFailure(request, response, exception, factorContext,
                     currentProcessingFactor, usernameForLog, sessionIdForLog);
         } else {
-            // 1차 인증 실패 또는 전역 MFA 실패 처리
             handlePrimaryAuthOrGlobalMfaFailure(request, response, exception, factorContext,
                     usernameForLog, sessionIdForLog);
         }
 
-        // 보안 감사 로그 (타이밍 정보 포함)
+        // 보안 감사 로그 (Repository 정보 포함)
         long failureDuration = System.currentTimeMillis() - failureStartTime;
         logSecurityAudit(usernameForLog, sessionIdForLog, currentProcessingFactor,
                 exception, failureDuration, getClientInfo(request));
     }
 
     /**
-     * 완전 일원화: MFA 팩터 검증 실패 처리
+     * 개선: Repository 패턴 통합된 MFA 팩터 검증 실패 처리
      */
     private void handleMfaFactorFailure(HttpServletRequest request, HttpServletResponse response,
                                         AuthenticationException exception, FactorContext factorContext,
                                         AuthType currentProcessingFactor, String usernameForLog,
                                         String sessionIdForLog) throws IOException {
 
-        log.warn("MFA Factor Failure: Factor '{}' for user '{}' (session ID: '{}') failed. Reason: {}",
-                currentProcessingFactor, usernameForLog, sessionIdForLog, exception.getMessage());
+        log.warn("MFA Factor Failure using {} repository: Factor '{}' for user '{}' (session ID: '{}') failed. Reason: {}",
+                sessionRepository.getRepositoryType(), currentProcessingFactor, usernameForLog, sessionIdForLog, exception.getMessage());
 
-        // 실패 시도 기록 (State Machine에 자동 저장됨)
+        // 개선: Repository를 통한 세션 검증
+        if (!sessionRepository.existsSession(factorContext.getMfaSessionId())) {
+            log.warn("MFA session {} not found in {} repository during factor failure processing",
+                    factorContext.getMfaSessionId(), sessionRepository.getRepositoryType());
+            handleSessionNotFound(request, response, factorContext);
+            return;
+        }
+
         factorContext.recordAttempt(currentProcessingFactor, false,
                 "Verification failed: " + exception.getMessage());
 
@@ -88,44 +99,39 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         RetryPolicy retryPolicy = mfaPolicyProvider.getRetryPolicyForFactor(currentProcessingFactor, factorContext);
         int maxAttempts = (retryPolicy != null) ? retryPolicy.getMaxAttempts() : 3;
 
-        // 에러 상세 정보 구성
         Map<String, Object> errorDetails = buildMfaFailureErrorDetails(factorContext, currentProcessingFactor,
                 attempts, maxAttempts);
 
         if (attempts >= maxAttempts) {
-            // 최대 시도 횟수 초과 - 터미널 상태로 전환
             handleMaxAttemptsExceeded(request, response, factorContext, currentProcessingFactor,
                     usernameForLog, sessionIdForLog, maxAttempts, errorDetails);
         } else {
-            // 재시도 가능 - 팩터 선택으로 돌아가기
             handleRetryableMfaFailure(request, response, factorContext, currentProcessingFactor,
                     attempts, maxAttempts, errorDetails);
         }
     }
 
     /**
-     * 완전 일원화: 최대 시도 횟수 초과 처리
+     * 개선: Repository 패턴 통합된 최대 시도 횟수 초과 처리
      */
     private void handleMaxAttemptsExceeded(HttpServletRequest request, HttpServletResponse response,
                                            FactorContext factorContext, AuthType currentProcessingFactor,
                                            String usernameForLog, String sessionIdForLog, int maxAttempts,
                                            Map<String, Object> errorDetails) throws IOException {
 
-        log.warn("MFA max attempts ({}) reached for factor {}. User: {}. Session: {}. Terminating MFA.",
-                maxAttempts, currentProcessingFactor, usernameForLog, sessionIdForLog);
+        log.warn("MFA max attempts ({}) reached for factor {} using {} repository. User: {}. Session: {}. Terminating MFA.",
+                maxAttempts, currentProcessingFactor, sessionRepository.getRepositoryType(), usernameForLog, sessionIdForLog);
 
-        // 완전 일원화: State Machine 이벤트로 상태 전환
         boolean eventAccepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.RETRY_LIMIT_EXCEEDED, factorContext, request);
 
         if (!eventAccepted) {
             log.error("State Machine rejected RETRY_LIMIT_EXCEEDED event for session: {}", sessionIdForLog);
-            // Fallback: 강제로 터미널 상태 설정
             stateMachineIntegrator.updateStateOnly(factorContext.getMfaSessionId(), MfaState.MFA_FAILED_TERMINAL);
         }
 
-        // 완전 일원화: State Machine 세션 정리
-        stateMachineIntegrator.cleanupSession(request);
+        // 개선: Repository를 통한 세션 정리
+        cleanupSessionUsingRepository(request, response, factorContext.getMfaSessionId());
 
         String errorCode = "MFA_MAX_ATTEMPTS_EXCEEDED";
         String errorMessage = String.format(
@@ -138,33 +144,33 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         errorDetails.put("message", errorMessage);
         errorDetails.put("nextStepUrl", nextStepUrl);
         errorDetails.put("terminal", true);
-        errorDetails.put("storageType", "UNIFIED_STATE_MACHINE");
+        errorDetails.put("repositoryType", sessionRepository.getRepositoryType()); // 추가
 
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
                 errorCode, errorMessage, request.getRequestURI(), errorDetails);
     }
 
     /**
-     * 완전 일원화: 재시도 가능한 MFA 실패 처리
+     * 개선: Repository 패턴 통합된 재시도 가능한 MFA 실패 처리
      */
     private void handleRetryableMfaFailure(HttpServletRequest request, HttpServletResponse response,
                                            FactorContext factorContext, AuthType currentProcessingFactor,
                                            int attempts, int maxAttempts, Map<String, Object> errorDetails)
             throws IOException {
 
-        // 완전 일원화: State Machine 이벤트로 상태 전환
         boolean eventAccepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.FACTOR_VERIFICATION_FAILED, factorContext, request);
 
         if (!eventAccepted) {
             log.error("State Machine rejected FACTOR_VERIFICATION_FAILED event for session: {}",
                     factorContext.getMfaSessionId());
-            // Fallback: 팩터 선택 상태로 직접 전환
             stateMachineIntegrator.updateStateOnly(factorContext.getMfaSessionId(),
                     MfaState.AWAITING_FACTOR_SELECTION);
         }
 
-        // State Machine과 동기화
+        // 개선: Repository를 통한 세션 갱신
+        sessionRepository.refreshSession(factorContext.getMfaSessionId());
+
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
         int remainingAttempts = Math.max(0, maxAttempts - attempts);
@@ -179,34 +185,32 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         errorDetails.put("nextStepUrl", nextStepUrl);
         errorDetails.put("retryPossibleForCurrentFactor", true);
         errorDetails.put("remainingAttempts", remainingAttempts);
-        errorDetails.put("storageType", "UNIFIED_STATE_MACHINE");
+        errorDetails.put("repositoryType", sessionRepository.getRepositoryType()); // 추가
 
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
                 errorCode, errorMessage, request.getRequestURI(), errorDetails);
     }
 
     /**
-     * 완전 일원화: 1차 인증 실패 또는 전역 MFA 실패 처리
+     * 개선: Repository 패턴 통합된 1차 인증 실패 또는 전역 MFA 실패 처리
      */
     private void handlePrimaryAuthOrGlobalMfaFailure(HttpServletRequest request, HttpServletResponse response,
                                                      AuthenticationException exception, FactorContext factorContext,
                                                      String usernameForLog, String sessionIdForLog)
             throws IOException, ServletException {
 
-        log.warn("Primary Authentication or Global MFA Failure for user '{}' (MFA Session ID: '{}'). Reason: {}",
-                usernameForLog, sessionIdForLog, exception.getMessage());
+        log.warn("Primary Authentication or Global MFA Failure using {} repository for user '{}' (MFA Session ID: '{}'). Reason: {}",
+                sessionRepository.getRepositoryType(), usernameForLog, sessionIdForLog, exception.getMessage());
 
-        // 완전 일원화: State Machine이 있다면 정리
+        // 개선: Repository 패턴을 통한 세션 정리
         if (factorContext != null && StringUtils.hasText(factorContext.getMfaSessionId())) {
-            // State Machine 이벤트로 터미널 상태 전환
             try {
                 stateMachineIntegrator.sendEvent(MfaEvent.SYSTEM_ERROR, factorContext, request);
             } catch (Exception e) {
                 log.warn("Failed to send SYSTEM_ERROR event during cleanup", e);
             }
 
-            // 완전 일원화: State Machine 세션 정리
-            stateMachineIntegrator.cleanupSession(request);
+            cleanupSessionUsingRepository(request, response, factorContext.getMfaSessionId());
         }
 
         String errorCode = "PRIMARY_AUTH_FAILED";
@@ -223,34 +227,55 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
             Map<String, Object> errorDetails = new HashMap<>();
             errorDetails.put("message", errorMessage);
             errorDetails.put("nextStepUrl", failureRedirectUrl);
-            errorDetails.put("storageType", "UNIFIED_STATE_MACHINE");
+            errorDetails.put("repositoryType", sessionRepository.getRepositoryType()); // 추가
 
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
                     errorCode, errorMessage, request.getRequestURI(), errorDetails);
         } else {
-            // 웹 요청: 리다이렉트
             response.sendRedirect(failureRedirectUrl);
         }
     }
 
-    // === 유틸리티 메서드들 ===
-
     /**
-     * MFA 팩터 실패인지 확인
+     * 개선: Repository 패턴을 통한 세션 정리 (HttpSession 직접 접근 제거)
      */
-    private boolean isMfaFactorFailure(FactorContext factorContext, AuthType currentProcessingFactor) {
-        if (factorContext == null || currentProcessingFactor == null) {
-            return false;
-        }
+    private void cleanupSessionUsingRepository(HttpServletRequest request, HttpServletResponse response, String mfaSessionId) {
+        try {
+            stateMachineIntegrator.releaseStateMachine(mfaSessionId);
+            sessionRepository.removeSession(mfaSessionId, request, response);
 
-        MfaState currentState = factorContext.getCurrentState();
-        return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
-                currentState == MfaState.FACTOR_VERIFICATION_PENDING ||
-                currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+            // HttpSession 에서도 정리 (호환성 유지)
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                session.removeAttribute("MFA_SESSION_ID");
+            }
+
+            log.debug("Session cleanup completed using {} repository for MFA session: {}",
+                    sessionRepository.getRepositoryType(), mfaSessionId);
+        } catch (Exception e) {
+            log.warn("Failed to cleanup session using {} repository: {}",
+                    sessionRepository.getRepositoryType(), mfaSessionId, e);
+        }
     }
 
     /**
-     * MFA 실패 에러 상세 정보 구성
+     * 개선: Repository 패턴을 통한 세션 미발견 처리
+     */
+    private void handleSessionNotFound(HttpServletRequest request, HttpServletResponse response,
+                                       FactorContext factorContext) throws IOException {
+        log.warn("Session not found in {} repository during failure processing: {}",
+                sessionRepository.getRepositoryType(), factorContext.getMfaSessionId());
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("repositoryType", sessionRepository.getRepositoryType());
+        errorDetails.put("mfaSessionId", factorContext.getMfaSessionId());
+
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                "SESSION_NOT_FOUND", "MFA 세션을 찾을 수 없습니다.", request.getRequestURI(), errorDetails);
+    }
+
+    /**
+     * 개선: Repository 정보를 포함한 MFA 실패 에러 상세 정보 구성
      */
     private Map<String, Object> buildMfaFailureErrorDetails(FactorContext factorContext,
                                                             AuthType currentProcessingFactor,
@@ -262,7 +287,9 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         errorDetails.put("maxAttempts", maxAttempts);
         errorDetails.put("currentState", factorContext.getCurrentState().name());
         errorDetails.put("timestamp", System.currentTimeMillis());
-        errorDetails.put("storageType", "UNIFIED_STATE_MACHINE");
+        // 개선: Repository 정보 추가
+        errorDetails.put("repositoryType", sessionRepository.getRepositoryType());
+        errorDetails.put("distributedSync", sessionRepository.supportsDistributedSync());
 
         return errorDetails;
     }
@@ -312,6 +339,20 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         // URL 패턴으로 확인
         String requestURI = request.getRequestURI();
         return requestURI != null && (requestURI.startsWith("/api/") || requestURI.contains("/api/"));
+    }
+
+    /**
+     * MFA 팩터 실패인지 확인
+     */
+    private boolean isMfaFactorFailure(FactorContext factorContext, AuthType currentProcessingFactor) {
+        if (factorContext == null || currentProcessingFactor == null) {
+            return false;
+        }
+
+        MfaState currentState = factorContext.getCurrentState();
+        return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
+                currentState == MfaState.FACTOR_VERIFICATION_PENDING ||
+                currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
     }
 
     /**

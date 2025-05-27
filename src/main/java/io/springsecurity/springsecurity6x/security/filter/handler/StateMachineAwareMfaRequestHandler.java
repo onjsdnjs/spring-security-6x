@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.filter.handler;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
@@ -271,21 +272,38 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         responseWriter.writeSuccessResponse(response, responseData, HttpServletResponse.SC_OK);
     }
 
+    /**
+     * 팩터 선택 처리 - 향상된 상태 검증
+     */
     private void handleFactorSelection(HttpServletRequest request, HttpServletResponse response,
                                        FactorContext context) throws IOException {
         String sessionId = context.getMfaSessionId();
         log.debug("Handling factor selection for session: {}", sessionId);
 
-        // 팩터 선택 가능한 상태인지 확인
+        // 포괄적인 상태 검증
         if (!isValidStateForFactorSelection(context)) {
             handleInvalidStateError(request, response, context, "INVALID_STATE_FOR_SELECTION",
-                    "팩터 선택이 불가능한 상태입니다.");
+                    "팩터 선택이 불가능한 상태입니다. 현재 상태: " + context.getCurrentState());
+            return;
+        }
+
+        // 등록된 팩터 존재 여부 확인
+        if (context.getRegisteredMfaFactors().isEmpty()) {
+            handleInvalidStateError(request, response, context, "NO_REGISTERED_FACTORS",
+                    "등록된 MFA 팩터가 없습니다. MFA 설정을 먼저 완료해주세요.");
             return;
         }
 
         // 선택된 팩터 추출 및 검증
         String selectedFactor = extractAndValidateSelectedFactor(request, response, context);
         if (selectedFactor == null) return; // 오류 응답 이미 처리됨
+
+        // 선택된 팩터가 등록된 팩터 목록에 있는지 확인
+        if (!isFactorRegistered(context, selectedFactor)) {
+            handleInvalidStateError(request, response, context, "FACTOR_NOT_REGISTERED",
+                    "선택한 팩터가 등록되어 있지 않습니다: " + selectedFactor);
+            return;
+        }
 
         // State Machine 이벤트 전송
         if (sendFactorSelectionEvent(context, request, selectedFactor)) {
@@ -295,6 +313,23 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         }
     }
 
+    /**
+     * 팩터 등록 여부 확인
+     */
+    private boolean isFactorRegistered(FactorContext context, String selectedFactor) {
+        try {
+            AuthType selectedAuthType = AuthType.valueOf(selectedFactor.toUpperCase());
+            return context.getRegisteredMfaFactors().contains(selectedAuthType);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid factor type: {}", selectedFactor);
+            return false;
+        }
+    }
+
+
+    /**
+     * 챌린지 시작 처리 - 향상된 상태 검증
+     */
     private void handleChallengeInitiation(HttpServletRequest request, HttpServletResponse response,
                                            FactorContext context) throws IOException {
         String sessionId = context.getMfaSessionId();
@@ -302,9 +337,24 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         log.debug("Handling challenge initiation for session: {}", sessionId);
 
+        // 포괄적인 상태 검증
         if (!isValidStateForChallengeInitiation(context)) {
             handleInvalidStateError(request, response, context, "INVALID_STATE_FOR_CHALLENGE",
-                    "챌린지 시작이 불가능한 상태입니다.");
+                    "챌린지 시작이 불가능한 상태입니다. 현재 상태: " + context.getCurrentState());
+            return;
+        }
+
+        // 현재 처리 팩터 확인
+        if (context.getCurrentProcessingFactor() == null) {
+            handleInvalidStateError(request, response, context, "NO_PROCESSING_FACTOR",
+                    "처리할 팩터가 선택되지 않았습니다.");
+            return;
+        }
+
+        // 이전 챌린지가 아직 유효한지 확인
+        if (hasActiveChallengeForFactor(context)) {
+            log.info("Active challenge exists for session: {}, proceeding with existing challenge", sessionId);
+            redirectToExistingChallenge(request, response, context);
             return;
         }
 
@@ -338,6 +388,42 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         }
     }
 
+    /**
+     * 활성 챌린지 존재 여부 확인
+     */
+    private boolean hasActiveChallengeForFactor(FactorContext context) {
+        Object challengeTime = context.getAttribute("challengeInitiatedAt");
+        if (!(challengeTime instanceof Long)) {
+            return false;
+        }
+
+        // 챌린지가 만료되지 않았다면 활성 상태
+        return !mfaSettings.isChallengeExpired((Long) challengeTime);
+    }
+
+    /**
+     * 기존 챌린지로 리다이렉트
+     */
+    private void redirectToExistingChallenge(HttpServletRequest request, HttpServletResponse response,
+                                             FactorContext context) throws IOException {
+        Map<String, Object> redirectResponse = createSuccessResponse(context, "EXISTING_CHALLENGE",
+                "이미 활성화된 챌린지가 있습니다.");
+        redirectResponse.put("challengeUrl", determineNextStepUrl(context, request));
+        redirectResponse.put("factorType", context.getCurrentProcessingFactor());
+
+        Object challengeTime = context.getAttribute("challengeInitiatedAt");
+        if (challengeTime instanceof Long) {
+            Instant challengeStart = MfaTimeUtils.fromMillis((Long) challengeTime);
+            Duration remaining = MfaTimeUtils.getRemainingChallengeTime(challengeStart, mfaSettings);
+            redirectResponse.put("remainingTimeMs", remaining.toMillis());
+            redirectResponse.put("remainingTimeDisplay", MfaTimeUtils.toDisplayString(remaining));
+        }
+
+        responseWriter.writeSuccessResponse(response, redirectResponse, HttpServletResponse.SC_OK);
+    }
+    /**
+     * 팩터 검증 처리 - 향상된 상태 검증
+     */
     private void handleFactorVerification(HttpServletRequest request, HttpServletResponse response,
                                           FactorContext context, FilterChain filterChain)
             throws ServletException, IOException {
@@ -345,13 +431,14 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         log.debug("Handling factor verification for session: {}", sessionId);
 
-        if (!isValidStateForVerification(context)) {
+        // ✅ 개선: 포괄적인 상태 검증 사용
+        if (!canProcessFactorVerification(context)) {
             handleInvalidStateError(request, response, context, "INVALID_STATE_FOR_VERIFICATION",
-                    "팩터 검증이 불가능한 상태입니다.");
+                    "팩터 검증이 불가능한 상태입니다. 현재 상태: " + context.getCurrentState());
             return;
         }
 
-        // 개선: MfaSettings 활용한 챌린지 타임아웃 확인
+        // ✅ 개선: MfaSettings 활용한 챌린지 타임아웃 확인
         if (isChallengeExpiredUsingSettings(context)) {
             log.warn("Challenge expired for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.CHALLENGE_TIMEOUT, context, request);
@@ -360,7 +447,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
-        // 개선: MfaSettings 활용한 재시도 제한 확인
+        // ✅ 개선: MfaSettings 활용한 재시도 제한 확인
         if (!isRetryAllowedUsingSettings(context)) {
             log.warn("Retry limit exceeded for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.RETRY_LIMIT_EXCEEDED, context, request);
@@ -369,11 +456,55 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
+        // ✅ 추가: 팩터별 추가 검증
+        if (!validateFactorSpecificRequirements(context)) {
+            handleInvalidStateError(request, response, context, "FACTOR_REQUIREMENTS_NOT_MET",
+                    "현재 팩터의 요구사항이 충족되지 않았습니다.");
+            return;
+        }
+
         // 검증 시작 시간 기록
         context.setAttribute("verificationStartTime", System.currentTimeMillis());
 
         log.debug("Delegating factor verification to specialized filter for session: {}", sessionId);
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 팩터별 특별 요구사항 검증
+     */
+    private boolean validateFactorSpecificRequirements(FactorContext context) {
+        AuthType currentFactor = context.getCurrentProcessingFactor();
+
+        if (currentFactor == null) {
+            return false;
+        }
+
+        switch (currentFactor) {
+            case OTT:
+                // OTT 코드가 발송되었는지 확인
+                Object ottSent = context.getAttribute("ottCodeSent");
+                if (!(ottSent instanceof Boolean) || !(Boolean) ottSent) {
+                    log.debug("OTT code not sent for session: {}", context.getMfaSessionId());
+                    return false;
+                }
+                break;
+
+            case PASSKEY:
+                // Passkey 옵션이 생성되었는지 확인
+                Object passkeyGenerated = context.getAttribute("passkeyOptionsGenerated");
+                if (!(passkeyGenerated instanceof Boolean) || !(Boolean) passkeyGenerated) {
+                    log.debug("Passkey options not generated for session: {}", context.getMfaSessionId());
+                    return false;
+                }
+                break;
+
+            default:
+                // 다른 팩터들은 기본 검증만 수행
+                break;
+        }
+
+        return true;
     }
 
     /**
@@ -569,12 +700,27 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
     // === 유틸리티 메서드들 ===
 
+    /**
+     * 팩터 선택 상태 검증 - 더 유연한 상태 지원
+     */
     private boolean isValidStateForFactorSelection(FactorContext context) {
-        return context.getCurrentState() == MfaState.AWAITING_FACTOR_SELECTION;
+        MfaState currentState = context.getCurrentState();
+
+        // 팩터 선택 가능한 모든 상태 포함
+        return currentState == MfaState.AWAITING_FACTOR_SELECTION ||
+                currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED || // 추가된 상태
+                currentState == MfaState.FACTOR_VERIFICATION_COMPLETED;       // 추가 팩터 선택 시
     }
 
+    /**
+     * 챌린지 시작 상태 검증 - 더 포괄적인 지원
+     */
     private boolean isValidStateForChallengeInitiation(FactorContext context) {
-        return context.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION;
+        MfaState currentState = context.getCurrentState();
+
+        // 챌린지 시작 가능한 상태들
+        return currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
+                currentState == MfaState.FACTOR_SELECTED; // 직접 선택 후 챌린지 시작
     }
 
     private boolean isValidStateForVerification(FactorContext context) {
@@ -582,6 +728,32 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
                 currentState == MfaState.FACTOR_VERIFICATION_PENDING||
                 currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+    }
+
+    /**
+     * 더 포괄적인 상태 검증
+     */
+    private boolean canProcessFactorVerification(FactorContext context) {
+        MfaState state = context.getCurrentState();
+
+        // 검증 처리 가능한 상태들
+        boolean validState = state == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
+                state == MfaState.FACTOR_VERIFICATION_PENDING ||
+                state == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+
+        if (!validState) {
+            log.debug("Cannot process factor verification in state: {} for session: {}",
+                    state, context.getMfaSessionId());
+            return false;
+        }
+
+        // 추가 검증: 현재 처리 중인 팩터 존재 확인
+        if (context.getCurrentProcessingFactor() == null) {
+            log.debug("No current processing factor for session: {}", context.getMfaSessionId());
+            return false;
+        }
+
+        return true;
     }
 
     private String extractAndValidateSelectedFactor(HttpServletRequest request, HttpServletResponse response,

@@ -42,7 +42,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
     /**
-     * 개선: 표준화된 이벤트 처리 패턴으로 완전 재구성
+     * ✅ 개선: MFA 요구사항 평가 및 초기 단계 결정 - 동기화 강화
      */
     @Override
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
@@ -61,7 +61,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (!mfaRequired) {
             log.info("MFA not required for user: {}", username);
 
-            // 개선: 표준 패턴 적용 - 1) 상태 업데이트 2) 저장 3) 이벤트 전송
+            // 개선: 표준 패턴 적용 - 동기화 포함
             boolean success = executeStandardEventPattern(
                     ctx,
                     () -> ctx.setMfaRequiredAsPerPolicy(false), // 상태 업데이트
@@ -71,7 +71,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             );
 
             if (!success) {
-                // 개선: 실패 시 fallback 처리
                 handleEventProcessingFailure(ctx, "MFA_NOT_REQUIRED", username);
             }
             return;
@@ -82,7 +81,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         // 사용자가 등록한 MFA 요소들 확인
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
 
-        // 개선: 표준 패턴으로 MFA 필요 상태 설정
+        // ✅ 개선: 동기화를 포함한 표준 패턴으로 MFA 필요 상태 설정
         boolean success = executeStandardEventPattern(
                 ctx,
                 () -> {
@@ -99,20 +98,41 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             return;
         }
 
-        // 등록된 팩터에 따른 이벤트 결정 및 전송
+        // 등록된 팩터에 따른 이벤트 결정 및 전송 (동기화 포함)
         if (registeredFactors.isEmpty()) {
             log.warn("MFA required but no factors registered for user: {}", username);
-            sendEventSafely(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
+            sendEventWithSync(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
                     "MFA_CONFIGURATION_REQUIRED for user: " + username);
         } else {
             log.debug("User {} has registered factors: {}", username, registeredFactors);
-            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+            sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
                     "MFA_REQUIRED_SELECT_FACTOR for user: " + username);
         }
     }
 
+
     /**
-     * 개선: 동기화 최적화가 적용된 다음 팩터 결정
+     * ✅ 새로운 메서드: 이벤트 전송과 동기화를 함께 수행
+     */
+    private boolean sendEventWithSync(MfaEvent event, FactorContext ctx, HttpServletRequest request, String context) {
+        boolean success = sendEventSafely(event, ctx, request, context);
+
+        if (success && request != null) {
+            try {
+                // 이벤트 전송 후 동기화
+                stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+                log.debug("Context synchronized after event {} for session: {}", event, ctx.getMfaSessionId());
+            } catch (Exception e) {
+                log.warn("Failed to sync after event {} for session: {}", event, ctx.getMfaSessionId(), e);
+                // 동기화 실패는 경고만 로깅하고 계속 진행
+            }
+        }
+
+        return success;
+    }
+
+    /**
+     * 다음 팩터 결정 - 동기화 최적화 적용
      */
     @Override
     public void determineNextFactorToProcess(FactorContext ctx) {
@@ -150,7 +170,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             if (nextStepConfigOpt.isPresent()) {
                 AuthenticationStepConfig nextStep = nextStepConfigOpt.get();
 
-                // 개선: 표준 패턴으로 다음 팩터 설정
+                // ✅ 개선: 표준 패턴으로 다음 팩터 설정 - 동기화 포함
                 boolean success = executeStandardEventPattern(
                         ctx,
                         () -> {
@@ -176,7 +196,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     }
 
     /**
-     * 개선: 모든 팩터 완료 확인 - 중복 동기화 최소화
+     * 모든 팩터 완료 확인 - 동기화 최적화
      */
     public void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
         Assert.notNull(ctx, "FactorContext cannot be null");
@@ -199,7 +219,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
 
-            sendEventSafely(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, getCurrentRequest(),
+            sendEventWithSync(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, getCurrentRequest(),
                     "All factors completed (no required steps) for user: " + ctx.getUsername());
             return;
         }
@@ -207,32 +227,32 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         CompletionStatus status = evaluateCompletionStatus(ctx, requiredSteps);
         HttpServletRequest request = getCurrentRequest();
 
-        // 완료 상태에 따른 이벤트 전송
+        // 완료 상태에 따른 이벤트 전송 (동기화 포함)
         if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
             log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
                     ctx.getUsername(), mfaFlowConfig.getTypeName());
 
-            sendEventSafely(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request,
+            sendEventWithSync(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request,
                     "All required factors completed for user: " + ctx.getUsername());
 
         } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty()) {
             log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection.",
                     ctx.getUsername());
 
-            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+            sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
                     "Moving to factor selection for user: " + ctx.getUsername());
 
         } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
             log.warn("MFA required for user {} but no MFA factors are registered.", ctx.getUsername());
 
-            sendEventSafely(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
+            sendEventWithSync(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
                     "MFA configuration required for user: " + ctx.getUsername());
 
         } else {
             log.info("Not all required MFA factors completed for user: {}. Missing steps: {}",
                     ctx.getUsername(), status.missingRequiredStepIds);
 
-            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+            sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
                     "Additional factors required for user: " + ctx.getUsername());
         }
     }
@@ -241,7 +261,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     /**
      * 개선: 표준화된 이벤트 처리 패턴
-     * 1) 컨텍스트 상태 업데이트 2) State Machine 저장 3) 이벤트 전송
+     * 1) 컨텍스트 상태 업데이트 2) State Machine 저장 3) 이벤트 전송 4) 동기화
      */
     private boolean executeStandardEventPattern(FactorContext ctx,
                                                 Runnable contextUpdater,
@@ -268,8 +288,16 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     return false;
                 }
 
-                // 이벤트 전송 후 State Machine과 동기화
-                stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+                // ✅ 추가: 이벤트 전송 후 State Machine과 동기화
+                try {
+                    stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+                    log.debug("Context synchronized after event {} for session: {}",
+                            event, ctx.getMfaSessionId());
+                } catch (Exception syncException) {
+                    log.error("Failed to sync context after event {} for session: {}",
+                            event, ctx.getMfaSessionId(), syncException);
+                    // 동기화 실패는 경고만 하고 계속 진행
+                }
             }
 
             log.debug("Standard event pattern completed successfully: {}", operationDescription);

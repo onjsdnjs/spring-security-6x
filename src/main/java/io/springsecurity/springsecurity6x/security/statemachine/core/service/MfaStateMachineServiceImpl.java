@@ -273,16 +273,20 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
-    /**
-     * 개선: 캐시 최적화된 FactorContext 조회
-     */
     @Override
     public FactorContext getFactorContext(String sessionId) {
-        // 개선: 옵티미스틱 락 매니저의 캐시 활용
+        // ✅ 수정: 캐시 확인 로직 개선
         FactorContext cachedContext = optimisticLockManager.getCachedContext(sessionId);
         if (cachedContext != null) {
-            log.trace("Retrieved FactorContext from cache for session: {}", sessionId);
-            return cachedContext;
+            // 캐시된 컨텍스트의 유효성 검증
+            if (isContextValid(cachedContext)) {
+                log.trace("Retrieved valid FactorContext from cache for session: {}", sessionId);
+                return cachedContext;
+            } else {
+                // 유효하지 않은 캐시 제거
+                optimisticLockManager.invalidateContextCache(sessionId);
+                log.debug("Invalidated stale cached context for session: {}", sessionId);
+            }
         }
 
         try {
@@ -296,8 +300,11 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     FactorContext context = reconstructFactorContextFromStateMachine(pooled.getStateMachine());
 
                     if (context != null) {
-                        // 캐시에 저장
+                        // ✅ 개선: 상태와 컨텍스트 모두 캐시에 저장
+                        optimisticLockManager.updateCachedState(sessionId, context.getCurrentState());
                         optimisticLockManager.updateCachedContext(sessionId, context);
+
+                        log.debug("FactorContext loaded and cached for session: {}", sessionId);
                     }
 
                     return context;
@@ -312,35 +319,101 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     /**
-     * 개선: 배치 처리 최적화된 FactorContext 저장
+     * ✅ 추가: 캐시된 컨텍스트 유효성 검증
+     */
+    private boolean isContextValid(FactorContext context) {
+        if (context == null) {
+            return false;
+        }
+
+        // 기본적인 무결성 검증
+        if (context.getMfaSessionId() == null || context.getCurrentState() == null) {
+            return false;
+        }
+
+        // 터미널 상태면 캐시하지 않음 (상태 변경 가능성 없음)
+        if (context.getCurrentState().isTerminal()) {
+            return false;
+        }
+
+        // 너무 오래된 컨텍스트는 무효 처리
+        long contextAge = System.currentTimeMillis() - context.getCreatedAt();
+        if (contextAge > TimeUnit.HOURS.toMillis(1)) { // 1시간 초과
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * ✅ 개선: saveFactorContext 메서드도 캐시 업데이트 포함
      */
     @Override
     public void saveFactorContext(FactorContext context) {
-        String sessionId = context.getMfaSessionId();
-
         try {
-            distributedLockService.executeWithLock("sm:save:" + sessionId, Duration.ofSeconds(5), () -> {
+            distributedLockService.executeWithLock("sm:save:" + context.getMfaSessionId(), Duration.ofSeconds(5), () -> {
 
                 PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
-                        sessionId, 5, TimeUnit.SECONDS
+                        context.getMfaSessionId(), 5, TimeUnit.SECONDS
                 ).get(5, TimeUnit.SECONDS);
 
                 try {
                     storeFactorContextInStateMachine(pooled.getStateMachine(), context);
 
-                    // 개선: 캐시 업데이트
-                    optimisticLockManager.updateCachedContext(sessionId, context);
+                    // ✅ 개선: 저장과 동시에 캐시 업데이트
+                    optimisticLockManager.updateCachedContext(context.getMfaSessionId(), context);
+                    optimisticLockManager.updateCachedState(context.getMfaSessionId(), context.getCurrentState());
 
-                    log.trace("FactorContext saved and cached for session: {}", sessionId);
+                    log.trace("FactorContext saved and cached for session: {}", context.getMfaSessionId());
                 } finally {
-                    CompletableFuture.runAsync(() -> stateMachinePool.returnStateMachine(sessionId));
+                    CompletableFuture.runAsync(() -> stateMachinePool.returnStateMachine(context.getMfaSessionId()));
                 }
 
                 return null;
             });
         } catch (Exception e) {
-            log.error("Failed to save FactorContext for session: {}", sessionId, e);
+            log.error("Failed to save FactorContext for session: {}", context.getMfaSessionId(), e);
         }
+    }
+
+    /**
+     * ✅ 개선: releaseStateMachine에서 캐시도 정리
+     */
+    @Override
+    public void releaseStateMachine(String sessionId) {
+        log.info("Releasing optimized State Machine for session: {}", sessionId);
+
+        // 세션별 실행자 정리
+        ExecutorService executor = sessionExecutors.remove(sessionId);
+        if (executor != null) {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // 비동기 정리 작업
+        CompletableFuture.runAsync(() -> {
+            try {
+                optimisticLockManager.clearCache(sessionId);
+                // ✅ 추가: 컨텍스트 캐시도 정리
+                optimisticLockManager.invalidateContextCache(sessionId);
+                operationTimings.remove(sessionId);
+
+                eventPublisher.publishCustomEvent("SESSION_CLEANUP", Map.of(
+                        "sessionId", sessionId,
+                        "timestamp", System.currentTimeMillis(),
+                        "activeOperations", activeOperations.get()
+                ));
+            } catch (Exception e) {
+                log.error("Error releasing optimized State Machine for session: {}", sessionId, e);
+            }
+        });
     }
 
     @Override
@@ -402,44 +475,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             return false;
         }
     }
-
-    @Override
-    public void releaseStateMachine(String sessionId) {
-        log.info("Releasing optimized State Machine for session: {}", sessionId);
-
-        // 세션별 실행자 정리
-        ExecutorService executor = sessionExecutors.remove(sessionId);
-        if (executor != null) {
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        // 비동기 정리 작업
-        CompletableFuture.runAsync(() -> {
-            try {
-                optimisticLockManager.clearCache(sessionId);
-                operationTimings.remove(sessionId);
-
-                // 커스텀 이벤트 발행
-                eventPublisher.publishCustomEvent("SESSION_CLEANUP", Map.of(
-                        "sessionId", sessionId,
-                        "timestamp", System.currentTimeMillis(),
-                        "activeOperations", activeOperations.get()
-                ));
-            } catch (Exception e) {
-                log.error("Error releasing optimized State Machine for session: {}", sessionId, e);
-            }
-        });
-    }
-
-    // === 개선된 내부 메서드들 ===
 
     /**
      * 개선: 재시도 로직 실행

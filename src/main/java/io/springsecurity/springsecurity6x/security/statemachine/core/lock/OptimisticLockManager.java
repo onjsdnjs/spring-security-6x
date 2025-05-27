@@ -149,11 +149,12 @@ public class OptimisticLockManager {
     }
 
     /**
-     * 캐시 전체 무효화
+     * 전체 캐시 정리
      */
     public void clearCache(String sessionId) {
         versionMap.remove(sessionId);
         stateCache.remove(sessionId);
+        contextCache.remove(sessionId); // ✅ 추가
     }
 
     /**
@@ -201,7 +202,7 @@ public class OptimisticLockManager {
     }
 
     /**
-     * 오래된 항목 정리
+     * 오래된 항목 정리 - 컨텍스트 캐시 포함
      */
     public void cleanup(long maxAgeMillis) {
         long cutoff = System.currentTimeMillis() - maxAgeMillis;
@@ -211,13 +212,18 @@ public class OptimisticLockManager {
                 entry.getValue().lastUpdated < cutoff
         );
 
-        // 캐시 정리
+        // 상태 캐시 정리
         stateCache.entrySet().removeIf(entry ->
                 entry.getValue().isExpired()
         );
 
-        log.debug("Cleanup completed. Version entries: {}, Cache entries: {}",
-                versionMap.size(), stateCache.size());
+        // ✅ 추가: 컨텍스트 캐시 정리
+        contextCache.entrySet().removeIf(entry ->
+                entry.getValue().isExpired()
+        );
+
+        log.debug("Cleanup completed. Version entries: {}, State cache: {}, Context cache: {}",
+                versionMap.size(), stateCache.size(), contextCache.size());
     }
 
     /**

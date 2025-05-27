@@ -55,6 +55,7 @@ spring:
   auth:
     token-issuer: internal
     token-transport-type: header_cookie
+    token-store-type: REDIS
     state-type: jwt
 
     # 토큰 유효 시간

@@ -7,10 +7,17 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+/**
+ * JWT 토큰 검증기
+ *
+ * RefreshTokenStore 인터페이스를 사용하여 메모리/Redis 저장소와 독립적으로 동작합니다.
+ *
+ * @since 2025.5 - RefreshTokenStore 인터페이스 사용으로 변경
+ */
 public class JwtTokenValidator implements TokenValidator {
 
     private final TokenParser tokenParser;
-    private final RefreshTokenStore refreshTokenStore;
+    private final RefreshTokenStore refreshTokenStore;  // 인터페이스 사용
     private final long rotationThresholdMillis;
 
     public JwtTokenValidator(TokenParser tokenParser, RefreshTokenStore refreshTokenStore, long rotateThresholdMillis) {

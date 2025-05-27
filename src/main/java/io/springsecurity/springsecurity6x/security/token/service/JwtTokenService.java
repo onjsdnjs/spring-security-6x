@@ -21,17 +21,24 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.util.Assert; // Assert 추가
+import org.springframework.util.Assert;
 
-import java.util.Objects; // Objects 추가
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * JWT 기반 토큰 서비스
+ *
+ * RefreshTokenStore 인터페이스를 사용하여 메모리/Redis 저장소와 독립적으로 동작합니다.
+ *
+ * @since 2024.12 - RefreshTokenStore 인터페이스 사용으로 변경
+ */
 @Slf4j
 public class JwtTokenService implements TokenService {
 
     private final TokenCreator tokenCreator;
     private final TokenValidator tokenValidator;
-    private final RefreshTokenStore tokenStore;
+    private final RefreshTokenStore tokenStore;  // 인터페이스 사용
     private final TokenTransportStrategy transport;
     private final AuthContextProperties props;
     private final ObjectMapper objectMapper;
@@ -51,6 +58,9 @@ public class JwtTokenService implements TokenService {
         this.transport = transport;
         this.props = props;
         this.objectMapper = objectMapper;
+
+        log.info("JwtTokenService initialized with {} token store",
+                tokenStore.getClass().getSimpleName());
     }
 
     @Override
@@ -161,7 +171,6 @@ public class JwtTokenService implements TokenService {
     @Override
     public TokenTransportResult prepareClearTokens() {
         TokenServicePropertiesProvider propsProvider = new TokenServicePropertiesProvider() {
-
             @Override public long getAccessTokenValidity() { return props.getAccessTokenValidity(); }
             @Override public long getRefreshTokenValidity() { return props.getRefreshTokenValidity(); }
             @Override public String getCookiePath() { return "/"; }
@@ -206,7 +215,7 @@ public class JwtTokenService implements TokenService {
 
     @Override
     public Authentication getAuthentication(String token) {
-        return  tokenValidator.getAuthentication(token);
+        return tokenValidator.getAuthentication(token);
     }
 
     @Override
@@ -221,7 +230,7 @@ public class JwtTokenService implements TokenService {
 
     @Override
     public TokenTransportStrategy getUnderlyingTokenTransportStrategy() {
-        return null;
+        return transport;
     }
 
     @Override
@@ -234,5 +243,3 @@ public class JwtTokenService implements TokenService {
         return this.objectMapper;
     }
 }
-
-

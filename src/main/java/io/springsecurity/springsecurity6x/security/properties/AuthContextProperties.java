@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.properties;
 
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
+import io.springsecurity.springsecurity6x.security.enums.TokenStoreType;
 import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -25,6 +26,14 @@ public class AuthContextProperties {
      * 토큰 발급/검증의 방식 설정
      */
     private TokenIssuer tokenIssuer = TokenIssuer.INTERNAL;
+
+    /**
+     * 토큰 저장소 타입 설정 (MEMORY, REDIS)
+     * - MEMORY: 기존 방식, 서버 메모리에 저장 (단일 서버 환경)
+     * - REDIS: Redis를 활용한 분산 저장 (다중 서버 환경)
+     * @since 2024.12 - Redis 지원 추가
+     */
+    private TokenStoreType tokenStoreType = TokenStoreType.MEMORY;
 
     /**
      * MFA 관련 설정

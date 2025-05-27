@@ -11,7 +11,7 @@ import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
-import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.PrimaryAuthenticationSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProcessingOptions> implements AuthenticationAdapter {
@@ -156,7 +155,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
 
             if (isFirstStepInMfaFlow) {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA primary step.", getId());
-                return appContext.getBean(UnifiedAuthenticationSuccessHandler.class);
+                return appContext.getBean(PrimaryAuthenticationSuccessHandler.class);
             } else {
                 log.debug("AuthenticationFeature [{}]: Resolving successHandler for MFA intermediate factor step.", getId());
                 return appContext.getBean(MfaFactorProcessingSuccessHandler.class);

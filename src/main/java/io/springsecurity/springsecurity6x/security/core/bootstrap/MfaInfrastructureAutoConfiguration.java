@@ -9,7 +9,7 @@ import io.springsecurity.springsecurity6x.security.core.session.MfaSessionReposi
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
-import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.PrimaryAuthenticationSuccessHandler;
 import io.springsecurity.springsecurity6x.security.handler.logout.JwtLogoutHandler;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.utils.writer.JsonAuthResponseWriter;
@@ -40,12 +40,12 @@ public class MfaInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(AuthResponseWriter authResponseWriter,
+    public PrimaryAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler(AuthResponseWriter authResponseWriter,
                                                                                    MfaPolicyProvider mfaPolicyProvider,
                                                                                    ApplicationContext applicationContext,
                                                                                    MfaStateMachineIntegrator MfaStateMachineIntegrator,
                                                                                    MfaSessionRepository mfaSessionRepository) {
-        return new UnifiedAuthenticationSuccessHandler(mfaPolicyProvider, tokenService,authResponseWriter,
+        return new PrimaryAuthenticationSuccessHandler(mfaPolicyProvider, tokenService,authResponseWriter,
                                                         authContextProperties, applicationContext, MfaStateMachineIntegrator, mfaSessionRepository);
     }
 
@@ -54,9 +54,8 @@ public class MfaInfrastructureAutoConfiguration {
     public UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
                                                                                     MfaPolicyProvider mfaPolicyProvider,
                                                                                     AuthResponseWriter authResponseWriter,
-                                                                                    AuthContextProperties properties,
                                                                                     MfaSessionRepository mfaSessionRepository) {
-        return new UnifiedAuthenticationFailureHandler(mfaStateMachineIntegrator, mfaPolicyProvider, authResponseWriter, properties,mfaSessionRepository);
+        return new UnifiedAuthenticationFailureHandler(mfaStateMachineIntegrator, mfaPolicyProvider, authResponseWriter, authContextProperties,mfaSessionRepository);
     }
 
     @Bean
@@ -64,12 +63,10 @@ public class MfaInfrastructureAutoConfiguration {
     public MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
                                                                                MfaPolicyProvider mfaPolicyProvider,
                                                                                AuthResponseWriter authResponseWriter,
-                                                                               AuthContextProperties properties,
                                                                                ApplicationContext applicationContext,
-                                                                               UnifiedAuthenticationSuccessHandler successHandler,
                                                                                MfaSessionRepository mfaSessionRepository) {
-        return new MfaFactorProcessingSuccessHandler(mfaStateMachineIntegrator, mfaPolicyProvider,successHandler,
-                                                    authResponseWriter, applicationContext, properties, mfaSessionRepository);
+        return new MfaFactorProcessingSuccessHandler(mfaStateMachineIntegrator, mfaPolicyProvider, authResponseWriter,
+                applicationContext, authContextProperties, mfaSessionRepository,tokenService);
     }
 
     @Bean

@@ -41,7 +41,7 @@ public class PlatformSecurityConfig {
     private final ObjectMapper objectMapper;
     private final AuthResponseWriter authResponseWriter;
     private final EmailOneTimeTokenService emailOneTimeTokenService;
-    private final UnifiedAuthenticationSuccessHandler unifiedAuthenticationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
+    private final PrimaryAuthenticationSuccessHandler primaryAuthenticationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
@@ -124,7 +124,7 @@ public class PlatformSecurityConfig {
                         .tokenService(emailOneTimeTokenService) // 플랫폼의 EmailOneTimeTokenService 사용
                         .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
                         .loginProcessingUrl("/login/ott") // OTT 코드 제출 및 검증 URL (Spring Security의 AuthenticationFilter가 처리)
-                        .successHandler(unifiedAuthenticationSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
+                        .successHandler(primaryAuthenticationSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
                         .failureHandler(singleAuthFailureHandler("/loginOtt?error_ott"))
                         .order(110)
                 ).jwt(Customizer.withDefaults()) // 단일 OTT 로그인 후 JWT 토큰 사용
@@ -147,7 +147,7 @@ public class PlatformSecurityConfig {
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest
                                         .loginProcessingUrl("/api/auth/login") // 1차 인증 API 경로
-                                        .successHandler(unifiedAuthenticationSuccessHandler) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
+                                        .successHandler(primaryAuthenticationSuccessHandler) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
                                         .failureHandler(unifiedAuthenticationFailureHandler) // 1차 인증 실패 또는 MFA 전역 실패 시
                                 )
                         )
@@ -185,7 +185,7 @@ public class PlatformSecurityConfig {
                                 .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
                         )*/
                         // MFA 플로우 전반에 대한 설정
-                        .finalSuccessHandler(unifiedAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
+                        .finalSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
                         .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
                         .order(20) // 다른 인증 플로우(단일 Form, OTT 등)보다 우선순위 높게 설정 (선택적)

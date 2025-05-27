@@ -23,7 +23,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         extends AbstractHttpConfigurer<RestAuthenticationConfigurer<H>, H> {
 
     private String loginProcessingUrl = "/api/auth/login"; // 기본값
-    private RequestMatcher requestMatcher; // loginProcessingUrl에 따라 동적으로 설정됨
+    private RequestMatcher requestMatcher;
     private AuthenticationSuccessHandler successHandler;
     private AuthenticationFailureHandler failureHandler;
     private SecurityContextRepository securityContextRepository;
@@ -62,17 +62,12 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider cannot be null (is it shared from HttpSecurity?)");
 
-        // requestMatcher가 loginProcessingUrl에 의해 설정되었는지 확인
         if (this.requestMatcher == null) {
             this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
         }
         Assert.notNull(this.mfaInitiateUrl, "mfaInitiateUrl must be configured or have a default value.");
 
-        RestAuthenticationFilter restFilter = new RestAuthenticationFilter(
-                authenticationManager,
-                applicationContext,
-                properties
-        );
+        RestAuthenticationFilter restFilter = new RestAuthenticationFilter(requestMatcher,authenticationManager, properties);
 
         if (successHandler != null) {
             restFilter.setSuccessHandler(successHandler);

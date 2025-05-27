@@ -14,7 +14,6 @@ import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWrit
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -39,18 +38,25 @@ import java.util.Objects;
  * - State Machine에서 직접 컨텍스트 로드 및 관리
  */
 @Slf4j
-@RequiredArgsConstructor
-public class UnifiedAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+
+public class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthenticationSuccessHandler  {
 
     private final MfaPolicyProvider mfaPolicyProvider;
-    private final TokenService tokenService;
     private final AuthResponseWriter responseWriter;
     private final AuthContextProperties authContextProperties;
-    private final ApplicationContext applicationContext;
     private final RequestCache requestCache = new HttpSessionRequestCache();
     private final String defaultTargetUrl = "/home";
     private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaSessionRepository sessionRepository;
+
+    public PrimaryAuthenticationSuccessHandler(MfaPolicyProvider mfaPolicyProvider, TokenService tokenService, AuthResponseWriter responseWriter, AuthContextProperties authContextProperties, ApplicationContext applicationContext, MfaStateMachineIntegrator stateMachineIntegrator, MfaSessionRepository sessionRepository) {
+        super(tokenService,responseWriter,sessionRepository,stateMachineIntegrator,authContextProperties);
+        this.mfaPolicyProvider = mfaPolicyProvider;
+        this.responseWriter = responseWriter;
+        this.authContextProperties = authContextProperties;
+        this.stateMachineIntegrator = stateMachineIntegrator;
+        this.sessionRepository = sessionRepository;
+    }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -202,58 +208,6 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
         responseBody.put("sessionInfo", sessionInfo);
         return responseBody;
-    }
-
-    /**
-     * 개선: Repository 패턴 통합된 최종 인증 성공 처리
-     */
-    private void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                                  Authentication finalAuthentication,
-                                                  @Nullable FactorContext factorContext) throws IOException {
-        log.info("All authentication steps completed for user: {}. Issuing final tokens using {} repository.",
-                finalAuthentication.getName(), sessionRepository.getRepositoryType());
-
-        String deviceIdFromCtx = factorContext != null ?
-                (String) factorContext.getAttribute("deviceId") : null;
-
-        String accessToken = tokenService.createAccessToken(finalAuthentication, deviceIdFromCtx);
-        String refreshTokenVal = null;
-        if (tokenService.properties().isEnableRefreshToken()) {
-            refreshTokenVal = tokenService.createRefreshToken(finalAuthentication, deviceIdFromCtx);
-        }
-
-        // 개선: Repository 패턴을 통한 세션 정리 (HttpSession 직접 접근 제거)
-        if (factorContext != null && factorContext.getMfaSessionId() != null) {
-            stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
-
-            // Repository를 통한 세션 제거
-            sessionRepository.removeSession(factorContext.getMfaSessionId(), request, response);
-        }
-
-        TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
-
-        if (transportResult.getCookiesToSet() != null) {
-            for (ResponseCookie cookie : transportResult.getCookiesToSet()) {
-                response.addHeader("Set-Cookie", cookie.toString());
-            }
-        }
-
-        String redirectUrl = determineTargetUrl(request, response, finalAuthentication);
-
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("status", "SUCCESS");
-        responseBody.put("message", "인증이 완료되었습니다.");
-        responseBody.put("redirectUrl", redirectUrl);
-        responseBody.put("accessToken", accessToken);
-        if (refreshTokenVal != null) {
-            responseBody.put("refreshToken", refreshTokenVal);
-        }
-
-        // 개선: Repository 정보 추가
-        responseBody.put("repositoryType", sessionRepository.getRepositoryType());
-        responseBody.put("distributedSync", sessionRepository.supportsDistributedSync());
-
-        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }
 
     /**

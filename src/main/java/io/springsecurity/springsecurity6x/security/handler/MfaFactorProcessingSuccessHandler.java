@@ -10,12 +10,12 @@ import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
@@ -34,30 +34,31 @@ import java.util.stream.Collectors;
  * - State Machine 에서 직접 컨텍스트 로드 및 관리
  */
 @Slf4j
-public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessHandler {
+public class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenticationSuccessHandler {
 
     private final MfaPolicyProvider mfaPolicyProvider;
-    private final UnifiedAuthenticationSuccessHandler finalSuccessHandler;
     private final AuthResponseWriter responseWriter;
     private final ApplicationContext applicationContext;
     private final AuthContextProperties authContextProperties;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaSessionRepository sessionRepository;
+    private final TokenService tokenService;
 
     public MfaFactorProcessingSuccessHandler(MfaStateMachineIntegrator mfaStateMachineIntegrator,
                                              MfaPolicyProvider mfaPolicyProvider,
-                                             UnifiedAuthenticationSuccessHandler finalSuccessHandler,
                                              AuthResponseWriter responseWriter,
                                              ApplicationContext applicationContext,
                                              AuthContextProperties authContextProperties,
-                                             MfaSessionRepository sessionRepository) { // 추가
+                                             MfaSessionRepository sessionRepository,
+                                             TokenService tokenService) {
+        super(tokenService,responseWriter,sessionRepository,mfaStateMachineIntegrator,authContextProperties);
         this.mfaPolicyProvider = mfaPolicyProvider;
-        this.finalSuccessHandler = finalSuccessHandler;
         this.responseWriter = responseWriter;
         this.applicationContext = applicationContext;
         this.authContextProperties = authContextProperties;
         this.stateMachineIntegrator = mfaStateMachineIntegrator;
         this.sessionRepository = sessionRepository; // 추가
+        this.tokenService = tokenService;
     }
 
     @Override
@@ -66,7 +67,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
         log.debug("MFA Factor successfully processed for user: {} using {} repository",
                 authentication.getName(), sessionRepository.getRepositoryType());
 
-        // 개선: Repository 패턴을 통한 FactorContext 로드 (HttpSession 직접 접근 제거)
+        // Repository 패턴을 통한 FactorContext 로드
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
             handleInvalidContext(response, request, "MFA_FACTOR_SUCCESS_NO_CONTEXT",
@@ -74,7 +75,7 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             return;
         }
 
-        // 개선: Repository를 통한 세션 검증
+        // Repository를 통한 세션 검증
         if (!sessionRepository.existsSession(factorContext.getMfaSessionId())) {
             log.warn("MFA session {} not found in {} repository during factor processing success",
                     factorContext.getMfaSessionId(), sessionRepository.getRepositoryType());
@@ -82,8 +83,10 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             return;
         }
 
+        // State Machine과 동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
+        // 팩터 검증 성공 이벤트 전송
         boolean accepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.FACTOR_VERIFIED_SUCCESS, factorContext, request);
 
@@ -136,12 +139,40 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             syncContextFromStateMachine(factorContext, latestContext);
         }
 
-        if (factorContext.isCompleted()) {
+        MfaState currentState = stateMachineIntegrator.getCurrentState(factorContext.getMfaSessionId());
+        log.debug("Current state from State Machine: {} for session: {}",
+                currentState, factorContext.getMfaSessionId());
+
+        if (currentState == MfaState.ALL_FACTORS_COMPLETED || currentState == MfaState.MFA_SUCCESSFUL) {
             log.info("All MFA factors completed for user: {} using {} repository. Proceeding to final authentication success.",
                     factorContext.getUsername(), sessionRepository.getRepositoryType());
 
-            finalSuccessHandler.onAuthenticationSuccess(request, response,
-                    factorContext.getPrimaryAuthentication());
+            // 토큰 발급
+            String deviceId = (String) factorContext.getAttribute("deviceId");
+            String accessToken = tokenService.createAccessToken(
+                    factorContext.getPrimaryAuthentication(),
+                    deviceId
+            );
+
+            String refreshToken = null;
+            if (tokenService.properties().isEnableRefreshToken()) {
+                refreshToken = tokenService.createRefreshToken(
+                        factorContext.getPrimaryAuthentication(),
+                        deviceId
+                );
+            }
+
+            // State Machine 정리
+            stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
+            sessionRepository.removeSession(factorContext.getMfaSessionId(), request, response);
+
+            // 토큰을 request attribute로 전달
+            request.setAttribute("MFA_FINAL_ACCESS_TOKEN", accessToken);
+            request.setAttribute("MFA_FINAL_REFRESH_TOKEN", refreshToken);
+
+            // 최종 핸들러 호출
+            handleFinalAuthenticationSuccess(request, response,
+                    factorContext.getPrimaryAuthentication(), factorContext);
 
         } else if (factorContext.getCurrentState() == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
                 factorContext.getCurrentProcessingFactor() != null &&

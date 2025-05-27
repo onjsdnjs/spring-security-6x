@@ -1,7 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
-import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.context.ApplicationContext;
@@ -17,7 +15,6 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
 public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>>
         extends AbstractHttpConfigurer<RestAuthenticationConfigurer<H>, H> {
@@ -33,23 +30,6 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
     }
 
-    @Override
-    public void init(H http) throws Exception {
-        // PlatformContext 에서 AuthContextProperties를 가져와 mfaInitiateUrl 기본값 설정
-        PlatformContext platformContext = http.getSharedObject(PlatformContext.class);
-        if (platformContext != null) {
-            AuthContextProperties authProps = platformContext.getShared(AuthContextProperties.class);
-            // AuthContextProperties에 mfa.initiateUrl 같은 프로퍼티가 정의되어 있다고 가정
-            if (authProps != null && authProps.getMfa() != null && StringUtils.hasText(authProps.getMfa().getInitiateUrl())) {
-                this.mfaInitiateUrl = authProps.getMfa().getInitiateUrl();
-            }
-        }
-        // mfaInitiateUrl이 설정되지 않았다면 기본값 또는 예외 처리
-        if (this.mfaInitiateUrl == null) {
-            this.mfaInitiateUrl = "/mfa"; // 기본값 설정
-            // 또는 Assert.state(this.mfaInitiateUrl != null, "MFA initiate URL must be configured.");
-        }
-    }
 
     @Override
     public void configure(H http) throws Exception {
@@ -62,7 +42,6 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         if (this.requestMatcher == null) {
             this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
         }
-        Assert.notNull(this.mfaInitiateUrl, "mfaInitiateUrl must be configured or have a default value.");
 
         RestAuthenticationFilter restFilter = new RestAuthenticationFilter(requestMatcher,authenticationManager, properties);
 
@@ -99,12 +78,6 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
 
     public RestAuthenticationConfigurer<H> securityContextRepository(SecurityContextRepository repository) {
         this.securityContextRepository = repository;
-        return this;
-    }
-
-    public RestAuthenticationConfigurer<H> mfaInitiateUrl(String mfaInitiateUrl) {
-        Assert.hasText(mfaInitiateUrl, "mfaInitiateUrl must not be empty");
-        this.mfaInitiateUrl = mfaInitiateUrl;
         return this;
     }
 }

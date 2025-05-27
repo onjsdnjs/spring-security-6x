@@ -2,7 +2,6 @@ package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.filter.MfaRestAuthenticationFilter;
-import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
@@ -35,19 +34,15 @@ public final class MfaRestAuthenticationConfigurer<H extends HttpSecurityBuilder
 
     @Override
     public void init(H http) throws Exception {
-        // PlatformContext 에서 AuthContextProperties를 가져와 mfaInitiateUrl 기본값 설정
         PlatformContext platformContext = http.getSharedObject(PlatformContext.class);
         if (platformContext != null) {
             AuthContextProperties authProps = platformContext.getShared(AuthContextProperties.class);
-            // AuthContextProperties에 mfa.initiateUrl 같은 프로퍼티가 정의되어 있다고 가정
             if (authProps != null && authProps.getMfa() != null && StringUtils.hasText(authProps.getMfa().getInitiateUrl())) {
                 this.mfaInitiateUrl = authProps.getMfa().getInitiateUrl();
             }
         }
-        // mfaInitiateUrl이 설정되지 않았다면 기본값 또는 예외 처리
         if (this.mfaInitiateUrl == null) {
             this.mfaInitiateUrl = "/mfa"; // 기본값 설정
-            // 또는 Assert.state(this.mfaInitiateUrl != null, "MFA initiate URL must be configured.");
         }
     }
 

@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.adapter.StateAdapter;
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa.MfaAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import lombok.extern.slf4j.Slf4j;

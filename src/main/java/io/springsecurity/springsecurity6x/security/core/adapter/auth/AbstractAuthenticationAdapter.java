@@ -1,7 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.single.OttAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;

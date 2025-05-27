@@ -1,13 +1,11 @@
-package io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.BaseRestAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.MfaRestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.stereotype.Component;
 
 /**
  * MFA REST 인증 어댑터

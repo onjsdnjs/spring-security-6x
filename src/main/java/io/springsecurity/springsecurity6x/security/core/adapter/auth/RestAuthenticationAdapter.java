@@ -1,6 +1,5 @@
-package io.springsecurity.springsecurity6x.security.core.adapter.auth.single;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.BaseRestAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;

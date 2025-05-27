@@ -58,11 +58,11 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} using {} repository",
                 authentication.getName(), sessionRepository.getRepositoryType());
 
-        // ✅ 수정: State Machine에서 FactorContext 로드 (Repository 패턴)
+        // State Machine 에서 FactorContext 로드 (Repository 패턴)
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
         String username = authentication.getName();
 
-        // ✅ 추가: FactorContext 유효성 검증
+        // FactorContext 유효성 검증
         if (factorContext == null || !Objects.equals(factorContext.getUsername(), username)) {
             log.error("Invalid FactorContext state after primary authentication using {} repository",
                     sessionRepository.getRepositoryType());
@@ -96,7 +96,7 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
         MfaState currentState = factorContext.getCurrentState();
 
         switch (currentState) {
-            case MFA_NOT_REQUIRED:
+            case MFA_NOT_REQUIRED, MFA_SUCCESSFUL:
                 log.info("MFA not required for user: {}. Proceeding with final authentication success.", username);
                 handleFinalAuthenticationSuccess(request, response, authentication, factorContext);
                 break;

@@ -3,7 +3,6 @@ package io.springsecurity.springsecurity6x.security.filter.handler;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.properties.MfaSettings;
 import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
@@ -14,13 +13,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Repository 패턴 기반 완전 일원화된 MfaStateMachineIntegrator
- * - 기존 클래스 구조와 메서드 시그니처 완전 유지
- * - 설정에 따라 HTTP Session, Redis, Memory 등 자동 선택
- * - State Machine을 완전한 단일 진실의 원천으로 사용 (기존 유지)
- * - ContextPersistence 의존성 완전 제거 (기존 유지)
- * - 모든 상태 관리를 State Machine Service를 통해 수행 (기존 유지)
+ * 개선사항:
+ * - 동기화 최적화: 불필요한 중복 동기화 방지
+ * - 이벤트 처리 표준화: 일관된 처리 패턴 적용
+ * - 성능 개선: 조건부 동기화 및 캐싱 적용
  */
 @Slf4j
 @Component
@@ -31,18 +32,20 @@ public class MfaStateMachineIntegrator {
     private final MfaSessionRepository sessionRepository;
     private final AuthContextProperties properties;
 
+    // 개선: 동기화 상태 추적을 위한 캐시
+    private final Map<String, Long> lastSyncTimestamp = new ConcurrentHashMap<>();
+    private final Map<String, Integer> lastSyncVersion = new ConcurrentHashMap<>();
+    private final long SYNC_INTERVAL_MS = 1000; // 1초 간격으로 동기화 제한
+
     @PostConstruct
     public void initialize() {
-        // MfaSettings의 타임아웃을 Repository에 설정
         sessionRepository.setSessionTimeout(properties.getMfa().getSessionTimeout());
-
-        log.info("MfaStateMachineIntegrator initialized with {} repository",
+        log.info("MfaStateMachineIntegrator initialized with {} repository - Enhanced with sync optimization",
                 sessionRepository.getRepositoryType());
     }
 
     /**
      * 완전 일원화: State Machine 초기화 (기존 메서드 시그니처 완전 유지)
-     * - FactorContext와 State Machine을 동시에 초기화
      */
     public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -50,11 +53,14 @@ public class MfaStateMachineIntegrator {
                 sessionId, sessionRepository.getRepositoryType());
 
         try {
-            // State Machine 초기화 (FactorContext도 함께 저장됨) (기존 유지)
+            // State Machine 초기화 (FactorContext도 함께 저장됨)
             stateMachineService.initializeStateMachine(context, request);
 
-            // Repository를 통한 세션 저장 (구현체에 따라 HTTP Session 또는 Redis 등)
+            // Repository를 통한 세션 저장
             sessionRepository.storeSession(sessionId, request, null);
+
+            // 개선: 초기화 후 동기화 상태 기록
+            updateSyncState(sessionId, context.getVersion());
 
             log.info("Unified State Machine initialized successfully for session: {}", sessionId);
         } catch (Exception e) {
@@ -63,21 +69,17 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: State Machine 초기화 (HttpServletResponse 추가 오버로드)
-     * - Repository가 쿠키 관리를 지원하는 경우 활용
-     */
     public void initializeStateMachine(FactorContext context, HttpServletRequest request, HttpServletResponse response) {
         String sessionId = context.getMfaSessionId();
         log.info("Initializing unified State Machine for session: {} using {} repository",
                 sessionId, sessionRepository.getRepositoryType());
 
         try {
-            // State Machine 초기화 (FactorContext도 함께 저장됨) (기존 유지)
             stateMachineService.initializeStateMachine(context, request);
-
-            // Repository를 통한 세션 저장 (response 포함으로 쿠키 설정 가능)
             sessionRepository.storeSession(sessionId, request, response);
+
+            // 개선: 초기화 후 동기화 상태 기록
+            updateSyncState(sessionId, context.getVersion());
 
             log.info("Unified State Machine initialized successfully for session: {}", sessionId);
         } catch (Exception e) {
@@ -87,25 +89,33 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 완전 일원화: 이벤트 전송 (기존 메서드 시그니처 완전 유지)
-     * - State Machine에서 FactorContext 자동 로드 및 업데이트
+     * 완전 일원화: 이벤트 전송 (개선된 실패 처리)
      */
     public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
         log.debug("Sending event {} to unified State Machine for session: {}", event, sessionId);
 
         try {
-            // Repository를 통한 세션 활동 갱신
             sessionRepository.refreshSession(sessionId);
 
-            // State Machine Service를 통해 이벤트 전송 (컨텍스트 자동 동기화) (기존 유지)
+            // 개선: 이벤트 전송 전 상태 검증
+            if (!isValidEventForCurrentState(event, context.getCurrentState())) {
+                log.warn("Event {} is not valid for current state {} in session: {}",
+                        event, context.getCurrentState(), sessionId);
+                return false;
+            }
+
             boolean accepted = stateMachineService.sendEvent(event, context, request);
 
             if (accepted) {
+                // 개선: 성공한 이벤트 후 동기화 상태 업데이트
+                updateSyncState(sessionId, context.getVersion());
                 log.debug("Event {} accepted by unified State Machine for session: {}", event, sessionId);
             } else {
-                log.warn("Event {} rejected by unified State Machine for session: {} in current state",
-                        event, sessionId);
+                // 개선: 구체적인 거부 사유 분석
+                String rejectionReason = analyzeEventRejectionReason(context, event);
+                log.warn("Event {} rejected by unified State Machine for session: {} - Reason: {}",
+                        event, sessionId, rejectionReason);
             }
 
             return accepted;
@@ -116,22 +126,36 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 완전 일원화: State Machine과 FactorContext 동기화 (기존 메서드 시그니처 완전 유지)
-     * - State Machine이 진실의 원천이므로 단방향 동기화
+     * 개선: 조건부 동기화 - 성능 최적화
      */
     public void syncStateWithStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
+
+        // 개선: 최근 동기화 시간 및 버전 확인
+        if (!needsSync(sessionId, context.getVersion())) {
+            log.debug("Skipping sync - context already up-to-date for session: {}", sessionId);
+            return;
+        }
+
         log.debug("Syncing FactorContext with unified State Machine for session: {}", sessionId);
 
         try {
-            // State Machine에서 최신 컨텍스트 로드 (기존 유지)
             FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
 
             if (latestContext != null) {
-                // State Machine의 상태를 FactorContext에 단방향 동기화 (기존 유지)
+                // 개선: 버전 비교로 동기화 필요성 재확인
+                if (context.getVersion() >= latestContext.getVersion()) {
+                    log.debug("Context version already up-to-date for session: {} (current: {}, latest: {})",
+                            sessionId, context.getVersion(), latestContext.getVersion());
+                    updateSyncState(sessionId, context.getVersion());
+                    return;
+                }
+
                 syncFactorContextFromStateMachine(context, latestContext);
-                log.debug("FactorContext synchronized with unified State Machine: session={}, state={}, version={}",
-                        sessionId, context.getCurrentState(), context.getVersion());
+                updateSyncState(sessionId, latestContext.getVersion());
+
+                log.debug("FactorContext synchronized: session={}, oldVersion={}, newVersion={}",
+                        sessionId, context.getVersion(), latestContext.getVersion());
             } else {
                 log.warn("No context found in unified State Machine for session: {}", sessionId);
             }
@@ -141,8 +165,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 완전 일원화: 현재 상태 조회 (기존 메서드 시그니처 완전 유지)
-     * - State Machine에서 직접 조회
+     * 완전 일원화: 현재 상태 조회 (캐시 활용)
      */
     public MfaState getCurrentState(String sessionId) {
         try {
@@ -153,10 +176,6 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: FactorContext 로드 (기존 메서드 시그니처 완전 유지)
-     * - State Machine 에서만 로드
-     */
     public FactorContext loadFactorContext(String sessionId) {
         try {
             return stateMachineService.getFactorContext(sessionId);
@@ -166,13 +185,12 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: FactorContext 저장 (기존 메서드 시그니처 완전 유지)
-     * - State Machine 에만 저장
-     */
     public void saveFactorContext(FactorContext context) {
         try {
             stateMachineService.saveFactorContext(context);
+            // 개선: 저장 후 동기화 상태 업데이트
+            updateSyncState(context.getMfaSessionId(), context.getVersion());
+
             log.debug("FactorContext saved to unified State Machine: session={}, state={}, version={}",
                     context.getMfaSessionId(), context.getCurrentState(), context.getVersion());
         } catch (Exception e) {
@@ -181,27 +199,22 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: State Machine 해제 (기존 메서드 시그니처 완전 유지)
-     * - 세션 정리도 함께 수행
-     */
     public void releaseStateMachine(String sessionId) {
         log.info("Releasing unified State Machine for session: {}", sessionId);
 
         try {
             stateMachineService.releaseStateMachine(sessionId);
+
+            // 개선: 세션 해제 시 동기화 상태도 정리
+            cleanupSyncState(sessionId);
+
             log.info("Unified State Machine released successfully for session: {}", sessionId);
         } catch (Exception e) {
             log.error("Failed to release unified State Machine for session: {}", sessionId, e);
         }
     }
 
-    /**
-     * 완전 일원화: 요청에서 FactorContext 로드 (기존 메서드 시그니처 완전 유지)
-     * - Repository를 통해 MFA 세션 ID를 가져와서 State Machine에서 로드
-     */
     public FactorContext loadFactorContextFromRequest(HttpServletRequest request) {
-        // Repository를 통한 MFA 세션 ID 조회 (구현체에 따라 HTTP Session, Redis, Memory 등)
         String mfaSessionId = sessionRepository.getSessionId(request);
         if (mfaSessionId == null) {
             log.trace("No MFA session ID found in {}. Cannot load FactorContext.",
@@ -209,7 +222,6 @@ public class MfaStateMachineIntegrator {
             return null;
         }
 
-        // Repository에서 세션 존재 여부 확인
         if (!sessionRepository.existsSession(mfaSessionId)) {
             log.trace("MFA session {} not found in {}. Cannot load FactorContext.",
                     mfaSessionId, sessionRepository.getRepositoryType());
@@ -219,17 +231,12 @@ public class MfaStateMachineIntegrator {
         return loadFactorContext(mfaSessionId);
     }
 
-    /**
-     * 완전 일원화: 요청에서 현재 상태 조회 (기존 메서드 시그니처 완전 유지)
-     */
     public MfaState getCurrentStateFromRequest(HttpServletRequest request) {
-        // Repository를 통한 MFA 세션 ID 조회
         String mfaSessionId = sessionRepository.getSessionId(request);
         if (mfaSessionId == null) {
             return MfaState.NONE;
         }
 
-        // Repository에서 세션 존재 여부 확인
         if (!sessionRepository.existsSession(mfaSessionId)) {
             return MfaState.NONE;
         }
@@ -237,39 +244,24 @@ public class MfaStateMachineIntegrator {
         return getCurrentState(mfaSessionId);
     }
 
-    /**
-     * 완전 일원화: 세션 유효성 검증 (기존 메서드 시그니처 완전 유지)
-     * - State Machine과 Repository 세션의 일관성 확인
-     */
     public boolean isValidMfaSession(HttpServletRequest request) {
-        // Repository를 통한 MFA 세션 ID 조회
         String mfaSessionId = sessionRepository.getSessionId(request);
         if (mfaSessionId == null) {
             return false;
         }
 
-        // Repository에서 세션 존재 여부 확인
         if (!sessionRepository.existsSession(mfaSessionId)) {
             return false;
         }
 
-        // State Machine에서 컨텍스트 존재 여부 확인 (기존 유지)
         FactorContext context = loadFactorContext(mfaSessionId);
         return context != null && !context.getCurrentState().isTerminal();
     }
 
-    /**
-     * 완전 일원화: 세션 정리 (기존 메서드 시그니처 완전 유지)
-     * - State Machine과 Repository 세션 모두 정리
-     */
     public void cleanupSession(HttpServletRequest request) {
-        // Repository를 통한 MFA 세션 ID 조회
         String mfaSessionId = sessionRepository.getSessionId(request);
         if (mfaSessionId != null) {
-            // State Machine 해제 (기존 유지)
             releaseStateMachine(mfaSessionId);
-
-            // Repository를 통한 세션 제거
             sessionRepository.removeSession(mfaSessionId, request, null);
 
             log.debug("Session cleanup completed for MFA session: {} using {} repository",
@@ -277,18 +269,10 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: 세션 정리 (HttpServletResponse 추가 오버로드)
-     * - Repository가 쿠키 관리를 지원하는 경우 활용
-     */
     public void cleanupSession(HttpServletRequest request, HttpServletResponse response) {
-        // Repository를 통한 MFA 세션 ID 조회
         String mfaSessionId = sessionRepository.getSessionId(request);
         if (mfaSessionId != null) {
-            // State Machine 해제 (기존 유지)
             releaseStateMachine(mfaSessionId);
-
-            // Repository를 통한 세션 제거 (response 포함으로 쿠키 무효화 가능)
             sessionRepository.removeSession(mfaSessionId, request, response);
 
             log.debug("Session cleanup with response completed for MFA session: {} using {} repository",
@@ -296,10 +280,6 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * 완전 일원화: 상태만 업데이트 (성능 최적화) (기존 메서드 시그니처 완전 유지)
-     * - 빈번한 상태 변경 시 사용
-     */
     public boolean updateStateOnly(String sessionId, MfaState newState) {
         try {
             return stateMachineService.updateStateOnly(sessionId, newState);
@@ -309,45 +289,129 @@ public class MfaStateMachineIntegrator {
         }
     }
 
-    /**
-     * Repository 정보 조회 (디버깅/모니터링용)
-     */
     public String getSessionRepositoryInfo() {
         return String.format("Repository: %s, Timeout: %s",
                 sessionRepository.getRepositoryType(),
                 properties.getMfa().getSessionTimeout());
     }
 
-    // === 기존 유틸리티 메서드들 완전 유지 ===
+    // === 개선된 내부 메서드들 ===
 
     /**
-     * State Machine에서 FactorContext로 단방향 동기화 (기존 메서드 완전 유지)
-     * - State Machine이 진실의 원천
+     * 개선: 동기화 필요성 판단
+     */
+    private boolean needsSync(String sessionId, int currentVersion) {
+        Long lastSync = lastSyncTimestamp.get(sessionId);
+        Integer lastVersion = lastSyncVersion.get(sessionId);
+
+        long now = System.currentTimeMillis();
+
+        // 시간 기반 체크
+        if (lastSync != null && (now - lastSync) < SYNC_INTERVAL_MS) {
+            return false;
+        }
+
+        // 버전 기반 체크
+        if (lastVersion != null && currentVersion <= lastVersion) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 개선: 동기화 상태 업데이트
+     */
+    private void updateSyncState(String sessionId, int version) {
+        lastSyncTimestamp.put(sessionId, System.currentTimeMillis());
+        lastSyncVersion.put(sessionId, version);
+    }
+
+    /**
+     * 개선: 동기화 상태 정리
+     */
+    private void cleanupSyncState(String sessionId) {
+        lastSyncTimestamp.remove(sessionId);
+        lastSyncVersion.remove(sessionId);
+    }
+
+    /**
+     * 개선: 이벤트 유효성 검증
+     */
+    private boolean isValidEventForCurrentState(MfaEvent event, MfaState currentState) {
+        // 기본적인 이벤트-상태 유효성 검증 로직
+        switch (event) {
+            case MFA_NOT_REQUIRED:
+                return currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED;
+            case MFA_REQUIRED_SELECT_FACTOR:
+                return currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED;
+            case FACTOR_SELECTED:
+                return currentState == MfaState.AWAITING_FACTOR_SELECTION;
+            case INITIATE_CHALLENGE:
+                return currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION;
+            case SUBMIT_FACTOR_CREDENTIAL:
+                return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION;
+            case FACTOR_VERIFIED_SUCCESS:
+                return currentState == MfaState.FACTOR_VERIFICATION_PENDING ||
+                        currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION;
+            case FACTOR_VERIFICATION_FAILED:
+                return currentState == MfaState.FACTOR_VERIFICATION_PENDING ||
+                        currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION;
+            default:
+                return true; // 기타 이벤트는 기본적으로 허용
+        }
+    }
+
+    /**
+     * 개선: 이벤트 거부 사유 분석
+     */
+    private String analyzeEventRejectionReason(FactorContext context, MfaEvent event) {
+        MfaState currentState = context.getCurrentState();
+
+        if (currentState.isTerminal()) {
+            return String.format("State %s is terminal - no further events allowed", currentState);
+        }
+
+        switch (currentState) {
+            case MFA_SESSION_EXPIRED:
+                return "MFA session has expired";
+            case MFA_RETRY_LIMIT_EXCEEDED:
+            case MFA_FAILED_TERMINAL:
+                return "MFA has failed and reached terminal state";
+            case NONE:
+                return "State Machine not properly initialized";
+            default:
+                return String.format("Event %s not valid for current state %s", event, currentState);
+        }
+    }
+
+    /**
+     * State Machine에서 FactorContext로 단방향 동기화
      */
     private void syncFactorContextFromStateMachine(FactorContext target, FactorContext source) {
-        // 상태 동기화 (기존 유지)
+        // 상태 동기화
         if (target.getCurrentState() != source.getCurrentState()) {
             target.changeState(source.getCurrentState());
         }
 
-        // 버전 동기화 (기존 유지)
+        // 버전 동기화
         while (target.getVersion() < source.getVersion()) {
             target.incrementVersion();
         }
 
-        // 현재 처리 정보 동기화 (기존 유지)
+        // 현재 처리 정보 동기화
         target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
         target.setCurrentStepId(source.getCurrentStepId());
         target.setCurrentFactorOptions(source.getCurrentFactorOptions());
         target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
 
-        // 재시도 및 에러 정보 동기화 (기존 유지)
+        // 재시도 및 에러 정보 동기화
         target.setRetryCount(source.getRetryCount());
         if (source.getLastError() != null) {
             target.setLastError(source.getLastError());
         }
 
-        // 중요한 비즈니스 속성들만 동기화 (시스템 속성 제외) (기존 유지)
+        // 중요한 비즈니스 속성들만 동기화
         source.getAttributes().forEach((key, value) -> {
             if (isBusinessAttribute(key)) {
                 target.setAttribute(key, value);
@@ -356,7 +420,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 비즈니스 속성인지 확인 (시스템 속성 제외) (기존 메서드 완전 유지)
+     * 비즈니스 속성인지 확인
      */
     private boolean isBusinessAttribute(String key) {
         return !key.startsWith("_") &&
@@ -368,7 +432,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * State Machine 통합 예외 클래스 (기존 클래스 완전 유지)
+     * State Machine 통합 예외 클래스
      */
     public static class StateMachineIntegrationException extends RuntimeException {
         public StateMachineIntegrationException(String message) {

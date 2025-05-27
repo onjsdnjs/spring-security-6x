@@ -10,6 +10,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
+import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +28,10 @@ import java.util.stream.Collectors;
 
 /**
  * 완전 일원화된 DefaultMfaPolicyProvider
- * - ContextPersistence 완전 제거
- * - MfastateMachineIntegrator만 사용
- * - 모든 상태 변경은 State Machine을 통해서만
+ * 개선사항:
+ * - 이벤트 처리 표준화: 1) 상태 업데이트 2) 저장 3) 이벤트 전송 순서 보장
+ * - 예외 처리 강화: 각 단계별 실패 처리 로직 추가
+ * - 성능 최적화: 불필요한 동기화 호출 최소화
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -40,8 +42,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     private final MfaStateMachineIntegrator stateMachineIntegrator;
 
     /**
-     * 완전 일원화: MFA 요구사항 평가 및 초기 단계 결정
-     * - State Machine을 통해서만 상태 저장
+     * 개선: 표준화된 이벤트 처리 패턴으로 완전 재구성
      */
     @Override
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
@@ -55,52 +56,63 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         boolean mfaRequired = evaluateMfaRequirement(user);
-
         HttpServletRequest request = getCurrentRequest();
 
         if (!mfaRequired) {
             log.info("MFA not required for user: {}", username);
 
-            // State Machine에만 저장 (일원화)
-            ctx.setMfaRequiredAsPerPolicy(false);
-            stateMachineIntegrator.saveFactorContext(ctx);
+            // 개선: 표준 패턴 적용 - 1) 상태 업데이트 2) 저장 3) 이벤트 전송
+            boolean success = executeStandardEventPattern(
+                    ctx,
+                    () -> ctx.setMfaRequiredAsPerPolicy(false), // 상태 업데이트
+                    MfaEvent.MFA_NOT_REQUIRED,
+                    request,
+                    "MFA_NOT_REQUIRED processing for user: " + username
+            );
 
-            // State Machine에 이벤트 전송
-            if (request != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.MFA_NOT_REQUIRED, ctx, request);
+            if (!success) {
+                // 개선: 실패 시 fallback 처리
+                handleEventProcessingFailure(ctx, "MFA_NOT_REQUIRED", username);
             }
             return;
         }
 
         log.info("MFA is required for user: {}", username);
 
-        // 사용자가 등록한 MFA 요소들을 FactorContext에 저장
+        // 사용자가 등록한 MFA 요소들 확인
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
-        ctx.setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
-        ctx.setMfaRequiredAsPerPolicy(true);
 
-        // State Machine에만 저장 (일원화)
-        stateMachineIntegrator.saveFactorContext(ctx);
+        // 개선: 표준 패턴으로 MFA 필요 상태 설정
+        boolean success = executeStandardEventPattern(
+                ctx,
+                () -> {
+                    ctx.setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
+                    ctx.setMfaRequiredAsPerPolicy(true);
+                },
+                null, // 이벤트는 조건에 따라 결정
+                request,
+                "MFA setup for user: " + username
+        );
 
-        if (registeredFactors.isEmpty()) {
-            log.warn("MFA required but no factors registered for user: {}", username);
-
-            if (request != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request);
-            }
+        if (!success) {
+            handleEventProcessingFailure(ctx, "MFA_SETUP", username);
             return;
         }
 
-        // State Machine이 다음 팩터를 결정하도록 이벤트 전송
-        if (request != null) {
-            stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
+        // 등록된 팩터에 따른 이벤트 결정 및 전송
+        if (registeredFactors.isEmpty()) {
+            log.warn("MFA required but no factors registered for user: {}", username);
+            sendEventSafely(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
+                    "MFA_CONFIGURATION_REQUIRED for user: " + username);
+        } else {
+            log.debug("User {} has registered factors: {}", username, registeredFactors);
+            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                    "MFA_REQUIRED_SELECT_FACTOR for user: " + username);
         }
     }
 
     /**
-     * 완전 일원화: 다음 팩터 결정
-     * - State Machine에서 최신 상태 조회
-     * - State Machine을 통해서만 상태 저장
+     * 개선: 동기화 최적화가 적용된 다음 팩터 결정
      */
     @Override
     public void determineNextFactorToProcess(FactorContext ctx) {
@@ -108,15 +120,13 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         String sessionId = ctx.getMfaSessionId();
 
-        // State Machine에서 최신 컨텍스트 동기화 (일원화)
-        FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
-        if (latestContext != null) {
-            syncContextFromStateMachine(ctx, latestContext);
-        }
+        // 개선: 조건부 동기화 - 필요한 경우에만
+        syncWithStateMachineIfNeeded(ctx);
 
         AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
         if (mfaFlowConfig == null) {
             log.error("MFA flow configuration not found. Cannot determine next factor.");
+            handleConfigurationError(ctx, "MFA flow configuration not found");
             return;
         }
 
@@ -140,21 +150,24 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             if (nextStepConfigOpt.isPresent()) {
                 AuthenticationStepConfig nextStep = nextStepConfigOpt.get();
 
-                // 컨텍스트 업데이트
-                ctx.setCurrentProcessingFactor(nextFactorType);
-                ctx.setCurrentStepId(nextStep.getStepId());
-                ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
+                // 개선: 표준 패턴으로 다음 팩터 설정
+                boolean success = executeStandardEventPattern(
+                        ctx,
+                        () -> {
+                            ctx.setCurrentProcessingFactor(nextFactorType);
+                            ctx.setCurrentStepId(nextStep.getStepId());
+                            ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
+                        },
+                        MfaEvent.FACTOR_SELECTED,
+                        getCurrentRequest(),
+                        "Next factor determined: " + nextFactorType + " for session: " + sessionId
+                );
 
-                // State Machine에만 저장 (일원화)
-                stateMachineIntegrator.saveFactorContext(ctx);
-
-                log.info("Next MFA factor determined for user {}: Type={}, StepId={}",
-                        ctx.getUsername(), nextFactorType, nextStep.getStepId());
-
-                // State Machine에 이벤트 전송
-                HttpServletRequest request = getCurrentRequest();
-                if (request != null && stateMachineIntegrator != null) {
-                    stateMachineIntegrator.sendEvent(MfaEvent.FACTOR_SELECTED, ctx, request);
+                if (success) {
+                    log.info("Next MFA factor determined for user {}: Type={}, StepId={}",
+                            ctx.getUsername(), nextFactorType, nextStep.getStepId());
+                } else {
+                    handleEventProcessingFailure(ctx, "FACTOR_SELECTION", ctx.getUsername());
                 }
             }
         } else {
@@ -163,9 +176,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     }
 
     /**
-     * 완전 일원화: 모든 팩터 완료 확인
-     * - State Machine에서 최신 상태 조회
-     * - State Machine을 통해서만 상태 저장
+     * 개선: 모든 팩터 완료 확인 - 중복 동기화 최소화
      */
     public void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig) {
         Assert.notNull(ctx, "FactorContext cannot be null");
@@ -179,11 +190,8 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         String sessionId = ctx.getMfaSessionId();
 
-        // State Machine에서 최신 상태 동기화 (일원화)
-        FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
-        if (latestContext != null) {
-            syncContextFromStateMachine(ctx, latestContext);
-        }
+        // 개선: 필요한 경우에만 동기화
+        syncWithStateMachineIfNeeded(ctx);
 
         List<AuthenticationStepConfig> requiredSteps = getRequiredSteps(mfaFlowConfig);
 
@@ -191,103 +199,194 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             log.warn("MFA flow '{}' for user '{}' has no required steps defined. Marking as fully completed by default.",
                     mfaFlowConfig.getTypeName(), ctx.getUsername());
 
-            // State Machine에만 저장 (일원화)
-            stateMachineIntegrator.saveFactorContext(ctx);
-
-            HttpServletRequest request = getCurrentRequest();
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
-            }
+            sendEventSafely(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, getCurrentRequest(),
+                    "All factors completed (no required steps) for user: " + ctx.getUsername());
             return;
         }
 
         CompletionStatus status = evaluateCompletionStatus(ctx, requiredSteps);
-
-        // State Machine에만 저장 (일원화)
-        stateMachineIntegrator.saveFactorContext(ctx);
-
         HttpServletRequest request = getCurrentRequest();
 
+        // 완료 상태에 따른 이벤트 전송
         if (status.allRequiredCompleted && !ctx.getCompletedFactors().isEmpty()) {
             log.info("All required MFA factors completed for user: {}. MFA flow '{}' fully successful.",
                     ctx.getUsername(), mfaFlowConfig.getTypeName());
 
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request);
-            }
+            sendEventSafely(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED, ctx, request,
+                    "All required factors completed for user: " + ctx.getUsername());
+
         } else if (!ctx.getRegisteredMfaFactors().isEmpty() && ctx.getCompletedFactors().isEmpty()) {
             log.info("No MFA factors completed, but registered factors exist for user: {}. Moving to factor selection.",
                     ctx.getUsername());
 
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
-            }
+            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                    "Moving to factor selection for user: " + ctx.getUsername());
+
         } else if (ctx.getRegisteredMfaFactors().isEmpty()) {
             log.warn("MFA required for user {} but no MFA factors are registered.", ctx.getUsername());
 
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request);
-            }
+            sendEventSafely(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
+                    "MFA configuration required for user: " + ctx.getUsername());
+
         } else {
             log.info("Not all required MFA factors completed for user: {}. Missing steps: {}",
                     ctx.getUsername(), status.missingRequiredStepIds);
 
-            if (request != null && stateMachineIntegrator != null) {
-                stateMachineIntegrator.sendEvent(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request);
+            sendEventSafely(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                    "Additional factors required for user: " + ctx.getUsername());
+        }
+    }
+
+    // === 개선된 헬퍼 메서드들 ===
+
+    /**
+     * 개선: 표준화된 이벤트 처리 패턴
+     * 1) 컨텍스트 상태 업데이트 2) State Machine 저장 3) 이벤트 전송
+     */
+    private boolean executeStandardEventPattern(FactorContext ctx,
+                                                Runnable contextUpdater,
+                                                @Nullable MfaEvent event,
+                                                HttpServletRequest request,
+                                                String operationDescription) {
+        try {
+            log.debug("Executing standard event pattern: {}", operationDescription);
+
+            // 1) 컨텍스트 업데이트
+            if (contextUpdater != null) {
+                contextUpdater.run();
+            }
+
+            // 2) State Machine에 저장
+            stateMachineIntegrator.saveFactorContext(ctx);
+
+            // 3) 이벤트 전송 (있는 경우)
+            if (event != null && request != null) {
+                boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
+                if (!accepted) {
+                    log.error("Event {} was not accepted for session: {} during: {}",
+                            event, ctx.getMfaSessionId(), operationDescription);
+                    return false;
+                }
+            }
+
+            log.debug("Standard event pattern completed successfully: {}", operationDescription);
+            return true;
+
+        } catch (Exception e) {
+            log.error("Failed to execute standard event pattern: {} for session: {}",
+                    operationDescription, ctx.getMfaSessionId(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 개선: 안전한 이벤트 전송 - 실패 처리 포함
+     */
+    private boolean sendEventSafely(MfaEvent event, FactorContext ctx, HttpServletRequest request, String context) {
+        if (request == null) {
+            log.debug("No HTTP request available for event: {} in context: {}", event, context);
+            return true; // request가 없는 것은 정상적인 상황일 수 있음
+        }
+
+        try {
+            boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
+            if (!accepted) {
+                log.error("Event {} rejected in context: {} for session: {}",
+                        event, context, ctx.getMfaSessionId());
+                handleEventRejection(ctx, event, context);
+                return false;
+            }
+
+            log.debug("Event {} sent successfully in context: {}", event, context);
+            return true;
+
+        } catch (Exception e) {
+            log.error("Exception occurred while sending event {} in context: {} for session: {}",
+                    event, context, ctx.getMfaSessionId(), e);
+            handleEventException(ctx, event, context, e);
+            return false;
+        }
+    }
+
+    /**
+     * 개선: 조건부 동기화 - 필요한 경우에만 수행
+     */
+    private void syncWithStateMachineIfNeeded(FactorContext ctx) {
+        // State Machine에서 현재 상태 확인
+        MfaState currentStateInSM = stateMachineIntegrator.getCurrentState(ctx.getMfaSessionId());
+
+        // 상태가 다른 경우에만 동기화
+        if (ctx.getCurrentState() != currentStateInSM) {
+            log.debug("State mismatch detected for session: {}. Context: {}, StateMachine: {}. Syncing...",
+                    ctx.getMfaSessionId(), ctx.getCurrentState(), currentStateInSM);
+
+            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(ctx.getMfaSessionId());
+            if (latestContext != null) {
+                syncContextFromStateMachine(ctx, latestContext);
             }
         }
     }
 
     /**
-     * 완전 일원화: State Machine에서 컨텍스트 동기화
-     * - State Machine이 진실의 원천
+     * 개선: 이벤트 처리 실패 핸들링
      */
-    private void syncContextFromStateMachine(FactorContext target, FactorContext source) {
-        if (target.getCurrentState() != source.getCurrentState()) {
-            target.changeState(source.getCurrentState());
-        }
+    private void handleEventProcessingFailure(FactorContext ctx, String operation, String username) {
+        log.error("Event processing failed for operation: {} for user: {}", operation, username);
 
-        // 버전 동기화
-        while (target.getVersion() < source.getVersion()) {
-            target.incrementVersion();
-        }
+        // 시스템 오류 상태로 설정
+        ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
+        ctx.setLastError("Event processing failed: " + operation);
 
-        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
-        target.setCurrentStepId(source.getCurrentStepId());
-        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
-        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
-
-        // 중요한 속성들 동기화
-        source.getAttributes().forEach((key, value) -> {
-            if (isImportantAttribute(key)) {
-                target.setAttribute(key, value);
-            }
-        });
-
-        log.debug("Context synchronized from State Machine: sessionId={}, version={}, state={}",
-                target.getMfaSessionId(), target.getVersion(), target.getCurrentState());
-    }
-
-    private boolean isImportantAttribute(String key) {
-        return "registeredMfaFactors".equals(key) ||
-                "deviceId".equals(key) ||
-                "clientIp".equals(key) ||
-                "userAgent".equals(key) ||
-                "loginTimestamp".equals(key) ||
-                key.startsWith("challenge") ||
-                key.startsWith("verification");
+        // 저장만 하고 이벤트는 전송하지 않음 (무한 루프 방지)
+        stateMachineIntegrator.saveFactorContext(ctx);
     }
 
     /**
-     * 완전 일원화: 팩터 가용성 확인
-     * - State Machine에서 최신 상태 조회
+     * 개선: 설정 오류 처리
      */
+    private void handleConfigurationError(FactorContext ctx, String errorMessage) {
+        log.error("Configuration error for session: {} - {}", ctx.getMfaSessionId(), errorMessage);
+
+        ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
+        ctx.setLastError("Configuration error: " + errorMessage);
+        stateMachineIntegrator.saveFactorContext(ctx);
+    }
+
+    /**
+     * 개선: 이벤트 거부 시 처리
+     */
+    private void handleEventRejection(FactorContext ctx, MfaEvent event, String context) {
+        log.warn("Handling event rejection for event: {} in context: {} for session: {}",
+                event, context, ctx.getMfaSessionId());
+
+        // 현재 상태에 따른 적절한 처리
+        MfaState currentState = ctx.getCurrentState();
+        if (!currentState.isTerminal()) {
+            // 터미널 상태가 아니면 에러 정보만 기록
+            ctx.setLastError("Event rejected: " + event + " in context: " + context);
+            stateMachineIntegrator.saveFactorContext(ctx);
+        }
+    }
+
+    /**
+     * 개선: 이벤트 예외 처리
+     */
+    private void handleEventException(FactorContext ctx, MfaEvent event, String context, Exception e) {
+        log.error("Exception in event processing for event: {} in context: {} for session: {}",
+                event, context, ctx.getMfaSessionId(), e);
+
+        ctx.setLastError("Event exception: " + e.getMessage());
+        ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
+        stateMachineIntegrator.saveFactorContext(ctx);
+    }
+
+    // === 기존 메서드들 (변경 없음) ===
+
     @Override
     public boolean isFactorAvailableForUser(String username, AuthType factorType, FactorContext ctx) {
         Assert.hasText(username, "Username cannot be empty.");
         Assert.notNull(factorType, "FactorType cannot be null.");
 
-        // State Machine에서 최신 컨텍스트 확인 (일원화)
         if (ctx != null) {
             String sessionId = ctx.getMfaSessionId();
             FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
@@ -300,7 +399,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             }
         }
 
-        // DB에서 확인 (Fallback)
         Optional<Users> userOptional = userRepository.findByUsername(username);
         if (userOptional.isEmpty()) {
             log.warn("User not found for MFA availability check: {}", username);
@@ -310,8 +408,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Users user = userOptional.get();
         return parseRegisteredMfaFactorsFromUser(user).contains(factorType);
     }
-
-    // === 기존 메서드들 유지 (변경 없음) ===
 
     @Override
     public RetryPolicy getRetryPolicyForFactor(AuthType factorType, FactorContext ctx) {
@@ -363,7 +459,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         };
     }
 
-    // === 내부 유틸리티 메서드들 (변경 없음) ===
+    // === 기존 내부 유틸리티 메서드들 (변경 없음) ===
 
     private boolean evaluateMfaRequirement(Users user) {
         if ("ROLE_ADMIN".equals(user.getRoles())) {
@@ -524,6 +620,43 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         ServletRequestAttributes attrs = (ServletRequestAttributes)
                 RequestContextHolder.getRequestAttributes();
         return attrs != null ? attrs.getRequest() : null;
+    }
+
+    /**
+     * State Machine에서 컨텍스트 동기화
+     */
+    private void syncContextFromStateMachine(FactorContext target, FactorContext source) {
+        if (target.getCurrentState() != source.getCurrentState()) {
+            target.changeState(source.getCurrentState());
+        }
+
+        while (target.getVersion() < source.getVersion()) {
+            target.incrementVersion();
+        }
+
+        target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
+        target.setCurrentStepId(source.getCurrentStepId());
+        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
+        target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
+
+        source.getAttributes().forEach((key, value) -> {
+            if (isImportantAttribute(key)) {
+                target.setAttribute(key, value);
+            }
+        });
+
+        log.debug("Context synchronized from State Machine: sessionId={}, version={}, state={}",
+                target.getMfaSessionId(), target.getVersion(), target.getCurrentState());
+    }
+
+    private boolean isImportantAttribute(String key) {
+        return "registeredMfaFactors".equals(key) ||
+                "deviceId".equals(key) ||
+                "clientIp".equals(key) ||
+                "userAgent".equals(key) ||
+                "loginTimestamp".equals(key) ||
+                key.startsWith("challenge") ||
+                key.startsWith("verification");
     }
 
     // 내부 클래스 - 완료 상태 정보

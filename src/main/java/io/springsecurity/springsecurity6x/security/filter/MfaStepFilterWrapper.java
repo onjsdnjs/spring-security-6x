@@ -157,7 +157,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     }
 
     /**
-     * 완전 일원화: State Machine에서만 FactorContext 로드
+     * 완전 일원화: State Machine 에서만 FactorContext 로드
      */
     private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
         HttpSession session = request.getSession(false);

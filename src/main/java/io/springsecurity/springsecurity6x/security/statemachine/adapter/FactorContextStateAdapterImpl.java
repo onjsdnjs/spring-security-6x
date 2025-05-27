@@ -31,7 +31,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
     public Map<Object, Object> toStateMachineVariables(FactorContext factorContext) {
         Map<Object, Object> variables = new HashMap<>();
 
-        // ✅ 개선: 핵심 필드만 직렬화
+        // 핵심 필드만 직렬화
         variables.put("mfaSessionId", factorContext.getMfaSessionId());
         variables.put("username", factorContext.getUsername());
         variables.put("flowTypeName", factorContext.getFlowTypeName());
@@ -51,10 +51,10 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
         // MFA 정책 정보 (필수)
         variables.put("mfaRequiredAsPerPolicy", factorContext.isMfaRequiredAsPerPolicy());
 
-        // ✅ 개선: 복잡한 객체는 레퍼런스만 저장
+        // 복잡한 객체는 레퍼런스만 저장
         variables.put("primaryAuthentication", factorContext.getPrimaryAuthentication());
 
-        // ✅ 개선: 메타데이터 최소화
+        // 메타데이터 최소화
         variables.put("_serializedAt", System.currentTimeMillis());
         variables.put("_adapterVersion", "2.1");
 

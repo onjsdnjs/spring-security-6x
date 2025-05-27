@@ -154,7 +154,7 @@ public class OptimisticLockManager {
     public void clearCache(String sessionId) {
         versionMap.remove(sessionId);
         stateCache.remove(sessionId);
-        contextCache.remove(sessionId); // ✅ 추가
+        contextCache.remove(sessionId); //
     }
 
     /**

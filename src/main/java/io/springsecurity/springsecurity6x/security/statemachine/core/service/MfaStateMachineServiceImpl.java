@@ -275,7 +275,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
     @Override
     public FactorContext getFactorContext(String sessionId) {
-        // ✅ 수정: 캐시 확인 로직 개선
+        // 캐시 확인 로직 개선
         FactorContext cachedContext = optimisticLockManager.getCachedContext(sessionId);
         if (cachedContext != null) {
             // 캐시된 컨텍스트의 유효성 검증
@@ -300,7 +300,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     FactorContext context = reconstructFactorContextFromStateMachine(pooled.getStateMachine());
 
                     if (context != null) {
-                        // ✅ 개선: 상태와 컨텍스트 모두 캐시에 저장
+                        // 상태와 컨텍스트 모두 캐시에 저장
                         optimisticLockManager.updateCachedState(sessionId, context.getCurrentState());
                         optimisticLockManager.updateCachedContext(sessionId, context);
 
@@ -319,7 +319,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     /**
-     * ✅ 추가: 캐시된 컨텍스트 유효성 검증
+     * 캐시된 컨텍스트 유효성 검증
      */
     private boolean isContextValid(FactorContext context) {
         if (context == null) {
@@ -346,7 +346,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     /**
-     * ✅ 개선: saveFactorContext 메서드도 캐시 업데이트 포함
+     * saveFactorContext 메서드도 캐시 업데이트 포함
      */
     @Override
     public void saveFactorContext(FactorContext context) {
@@ -360,7 +360,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 try {
                     storeFactorContextInStateMachine(pooled.getStateMachine(), context);
 
-                    // ✅ 개선: 저장과 동시에 캐시 업데이트
+                    // 저장과 동시에 캐시 업데이트
                     optimisticLockManager.updateCachedContext(context.getMfaSessionId(), context);
                     optimisticLockManager.updateCachedState(context.getMfaSessionId(), context.getCurrentState());
 
@@ -377,7 +377,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     /**
-     * ✅ 개선: releaseStateMachine에서 캐시도 정리
+     * releaseStateMachine에서 캐시도 정리
      */
     @Override
     public void releaseStateMachine(String sessionId) {
@@ -401,7 +401,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         CompletableFuture.runAsync(() -> {
             try {
                 optimisticLockManager.clearCache(sessionId);
-                // ✅ 추가: 컨텍스트 캐시도 정리
+                // 컨텍스트 캐시도 정리
                 optimisticLockManager.invalidateContextCache(sessionId);
                 operationTimings.remove(sessionId);
 

@@ -66,8 +66,7 @@ public class RefreshTokenStoreFactory {
                 }
                 log.info("Using Redis-based refresh token store (distributed mode)");
                 // lockService와 eventPublisher는 null일 수 있음 (선택적)
-                return new RedisRefreshTokenStore(redisTemplate, tokenParser, props,
-                        lockService, eventPublisher);
+                return new RedisRefreshTokenStore(redisTemplate, tokenParser, props, lockService, eventPublisher);
 
             default:
                 log.warn("Unknown token store type: {}. Using default MEMORY store.", storeType);

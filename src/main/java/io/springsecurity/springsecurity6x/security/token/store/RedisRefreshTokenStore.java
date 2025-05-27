@@ -98,6 +98,17 @@ public class RedisRefreshTokenStore extends AbstractRefreshTokenStore implements
     }
 
     /**
+     * 표준 기능 생성자 (분산 락과 이벤트 발행 포함, 보안 강화 기능 제외)
+     */
+    public RedisRefreshTokenStore(StringRedisTemplate redisTemplate,
+                                  TokenParser tokenParser,
+                                  AuthContextProperties props,
+                                  RedisDistributedLockService lockService,
+                                  RedisEventPublisher eventPublisher) {
+        this(redisTemplate, tokenParser, props, lockService, eventPublisher, null, null, null);
+    }
+
+    /**
      * 전체 기능 생성자
      */
     public RedisRefreshTokenStore(StringRedisTemplate redisTemplate,

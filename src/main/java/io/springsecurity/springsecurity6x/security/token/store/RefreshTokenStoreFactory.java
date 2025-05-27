@@ -35,7 +35,7 @@ public class RefreshTokenStoreFactory {
     }
 
     /**
-     * RefreshTokenStore 구현체 생성 (전체 의존성)
+     * RefreshTokenStore 구현체 생성 (표준 기능)
      *
      * @param tokenParser JWT 토큰 파서
      * @param props 인증 설정 프로퍼티
@@ -65,8 +65,8 @@ public class RefreshTokenStoreFactory {
                     return new JwtRefreshTokenStore(tokenParser, props);
                 }
                 log.info("Using Redis-based refresh token store (distributed mode)");
-                // lockService와 eventPublisher는 null일 수 있음 (선택적)
-                return new RedisRefreshTokenStore(redisTemplate, tokenParser, props, lockService, eventPublisher);
+                return new RedisRefreshTokenStore(redisTemplate, tokenParser, props,
+                        lockService, eventPublisher);
 
             default:
                 log.warn("Unknown token store type: {}. Using default MEMORY store.", storeType);
@@ -83,6 +83,6 @@ public class RefreshTokenStoreFactory {
      */
     public static RefreshTokenStore create(TokenParser tokenParser,
                                            AuthContextProperties props) {
-        return create(tokenParser, props, null, null, null);
+        return create(tokenParser, props, null);
     }
 }

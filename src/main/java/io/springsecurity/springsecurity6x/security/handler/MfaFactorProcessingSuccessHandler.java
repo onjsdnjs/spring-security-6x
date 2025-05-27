@@ -238,12 +238,6 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
             try {
                 stateMachineIntegrator.releaseStateMachine(oldSessionId);
                 sessionRepository.removeSession(oldSessionId, request, null);
-
-                // HttpSession에서도 정리 (호환성 유지)
-                HttpSession session = request.getSession(false);
-                if (session != null) {
-                    session.removeAttribute("MFA_SESSION_ID");
-                }
             } catch (Exception e) {
                 log.warn("Failed to release invalid session using {} repository: {}",
                         sessionRepository.getRepositoryType(), oldSessionId, e);
@@ -255,31 +249,6 @@ public class MfaFactorProcessingSuccessHandler implements AuthenticationSuccessH
 
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, errorCode,
                 "MFA 세션 컨텍스트 오류: " + logMessage, request.getRequestURI(), errorResponse);
-    }
-
-    /**
-     * 완전 일원화: State Machine에서만 FactorContext 로드
-     */
-    private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            log.trace("No HttpSession found for request. Cannot load FactorContext.");
-            return null;
-        }
-
-        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-        if (mfaSessionId == null) {
-            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
-            return null;
-        }
-
-        try {
-            // State Machine에서 직접 로드 (일원화)
-            return stateMachineIntegrator.loadFactorContext(mfaSessionId);
-        } catch (Exception e) {
-            log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
-            return null;
-        }
     }
 
     /**

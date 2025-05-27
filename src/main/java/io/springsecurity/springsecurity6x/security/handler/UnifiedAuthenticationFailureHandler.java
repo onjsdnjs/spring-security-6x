@@ -243,13 +243,6 @@ public class UnifiedAuthenticationFailureHandler implements AuthenticationFailur
         try {
             stateMachineIntegrator.releaseStateMachine(mfaSessionId);
             sessionRepository.removeSession(mfaSessionId, request, response);
-
-            // HttpSession 에서도 정리 (호환성 유지)
-            HttpSession session = request.getSession(false);
-            if (session != null) {
-                session.removeAttribute("MFA_SESSION_ID");
-            }
-
             log.debug("Session cleanup completed using {} repository for MFA session: {}",
                     sessionRepository.getRepositoryType(), mfaSessionId);
         } catch (Exception e) {

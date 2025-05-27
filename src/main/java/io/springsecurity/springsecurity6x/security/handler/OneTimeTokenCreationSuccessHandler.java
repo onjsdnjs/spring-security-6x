@@ -129,38 +129,4 @@ public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGeneratio
                 sessionRepository.getRepositoryType();
         response.sendRedirect(redirectUrl);
     }
-
-    /**
-     * 완전 일원화: State Machine에서만 FactorContext 로드
-     */
-    private FactorContext loadContextFromStateMachine(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            log.trace("No HttpSession found for request. Cannot load FactorContext.");
-            return null;
-        }
-
-        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-        if (mfaSessionId == null) {
-            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
-            return null;
-        }
-
-        try {
-            // State Machine에서 직접 로드 (일원화)
-            FactorContext context = mfaStateMachineIntegrator.loadFactorContext(mfaSessionId);
-
-            if (context != null) {
-                log.debug("FactorContext loaded from unified State Machine for OTT generation: sessionId={}, state={}",
-                        context.getMfaSessionId(), context.getCurrentState());
-            } else {
-                log.debug("No FactorContext found in unified State Machine for session: {}", mfaSessionId);
-            }
-
-            return context;
-        } catch (Exception e) {
-            log.error("Failed to load FactorContext from unified State Machine for session: {}", mfaSessionId, e);
-            return null;
-        }
-    }
 }

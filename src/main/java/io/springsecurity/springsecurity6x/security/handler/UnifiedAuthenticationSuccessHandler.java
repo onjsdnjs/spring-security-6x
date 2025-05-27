@@ -215,12 +215,6 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
 
             // Repository를 통한 세션 제거
             sessionRepository.removeSession(factorContext.getMfaSessionId(), request, response);
-
-            // HttpSession 에서도 MFA 세션 ID 제거 (호환성 유지)
-            HttpSession session = request.getSession(false);
-            if (session != null) {
-                session.removeAttribute("MFA_SESSION_ID");
-            }
         }
 
         TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
@@ -265,12 +259,6 @@ public class UnifiedAuthenticationSuccessHandler implements AuthenticationSucces
             try {
                 stateMachineIntegrator.releaseStateMachine(oldSessionId);
                 sessionRepository.removeSession(oldSessionId, request, response);
-
-                // HttpSession에서도 정리 (호환성 유지)
-                HttpSession session = request.getSession(false);
-                if (session != null) {
-                    session.removeAttribute("MFA_SESSION_ID");
-                }
             } catch (Exception e) {
                 log.warn("Failed to cleanup invalid session using {} repository: {}",
                         sessionRepository.getRepositoryType(), oldSessionId, e);

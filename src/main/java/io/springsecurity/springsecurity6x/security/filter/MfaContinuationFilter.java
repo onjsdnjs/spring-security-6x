@@ -122,18 +122,11 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         log.warn("Invalid MFA context for request: {} using {} repository",
                 request.getRequestURI(), sessionRepository.getRepositoryType());
 
-        // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
         String oldSessionId = sessionRepository.getSessionId(request);
         if (oldSessionId != null) {
             try {
                 stateMachineIntegrator.releaseStateMachine(oldSessionId);
                 sessionRepository.removeSession(oldSessionId, request, response);
-
-                // HttpSession 정리 (기존 로직 유지)
-                HttpSession session = request.getSession(false);
-                if (session != null) {
-                    session.removeAttribute("MFA_SESSION_ID");
-                }
             } catch (Exception e) {
                 log.warn("Failed to cleanup invalid session: {}", oldSessionId, e);
             }

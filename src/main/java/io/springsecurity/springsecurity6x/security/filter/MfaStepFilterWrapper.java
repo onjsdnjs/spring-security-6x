@@ -168,31 +168,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * 완전 일원화: State Machine 에서만 FactorContext 로드
-     */
-    private FactorContext loadFactorContextFromStateMachine(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            log.trace("No HttpSession found for request. Cannot load FactorContext.");
-            return null;
-        }
-
-        String mfaSessionId = (String) session.getAttribute("MFA_SESSION_ID");
-        if (mfaSessionId == null) {
-            log.trace("No MFA session ID found in session. Cannot load FactorContext.");
-            return null;
-        }
-
-        try {
-            // State Machine 에서 직접 로드 (일원화)
-            return stateMachineIntegrator.loadFactorContext(mfaSessionId);
-        } catch (Exception e) {
-            log.error("Failed to load FactorContext from State Machine for session: {}", mfaSessionId, e);
-            return null;
-        }
-    }
-
     private boolean isValidFactorProcessingContext(FactorContext ctx) {
         return ctx != null &&
                 ctx.getCurrentProcessingFactor() != null &&

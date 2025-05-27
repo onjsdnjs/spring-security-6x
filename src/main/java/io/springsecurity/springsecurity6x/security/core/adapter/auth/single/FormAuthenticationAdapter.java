@@ -1,5 +1,7 @@
-package io.springsecurity.springsecurity6x.security.core.adapter.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth.single;
 
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.AbstractAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
@@ -21,7 +23,7 @@ public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapt
 
     @Override
     protected void configureHttpSecurity(HttpSecurity http, FormOptions opts,
-                                         AuthenticationSuccessHandler successHandler,
+                                         AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler,
                                          AuthenticationFailureHandler failureHandler) throws Exception {
         http.formLogin(form -> {
             form.loginPage(opts.getLoginPage())

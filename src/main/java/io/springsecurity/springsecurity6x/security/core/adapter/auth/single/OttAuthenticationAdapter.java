@@ -1,5 +1,7 @@
-package io.springsecurity.springsecurity6x.security.core.adapter.auth;
+package io.springsecurity.springsecurity6x.security.core.adapter.auth.single;
 
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.AbstractAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +25,7 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
 
     @Override
     protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
-                                         AuthenticationSuccessHandler successHandler, // 이 메소드는 Ott에서는 사용 안 함
+                                         AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler, // 이 메소드는 Ott에서는 사용 안 함
                                          AuthenticationFailureHandler failureHandler) throws Exception {
         throw new UnsupportedOperationException(
                 "OttAuthenticationAdapter uses OneTimeTokenGenerationSuccessHandler. Call configureHttpSecurityForOtt instead."

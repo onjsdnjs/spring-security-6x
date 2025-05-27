@@ -79,10 +79,10 @@ public final class DefaultSecurityConfigurerProvider implements SecurityConfigur
             List<AuthenticationFlowConfig> singleFlowList = Collections.singletonList(currentFlow);
 
             featureRegistry.getAuthFeaturesFor(singleFlowList)
-                    .forEach(feature -> {
-                        flowSpecificAdapters.add(new AuthFeatureConfigurerAdapter(feature));
-                        log.debug("  Added AuthFeatureConfigurerAdapter for feature '{}' relevant to flow '{}'.",
-                                feature.getId(), currentFlow.getTypeName());
+                    .forEach(adapter -> {
+                        flowSpecificAdapters.add(new AuthFeatureConfigurerAdapter(adapter));
+                        log.debug("  Added AuthFeatureConfigurerAdapter for adapter '{}' relevant to flow '{}'.",
+                                adapter.getId(), currentFlow.getTypeName());
                     });
 
             featureRegistry.getStateFeaturesFor(singleFlowList)

@@ -68,7 +68,7 @@ public final class PrimaryAuthDslConfigurerImpl<H extends HttpSecurityBuilder<H>
 
         } else if (restLoginCustomizer != null) {
             RestDslConfigurerImpl restDslBuilder = (RestDslConfigurerImpl) factory.createFactorConfigurer(
-                    AuthType.REST, RestDslConfigurer.class
+                    AuthType.MFA_REST, RestDslConfigurer.class
             );
             restDslBuilder.setApplicationContext(this.applicationContext);
             restLoginCustomizer.customize(restDslBuilder);

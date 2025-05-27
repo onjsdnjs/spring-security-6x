@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
-import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.filter.MfaRestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.context.ApplicationContext;
@@ -19,8 +19,8 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>>
-        extends AbstractHttpConfigurer<RestAuthenticationConfigurer<H>, H> {
+public final class MfaRestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>>
+        extends AbstractHttpConfigurer<MfaRestAuthenticationConfigurer<H>, H> {
 
     private String loginProcessingUrl = "/api/auth/login"; // 기본값
     private RequestMatcher requestMatcher;
@@ -29,7 +29,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
     private SecurityContextRepository securityContextRepository;
     private String mfaInitiateUrl;
 
-    public RestAuthenticationConfigurer() {
+    public MfaRestAuthenticationConfigurer() {
         this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
     }
 
@@ -64,7 +64,7 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         }
         Assert.notNull(this.mfaInitiateUrl, "mfaInitiateUrl must be configured or have a default value.");
 
-        RestAuthenticationFilter restFilter = new RestAuthenticationFilter(requestMatcher,authenticationManager, properties);
+        MfaRestAuthenticationFilter restFilter = new MfaRestAuthenticationFilter(authenticationManager, applicationContext,properties, requestMatcher);
 
         if (successHandler != null) {
             restFilter.setSuccessHandler(successHandler);
@@ -80,29 +80,29 @@ public final class RestAuthenticationConfigurer<H extends HttpSecurityBuilder<H>
         http.addFilterBefore(postProcess(restFilter), UsernamePasswordAuthenticationFilter.class);
     }
 
-    public RestAuthenticationConfigurer<H> loginProcessingUrl(String loginProcessingUrl) {
+    public MfaRestAuthenticationConfigurer<H> loginProcessingUrl(String loginProcessingUrl) {
         Assert.hasText(loginProcessingUrl, "loginProcessingUrl must not be null or empty");
         this.loginProcessingUrl = loginProcessingUrl;
         this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
         return this;
     }
 
-    public RestAuthenticationConfigurer<H> successHandler(AuthenticationSuccessHandler successHandler) {
+    public MfaRestAuthenticationConfigurer<H> successHandler(AuthenticationSuccessHandler successHandler) {
         this.successHandler = successHandler;
         return this;
     }
 
-    public RestAuthenticationConfigurer<H> failureHandler(AuthenticationFailureHandler failureHandler) {
+    public MfaRestAuthenticationConfigurer<H> failureHandler(AuthenticationFailureHandler failureHandler) {
         this.failureHandler = failureHandler;
         return this;
     }
 
-    public RestAuthenticationConfigurer<H> securityContextRepository(SecurityContextRepository repository) {
+    public MfaRestAuthenticationConfigurer<H> securityContextRepository(SecurityContextRepository repository) {
         this.securityContextRepository = repository;
         return this;
     }
 
-    public RestAuthenticationConfigurer<H> mfaInitiateUrl(String mfaInitiateUrl) {
+    public MfaRestAuthenticationConfigurer<H> mfaInitiateUrl(String mfaInitiateUrl) {
         Assert.hasText(mfaInitiateUrl, "mfaInitiateUrl must not be empty");
         this.mfaInitiateUrl = mfaInitiateUrl;
         return this;

@@ -1,5 +1,6 @@
-io.springsecurity.springsecurity6x.security.core.adapter.auth.FormAuthenticationAdapter
-io.springsecurity.springsecurity6x.security.core.adapter.auth.RestAuthenticationAdapter
-io.springsecurity.springsecurity6x.security.core.adapter.auth.OttAuthenticationAdapter
-io.springsecurity.springsecurity6x.security.core.adapter.auth.PasskeyAuthenticationAdapter
-io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.single.FormAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.single.RestAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa.MfaRestAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.single.OttAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.single.PasskeyAuthenticationAdapter
+io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa.MfaAuthenticationAdapter

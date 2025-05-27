@@ -8,6 +8,8 @@ public enum AuthType {
     PASSKEY,
     OTT,
     MFA,
+    MFA_FORM,
+    MFA_REST,
     RECOVERY_CODE,
     PRIMARY
 }

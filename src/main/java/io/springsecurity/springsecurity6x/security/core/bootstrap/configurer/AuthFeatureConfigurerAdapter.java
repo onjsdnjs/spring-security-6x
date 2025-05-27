@@ -5,7 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
-import io.springsecurity.springsecurity6x.security.core.adapter.auth.MfaAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.mfa.MfaAuthenticationAdapter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -16,13 +16,13 @@ import java.util.Objects; // Objects.requireNonNull 추가를 위해 import
  */
 @Slf4j
 public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
-    private final AuthenticationAdapter feature;
+    private final AuthenticationAdapter adapter;
 
     /**
-     * @param feature 인증 기능 구현체
+     * @param adapter 인증 기능 구현체
      */
-    public AuthFeatureConfigurerAdapter(AuthenticationAdapter feature) {
-        this.feature = Objects.requireNonNull(feature, "AuthenticationFeature cannot be null"); // Null 체크 추가
+    public AuthFeatureConfigurerAdapter(AuthenticationAdapter adapter) {
+        this.adapter = Objects.requireNonNull(adapter, "AuthenticationFeature cannot be null"); // Null 체크 추가
     }
 
     @Override
@@ -41,13 +41,13 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
         List<AuthenticationStepConfig> steps = fc.flow().getStepConfigs();
 
         // 1. MfaAuthenticationFeature인 경우 특별 처리
-        if (feature instanceof MfaAuthenticationAdapter) {
+        if (adapter instanceof MfaAuthenticationAdapter) {
             // MfaAuthenticationFeature는 전체 MFA 흐름을 구성하므로,
             // 특정 step.type()과 매칭되지 않아도 모든 stepConfigs를 전달하여 적용될 수 있음.
             // 또는, flowConfig.typeName()이 "mfa"일 때만 적용하도록 조건 추가 가능.
             if ("mfa".equalsIgnoreCase(fc.flow().getTypeName())) {
                 log.debug("Applying MfaAuthenticationFeature for flow: {}", fc.flow().getTypeName());
-                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
+                adapter.apply(fc.http(), steps, fc.flow().getStateConfig());
             }
             // MfaAuthenticationFeature가 적용된 후에는 다른 개별 step feature 들이 중복 적용되지 않도록 주의 필요.
             // 현재 로직은 MfaAuthenticationFeature가 적용된 후에도 아래의 루프가 실행될 수 있음.
@@ -76,7 +76,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
             //    그리고 아래 루프는 MfaAuthenticationFeature가 아닌 다른 일반 feature에 대해서만 동작하도록 수정.
 
             if ("mfa".equalsIgnoreCase(fc.flow().getTypeName())) { // MfaAuthenticationFeature는 MFA 타입의 flow에만 적용
-                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
+                adapter.apply(fc.http(), steps, fc.flow().getStateConfig());
                 // MfaAuthenticationFeature가 모든 하위 스텝 설정을 포함하여 처리한다고 가정하면,
                 // 이 특정 feature에 대한 작업은 여기서 완료되므로 return 할 수 있습니다.
                 // 또는, 아래 루프에서 이 feature를 제외하도록 합니다.
@@ -84,19 +84,19 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
             }
         }
 
-        // 2. 일반 AuthenticationFeature 처리
+        // 2. 일반 AuthenticationAdapter 처리
         if (steps == null || steps.isEmpty()) { // steps가 null일 수도 있으므로 체크
-            log.trace("No steps configured for flow: {}, feature: {}", fc.flow().getTypeName(), feature.getId());
+            log.trace("No steps configured for flow: {}, feature: {}", fc.flow().getTypeName(), adapter.getId());
             return;
         }
 
         boolean applied = false; // Feature가 한 번만 적용되도록 플래그 사용
         for (AuthenticationStepConfig step : steps) {
-            if (step != null && feature.getId().equalsIgnoreCase(step.getType())) {
+            if (step != null && adapter.getId().equalsIgnoreCase(step.getType())) {
                 // 해당 feature에 대해 첫 번째 매칭되는 step 에서만 apply 호출
-                log.info("Applying feature: {} for step type: {} in flow: {}", feature.getId(), step.getType(), fc.flow().getTypeName());
+                log.info("Applying feature: {} for step type: {} in flow: {}", adapter.getId(), step.getType(), fc.flow().getTypeName());
                 // AuthenticationFeature.apply는 해당 feature와 관련된 모든 steps 설정을 사용할 수 있도록 전체 steps를 전달
-                feature.apply(fc.http(), steps, fc.flow().getStateConfig());
+                adapter.apply(fc.http(), steps, fc.flow().getStateConfig());
                 applied = true; // 이 Feature에 대한 적용이 완료되었음을 표시
                 // 일반적으로 하나의 AuthenticationFeature는 하나의 SecurityFilterChain에서 한 번만 주요 설정을 담당.
                 // 만약 동일 타입의 step이 여러 개 있고 각기 다르게 설정되어야 한다면,
@@ -106,7 +106,7 @@ public class AuthFeatureConfigurerAdapter implements SecurityConfigurer {
             }
         }
         if (!applied) {
-            log.info("Feature: {} was not applicable to any step in flow: {}", feature.getId(), fc.flow().getTypeName());
+            log.info("Feature: {} was not applicable to any step in flow: {}", adapter.getId(), fc.flow().getTypeName());
         }
     }
 

@@ -111,15 +111,14 @@ public class PlatformSecurityConfig {
 //                .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
 
                 // --- 단일 인증 방식들 (MFA와 별개로 동작 가능) ---
-                /*.form(form -> form
-                        .loginPage("/loginForm")
+                .rest(rest -> rest
+//                        .loginPage("/loginForm")
                         .loginProcessingUrl("/login") // Spring Security의 UsernamePasswordAuthenticationFilter가 처리
-                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
-                        .failureHandler(singleAuthFailureHandler("/loginForm?error"))
-                        .permitAll()
+//                        .successHandler(jwtEmittingAndMfaAwareSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
+//                        .failureHandler(singleAuthFailureHandler("/loginForm?error"))
+//                        .permitAll()
                         .order(100) // 다른 인증 방식과의 순서
                 ).jwt(Customizer.withDefaults()) // Form 로그인 후 JWT 토큰 사용
-*/
                 .ott(ott -> ott // 단일 OTT 로그인 설정
                         .tokenService(emailOneTimeTokenService) // 플랫폼의 EmailOneTimeTokenService 사용
                         .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)

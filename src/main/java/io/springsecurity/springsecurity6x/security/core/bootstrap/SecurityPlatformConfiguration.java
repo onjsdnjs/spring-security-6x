@@ -12,6 +12,7 @@ import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContextFactory;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.validator.*;
+import io.springsecurity.springsecurity6x.security.filter.MfaRestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationFilter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.Filter;
@@ -70,6 +71,7 @@ public class SecurityPlatformConfiguration {
         Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,
                 "rest", RestAuthenticationFilter.class,
+                "mfa_rest", MfaRestAuthenticationFilter.class,
                 "ott", OneTimeTokenAuthenticationFilter.class,
                 "passkey", WebAuthnAuthenticationFilter.class
         );

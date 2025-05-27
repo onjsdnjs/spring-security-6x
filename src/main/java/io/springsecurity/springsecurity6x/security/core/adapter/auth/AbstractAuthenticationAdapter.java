@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.single.OttAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
@@ -35,7 +36,7 @@ import java.util.Objects;
 public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProcessingOptions> implements AuthenticationAdapter {
 
     protected abstract void configureHttpSecurity(HttpSecurity http, O options,
-                                                  AuthenticationSuccessHandler successHandler,
+                                                  AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler,
                                                   AuthenticationFailureHandler failureHandler) throws Exception;
 
     protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions options,
@@ -73,7 +74,6 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         log.debug("AuthenticationFeature [{}]: Applying for its relevant step: {} in flow: {}",
                 getId(), myRelevantStepConfig.getType(), (currentFlow != null ? currentFlow.getTypeName() : "Single/Unknown"));
 
-        @SuppressWarnings("unchecked")
         O options = (O) myRelevantStepConfig.getOptions().get("_options");
         if (options == null) {
             throw new IllegalStateException(
@@ -108,7 +108,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             // 이 시점에서 resolvedOttSuccessHandler는 null이 아님을 보장.
             ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, generationSuccessHandler, successHandler, failureHandler);
         } else {
-            configureHttpSecurity(http, options, successHandler, failureHandler);
+            configureHttpSecurity(http, options, currentFlow, successHandler, failureHandler);
         }
 
         // 공통 보안 설정을 옵션 객체를 통해 HttpSecurity에 적용

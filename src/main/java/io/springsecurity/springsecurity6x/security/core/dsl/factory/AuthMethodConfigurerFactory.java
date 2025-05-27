@@ -35,11 +35,12 @@ public final class AuthMethodConfigurerFactory {
                 configurer.setApplicationContext(this.applicationContext);
                 yield configurer;
             }
-            case REST -> {
+            case REST, MFA_REST-> {
                 RestDslConfigurerImpl configurer = new RestDslConfigurerImpl();
                 configurer.setApplicationContext(this.applicationContext);
                 yield configurer;
             }
+
             case OTT -> {
                 OttDslConfigurerImpl configurer = new OttDslConfigurerImpl(this.applicationContext); // 생성자에서 받음
                 yield configurer;

@@ -206,7 +206,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
             primaryAuthOptionsForFlow = this.primaryAuthConfigurer.buildOptions();
             AuthenticationProcessingOptions primaryConcreteOptions = primaryAuthOptionsForFlow.isFormLogin() ?
                     primaryAuthOptionsForFlow.getFormOptions() : primaryAuthOptionsForFlow.getRestOptions();
-            AuthType primaryAuthType = primaryAuthOptionsForFlow.isFormLogin() ? AuthType.FORM : AuthType.REST;
+            AuthType primaryAuthType = primaryAuthOptionsForFlow.isFormLogin() ? AuthType.FORM : AuthType.MFA_REST;
 
             // 기존 order 0 스텝 제거 (중복 방지)
             configuredSteps.removeIf(s -> s.getOrder() == 0);
@@ -239,7 +239,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
         AuthenticationStepConfig firstConfiguredStep = configuredSteps.getFirst();
         Assert.isTrue(firstConfiguredStep.getOrder() == 0, "MFA flow's first step must have order 0.");
-        Assert.isTrue(AuthType.FORM.name().equalsIgnoreCase(firstConfiguredStep.getType()) || AuthType.REST.name().equalsIgnoreCase(firstConfiguredStep.getType()),
+        Assert.isTrue(AuthType.FORM.name().equalsIgnoreCase(firstConfiguredStep.getType()) || AuthType.MFA_REST.name().equalsIgnoreCase(firstConfiguredStep.getType()),
                 "MFA flow must start with a FORM or REST primary authentication step. Current first step: " + firstConfiguredStep.getType());
         Assert.isTrue(configuredSteps.size() > 1, "MFA flow must have at least one secondary authentication factor.");
 

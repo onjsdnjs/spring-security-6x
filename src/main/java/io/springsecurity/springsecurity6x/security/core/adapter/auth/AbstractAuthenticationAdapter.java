@@ -88,7 +88,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         Objects.requireNonNull(appContext, "ApplicationContext from PlatformContext cannot be null");
 
         AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
-        AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, appContext);
         OneTimeTokenGenerationSuccessHandler generationSuccessHandler; // 변수 선언만
 
         if (this instanceof OttAuthenticationAdapter ottAdapter) {
@@ -146,10 +146,8 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         return new SavedRequestAwareAuthenticationSuccessHandler();
     }
 
-    protected AuthenticationFailureHandler resolveFailureHandler(
-            O options, @Nullable AuthenticationFlowConfig currentFlow,
-            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
-            ApplicationContext appContext) {
+    protected AuthenticationFailureHandler resolveFailureHandler(O options, @Nullable AuthenticationFlowConfig currentFlow, ApplicationContext appContext) {
+
         if (options.getFailureHandler() != null) {
             log.debug("AuthenticationFeature [{}]: Using failureHandler from options: {}", getId(), options.getFailureHandler().getClass().getSimpleName());
             return options.getFailureHandler();
@@ -160,15 +158,13 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             if (mfaSpecificFailureHandler instanceof AuthenticationFailureHandler springSecurityFailureHandler) {
                 log.debug("AuthenticationFeature [{}]: Using MfaFailureHandler from current MFA flow config.", getId());
                 return springSecurityFailureHandler;
-            } else if (mfaSpecificFailureHandler != null) {
-                log.warn("AuthenticationFeature [{}]: MfaFailureHandler in MFA flow config is not an instance of Spring Security AuthenticationFailureHandler. Type: {}. Using platform default.",
-                        getId(), mfaSpecificFailureHandler.getClass().getName());
-                return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
+
             } else {
                 log.debug("AuthenticationFeature [{}]: No MfaFailureHandler set in MFA flow config. Using platform default MfaAuthenticationFailureHandler.", getId());
                 return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
             }
         }
+
         log.debug("AuthenticationFeature [{}]: Resolving default failureHandler.", getId());
         return createDefaultFailureHandler(options, appContext);
     }

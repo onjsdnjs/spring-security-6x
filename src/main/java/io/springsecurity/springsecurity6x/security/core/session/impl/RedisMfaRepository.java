@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * - 보안 강화된 세션 ID 생성
  */
 @Slf4j
+@Repository
 @ConditionalOnProperty(name = "security.mfa.session.storage-type", havingValue = "redis")
 public class RedisMfaRepository implements MfaSessionRepository {
 
@@ -83,7 +84,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
                 sessionValue,
                 String.valueOf(sessionTimeout.toMillis()));
 
-        if (result != null && result == 1) {
+        if (result == 1) {
             totalSessionsCreated.incrementAndGet();
             updateSessionStats();
 
@@ -92,8 +93,8 @@ public class RedisMfaRepository implements MfaSessionRepository {
                 setSessionCookie(response, sessionId);
             }
 
-            // 임시 attribute 제거
-            request.removeAttribute(TEMP_SESSION_ATTR);
+            // request attribute는 유지 (같은 요청 내에서 계속 사용)
+            request.setAttribute(TEMP_SESSION_ATTR, sessionId);
 
             log.debug("MFA session stored in Redis cluster: {} with TTL: {}", sessionId, sessionTimeout);
         } else {
@@ -134,22 +135,26 @@ public class RedisMfaRepository implements MfaSessionRepository {
     @Override
     @Nullable
     public String getSessionId(HttpServletRequest request) {
-        // 1. 먼저 쿠키에서 세션 ID 조회
-        String sessionId = getSessionIdFromCookie(request);
-
-        // 2. 쿠키가 없으면 임시 attribute 확인 (방금 생성된 경우)
-        if (sessionId == null) {
-            sessionId = (String) request.getAttribute(TEMP_SESSION_ATTR);
-            if (sessionId == null) {
-                return null;
-            }
-            // 임시 세션은 Redis 확인 없이 바로 반환 (아직 저장 전)
+        // 1. 먼저 request attribute 확인 (같은 요청 내에서 생성된 경우)
+        String sessionId = (String) request.getAttribute(TEMP_SESSION_ATTR);
+        if (sessionId != null) {
+            log.trace("Found session ID in request attribute: {}", sessionId);
+            // 임시 세션은 유효한 것으로 간주 (아직 Redis에 저장되지 않았을 수 있음)
             return sessionId;
         }
 
-        // 3. 쿠키에서 가져온 세션은 Redis 확인
+        // 2. 쿠키에서 세션 ID 조회 (이전 요청에서 생성된 경우)
+        sessionId = getSessionIdFromCookie(request);
+        if (sessionId == null) {
+            log.trace("No MFA session found in cookie");
+            return null;
+        }
+
+        // 3. 쿠키에서 가져온 세션은 Redis 확인 필수
         String redisKey = SESSION_PREFIX + sessionId;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+            // 유효한 세션이면 attribute에도 저장 (같은 요청 내 재사용)
+            request.setAttribute(TEMP_SESSION_ATTR, sessionId);
             return sessionId;
         }
 
@@ -240,6 +245,10 @@ public class RedisMfaRepository implements MfaSessionRepository {
 
     @Override
     public boolean existsSession(String sessionId) {
+        if (sessionId == null) {
+            return false;
+        }
+
         String redisKey = SESSION_PREFIX + sessionId;
         return Boolean.TRUE.equals(redisTemplate.hasKey(redisKey));
     }

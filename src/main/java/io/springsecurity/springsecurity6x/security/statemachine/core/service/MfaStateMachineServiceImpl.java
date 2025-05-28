@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.statemachine.core.service;
 
 import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributedLockService;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -40,6 +42,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final MfaEventPublisher eventPublisher;
     private final RedisDistributedLockService distributedLockService;
     private final OptimisticLockManager optimisticLockManager;
+    private final ApplicationContext applicationContext;
 
     private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();
     private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
@@ -48,6 +51,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final AtomicInteger successCount = new AtomicInteger(0);
     private final AtomicInteger activeOperations = new AtomicInteger(0);
     private final ConcurrentHashMap<String, Long> operationTimings = new ConcurrentHashMap<>();
+    private final AuthContextProperties properties = applicationContext.getBean(AuthContextProperties.class);
 
     @Value("${security.statemachine.circuit-breaker.failure-threshold:5}")
     private int failureThreshold;
@@ -599,24 +603,38 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     private boolean isContextValid(FactorContext context) {
-        if (context == null) {
+        if (context == null || context.getMfaSessionId() == null || context.getCurrentState() == null) {
             return false;
         }
 
-        // 기본적인 무결성 검증
-        if (context.getMfaSessionId() == null || context.getCurrentState() == null) {
-            return false;
-        }
-
-        // 터미널 상태면 캐시하지 않음 (상태 변경 가능성 없음)
+        // 터미널 상태는 캐시하지 않음
         if (context.getCurrentState().isTerminal()) {
             return false;
         }
 
-        // 너무 오래된 컨텍스트는 무효 처리
+        // 세션 타임아웃 기준으로 검증
         long contextAge = System.currentTimeMillis() - context.getCreatedAt();
-        if (contextAge > TimeUnit.HOURS.toMillis(1)) { // 1시간 초과
+        long maxAge = properties.getMfa().getSessionTimeout().toMillis();
+
+        if (contextAge > maxAge) {
+            log.debug("Context {} is too old: {}ms > {}ms",
+                    context.getMfaSessionId(), contextAge, maxAge);
             return false;
+        }
+
+        // 마지막 활동 시간 기준 추가 검증
+        if (context.getLastActivityTimestamp() != null) {
+            long inactivityPeriod = System.currentTimeMillis() -
+                    context.getLastActivityTimestamp().toEpochMilli();
+            long maxInactivity = properties.getMfa().getInactivityTimeout() > 0 ?
+                    properties.getMfa().getInactivityTimeout() :
+                    TimeUnit.MINUTES.toMillis(15); // 기본 15분
+
+            if (inactivityPeriod > maxInactivity) {
+                log.debug("Context {} inactive for too long: {}ms",
+                        context.getMfaSessionId(), inactivityPeriod);
+                return false;
+            }
         }
 
         return true;

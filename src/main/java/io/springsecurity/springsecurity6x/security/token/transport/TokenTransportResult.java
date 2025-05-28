@@ -20,10 +20,4 @@ public class TokenTransportResult {
     /** HTTP 응답 헤더에 추가될 기타 헤더 (거의 사용 안 함) */
     private final Map<String, String> headers;
 
-    public static class TokenTransportResultBuilder {
-        private Map<String, Object> body = Collections.emptyMap();
-        private List<ResponseCookie> cookiesToSet = Collections.emptyList();
-        private List<ResponseCookie> cookiesToRemove = Collections.emptyList();
-        private Map<String, String> headers = Collections.emptyMap();
-    }
 }

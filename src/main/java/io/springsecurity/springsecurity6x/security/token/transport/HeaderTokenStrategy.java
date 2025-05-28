@@ -14,13 +14,6 @@ public class HeaderTokenStrategy extends AbstractTokenTransportStrategy implemen
     public HeaderTokenStrategy(AuthContextProperties props) {
         super(props);
     }
-/*
-
-    @Override
-    public void setTokenService(TokenService tokenService) {
-        this.tokenService = tokenService;
-    }
-*/
 
     @Override
     public String resolveAccessToken(HttpServletRequest request) {
@@ -46,19 +39,4 @@ public class HeaderTokenStrategy extends AbstractTokenTransportStrategy implemen
         return null;
     }
 
-/*    @Override
-    public void writeAccessAndRefreshToken(HttpServletResponse response, String accessToken, String refreshToken) {
-        TokenResponse body = new TokenResponse(
-                accessToken,
-                "Bearer",
-                tokenService.properties().getAccessTokenValidity(),
-                refreshToken
-        );
-        writeJson(response, body);
-    }
-
-    @Override
-    public void clearTokens(HttpServletResponse response) {
-        writeJson(response, new TokenResponse(null, null, 0, null));
-    }*/
 }

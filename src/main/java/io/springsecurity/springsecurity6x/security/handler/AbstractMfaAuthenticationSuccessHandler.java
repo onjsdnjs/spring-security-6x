@@ -69,6 +69,7 @@ public abstract class AbstractMfaAuthenticationSuccessHandler implements Authent
         }
 
         TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
+        transportResult.getBody().put("authentication", finalAuthentication);
 
         if (transportResult.getCookiesToSet() != null) {
             for (ResponseCookie cookie : transportResult.getCookiesToSet()) {

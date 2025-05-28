@@ -180,14 +180,6 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
         }
     }
 
-    private boolean isValidFactorProcessingContext(FactorContext ctx) {
-        return ctx != null &&
-                ctx.getCurrentProcessingFactor() != null &&
-                ctx.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION &&
-                ctx.getFlowTypeName() != null &&
-                ctx.getCurrentStepId() != null;
-    }
-
     /**
      * 개선: MfaSettings를 활용한 세션 만료 확인 (하드코딩 상수 제거)
      */

@@ -110,8 +110,11 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         switch (currentState) {
             case MFA_SUCCESSFUL:
-            case ALL_FACTORS_COMPLETED:
                 handleSuccessfulTermination(request, response, responseBody);
+                break;
+
+            case MFA_NOT_REQUIRED:
+                handleMfaNotRequiredTermination(request, response, responseBody);
                 break;
 
             case MFA_FAILED_TERMINAL:
@@ -125,6 +128,10 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
             case MFA_CANCELLED:
                 handleCancelledTermination(request, response, responseBody);
+                break;
+
+            case MFA_SYSTEM_ERROR:
+                handleSystemErrorTermination(request, response, responseBody);
                 break;
 
             default:
@@ -326,7 +333,6 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         }
     }
 
-
     /**
      * 챌린지 시작 처리 - 향상된 상태 검증
      */
@@ -364,6 +370,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             // 챌린지 시작 시간 기록
             Instant challengeStartTime = MfaTimeUtils.nowInstant();
             context.setAttribute("challengeInitiatedAt", MfaTimeUtils.toMillis(challengeStartTime));
+            context.setAttribute("ottCodeSent", true); // OTT의 경우
 
             // 챌린지 만료 시간 계산
             Instant challengeExpiryTime = MfaTimeUtils.calculateChallengeExpiry(challengeStartTime, mfaSettings);
@@ -421,6 +428,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         responseWriter.writeSuccessResponse(response, redirectResponse, HttpServletResponse.SC_OK);
     }
+
     /**
      * 팩터 검증 처리 - 향상된 상태 검증
      */
@@ -431,14 +439,14 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         log.debug("Handling factor verification for session: {}", sessionId);
 
-        // ✅ 개선: 포괄적인 상태 검증 사용
+        // 개선: 포괄적인 상태 검증 사용
         if (!canProcessFactorVerification(context)) {
             handleInvalidStateError(request, response, context, "INVALID_STATE_FOR_VERIFICATION",
                     "팩터 검증이 불가능한 상태입니다. 현재 상태: " + context.getCurrentState());
             return;
         }
 
-        // ✅ 개선: MfaSettings 활용한 챌린지 타임아웃 확인
+        // 개선: MfaSettings 활용한 챌린지 타임아웃 확인
         if (isChallengeExpiredUsingSettings(context)) {
             log.warn("Challenge expired for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.CHALLENGE_TIMEOUT, context, request);
@@ -447,7 +455,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
-        // ✅ 개선: MfaSettings 활용한 재시도 제한 확인
+        // 개선: MfaSettings 활용한 재시도 제한 확인
         if (!isRetryAllowedUsingSettings(context)) {
             log.warn("Retry limit exceeded for session: {}", sessionId);
             stateMachineIntegrator.sendEvent(MfaEvent.RETRY_LIMIT_EXCEEDED, context, request);
@@ -456,7 +464,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
             return;
         }
 
-        // ✅ 추가: 팩터별 추가 검증
+        // 추가: 팩터별 추가 검증
         if (!validateFactorSpecificRequirements(context)) {
             handleInvalidStateError(request, response, context, "FACTOR_REQUIREMENTS_NOT_MET",
                     "현재 팩터의 요구사항이 충족되지 않았습니다.");
@@ -542,6 +550,8 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                 "상태 조회가 완료되었습니다.");
         statusResponse.put("latestState", latestState.name());
         statusResponse.put("isTerminal", latestState.isTerminal());
+        statusResponse.put("isWaitingForUserAction", latestState.isWaitingForUserAction());
+        statusResponse.put("isProcessing", latestState.isProcessing());
         statusResponse.put("availableFactors", context.getRegisteredMfaFactors());
         statusResponse.put("completedFactorsCount", context.getCompletedFactors().size());
         statusResponse.put("statusCheckedAt", MfaTimeUtils.nowMillis());
@@ -663,6 +673,14 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }
 
+    private void handleMfaNotRequiredTermination(HttpServletRequest request, HttpServletResponse response,
+                                                 Map<String, Object> responseBody) throws IOException {
+        responseBody.put("status", "MFA_NOT_REQUIRED");
+        responseBody.put("message", "MFA가 필요하지 않습니다.");
+        responseBody.put("redirectUrl", request.getContextPath() + "/home");
+        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
+    }
+
     private void handleFailedTermination(HttpServletRequest request, HttpServletResponse response,
                                          Map<String, Object> responseBody) throws IOException {
         responseBody.put("status", "MFA_FAILED");
@@ -690,6 +708,15 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                 "MFA_CANCELLED", "MFA 취소", request.getRequestURI(), responseBody);
     }
 
+    private void handleSystemErrorTermination(HttpServletRequest request, HttpServletResponse response,
+                                              Map<String, Object> responseBody) throws IOException {
+        responseBody.put("status", "SYSTEM_ERROR");
+        responseBody.put("message", "시스템 오류가 발생했습니다.");
+        responseBody.put("redirectUrl", request.getContextPath() + "/loginForm");
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "SYSTEM_ERROR", "시스템 오류", request.getRequestURI(), responseBody);
+    }
+
     private void handleUnknownTermination(HttpServletRequest request, HttpServletResponse response,
                                           Map<String, Object> responseBody, MfaState currentState) throws IOException {
         responseBody.put("status", "UNKNOWN_TERMINAL_STATE");
@@ -708,8 +735,8 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         // 팩터 선택 가능한 모든 상태 포함
         return currentState == MfaState.AWAITING_FACTOR_SELECTION ||
-                currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED || // 추가된 상태
-                currentState == MfaState.FACTOR_VERIFICATION_COMPLETED;       // 추가 팩터 선택 시
+                currentState == MfaState.PRIMARY_AUTHENTICATION_COMPLETED ||
+                currentState == MfaState.FACTOR_VERIFICATION_COMPLETED;
     }
 
     /**
@@ -719,15 +746,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         MfaState currentState = context.getCurrentState();
 
         // 챌린지 시작 가능한 상태들
-        return currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION ||
-                currentState == MfaState.FACTOR_SELECTED; // 직접 선택 후 챌린지 시작
-    }
-
-    private boolean isValidStateForVerification(FactorContext context) {
-        MfaState currentState = context.getCurrentState();
-        return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
-                currentState == MfaState.FACTOR_VERIFICATION_PENDING||
-                currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+        return currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION;
     }
 
     /**

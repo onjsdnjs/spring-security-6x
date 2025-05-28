@@ -236,12 +236,9 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
             AuthenticationStepConfig primaryAuthStep = mfaFlowConfig.getStepConfigs().stream()
                     .filter(step -> "PRIMARY".equalsIgnoreCase(step.getType()))
                     .findFirst()
-                    .orElse(mfaFlowConfig.getStepConfigs().get(0));
+                    .orElse(mfaFlowConfig.getStepConfigs().getFirst());
 
             factorContext.addCompletedFactor(primaryAuthStep);
-
-            stateMachineIntegrator.saveFactorContext(factorContext);
-            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_COMPLETED, factorContext, request);
 
             log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
         }

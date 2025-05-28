@@ -1,3 +1,4 @@
+// Path: onjsdnjs/spring-security-6x/spring-security-6x-IdentityPlatform_0.0.5.optimizer/src/main/java/io/springsecurity/springsecurity6x/security/statemachine/core/lock/OptimisticLockManager.java
 package io.springsecurity.springsecurity6x.security.statemachine.core.lock;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
@@ -5,41 +6,35 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.Serializable; // Serializable 추가
+import java.time.Instant; // 추가
+import java.util.ArrayList; // 추가
+import java.util.Collections; // 추가
+import java.util.List; // 추가
 import java.util.Map;
+import java.util.Objects; // 추가
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Optimistic Lock 관리자
- * - 버전 기반 동시성 제어
- * - 상태 캐싱 및 검증
- * - 충돌 감지 및 해결
- */
 @Slf4j
 @Component
 public class OptimisticLockManager {
 
-    // 세션별 버전 정보
     private final Map<String, VersionInfo> versionMap = new ConcurrentHashMap<>();
-
-    // 상태 캐시
     private final Map<String, CachedState> stateCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedContext> contextCache = new ConcurrentHashMap<>(); // 추가
 
-    // 충돌 통계
     private final AtomicLong totalConflicts = new AtomicLong(0);
     private final AtomicLong totalChecks = new AtomicLong(0);
 
-    /**
-     * 버전 확인
-     */
+    // ... (기존 checkVersion, updateVersion, incrementVersion 메서드 유지) ...
     public boolean checkVersion(String sessionId, int expectedVersion) {
         totalChecks.incrementAndGet();
 
         VersionInfo versionInfo = versionMap.get(sessionId);
         if (versionInfo == null) {
-            // 첫 접근
             versionMap.put(sessionId, new VersionInfo(expectedVersion));
             return true;
         }
@@ -52,13 +47,9 @@ public class OptimisticLockManager {
             log.warn("Version conflict for session: {}. Expected: {}, Actual: {}",
                     sessionId, expectedVersion, versionInfo.version.get());
         }
-
         return valid;
     }
 
-    /**
-     * 버전 업데이트
-     */
     public void updateVersion(String sessionId, int newVersion) {
         versionMap.compute(sessionId, (key, info) -> {
             if (info == null) {
@@ -68,13 +59,9 @@ public class OptimisticLockManager {
             info.lastUpdated = System.currentTimeMillis();
             return info;
         });
-
         log.debug("Version updated for session: {} to {}", sessionId, newVersion);
     }
 
-    /**
-     * 버전 증가
-     */
     public int incrementVersion(String sessionId) {
         VersionInfo info = versionMap.compute(sessionId, (key, existing) -> {
             if (existing == null) {
@@ -84,83 +71,61 @@ public class OptimisticLockManager {
             existing.lastUpdated = System.currentTimeMillis();
             return existing;
         });
-
         return info.version.get();
     }
 
-    /**
-     * 캐시된 상태 조회
-     */
     public MfaState getCachedState(String sessionId) {
         CachedState cached = stateCache.get(sessionId);
-
         if (cached != null && !cached.isExpired()) {
             cached.hitCount.incrementAndGet();
             return cached.state;
         }
-
         return null;
     }
 
-    /**
-     * 캐시된 FactorContext 조회
-     */
-    public FactorContext getCachedContext(String sessionId) {
-        CachedContext cached = contextCache.get(sessionId);
-
-        if (cached != null && !cached.isExpired()) {
-            cached.hitCount.incrementAndGet();
-            return cached.context;
-        }
-
-        return null;
-    }
-
-    /**
-     * FactorContext 캐시 업데이트
-     */
-    public void updateCachedContext(String sessionId, FactorContext context) {
-        contextCache.put(sessionId, new CachedContext(context));
-    }
-    /**
-     * 상태 캐시 업데이트
-     */
     public void updateCachedState(String sessionId, MfaState state) {
         stateCache.put(sessionId, new CachedState(state));
     }
 
-    /**
-     * FactorContext 캐시 무효화
-     */
-    public void invalidateContextCache(String sessionId) {
-        contextCache.remove(sessionId);
-        log.debug("Context cache invalidated for session: {}", sessionId);
+    public FactorContext getCachedContext(String sessionId) {
+        CachedContext cached = contextCache.get(sessionId);
+        if (cached != null && !cached.isExpired()) {
+            cached.hitCount.incrementAndGet();
+            // 캐시된 컨텍스트의 복사본 반환하여 외부 수정 방지
+            return CachedContext.createContextCopy(cached.context);
+        }
+        return null;
     }
 
-    // 기존 필드에 추가
-    private final Map<String, CachedContext> contextCache = new ConcurrentHashMap<>();
+    public void updateCachedContext(String sessionId, FactorContext context) {
+        if (context != null) {
+            contextCache.put(sessionId, new CachedContext(context));
+        } else {
+            contextCache.remove(sessionId); // context가 null이면 캐시에서 제거
+        }
+    }
 
-    /**
-     * 캐시 무효화
-     */
-    public void invalidateCache(String sessionId) {
+    public void invalidateCache(String sessionId) { // 이름 변경 및 contextCache 제거 추가
         stateCache.remove(sessionId);
-        log.debug("Cache invalidated for session: {}", sessionId);
+        contextCache.remove(sessionId); // 추가
+        log.debug("State and Context cache invalidated for session: {}", sessionId);
     }
 
-    /**
-     * 전체 캐시 정리
-     */
+    public void invalidateContextCache(String sessionId) { // 명시적인 컨텍스트 캐시 무효화
+        contextCache.remove(sessionId);
+        log.debug("Context cache explicitly invalidated for session: {}", sessionId);
+    }
+
+
     public void clearCache(String sessionId) {
         versionMap.remove(sessionId);
         stateCache.remove(sessionId);
-        contextCache.remove(sessionId); //
+        contextCache.remove(sessionId); // 추가
+        log.debug("All caches (version, state, context) cleared for session: {}", sessionId);
     }
 
-    /**
-     * 충돌 해결 전략
-     */
     public ConflictResolution resolveConflict(String sessionId, int clientVersion, int serverVersion) {
+        // ... (기존 로직 유지) ...
         if (clientVersion == serverVersion) {
             return ConflictResolution.NO_CONFLICT;
         }
@@ -170,25 +135,18 @@ public class OptimisticLockManager {
             return ConflictResolution.ACCEPT_CLIENT;
         }
 
-        // 충돌 빈도 확인
         int conflicts = info.conflictCount.get();
-
         if (conflicts > 10) {
-            // 너무 많은 충돌 - 전체 새로고침 필요
             return ConflictResolution.FORCE_REFRESH;
         } else if (serverVersion - clientVersion > 5) {
-            // 버전 차이가 큼 - 서버 버전 사용
             return ConflictResolution.USE_SERVER;
         } else {
-            // 병합 시도
             return ConflictResolution.MERGE;
         }
     }
 
-    /**
-     * 통계 조회
-     */
     public OptimisticLockStatistics getStatistics() {
+        // ... (기존 로직 유지) ...
         long checks = totalChecks.get();
         long conflicts = totalConflicts.get();
 
@@ -197,38 +155,29 @@ public class OptimisticLockManager {
                 conflicts,
                 checks > 0 ? (double) conflicts / checks : 0,
                 versionMap.size(),
-                stateCache.size()
+                stateCache.size(),
+                contextCache.size() // contextCache 크기 추가
         );
     }
 
-    /**
-     * 오래된 항목 정리 - 컨텍스트 캐시 포함
-     */
+
     public void cleanup(long maxAgeMillis) {
         long cutoff = System.currentTimeMillis() - maxAgeMillis;
+        int versionMapSizeBefore = versionMap.size();
+        int stateCacheSizeBefore = stateCache.size();
+        int contextCacheSizeBefore = contextCache.size(); // 추가
 
-        // 버전 정보 정리
-        versionMap.entrySet().removeIf(entry ->
-                entry.getValue().lastUpdated < cutoff
-        );
+        versionMap.entrySet().removeIf(entry -> entry.getValue().lastUpdated < cutoff);
+        stateCache.entrySet().removeIf(entry -> entry.getValue().isExpired(maxAgeMillis)); // 만료 기준 전달
+        contextCache.entrySet().removeIf(entry -> entry.getValue().isExpired(maxAgeMillis)); // 추가 및 만료 기준 전달
 
-        // 상태 캐시 정리
-        stateCache.entrySet().removeIf(entry ->
-                entry.getValue().isExpired()
-        );
-
-        // ✅ 추가: 컨텍스트 캐시 정리
-        contextCache.entrySet().removeIf(entry ->
-                entry.getValue().isExpired()
-        );
-
-        log.debug("Cleanup completed. Version entries: {}, State cache: {}, Context cache: {}",
-                versionMap.size(), stateCache.size(), contextCache.size());
+        log.info("Cache cleanup completed. Removed versions: {}, states: {}, contexts: {}. Max age: {}ms",
+                versionMapSizeBefore - versionMap.size(),
+                stateCacheSizeBefore - stateCache.size(),
+                contextCacheSizeBefore - contextCache.size(), // 추가
+                maxAgeMillis);
     }
 
-    /**
-     * 버전 정보
-     */
     private static class VersionInfo {
         final AtomicInteger version;
         final AtomicInteger conflictCount = new AtomicInteger(0);
@@ -240,9 +189,6 @@ public class OptimisticLockManager {
         }
     }
 
-    /**
-     * 캐시된 상태
-     */
     private static class CachedState {
         final MfaState state;
         final long cachedAt;
@@ -253,103 +199,106 @@ public class OptimisticLockManager {
             this.cachedAt = System.currentTimeMillis();
         }
 
-        boolean isExpired() {
-            return System.currentTimeMillis() - cachedAt > TimeUnit.MINUTES.toMillis(5);
+        boolean isExpired(long maxAgeMillis) { // 만료 기준 파라미터 추가
+            return System.currentTimeMillis() - cachedAt > maxAgeMillis;
         }
     }
 
-    /**
-     * 충돌 해결 전략
-     */
-    public enum ConflictResolution {
-        NO_CONFLICT,      // 충돌 없음
-        USE_SERVER,       // 서버 버전 사용
-        ACCEPT_CLIENT,    // 클라이언트 버전 수락
-        MERGE,            // 병합 시도
-        FORCE_REFRESH     // 전체 새로고침
-    }
-
-    /**
-     * Optimistic Lock 통계
-     */
+    // OptimisticLockStatistics 내부 클래스에 contextCacheCount 필드 추가
     public static class OptimisticLockStatistics {
         private final long totalChecks;
         private final long totalConflicts;
         private final double conflictRate;
         private final int activeVersions;
         private final int cachedStates;
+        private final int cachedContexts; // 추가
 
         public OptimisticLockStatistics(long totalChecks, long totalConflicts,
                                         double conflictRate, int activeVersions,
-                                        int cachedStates) {
+                                        int cachedStates, int cachedContexts) { // 생성자 수정
             this.totalChecks = totalChecks;
             this.totalConflicts = totalConflicts;
             this.conflictRate = conflictRate;
             this.activeVersions = activeVersions;
             this.cachedStates = cachedStates;
+            this.cachedContexts = cachedContexts; // 할당
         }
 
-        // Getters
         public long getTotalChecks() { return totalChecks; }
         public long getTotalConflicts() { return totalConflicts; }
         public double getConflictRate() { return conflictRate; }
         public int getActiveVersions() { return activeVersions; }
         public int getCachedStates() { return cachedStates; }
+        public int getCachedContexts() { return cachedContexts; } // Getter 추가
 
         @Override
         public String toString() {
             return String.format(
-                    "OptimisticLockStats[checks=%d, conflicts=%d, rate=%.2f%%, versions=%d, cached=%d]",
-                    totalChecks, totalConflicts, conflictRate * 100, activeVersions, cachedStates
+                    "OptimisticLockStats[checks=%d, conflicts=%d, rate=%.2f%%, versions=%d, cachedStates=%d, cachedContexts=%d]", // 출력 수정
+                    totalChecks, totalConflicts, conflictRate * 100, activeVersions, cachedStates, cachedContexts
             );
         }
     }
 
-    /**
-     * 캐시된 FactorContext
-     */
-    private static class CachedContext {
+
+    private static class CachedContext implements Serializable { // Serializable 구현
+        private static final long serialVersionUID = 1L; // serialVersionUID 추가
+
         final FactorContext context;
         final long cachedAt;
         final AtomicInteger hitCount = new AtomicInteger(0);
 
         CachedContext(FactorContext context) {
-            // ✅ 중요: 깊은 복사로 캐시 무결성 보장
             this.context = createContextCopy(context);
             this.cachedAt = System.currentTimeMillis();
         }
 
-        boolean isExpired() {
-            return System.currentTimeMillis() - cachedAt > TimeUnit.MINUTES.toMillis(5);
+        boolean isExpired(long maxAgeMillis) { // 만료 기준 파라미터 추가
+            return System.currentTimeMillis() - cachedAt > maxAgeMillis;
         }
 
-        /**
-         * FactorContext 안전한 복사
-         */
-        private FactorContext createContextCopy(FactorContext original) {
-            // 새로운 FactorContext 생성 (참조 공유 방지)
+        // FactorContext 복사본 생성 (깊은 복사 고려)
+        static FactorContext createContextCopy(FactorContext original) {
+            if (original == null) return null;
+            // FactorContext의 생성자 또는 복사 메서드를 사용하여 새 인스턴스 생성
             FactorContext copy = new FactorContext(
                     original.getMfaSessionId(),
                     original.getPrimaryAuthentication(),
                     original.getCurrentState(),
                     original.getFlowTypeName()
             );
-
-            // 핵심 필드들만 복사 (성능 고려)
+            copy.setVersion(original.getVersion());
             copy.setCurrentProcessingFactor(original.getCurrentProcessingFactor());
             copy.setCurrentStepId(original.getCurrentStepId());
+            if (original.getCurrentFactorOptions() != null) {
+                // AuthenticationProcessingOptions는 불변이거나, 복사 로직 필요
+                // 여기서는 참조 복사로 가정 (주의 필요)
+                copy.setCurrentFactorOptions(original.getCurrentFactorOptions());
+            }
             copy.setMfaRequiredAsPerPolicy(original.isMfaRequiredAsPerPolicy());
             copy.setRetryCount(original.getRetryCount());
             copy.setLastError(original.getLastError());
+            copy.setLastActivityTimestamp(original.getLastActivityTimestamp());
 
-            // 버전 동기화
-            while (copy.getVersion() < original.getVersion()) {
-                copy.incrementVersion();
+            // Collections - defensive copies
+            original.getCompletedFactors().forEach(copy::addCompletedFactor);
+            copy.setRegisteredMfaFactors(new ArrayList<>(original.getRegisteredMfaFactors()));
+
+            original.getFactorAttemptCounts().forEach((factor, count) -> {
+                for(int i=0; i < count; i++) copy.incrementAttemptCount(factor);
+            });
+
+            original.getMfaAttemptHistory().forEach(attempt -> copy.recordAttempt(attempt.getFactorType(), attempt.isSuccess(), attempt.getDetail()));
+
+            // Attributes - 주의: 값들이 불변이거나 deep copy 필요
+            // 여기서는 Map 자체는 새로 만들고, 값들은 참조 복사
+            if (original.getAttributes() != null) {
+                original.getAttributes().forEach(copy::setAttribute);
             }
-
             return copy;
         }
     }
-
+    public enum ConflictResolution {
+        NO_CONFLICT, USE_SERVER, ACCEPT_CLIENT, MERGE, FORCE_REFRESH
+    }
 }
-

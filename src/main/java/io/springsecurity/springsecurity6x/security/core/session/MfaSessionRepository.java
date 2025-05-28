@@ -71,13 +71,6 @@ public interface MfaSessionRepository {
     boolean supportsDistributedSync();
 
     /**
-     * 세션 ID 보안 강도 검증
-     * @param sessionId 검증할 세션 ID
-     * @return 보안 강도 점수 (0-100)
-     */
-    int getSessionIdSecurityScore(String sessionId);
-
-    /**
      * Repository별 세션 통계 정보
      * @return 세션 통계 정보
      */

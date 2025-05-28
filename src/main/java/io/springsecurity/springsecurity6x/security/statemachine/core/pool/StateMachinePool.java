@@ -249,6 +249,17 @@ public class StateMachinePool {
             throw new IllegalStateException("StateMachine is null in pool");
         }
 
+        // 기존 상태 정리
+        if (sm.getExtendedState() != null && sm.getExtendedState().getVariables() != null) {
+            sm.getExtendedState().getVariables().clear();
+        }
+
+        // State Machine 재시작으로 깨끗한 상태 보장
+        if (sm.isComplete() || sm.hasStateMachineError()) {
+            sm.stop();
+            Thread.sleep(50);
+        }
+
         // 이전 상태 복원 시도
         boolean restored = false;
         try {
@@ -256,39 +267,24 @@ public class StateMachinePool {
             restored = true;
             log.debug("Restored state for session: {}", sessionId);
         } catch (Exception e) {
-            log.debug("No persisted state found for session: {}", sessionId);
+            log.debug("No persisted state found for session: {} - Starting fresh", sessionId);
         }
 
-        // State Machine 시작 필요 여부 확인 - 중복 시작 방지
-        boolean alreadyStarted = sm.getState() != null &&
-                sm.getExtendedState() != null &&
-                sm.getExtendedState().getVariables() != null;
-
-        if (!alreadyStarted && (!restored || sm.getState() == null)) {
-            log.debug("Starting State Machine in pool for session: {}", sessionId);
-
+        // State Machine 시작 (필요한 경우만)
+        if (!sm.isComplete() && (sm.getState() == null || !restored)) {
             sm.start();
 
-            // 초기화 대기
-            int retries = 10;
-            while (retries > 0) {
-                Thread.sleep(100);
+            // 초기화 완료 대기 (타임아웃 추가)
+            long startTime = System.currentTimeMillis();
+            while (sm.getExtendedState() == null ||
+                    sm.getExtendedState().getVariables() == null) {
 
-                if (sm.getState() != null &&
-                        sm.getExtendedState() != null &&
-                        sm.getExtendedState().getVariables() != null) {
-                    log.debug("State Machine started in pool after {} attempts", 11 - retries);
-                    break;
+                if (System.currentTimeMillis() - startTime > 5000) {
+                    throw new TimeoutException("State Machine initialization timeout");
                 }
 
-                retries--;
+                Thread.sleep(100);
             }
-
-            if (sm.getExtendedState() == null || sm.getExtendedState().getVariables() == null) {
-                throw new IllegalStateException("ExtendedState not initialized in pool after start");
-            }
-        } else {
-            log.debug("State Machine already started for session: {}", sessionId);
         }
 
         // 사용 정보 업데이트

@@ -1,28 +1,32 @@
 package io.springsecurity.springsecurity6x.security.statemachine.action;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
+import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
-/**
- * 팩터 검증 액션
- * 선택된 팩터의 검증이 성공했을 때 실행
- */
 @Slf4j
 @Component
 public class VerifyFactorAction extends AbstractMfaStateAction {
 
+    private final ApplicationContext applicationContext; // ApplicationContext 주입
+
     public VerifyFactorAction(FactorContextStateAdapter factorContextAdapter,
-                              StateContextHelper stateContextHelper) {
+                              StateContextHelper stateContextHelper,
+                              ApplicationContext applicationContext) { // 생성자 수정
         super(factorContextAdapter, stateContextHelper);
+        this.applicationContext = applicationContext; // 주입 받은 ApplicationContext 할당
     }
 
     @Override
@@ -31,115 +35,146 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
         String sessionId = factorContext.getMfaSessionId();
         String currentStepId = factorContext.getCurrentStepId();
 
-        // currentStepId 검증
         if (currentStepId == null || currentStepId.isEmpty()) {
-            throw new IllegalStateException(
-                    "Cannot verify factor: currentStepId is null or empty for session: " + sessionId);
+            log.error("Cannot verify factor: currentStepId is null or empty for session: {}. Transitioning to SYSTEM_ERROR.", sessionId);
+            factorContext.setLastError("currentStepId is missing during factor verification.");
+            // 시스템 에러 이벤트를 보내거나 상태를 직접 변경 (상태 머신 설정에 따라 다름)
+            // 여기서는 상태를 직접 변경하는 대신, 예외를 발생시켜 AbstractMfaStateAction의 에러 핸들링 로직을 타도록 유도 가능
+            throw new IllegalStateException("currentStepId is null or empty for session: " + sessionId);
         }
 
         log.info("Verifying factor for step: {} in session: {}", currentStepId, sessionId);
 
-        // 현재 팩터 타입 가져오기
         String factorType = factorContext.getCurrentProcessingFactor() != null ?
                 factorContext.getCurrentProcessingFactor().name() : null;
         if (factorType == null) {
-            factorType = extractFactorTypeFromContext(context);
+            // currentStepId 로부터 factorType 추론 시도 (Robustness)
+            PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+            Optional<AuthenticationFlowConfig> flowConfigOpt = platformConfig.getFlows().stream()
+                    .filter(f -> f.getTypeName().equalsIgnoreCase(factorContext.getFlowTypeName()))
+                    .findFirst();
+            if (flowConfigOpt.isPresent()) {
+                Optional<AuthenticationStepConfig> stepConfOpt = flowConfigOpt.get().getStepConfigs().stream()
+                        .filter(s -> currentStepId.equals(s.getStepId()))
+                        .findFirst();
+                if (stepConfOpt.isPresent()) {
+                    factorType = stepConfOpt.get().getType();
+                }
+            }
+            if (factorType == null) {
+                log.error("Cannot determine factor type for verification. currentProcessingFactor is null and could not be derived from stepId {} in session {}", currentStepId, sessionId);
+                throw new IllegalStateException("Factor type for verification cannot be determined. Session: " + sessionId + ", StepId: " + currentStepId);
+            }
+            log.warn("currentProcessingFactor was null for session {}, derived factorType {} from stepId {}", sessionId, factorType, currentStepId);
         }
 
-        // 검증 완료된 팩터를 completedFactors에 추가
+
         AuthenticationStepConfig completedStep = createCompletedStep(
                 currentStepId,
-                factorType,
+                factorType, // 이제 factorType이 null이 아님을 보장 (위 로직)
                 factorContext
         );
 
-        factorContext.getCompletedFactors().add(completedStep);
-
-        // 검증 성공 정보 업데이트
+        factorContext.addCompletedFactor(completedStep); // addCompletedFactor는 내부적으로 버전 증가
         updateVerificationSuccess(factorContext, completedStep);
+        factorContext.setRetryCount(0); // 해당 팩터에 대한 재시도 횟수 초기화
+        // factorContext.changeState(MfaState.FACTOR_VERIFICATION_COMPLETED); // 상태 변경은 StateMachine의 Transition에 의해 이루어짐
 
-        // 재시도 횟수 초기화
-        factorContext.setRetryCount(0);
-
-        // 상태 업데이트
-        factorContext.changeState(MfaState.FACTOR_VERIFICATION_COMPLETED);
-
-        log.info("Factor {} verified successfully for session: {}", factorType, sessionId);
+        log.info("Factor {} (StepId: {}) verified successfully for session: {}", factorType, currentStepId, sessionId);
     }
 
-    /**
-     * 완료된 인증 단계 설정 생성
-     */
     private AuthenticationStepConfig createCompletedStep(String stepId,
                                                          String factorType,
                                                          FactorContext factorContext) {
-        AuthenticationStepConfig config = new AuthenticationStepConfig();
-        config.setStepId(stepId);
-        config.setType(factorType);
-        config.setRequired(true);
-        config.setOrder(factorContext.getCompletedFactors().size() + 1);
+        PlatformConfig platformConfig = applicationContext.getBean(PlatformConfig.class);
+        AuthenticationFlowConfig currentFlow = platformConfig.getFlows().stream()
+                .filter(f -> f.getTypeName().equalsIgnoreCase(factorContext.getFlowTypeName()))
+                .findFirst()
+                .orElse(null);
 
-        return config;
+        AuthenticationStepConfig originalStepConfig = null;
+        if (currentFlow != null) {
+            originalStepConfig = currentFlow.getStepConfigs().stream()
+                    .filter(s -> stepId.equals(s.getStepId()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (originalStepConfig == null) {
+            log.warn("Original AuthenticationStepConfig not found for stepId '{}' in flow '{}'. Creating a default completed step. Session: {}",
+                    stepId, factorContext.getFlowTypeName(), factorContext.getMfaSessionId());
+            AuthenticationStepConfig fallbackStep = new AuthenticationStepConfig();
+            fallbackStep.setStepId(stepId);
+            fallbackStep.setType(factorType); // Ensure factorType is not null here
+            fallbackStep.setOrder(factorContext.getCompletedFactors().size() + 1); // Approximate order
+            fallbackStep.setRequired(true); // Default to required
+            return fallbackStep;
+        }
+
+        // Create a new config for the completed step, copying relevant properties
+        AuthenticationStepConfig completed = new AuthenticationStepConfig();
+        completed.setStepId(originalStepConfig.getStepId());
+        completed.setType(originalStepConfig.getType()); // Use type from original config
+        completed.setOrder(originalStepConfig.getOrder());
+        completed.setRequired(originalStepConfig.isRequired());
+        // Options are generally not needed for the "completed" record itself
+        // but if required for audit or other reasons, they could be selectively copied.
+        // Be cautious about copying mutable options directly.
+        return completed;
     }
 
-    /**
-     * 검증 성공 정보 업데이트
-     */
     private void updateVerificationSuccess(FactorContext factorContext,
                                            AuthenticationStepConfig completedStep) {
-        // 검증 시간 기록
         factorContext.setAttribute(
-                "lastVerificationTime_" + completedStep.getType(),
+                "lastVerificationTime_" + completedStep.getStepId(), // stepId를 사용해 더 고유하게
                 LocalDateTime.now().toString()
         );
 
-        // 검증 성공 카운트 증가
         Integer successCount = (Integer) factorContext.getAttribute("verificationSuccessCount");
-        if (successCount == null) {
-            successCount = 0;
-        }
-        factorContext.setAttribute("verificationSuccessCount", successCount + 1);
+        factorContext.setAttribute("verificationSuccessCount", (successCount == null ? 0 : successCount) + 1);
 
-        // 현재 단계 완료 처리
-        factorContext.setCurrentStepId(null);
-        factorContext.setCurrentProcessingFactor(null);
+        // 현재 처리 중인 팩터 정보 초기화는 MfaPolicyProvider.determineNextFactorToProcess 또는 관련 액션에서 수행
+        // factorContext.setCurrentStepId(null); // 여기서 초기화하면 다음 로직에 영향
+        // factorContext.setCurrentProcessingFactor(null);
     }
 
-    /**
-     * Context에서 팩터 타입 추출 (fallback)
-     */
+
+    // extractFactorTypeFromContext 메서드는 이제 factorType이 null일 경우를 대비한
+    // doExecute 내부 로직으로 통합되어 불필요해질 수 있습니다.
+    // 만약 계속 사용한다면, currentProcessingFactor가 null일 때의 방어 로직이 필요합니다.
     private String extractFactorTypeFromContext(StateContext<MfaState, MfaEvent> context) {
-        // 메시지 헤더에서 확인
-        String factorType = (String) context.getMessageHeader("factorType");
-        if (factorType != null) {
-            return factorType;
+        // This method might be redundant if factorContext.getCurrentProcessingFactor() is reliable.
+        // It was a fallback. If getCurrentProcessingFactor() can be null and needs deriving,
+        // then this logic (or similar) is needed.
+        Object factorTypeHeader = context.getMessageHeader("selectedFactorType"); // Or a similar header
+        if (factorTypeHeader instanceof String) {
+            return (String) factorTypeHeader;
         }
-
-        // ExtendedState에서 확인
-        factorType = (String) context.getExtendedState()
-                .getVariables().get("currentFactorType");
-        if (factorType != null) {
-            return factorType;
+        Object factorTypeVar = context.getExtendedState().getVariables().get("currentFactorType"); // Assuming this variable exists
+        if (factorTypeVar instanceof String) {
+            return (String) factorTypeVar;
         }
+        // If currentProcessingFactor is reliable, this could be:
+        // FactorContext fc = stateContextHelper.extractFactorContext(context);
+        // if (fc != null && fc.getCurrentProcessingFactor() != null) return fc.getCurrentProcessingFactor().name();
 
-        // 이벤트 페이로드에서 확인
-        Object payload = context.getMessage().getPayload();
-        if (payload instanceof String) {
-            return (String) payload;
-        }
-
+        log.error("Cannot determine factor type from context for session: {}", extractSessionId(context));
         throw new IllegalStateException("Cannot determine factor type from context");
     }
 
     protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
                                  FactorContext factorContext) {
-        // 현재 검증 중인 팩터가 없으면 실행하지 않음
-        if (factorContext.getCurrentStepId() == null) {
-            log.warn("No factor is currently being verified for session: {}",
+        if (factorContext.getCurrentStepId() == null || factorContext.getCurrentStepId().isEmpty()) {
+            log.warn("VerifyFactorAction: No factor (currentStepId) is currently being verified for session: {}. Cannot execute.",
                     factorContext.getMfaSessionId());
             return false;
         }
-
+        // 추가 검증: 현재 상태가 팩터 검증을 시도할 수 있는 상태인지 (예: FACTOR_VERIFICATION_PENDING)
+        // MfaState currentState = factorContext.getCurrentState();
+        // if (currentState != MfaState.FACTOR_VERIFICATION_PENDING && currentState != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
+        // log.warn("VerifyFactorAction: Action cannot execute from state {} for session {}", currentState, factorContext.getMfaSessionId());
+        // return false;
+        // }
         return true;
     }
 }

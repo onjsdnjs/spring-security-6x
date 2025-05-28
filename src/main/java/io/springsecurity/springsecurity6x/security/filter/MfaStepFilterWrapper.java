@@ -232,71 +232,84 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
     private static class RepositoryAwareStateMachineFilterChain implements FilterChain {
         private final FilterChain delegate;
         private final FactorContext context;
-        private final HttpServletRequest request;
+        private final HttpServletRequest request; // HttpServletRequest 저장
         private final MfaStateMachineIntegrator stateMachineIntegrator;
-        private final MfaSessionRepository sessionRepository; // 추가: Repository 정보
-        private final long startTime;
-        private final MfaSettings mfaSettings; // 추가: 설정 정보
+        private final MfaSessionRepository sessionRepository;
+        private final long startTime; // 요청 시작 시간 (최소 지연 시간 보장용)
+        private final MfaSettings mfaSettings; // MfaSettings 주입
 
         public RepositoryAwareStateMachineFilterChain(FilterChain delegate, FactorContext context,
-                                                      HttpServletRequest request,
+                                                      HttpServletRequest request, // request 추가
                                                       MfaStateMachineIntegrator stateMachineIntegrator,
                                                       MfaSessionRepository sessionRepository,
-                                                      long startTime, MfaSettings mfaSettings) {
+                                                      long startTime, MfaSettings mfaSettings) { // mfaSettings 추가
             this.delegate = delegate;
             this.context = context;
-            this.request = request;
+            this.request = request; // 저장
             this.stateMachineIntegrator = stateMachineIntegrator;
-            this.sessionRepository = sessionRepository; // 추가
+            this.sessionRepository = sessionRepository;
             this.startTime = startTime;
-            this.mfaSettings = mfaSettings;
+            this.mfaSettings = mfaSettings; // 저장
         }
 
         @Override
-        public void doFilter(jakarta.servlet.ServletRequest request,
-                             jakarta.servlet.ServletResponse response)
+        public void doFilter(jakarta.servlet.ServletRequest servletRequest, // 이름 변경 (shadowing 방지)
+                             jakarta.servlet.ServletResponse servletResponse)
                 throws IOException, ServletException {
 
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-            MfaState beforeState = context.getCurrentState();
+            HttpServletResponse httpResponse = (HttpServletResponse) servletResponse;
+//            MfaState beforeState = stateMachineIntegrator.getCurrentState(sessionRepository.getSessionId(request));
 
             try {
-                // 실제 필터 실행
-                delegate.doFilter(request, response);
+                delegate.doFilter(servletRequest, servletResponse); // 원래 필터 체인 실행
 
                 // 검증 시간 기록
                 long verificationTime = System.currentTimeMillis() - startTime;
                 context.setAttribute("lastVerificationTime", verificationTime);
+                context.updateLastActivityTimestamp(); // 활동 시간 갱신 추가
 
-                // 개선: Repository를 통한 세션 갱신
+                // 세션 갱신 (Repository 사용)
                 sessionRepository.refreshSession(context.getMfaSessionId());
 
+                // FactorContext를 StateMachine에 저장
                 stateMachineIntegrator.saveFactorContext(context);
+                log.debug("MFA Step Filter Wrapper (session {}): FactorContext saved after delegate filter execution. Current state: {}",
+                        context.getMfaSessionId(), context.getCurrentState());
 
-                // 필터 실행 후 상태 확인 및 이벤트 전송
-                if (!httpResponse.isCommitted()) {
+                // 상태 변경 및 이벤트 전송은 각 Factor의 Success/Failure Handler가 담당해야 함.
+                // 여기서 임의로 이벤트를 보내는 로직은 제거.
+                // 핸들러가 이미 응답을 커밋했을 수 있으므로, 응답 커밋 여부 확인은 여전히 유효.
+                if (httpResponse.isCommitted()) {
+                    log.debug("MFA Step Filter Wrapper (session {}): Response already committed by delegate filter or its handlers.", context.getMfaSessionId());
+                }
+
+                /*if (!httpResponse.isCommitted()) {
                     if (beforeState == context.getCurrentState()) {
                         stateMachineIntegrator.sendEvent(
                                 MfaEvent.FACTOR_VERIFICATION_FAILED, context, this.request);
                     }
-                }
+                }*/
+
             } catch (Exception e) {
-                log.error("Error during factor verification using {} repository",
-                        sessionRepository.getRepositoryType(), e);
-                stateMachineIntegrator.sendEvent(
-                        MfaEvent.FACTOR_VERIFICATION_FAILED, context, this.request);
+                log.error("MFA Step Filter Wrapper (session {}): Error during delegate filter execution using {} repository.",
+                        context.getMfaSessionId(), sessionRepository.getRepositoryType(), e);
+
+                // AuthenticationException은 해당 Factor의 FailureHandler에서 처리되어야 함.
+                // 그 외 예외는 시스템 에러로 간주하고 상태 머신에 알림.
+                if (!(e instanceof org.springframework.security.core.AuthenticationException)) {
+                    log.debug("MFA Step Filter Wrapper (session {}): Sending SYSTEM_ERROR event due to non-AuthenticationException.", context.getMfaSessionId());
+                    stateMachineIntegrator.sendEvent(MfaEvent.SYSTEM_ERROR, context, this.request);
+                }
+                // 예외를 다시 던져서 Spring Security의 표준 예외 처리 메커니즘 (예: ExceptionTranslationFilter, ASEPFilter)이 처리하도록 함.
                 throw e;
             } finally {
+                // 최소 지연 시간 보장
                 ensureMinimumDelay(startTime);
             }
         }
 
-        /**
-         * 개선: MfaSettings를 활용한 최소 지연 보장
-         */
-        private void ensureMinimumDelay(long startTime) {
-            long elapsed = System.currentTimeMillis() - startTime;
-            // 개선: MfaSettings 에서 최소 지연 시간 가져오기
+        private void ensureMinimumDelay(long processingStartTime) { // 메서드 이름 변경 및 mfaSettings 사용
+            long elapsed = System.currentTimeMillis() - processingStartTime;
             long minDelayMs = mfaSettings.getMinimumDelayMs();
             if (elapsed < minDelayMs) {
                 try {

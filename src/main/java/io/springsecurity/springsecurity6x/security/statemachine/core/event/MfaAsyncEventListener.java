@@ -1,3 +1,4 @@
+/*
 package io.springsecurity.springsecurity6x.security.statemachine.core.event;
 
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaStateMachineEvents.*;
@@ -15,23 +16,27 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+*/
 /**
  * 비동기 이벤트 리스너
  * @EventListener 와 @Async를 활용한 논블로킹 처리
- */
+ *//*
+
 @Slf4j
 @Component
 public class MfaAsyncEventListener {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    public MfaAsyncEventListener(@Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+    public MfaAsyncEventListener(@Qualifier("stateMachineRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
-    /**
+    */
+/**
      * 상태 변경 이벤트 처리
-     */
+     *//*
+
     @Async("mfaEventExecutor")
     @EventListener
     public void handleStateChange(StateChangeEvent event) {
@@ -48,9 +53,11 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * 에러 이벤트 처리
-     */
+     *//*
+
     @Async("mfaEventExecutor")
     @EventListener
     public void handleError(ErrorEvent event) {
@@ -73,9 +80,11 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * 커스텀 이벤트 처리
-     */
+     *//*
+
     @Async("mfaEventExecutor")
     @EventListener
     public void handleCustomEvent(CustomEvent event) {
@@ -100,9 +109,11 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * 트랜잭션 커밋 후 중요 이벤트 처리
-     */
+     *//*
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("mfaEventExecutor")
     public void handleCriticalStateChange(StateChangeEvent event) {
@@ -115,9 +126,11 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * Redis에 상태 변경 이벤트 발행
-     */
+     *//*
+
     private void publishToRedis(StateChangeEvent event) {
         if (redisTemplate == null) return;
 
@@ -140,9 +153,11 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * Redis에 에러 이벤트 발행
-     */
+     *//*
+
     private void publishErrorToRedis(ErrorEvent event) {
         if (redisTemplate == null) return;
 
@@ -164,17 +179,21 @@ public class MfaAsyncEventListener {
         }
     }
 
-    /**
+    */
+/**
      * 알림이 필요한지 판단
-     */
+     *//*
+
     private boolean shouldAlert(ErrorEvent event) {
         return event.getErrorType() == ErrorEvent.ErrorType.SECURITY ||
                 event.getErrorType() == ErrorEvent.ErrorType.LIMIT_EXCEEDED;
     }
 
-    /**
+    */
+/**
      * 알림 전송
-     */
+     *//*
+
     private void sendAlert(ErrorEvent event) {
         log.error("ALERT: MFA error for session {} - Type: {}, Error: {}",
                 event.getSessionId(),
@@ -183,29 +202,35 @@ public class MfaAsyncEventListener {
         // TODO: 실제 알림 시스템 연동
     }
 
-    /**
+    */
+/**
      * 세션 정리 처리
-     */
+     *//*
+
     private void handleSessionCleanup(Object payload) {
         log.info("Processing session cleanup: {}", payload);
         // TODO: 세션 정리 로직
     }
 
-    /**
+    */
+/**
      * 메트릭 수집 처리
-     */
+     *//*
+
     private void handleMetricCollection(Object payload) {
         log.debug("Processing metric collection: {}", payload);
         // TODO: 메트릭 수집 로직
     }
 
-    /**
+    */
+/**
      * 감사 로그
-     */
+     *//*
+
     private void auditLog(StateChangeEvent event) {
         log.info("AUDIT: MFA {} for session {} at {}",
                 event.getToState(),
                 event.getSessionId(),
                 event.getOccurredAt());  // occurredAt 사용
     }
-}
+}*/

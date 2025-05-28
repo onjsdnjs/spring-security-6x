@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class ResilientRedisStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final StateMachinePersist<MfaState, MfaEvent, String> fallbackPersist;
     private final int ttlMinutes;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -81,7 +81,7 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
 
         try {
             // ✅ 단순하게 조회
-            String serialized = redisTemplate.opsForValue().get(key);
+            String serialized = (String)redisTemplate.opsForValue().get(key);
 
             if (serialized == null) {
                 log.debug("No state machine context found for session: {}", contextObj);

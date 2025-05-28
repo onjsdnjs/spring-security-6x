@@ -184,7 +184,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
                 mfaConfigUrl
         );
 
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,
+        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_OK,
                 "MFA_CONFIG_REQUIRED", "MFA 설정이 필요합니다.", mfaConfigUrl, responseBody);
     }
 

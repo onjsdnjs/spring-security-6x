@@ -79,7 +79,7 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
 
         String persistenceType = properties.getPersistence() != null ?
                 properties.getPersistence().getType() : "memory";
@@ -173,7 +173,7 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     public RedisDistributedLockService redisDistributedLockService(
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
         log.info("Creating Redis Distributed Lock Service");
         return new RedisDistributedLockService(redisTemplate);
     }

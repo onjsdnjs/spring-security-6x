@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     logClientSide(`State Machine updated: ${result.stateMachine.currentState}`);
                 }
 
-                if (result.status === "MFA_REQUIRED") {
+                if (result.status === "MFA_CONFIG_REQUIRED") {
                     // MFA 필요: State Machine이 PRIMARY_AUTH_SUCCESS 상태
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);

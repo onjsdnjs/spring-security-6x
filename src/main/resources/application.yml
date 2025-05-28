@@ -110,7 +110,7 @@ security:
 logging:
   level:
     io.springsecurity.springsecurity6x.security.statemachine: DEBUG
-    org.springframework.statemachine: INFO
+    org.springframework.statemachine: DEBUG
 #    org.springframework.data.redis: DEBUG
 
 ---

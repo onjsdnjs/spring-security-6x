@@ -110,7 +110,7 @@ public class TokenStoreConfiguration {
     @ConditionalOnClass(RedisTemplate.class)
     @ConditionalOnMissingBean(RedisDistributedLockService.class)
     public RedisDistributedLockService redisDistributedLockService(
-            @Autowired(required = false) RedisTemplate<String, String> redisTemplate) {
+            @Autowired(required = false) RedisTemplate<String, Object> redisTemplate) {
 
         if (redisTemplate != null) {
             log.info("Creating RedisDistributedLockService");

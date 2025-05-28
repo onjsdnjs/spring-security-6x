@@ -64,10 +64,10 @@ public class UnifiedRedisConfiguration {
      * - 분산 락
      */
     @Bean(name = "stateMachineRedisTemplate")
-    public RedisTemplate<String, String> stateMachineRedisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, Object> stateMachineRedisTemplate(RedisConnectionFactory connectionFactory) {
         log.info("Creating State Machine RedisTemplate with String serialization");
 
-        RedisTemplate<String, String> template = new RedisTemplate<>();
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
         // String 직렬화 사용 (성능 최적화)

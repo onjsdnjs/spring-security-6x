@@ -28,24 +28,28 @@ import java.util.stream.Collectors;
  * @since 2024.12
  */
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class RefreshTokenManagementService {
 
     private static final String STATS_KEY_PREFIX = "token:stats:";
     private static final String AUDIT_LOG_PREFIX = "token:audit:";
     private static final String SESSION_KEY_PREFIX = "token:session:";
 
-    private final EnhancedRefreshTokenStore tokenStore;
     private final StringRedisTemplate redisTemplate;
     private final RedisEventPublisher eventPublisher;
+    private final EnhancedRefreshTokenStore enhancedTokenStore;
+
+    public RefreshTokenManagementService(StringRedisTemplate redisTemplate, RedisEventPublisher eventPublisher,EnhancedRefreshTokenStore tokenStore) {
+        this.redisTemplate = redisTemplate;
+        this.eventPublisher = eventPublisher;
+        enhancedTokenStore = tokenStore;
+    }
 
     /**
      * 사용자 토큰 대시보드 정보 조회
      */
     public UserTokenDashboard getUserTokenDashboard(String username) {
         // 활성 세션 조회
-        List<EnhancedRefreshTokenStore.ActiveSession> activeSessions = tokenStore.getActiveSessions(username);
+        List<EnhancedRefreshTokenStore.ActiveSession> activeSessions = enhancedTokenStore.getActiveSessions(username);
 
         // 토큰 통계 조회
         TokenStatistics statistics = getTokenStatistics(username);
@@ -54,7 +58,7 @@ public class RefreshTokenManagementService {
         List<SecurityEvent> recentEvents = getRecentSecurityEvents(username, 10);
 
         // 토큰 사용 이력
-        List<EnhancedRefreshTokenStore.TokenUsageHistory> usageHistory = tokenStore.getTokenHistory(username, 20);
+        List<EnhancedRefreshTokenStore.TokenUsageHistory> usageHistory = enhancedTokenStore.getTokenHistory(username, 20);
 
         return new UserTokenDashboard(
                 username,
@@ -74,7 +78,7 @@ public class RefreshTokenManagementService {
                 username, deviceId, reason);
 
         // 토큰 무효화
-        tokenStore.revokeDeviceTokens(username, deviceId, reason);
+        enhancedTokenStore.revokeDeviceTokens(username, deviceId, reason);
 
         // 감사 로그 기록
         recordAuditLog(username, "SESSION_TERMINATED", Map.of(
@@ -94,7 +98,7 @@ public class RefreshTokenManagementService {
         log.info("Terminating all sessions for user: {}, reason: {}", username, reason);
 
         // 모든 토큰 무효화
-        tokenStore.revokeAllUserTokens(username, reason);
+        enhancedTokenStore.revokeAllUserTokens(username, reason);
 
         // 감사 로그 기록
         recordAuditLog(username, "ALL_SESSIONS_TERMINATED", Map.of(

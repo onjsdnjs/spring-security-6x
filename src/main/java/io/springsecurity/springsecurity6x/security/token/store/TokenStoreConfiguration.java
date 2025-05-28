@@ -173,7 +173,7 @@ public class TokenStoreConfiguration {
         if (tokenStore instanceof EnhancedRefreshTokenStore enhancedStore
                 && redisTemplate != null && eventPublisher != null) {
             log.info("Creating RefreshTokenManagementService for token management");
-            return new RefreshTokenManagementService(enhancedStore, redisTemplate, eventPublisher);
+            return new RefreshTokenManagementService(redisTemplate, eventPublisher, enhancedStore);
         }
         log.warn("RefreshTokenManagementService requires EnhancedRefreshTokenStore implementation. Skipping creation.");
         return null;

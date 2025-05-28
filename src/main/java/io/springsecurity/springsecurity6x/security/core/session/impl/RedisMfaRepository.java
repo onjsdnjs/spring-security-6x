@@ -14,13 +14,9 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,11 +27,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * 핵심 특징:
  * - Redis Lua 스크립트 기반 원자적 연산
  * - 분산 클러스터 세션 ID 유니크성 보장
- * - 노드별 고유 식별자 활용
+ * - 쿠키 기반 세션 ID 관리 (분산 환경 대응)
  * - 자동 충돌 해결 메커니즘
  * - 보안 강화된 세션 ID 생성
  */
 @Slf4j
+@Repository
 @ConditionalOnProperty(name = "security.mfa.session.storage-type", havingValue = "redis")
 public class RedisMfaRepository implements MfaSessionRepository {
 
@@ -47,6 +44,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
     private static final String COLLISION_COUNTER_KEY = "mfa:collision:counter";
     private static final String SESSION_STATS_KEY = "mfa:stats";
     private static final String COOKIE_NAME = "MFA_SID";
+    private static final String TEMP_SESSION_ATTR = "TEMP_MFA_SESSION_ID";
     private static final int MAX_COLLISION_RETRIES = 10;
     private static final int MIN_SECURITY_SCORE = 80;
 
@@ -90,9 +88,13 @@ public class RedisMfaRepository implements MfaSessionRepository {
             totalSessionsCreated.incrementAndGet();
             updateSessionStats();
 
+            // Response가 있으면 쿠키 설정
             if (response != null) {
                 setSessionCookie(response, sessionId);
             }
+
+            // 임시 attribute 제거
+            request.removeAttribute(TEMP_SESSION_ATTR);
 
             log.debug("MFA session stored in Redis cluster: {} with TTL: {}", sessionId, sessionTimeout);
         } else {
@@ -110,6 +112,11 @@ public class RedisMfaRepository implements MfaSessionRepository {
             if (isSessionIdUnique(sessionId) && getSessionIdSecurityScore(sessionId) >= MIN_SECURITY_SCORE) {
                 log.debug("Generated unique session ID for Redis cluster: {} (attempt: {})",
                         sessionId, attempt + 1);
+
+                // 생성된 세션 ID를 request attribute에 임시 저장
+                // getSessionId()에서 쿠키가 없을 때 사용
+                request.setAttribute(TEMP_SESSION_ATTR, sessionId);
+
                 return sessionId;
             }
 
@@ -123,6 +130,32 @@ public class RedisMfaRepository implements MfaSessionRepository {
 
         throw new SessionIdGenerationException(
                 "Failed to generate unique session ID after " + MAX_COLLISION_RETRIES + " attempts");
+    }
+
+    @Override
+    @Nullable
+    public String getSessionId(HttpServletRequest request) {
+        // 1. 먼저 쿠키에서 세션 ID 조회
+        String sessionId = getSessionIdFromCookie(request);
+
+        // 2. 쿠키가 없으면 임시 attribute 확인 (방금 생성된 경우)
+        if (sessionId == null) {
+            sessionId = (String) request.getAttribute(TEMP_SESSION_ATTR);
+            if (sessionId == null) {
+                return null;
+            }
+            // 임시 세션은 Redis 확인 없이 바로 반환 (아직 저장 전)
+            return sessionId;
+        }
+
+        // 3. 쿠키에서 가져온 세션은 Redis 확인
+        String redisKey = SESSION_PREFIX + sessionId;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+            return sessionId;
+        }
+
+        log.trace("Session ID {} found in cookie but not in Redis", sessionId);
+        return null;
     }
 
     @Override
@@ -185,24 +218,6 @@ public class RedisMfaRepository implements MfaSessionRepository {
         score += calculateUnpredictability(sessionId);
 
         return Math.min(100, score);
-    }
-
-    // 나머지 메서드들은 기존 구현과 동일...
-
-    @Override
-    @Nullable
-    public String getSessionId(HttpServletRequest request) {
-        String sessionId = getSessionIdFromCookie(request);
-        if (sessionId == null) {
-            return null;
-        }
-
-        String redisKey = SESSION_PREFIX + sessionId;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
-            return sessionId;
-        }
-
-        return null;
     }
 
     @Override
@@ -370,6 +385,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
         cookie.setAttribute("SameSite", "Strict");
 
         response.addCookie(cookie);
+        log.trace("MFA session cookie set: {}", sessionId);
     }
 
     private void invalidateSessionCookie(HttpServletResponse response) {
@@ -380,6 +396,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
         cookie.setMaxAge(0);
 
         response.addCookie(cookie);
+        log.trace("MFA session cookie invalidated");
     }
 
     private String getClientIpAddress(HttpServletRequest request) {

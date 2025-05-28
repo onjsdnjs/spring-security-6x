@@ -48,7 +48,16 @@ public class MfaStateMachineIntegrator {
      * 완전 일원화: State Machine 초기화 (기존 메서드 시그니처 완전 유지)
      */
     public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
+        // Response가 없는 경우 - 기존 호환성 유지
+        initializeStateMachine(context, request, null);
+    }
+
+    /**
+     * State Machine 초기화 - Response 포함 버전 (Redis 쿠키 설정 지원)
+     */
+    public void initializeStateMachine(FactorContext context, HttpServletRequest request, HttpServletResponse response) {
         String sessionId = context.getMfaSessionId();
+
         log.info("Initializing unified State Machine for session: {} using {} repository",
                 sessionId, sessionRepository.getRepositoryType());
 
@@ -57,25 +66,6 @@ public class MfaStateMachineIntegrator {
             stateMachineService.initializeStateMachine(context, request);
 
             // Repository를 통한 세션 저장
-            sessionRepository.storeSession(sessionId, request, null);
-
-            // 개선: 초기화 후 동기화 상태 기록
-            updateSyncState(sessionId, context.getVersion());
-
-            log.info("Unified State Machine initialized successfully for session: {}", sessionId);
-        } catch (Exception e) {
-            log.error("Failed to initialize unified State Machine for session: {}", sessionId, e);
-            throw new StateMachineIntegrationException("State Machine initialization failed", e);
-        }
-    }
-
-    public void initializeStateMachine(FactorContext context, HttpServletRequest request, HttpServletResponse response) {
-        String sessionId = context.getMfaSessionId();
-        log.info("Initializing unified State Machine for session: {} using {} repository",
-                sessionId, sessionRepository.getRepositoryType());
-
-        try {
-            stateMachineService.initializeStateMachine(context, request);
             sessionRepository.storeSession(sessionId, request, response);
 
             // 개선: 초기화 후 동기화 상태 기록
@@ -89,7 +79,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 완전 일원화: 이벤트 전송 (개선된 실패 처리)
+     * 완전 일원화: 이벤트 전송
      */
     public boolean sendEvent(MfaEvent event, FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -98,7 +88,6 @@ public class MfaStateMachineIntegrator {
         try {
             sessionRepository.refreshSession(sessionId);
 
-            // 개선: 이벤트 전송 전 상태 검증
             if (!isValidEventForCurrentState(event, context.getCurrentState())) {
                 log.warn("Event {} is not valid for current state {} in session: {}",
                         event, context.getCurrentState(), sessionId);

@@ -30,8 +30,8 @@ public final class MfaRestAuthenticationAdapter extends BaseRestAuthenticationAd
                                                PlatformAuthenticationSuccessHandler successHandler,
                                                PlatformAuthenticationFailureHandler failureHandler) {
         configurer.loginProcessingUrl(opts.getLoginProcessingUrl())
-                .successHandler(opts.getSuccessHandler() != null ? opts.getSuccessHandler() : successHandler)
-                .failureHandler(opts.getFailureHandler() != null ? opts.getFailureHandler() : failureHandler);
+                .successHandler(successHandler)
+                .failureHandler(failureHandler);
     }
 
     @Override

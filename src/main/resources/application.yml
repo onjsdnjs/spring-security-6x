@@ -87,14 +87,12 @@ spring:
       detailed-logging-enabled: true
       metrics-enabled: true
       audit-logging-enabled: true
-      session-storage-type: http-session
+      session-storage-type: redis
 
 # Security State Machine 설정
 security:
   statemachine:
     enabled: true
-    enable-persistence: true
-    context-ttl-minutes: 30
 
     # MFA State Machine 설정
     mfa:

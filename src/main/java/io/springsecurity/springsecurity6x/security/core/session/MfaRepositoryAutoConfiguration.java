@@ -108,7 +108,7 @@ public class MfaRepositoryAutoConfiguration {
                 return wrapWithHealthChecking(repository);
             }
         } catch (Exception e) {
-            log.error("❌ Failed to create configured repository '{}': {}", storageType, e.getMessage());
+            log.error("Failed to create configured repository '{}': {}", storageType, e.getMessage());
         }
 
         log.warn("🔄 Falling back to fallback repository due to configuration failure");
@@ -150,7 +150,7 @@ public class MfaRepositoryAutoConfiguration {
             return repository;
 
         } catch (Exception e) {
-            log.warn("❌ Failed to create Redis repository: {}", e.getMessage());
+            log.warn("Failed to create Redis repository: {}", e.getMessage());
             return null;
         }
     }
@@ -439,12 +439,12 @@ class HealthCheckingRepositoryWrapper implements MfaSessionRepository {
                 lastHealthCheck = now;
 
                 if (!isHealthy) {
-                    log.warn("❌ Repository {} failed health check", delegate.getRepositoryType());
+                    log.warn("Repository {} failed health check", delegate.getRepositoryType());
                 }
             } catch (Exception e) {
                 isHealthy = false;
                 lastHealthCheck = now;
-                log.warn("❌ Repository {} health check exception: {}", delegate.getRepositoryType(), e.getMessage());
+                log.warn("Repository {} health check exception: {}", delegate.getRepositoryType(), e.getMessage());
             }
         }
     }

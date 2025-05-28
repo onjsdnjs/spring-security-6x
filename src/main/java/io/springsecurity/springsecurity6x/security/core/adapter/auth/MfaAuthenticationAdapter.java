@@ -16,11 +16,11 @@ import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeToken
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.*;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;
@@ -104,7 +104,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
                         String processingUrl = procOpts.getLoginProcessingUrl();
                         if (processingUrl != null) {
                             // 일반적으로 MFA Factor 검증은 POST 요청
-                            factorProcessingMatchers.add(new ParameterRequestMatcher(processingUrl, "POST"));
+                            factorProcessingMatchers.add(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, processingUrl));
                             log.debug("MfaAuthenticationAdapter: Added AntPathRequestMatcher for MFA factor processing URL: POST {}", processingUrl);
                         }
                     }

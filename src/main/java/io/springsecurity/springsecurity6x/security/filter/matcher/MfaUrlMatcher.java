@@ -5,8 +5,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.*;
@@ -53,7 +54,8 @@ public class MfaUrlMatcher {
 
     private void addMatcher(MfaRequestType type, String pattern, String method) {
         if (pattern != null && !pattern.isEmpty()) {
-            RequestMatcher matcher = new ParameterRequestMatcher(pattern, method);
+            RequestMatcher matcher = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, pattern);
+
             matcherMap.computeIfAbsent(type, k -> new ArrayList<>()).add(matcher);
             configuredUrls.add(pattern + " [" + method + "]");
             log.debug("Added matcher for type {}: {} [{}]", type, pattern, method);

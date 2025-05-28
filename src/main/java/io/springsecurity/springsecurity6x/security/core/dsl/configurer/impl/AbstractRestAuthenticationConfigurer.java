@@ -12,7 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.util.matcher.ParameterRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 
@@ -32,7 +32,8 @@ public abstract class AbstractRestAuthenticationConfigurer<T extends AbstractRes
     protected SecurityContextRepository securityContextRepository;
 
     protected AbstractRestAuthenticationConfigurer() {
-        this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+        this.requestMatcher = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, loginProcessingUrl);
+        ;
     }
 
     @Override
@@ -44,7 +45,8 @@ public abstract class AbstractRestAuthenticationConfigurer<T extends AbstractRes
         AuthContextProperties properties = applicationContext.getBean(AuthContextProperties.class);
 
         if (this.requestMatcher == null) {
-            this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+            this.requestMatcher = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, loginProcessingUrl);
+            ;
         }
 
         // 템플릿 메서드 - 하위 클래스에서 필터 생성
@@ -87,7 +89,7 @@ public abstract class AbstractRestAuthenticationConfigurer<T extends AbstractRes
     public T loginProcessingUrl(String loginProcessingUrl) {
         Assert.hasText(loginProcessingUrl, "loginProcessingUrl must not be null or empty");
         this.loginProcessingUrl = loginProcessingUrl;
-        this.requestMatcher = new ParameterRequestMatcher(this.loginProcessingUrl, HttpMethod.POST.name());
+        this.requestMatcher = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, loginProcessingUrl);
         return (T) this;
     }
 

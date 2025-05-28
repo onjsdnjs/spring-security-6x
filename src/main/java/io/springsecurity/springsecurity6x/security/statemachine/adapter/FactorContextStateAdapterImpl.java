@@ -29,39 +29,79 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
 
     @Override
     public Map<Object, Object> toStateMachineVariables(FactorContext factorContext) {
+        // 절대 null을 반환하지 않도록 보장
         Map<Object, Object> variables = new HashMap<>();
 
-        // 핵심 필드만 직렬화
-        variables.put("mfaSessionId", factorContext.getMfaSessionId());
-        variables.put("username", factorContext.getUsername());
-        variables.put("flowTypeName", factorContext.getFlowTypeName());
-        variables.put("currentState", factorContext.getCurrentState().name());
-        variables.put("version", factorContext.getVersion());
+        try {
+            if (factorContext == null) {
+                log.error("FactorContext is null in toStateMachineVariables");
+                variables.put("_error", "null_factor_context");
+                return variables;
+            }
 
-        // 현재 처리 정보 (필수)
-        if (factorContext.getCurrentProcessingFactor() != null) {
-            variables.put("currentFactorType", factorContext.getCurrentProcessingFactor().name());
+            // 필수 필드 - null-safe 추가
+            putSafely(variables, "mfaSessionId", factorContext.getMfaSessionId(), "unknown");
+            putSafely(variables, "username", factorContext.getUsername(), "unknown");
+            putSafely(variables, "flowTypeName", factorContext.getFlowTypeName(), "mfa");
+            putSafely(variables, "currentState",
+                    factorContext.getCurrentState() != null ? factorContext.getCurrentState().name() : MfaState.NONE.name(),
+                    MfaState.NONE.name());
+            putSafely(variables, "version", factorContext.getVersion(), 0);
+
+            // 선택적 필드
+            if (factorContext.getCurrentProcessingFactor() != null) {
+                variables.put("currentFactorType", factorContext.getCurrentProcessingFactor().name());
+            }
+
+            putSafely(variables, "currentStepId", factorContext.getCurrentStepId(), null);
+            putSafely(variables, "retryCount", factorContext.getRetryCount(), 0);
+            putSafely(variables, "lastError", factorContext.getLastError(), null);
+            putSafely(variables, "mfaRequiredAsPerPolicy", factorContext.isMfaRequiredAsPerPolicy(), false);
+
+            // Authentication 객체
+            if (factorContext.getPrimaryAuthentication() != null) {
+                variables.put("primaryAuthentication", factorContext.getPrimaryAuthentication());
+            } else {
+                log.warn("PrimaryAuthentication is null for session: {}", factorContext.getMfaSessionId());
+            }
+
+            // 메타데이터
+            variables.put("_serializedAt", System.currentTimeMillis());
+            variables.put("_adapterVersion", "2.2");
+
+            log.debug("Serialized {} variables for session: {}",
+                    variables.size(), factorContext.getMfaSessionId());
+
+        } catch (Exception e) {
+            log.error("Unexpected error in toStateMachineVariables", e);
+            variables.put("_error", "serialization_error");
+            variables.put("_errorMessage", e.getMessage());
+
+            // 최소한의 데이터 보장
+            try {
+                if (factorContext != null && factorContext.getMfaSessionId() != null) {
+                    variables.put("mfaSessionId", factorContext.getMfaSessionId());
+                }
+            } catch (Exception ex) {
+                // 무시
+            }
         }
-        variables.put("currentStepId", factorContext.getCurrentStepId());
 
-        // 재시도 정보 (필수)
-        variables.put("retryCount", factorContext.getRetryCount());
-        variables.put("lastError", factorContext.getLastError());
-
-        // MFA 정책 정보 (필수)
-        variables.put("mfaRequiredAsPerPolicy", factorContext.isMfaRequiredAsPerPolicy());
-
-        // 복잡한 객체는 레퍼런스만 저장
-        variables.put("primaryAuthentication", factorContext.getPrimaryAuthentication());
-
-        // 메타데이터 최소화
-        variables.put("_serializedAt", System.currentTimeMillis());
-        variables.put("_adapterVersion", "2.1");
-
-        log.debug("Serialized essential FactorContext data ({} variables) for session: {}",
-                variables.size(), factorContext.getMfaSessionId());
-
+        // 절대 null 반환하지 않음
         return variables;
+    }
+
+    /**
+     * Null-safe put 메서드
+     */
+    private void putSafely(Map<Object, Object> map, String key, Object value, Object defaultValue) {
+        if (key != null) {
+            if (value != null) {
+                map.put(key, value);
+            } else if (defaultValue != null) {
+                map.put(key, defaultValue);
+            }
+        }
     }
 
     @Override

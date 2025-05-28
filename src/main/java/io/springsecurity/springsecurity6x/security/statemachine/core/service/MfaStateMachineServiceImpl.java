@@ -15,11 +15,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -78,16 +80,13 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         String sessionId = context.getMfaSessionId();
         long startTime = System.currentTimeMillis();
 
-        log.info("Initializing optimized State Machine for session: {}", sessionId);
+        log.info("Initializing State Machine for session: {}", sessionId);
 
-        // Circuit Breaker 확인
         if (!isCircuitClosed()) {
             throw new StateMachineException("Circuit breaker is open - system protection activated");
         }
 
-        // 활성 작업 카운터 증가
         activeOperations.incrementAndGet();
-
         ExecutorService executor = getSessionExecutor(sessionId);
 
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -96,26 +95,46 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                     PooledStateMachine pooled = stateMachinePool.borrowStateMachine(
                             sessionId, operationTimeout, TimeUnit.SECONDS
-                    ).get(operationTimeout, TimeUnit.SECONDS); // 개선: 타임아웃 명시
+                    ).get(operationTimeout, TimeUnit.SECONDS);
 
                     try {
                         StateMachine<MfaState, MfaEvent> stateMachine = pooled.getStateMachine();
 
-                        // 개선: State Machine 상태 검증
                         if (!isStateMachineHealthy(stateMachine)) {
                             throw new StateMachineException("State Machine health check failed");
                         }
 
-                        // FactorContext를 State Machine에 저장
-                        storeFactorContextInStateMachine(stateMachine, context);
+                        // ===== 수정: 동기식 API 사용 =====
+                        boolean needsStart = !stateMachine.isComplete() &&
+                                (stateMachine.getState() == null ||
+                                        stateMachine.getExtendedState() == null ||
+                                        stateMachine.getExtendedState().getVariables() == null);
 
-                        // State Machine 시작
-                        if (!stateMachine.isComplete() && stateMachine.getState() == null) {
-                            boolean started = stateMachine.startReactively().block(Duration.ofSeconds(5)) != null;
-                            if (!started) {
-                                throw new StateMachineException("Failed to start State Machine");
+                        if (needsStart) {
+                            log.debug("Starting State Machine synchronously for session: {}", sessionId);
+
+                            // 동기식 start() 사용
+                            stateMachine.start();
+
+                            // 초기화 대기
+                            Thread.sleep(300);
+
+                            // ExtendedState 초기화 확인
+                            if (stateMachine.getExtendedState() == null ||
+                                    stateMachine.getExtendedState().getVariables() == null) {
+                                // 재시도
+                                Thread.sleep(200);
+
+                                if (stateMachine.getExtendedState() == null ||
+                                        stateMachine.getExtendedState().getVariables() == null) {
+                                    throw new StateMachineException("ExtendedState not properly initialized after start");
+                                }
                             }
                         }
+                        // ===== 수정 끝 =====
+
+                        // State Machine이 시작된 후에 FactorContext 저장
+                        storeFactorContextInStateMachine(stateMachine, context);
 
                         // 초기 이벤트 전송
                         Message<MfaEvent> message = createEventMessage(
@@ -125,17 +144,13 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                         if (accepted) {
                             MfaState newState = stateMachine.getState().getId();
-
-                            // 개선: 이벤트 발행 최적화
                             publishStateChangeAsync(sessionId, MfaState.NONE, newState, MfaEvent.PRIMARY_AUTH_SUCCESS);
-
                             onSuccess();
-                            log.info("Optimized State Machine initialized successfully for session: {}", sessionId);
+                            log.info("State Machine initialized successfully for session: {}", sessionId);
                         } else {
                             throw new StateMachineException("Failed to process PRIMARY_AUTH_SUCCESS event");
                         }
                     } finally {
-                        // 개선: 안전한 State Machine 반환
                         CompletableFuture.runAsync(() -> stateMachinePool.returnStateMachine(sessionId));
                     }
 
@@ -143,7 +158,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 });
             } catch (Exception e) {
                 onFailure();
-                log.error("Failed to initialize optimized State Machine for session: {}", sessionId, e);
+                log.error("Failed to initialize State Machine for session: {}", sessionId, e);
                 throw new StateMachineException("State Machine initialization failed", e);
             } finally {
                 activeOperations.decrementAndGet();
@@ -158,6 +173,97 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             throw new StateMachineException("State Machine initialization timeout", e);
         } catch (Exception e) {
             throw new StateMachineException("State Machine initialization failed", e);
+        }
+    }
+
+    /**
+     * 동기식으로 State Machine 시작 보장
+     */
+    private void ensureStateMachineStartedSync(StateMachine<MfaState, MfaEvent> stateMachine, String sessionId) {
+        // State Machine이 시작되었는지 확인
+        if (stateMachine.getState() == null || stateMachine.getExtendedState() == null) {
+            log.info("Starting State Machine synchronously for session: {}", sessionId);
+
+            try {
+                // 동기식 start() 사용
+                stateMachine.start();
+
+                // 초기화 완료 대기
+                int maxRetries = 10;
+                int retryCount = 0;
+
+                while (retryCount < maxRetries) {
+                    Thread.sleep(100);
+
+                    if (stateMachine.getState() != null &&
+                            stateMachine.getExtendedState() != null &&
+                            stateMachine.getExtendedState().getVariables() != null) {
+                        log.debug("State Machine started successfully after {} retries", retryCount);
+                        return;
+                    }
+
+                    retryCount++;
+                }
+
+                // 최종 확인
+                if (stateMachine.getState() == null) {
+                    throw new IllegalStateException("State is still null after start");
+                }
+
+                if (stateMachine.getExtendedState() == null ||
+                        stateMachine.getExtendedState().getVariables() == null) {
+                    throw new IllegalStateException("ExtendedState not initialized after start");
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while starting State Machine", e);
+            } catch (Exception e) {
+                log.error("Failed to start State Machine for session: {}", sessionId, e);
+                throw new RuntimeException("State Machine start failed", e);
+            }
+        }
+    }
+
+    /**
+     * 동기식 State Machine 검증
+     */
+    private void validateStateMachine(StateMachine<MfaState, MfaEvent> stateMachine, String sessionId) {
+        if (stateMachine == null) {
+            throw new IllegalStateException("Borrowed null StateMachine for session: " + sessionId);
+        }
+
+        // hasStateMachineError() 메서드로 에러 여부만 확인 가능
+        if (stateMachine.hasStateMachineError()) {
+            log.error("StateMachine has error for session: {}", sessionId);
+
+            // 에러 상태에서 복구 - stop/start로 리셋
+            try {
+                stateMachine.stop();
+                Thread.sleep(100);
+                stateMachine.start();
+                Thread.sleep(100);
+
+                // 리셋 후에도 에러가 있는지 확인
+                if (stateMachine.hasStateMachineError()) {
+                    throw new IllegalStateException("StateMachine still in error state after reset");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted during StateMachine reset", e);
+            }
+        }
+
+        // 완료 상태 확인
+        if (stateMachine.isComplete()) {
+            log.warn("Borrowed completed StateMachine for session: {}, restarting", sessionId);
+            try {
+                stateMachine.stop();
+                Thread.sleep(50);
+                stateMachine.start();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -513,9 +619,25 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
      */
     private boolean isStateMachineHealthy(StateMachine<MfaState, MfaEvent> stateMachine) {
         try {
-            return stateMachine != null &&
-                    !stateMachine.hasStateMachineError() &&
-                    stateMachine.getState() != null;
+            if (stateMachine == null) {
+                log.error("StateMachine is null");
+                return false;
+            }
+
+            if (stateMachine.hasStateMachineError()) {
+                log.error("StateMachine has error");
+                return false;
+            }
+
+            // ExtendedState 검증 추가
+            ExtendedState extendedState = stateMachine.getExtendedState();
+            if (extendedState == null) {
+                log.warn("StateMachine ExtendedState is null - may need initialization");
+                // ExtendedState가 null이어도 시작 후 초기화될 수 있으므로 true 반환
+                return true;
+            }
+
+            return true;
         } catch (Exception e) {
             log.warn("State Machine health check exception", e);
             return false;
@@ -595,22 +717,86 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
-    // === 기존 메서드들 (최적화 적용) ===
-
     private void storeFactorContextInStateMachine(StateMachine<MfaState, MfaEvent> stateMachine,
                                                   FactorContext context) {
-        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(context);
+        if (stateMachine == null || context == null) {
+            throw new IllegalArgumentException("Parameters cannot be null");
+        }
 
-        variables.put("_lastUpdated", Instant.now().toEpochMilli());
+        String sessionId = context.getMfaSessionId();
+        log.debug("Storing FactorContext for session: {}", sessionId);
+
+        // State Machine 초기화 확인
+        if (stateMachine.getState() == null) {
+            log.warn("StateMachine state is null, starting it for session: {}", sessionId);
+            stateMachine.start();
+
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while starting StateMachine", e);
+            }
+        }
+
+        // ExtendedState 확인
+        ExtendedState extendedState = stateMachine.getExtendedState();
+        if (extendedState == null) {
+            // 재시작 시도
+            try {
+                stateMachine.stop();
+                Thread.sleep(100);
+                stateMachine.start();
+                Thread.sleep(300);
+
+                extendedState = stateMachine.getExtendedState();
+                if (extendedState == null) {
+                    throw new IllegalStateException("Cannot initialize ExtendedState");
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to initialize ExtendedState", e);
+            }
+        }
+
+        // Variables 가져오기
+        Map<Object, Object> stateVariables = extendedState.getVariables();
+        if (stateVariables == null) {
+            throw new IllegalStateException("ExtendedState variables is null");
+        }
+
+        // Adapter를 통한 변환
+        Map<Object, Object> variables;
+        try {
+            variables = factorContextAdapter.toStateMachineVariables(context);
+            if (variables == null) {
+                variables = new HashMap<>();
+            }
+        } catch (Exception e) {
+            log.error("Error in adapter for session: {}", sessionId, e);
+            variables = new HashMap<>();
+            variables.put("mfaSessionId", sessionId);
+        }
+
+        // 메타데이터 추가
+        variables.put("_lastUpdated", System.currentTimeMillis());
         variables.put("_version", context.getVersion());
         variables.put("_stateHash", context.calculateStateHash());
         variables.put("_storageType", "UNIFIED_STATE_MACHINE");
 
-        stateMachine.getExtendedState().getVariables().clear();
-        stateMachine.getExtendedState().getVariables().putAll(variables);
+        try {
+            stateVariables.clear();
+            stateVariables.putAll(variables);
 
-        log.trace("FactorContext stored in optimized State Machine: sessionId={}, version={}, state={}",
-                context.getMfaSessionId(), context.getVersion(), context.getCurrentState());
+            log.debug("Successfully stored {} variables in StateMachine for session: {}",
+                    stateVariables.size(), sessionId);
+
+        } catch (UnsupportedOperationException e) {
+            log.error("Variables map is immutable for session: {}", sessionId);
+            throw new IllegalStateException("Cannot modify ExtendedState variables - immutable map", e);
+        } catch (Exception e) {
+            log.error("Failed to update variables for session: {}", sessionId, e);
+            throw new IllegalStateException("ExtendedState variables operation failed", e);
+        }
     }
 
     private FactorContext reconstructFactorContextFromStateMachine(StateMachine<MfaState, MfaEvent> stateMachine) {
@@ -655,16 +841,30 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 "stateHash".equals(key);
     }
 
+    // 완전한 수정 버전 - 모든 문제 해결
     private Message<MfaEvent> createEventMessage(MfaEvent event, FactorContext context, HttpServletRequest request) {
+        Map<String, Object> headers = new HashMap<>();
+
+        // 일반 헤더들
+        headers.put("sessionId", context.getMfaSessionId());
+        headers.put("username", context.getUsername());
+        headers.put("eventTime", System.currentTimeMillis());
+        headers.put("version", context.getVersion());
+        headers.put("stateHash", context.calculateStateHash());
+
+        // null 체크가 필요한 헤더들
+        if (context.getPrimaryAuthentication() != null) {
+            headers.put("authentication", context.getPrimaryAuthentication());
+        }
+
+        if (request != null) {
+            headers.put("request", request);
+        }
+
+        // MessageBuilder로 메시지 생성
         return MessageBuilder
                 .withPayload(event)
-                .setHeader("sessionId", context.getMfaSessionId())
-                .setHeader("username", context.getUsername())
-                .setHeader("timestamp", System.currentTimeMillis())
-                .setHeader("authentication", context.getPrimaryAuthentication())
-                .setHeader("request", request)
-                .setHeader("version", context.getVersion())
-                .setHeader("stateHash", context.calculateStateHash())
+                .copyHeaders(headers)  // 한 번에 모든 헤더 복사
                 .build();
     }
 

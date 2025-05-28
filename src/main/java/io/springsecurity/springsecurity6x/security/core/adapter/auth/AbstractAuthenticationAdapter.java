@@ -99,9 +99,6 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                         getId(), mfaSuccessHandler.getClass().getName());
 
                 if (generationSuccessHandler == null) {
-                    // determineDefaultOttSuccessHandler가 null을 반환하지 않도록 보장하는 것이 중요.
-                    // 만약 null을 반환할 수 있다면, 여기서 적절한 기본값을 설정하거나 예외를 던져야 함.
-                    // (이전 답변에서 determineDefaultOttSuccessHandler가 null이 아닌 값을 반환하도록 수정했음)
                     log.error("AuthenticationFeature [{}]: CRITICAL - determineDefaultOttSuccessHandler returned null. This should not happen. Review OttAuthenticationAdapter.determineDefaultOttSuccessHandler.", getId());
                     throw new IllegalStateException("Unable to determine a valid OneTimeTokenGenerationSuccessHandler for OTT feature " + getId() +
                             ". Resolved successHandler was: " + mfaSuccessHandler.getClass().getName() +

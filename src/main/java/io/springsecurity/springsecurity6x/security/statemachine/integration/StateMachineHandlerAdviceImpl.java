@@ -28,8 +28,8 @@ public class StateMachineHandlerAdviceImpl implements StateMachineHandlerAdvice 
     static {
         // MfaInitHandler가 허용되는 상태들
         HANDLER_ALLOWED_STATES.put("MfaInitHandler", Set.of(
-                MfaState.START_MFA,
-                MfaState.PRIMARY_AUTHENTICATION_SUCCESSFUL
+                MfaState.NONE,
+                MfaState.PRIMARY_AUTHENTICATION_COMPLETED
         ));
 
         // MfaSelectHandler가 허용되는 상태들
@@ -40,7 +40,7 @@ public class StateMachineHandlerAdviceImpl implements StateMachineHandlerAdvice 
 
         // MfaChallengeHandler가 허용되는 상태들
         HANDLER_ALLOWED_STATES.put("MfaChallengeHandler", Set.of(
-                MfaState.FACTOR_SELECTED,
+                MfaState.AWAITING_FACTOR_SELECTION,
                 MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION
         ));
 

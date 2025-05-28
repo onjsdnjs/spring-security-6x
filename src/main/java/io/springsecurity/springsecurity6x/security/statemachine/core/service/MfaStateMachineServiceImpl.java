@@ -658,7 +658,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         return switch (currentState) {
             case PRIMARY_AUTHENTICATION_COMPLETED ->
                     event == MfaEvent.MFA_NOT_REQUIRED ||
-                    event == MfaEvent.PRIMARY_AUTH_COMPLETED ||
+                    event == MfaEvent.PRIMARY_AUTH_SUCCESS ||
                             event == MfaEvent.MFA_REQUIRED_SELECT_FACTOR ||
                             event == MfaEvent.MFA_CONFIGURATION_REQUIRED;
 

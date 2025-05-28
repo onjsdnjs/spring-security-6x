@@ -117,7 +117,7 @@ public class MfaStateMachineMonitorServiceImpl implements MfaStateMachineMonitor
             updateStateDistribution(event.getFromState(), event.getToState());
 
             // 세션 수 업데이트
-            if (event.getToState() == MfaState.START_MFA) {
+            if (event.getToState() == MfaState.NONE) {
                 activeSessions.incrementAndGet();
             } else if (event.getToState().isTerminal()) {
                 activeSessions.decrementAndGet();

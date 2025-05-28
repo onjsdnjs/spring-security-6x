@@ -33,7 +33,7 @@ public class InitializeMfaAction extends AbstractMfaStateAction {
 
         // 초기 상태 설정
         if (factorContext.getCurrentState() == MfaState.NONE) {
-            factorContext.changeState(MfaState.START_MFA);
+            factorContext.changeState(MfaState.NONE);
         }
 
         log.info("MFA initialized successfully for session: {}", sessionId);

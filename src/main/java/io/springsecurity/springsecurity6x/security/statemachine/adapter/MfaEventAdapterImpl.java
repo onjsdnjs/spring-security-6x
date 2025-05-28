@@ -156,8 +156,7 @@ public class MfaEventAdapterImpl implements MfaEventAdapter {
      */
     private boolean isRetryEvent(MfaEvent event) {
         return event == MfaEvent.SUBMIT_FACTOR_CREDENTIAL ||
-                event == MfaEvent.FACTOR_VERIFICATION_FAILED ||
-                event == MfaEvent.RETRY_REQUESTED;
+                event == MfaEvent.FACTOR_VERIFICATION_FAILED;
     }
 
     /**

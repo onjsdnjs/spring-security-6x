@@ -21,12 +21,12 @@ public class FactorAvailabilityGuard extends AbstractMfaStateGuard {
 
         // 이벤트에서 요청된 Factor 추출
         switch (event) {
-            case FACTOR_SELECTED_OTT:
+            case FACTOR_SELECTED:
                 requestedFactor = AuthType.OTT;
                 break;
-            case FACTOR_SELECTED_PASSKEY:
+            /*case FACTOR_SELECTED_PASSKEY:
                 requestedFactor = AuthType.PASSKEY;
-                break;
+                break;*/
             default:
                 // Factor 선택 이벤트가 아닌 경우
                 return true;

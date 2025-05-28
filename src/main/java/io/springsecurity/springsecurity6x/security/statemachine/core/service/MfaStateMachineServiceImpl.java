@@ -598,6 +598,30 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         }
     }
 
+    private boolean isContextValid(FactorContext context) {
+        if (context == null) {
+            return false;
+        }
+
+        // 기본적인 무결성 검증
+        if (context.getMfaSessionId() == null || context.getCurrentState() == null) {
+            return false;
+        }
+
+        // 터미널 상태면 캐시하지 않음 (상태 변경 가능성 없음)
+        if (context.getCurrentState().isTerminal()) {
+            return false;
+        }
+
+        // 너무 오래된 컨텍스트는 무효 처리
+        long contextAge = System.currentTimeMillis() - context.getCreatedAt();
+        if (contextAge > TimeUnit.HOURS.toMillis(1)) { // 1시간 초과
+            return false;
+        }
+
+        return true;
+    }
+
 
     private boolean isStateMachineHealthy(StateMachine<MfaState, MfaEvent> stateMachine) {
         // PooledStateMachine에서 제공하는 헬스체크로 위임하거나, 여기서 직접 검사

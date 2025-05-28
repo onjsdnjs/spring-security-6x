@@ -6,15 +6,10 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.io.Serializable; // Serializable 추가
-import java.time.Instant; // 추가
-import java.util.ArrayList; // 추가
-import java.util.Collections; // 추가
-import java.util.List; // 추가
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Map;
-import java.util.Objects; // 추가
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -29,7 +24,6 @@ public class OptimisticLockManager {
     private final AtomicLong totalConflicts = new AtomicLong(0);
     private final AtomicLong totalChecks = new AtomicLong(0);
 
-    // ... (기존 checkVersion, updateVersion, incrementVersion 메서드 유지) ...
     public boolean checkVersion(String sessionId, int expectedVersion) {
         totalChecks.incrementAndGet();
 
@@ -125,7 +119,6 @@ public class OptimisticLockManager {
     }
 
     public ConflictResolution resolveConflict(String sessionId, int clientVersion, int serverVersion) {
-        // ... (기존 로직 유지) ...
         if (clientVersion == serverVersion) {
             return ConflictResolution.NO_CONFLICT;
         }
@@ -145,8 +138,8 @@ public class OptimisticLockManager {
         }
     }
 
+
     public OptimisticLockStatistics getStatistics() {
-        // ... (기존 로직 유지) ...
         long checks = totalChecks.get();
         long conflicts = totalConflicts.get();
 
@@ -197,6 +190,10 @@ public class OptimisticLockManager {
         CachedState(MfaState state) {
             this.state = state;
             this.cachedAt = System.currentTimeMillis();
+        }
+
+        boolean isExpired() {
+            return isExpired(DEFAULT_CACHE_TTL_MILLIS);
         }
 
         boolean isExpired(long maxAgeMillis) { // 만료 기준 파라미터 추가
@@ -255,6 +252,10 @@ public class OptimisticLockManager {
 
         boolean isExpired(long maxAgeMillis) { // 만료 기준 파라미터 추가
             return System.currentTimeMillis() - cachedAt > maxAgeMillis;
+        }
+
+        boolean isExpired() {
+            return isExpired(DEFAULT_CACHE_TTL_MILLIS);
         }
 
         // FactorContext 복사본 생성 (깊은 복사 고려)

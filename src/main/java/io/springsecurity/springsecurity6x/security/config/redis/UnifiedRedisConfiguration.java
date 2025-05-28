@@ -1,13 +1,8 @@
 package io.springsecurity.springsecurity6x.security.config.redis;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,15 +11,15 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.security.web.csrf.DefaultCsrfToken;
 
 /**
- * 통합 Redis 설정
- * - 모든 Redis 관련 Bean을 하나의 설정 클래스에서 관리
- * - 중복 Bean 정의 제거
- * - 명확한 Bean 이름 지정
+ * 통합 Redis 설정 - 간소화 버전
+ *
+ * 삭제/수정 사항:
+ * - @ConditionalOnMissingBean 제거 (불필요)
+ * - stateMachinePersistRedisTemplate 삭제 (사용 안함)
+ * - 중복된 설정 제거
  */
 @Slf4j
 @Configuration
@@ -55,6 +50,9 @@ public class UnifiedRedisConfiguration {
         template.setHashValueSerializer(jsonSerializer);
         template.setDefaultSerializer(jsonSerializer);
 
+        // ✅ 중요: 트랜잭션 비활성화 (연결 재사용)
+        template.setEnableTransactionSupport(false);
+
         template.afterPropertiesSet();
         return template;
     }
@@ -78,27 +76,8 @@ public class UnifiedRedisConfiguration {
         template.setHashKeySerializer(serializer);
         template.setHashValueSerializer(serializer);
 
-        template.afterPropertiesSet();
-        return template;
-    }
-
-    /**
-     * State Machine 영속화용 RedisTemplate (byte[] 직렬화)
-     * - State Machine Context 저장
-     */
-    @Bean(name = "stateMachinePersistRedisTemplate")
-    public RedisTemplate<String, byte[]> stateMachinePersistRedisTemplate(RedisConnectionFactory connectionFactory) {
-        log.info("Creating State Machine Persist RedisTemplate with byte[] serialization");
-
-        RedisTemplate<String, byte[]> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-
-        // Key는 String, Value는 byte[]
-        StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        template.setKeySerializer(stringSerializer);
-        template.setHashKeySerializer(stringSerializer);
-        template.setValueSerializer(RedisSerializer.byteArray());
-        template.setHashValueSerializer(RedisSerializer.byteArray());
+        // ✅ 중요: 트랜잭션 비활성화
+        template.setEnableTransactionSupport(false);
 
         template.afterPropertiesSet();
         return template;
@@ -108,7 +87,6 @@ public class UnifiedRedisConfiguration {
      * Redis 메시지 리스너 컨테이너
      */
     @Bean
-    @ConditionalOnMissingBean
     public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory connectionFactory) {
         log.info("Creating Redis message listener container");
 
@@ -116,15 +94,4 @@ public class UnifiedRedisConfiguration {
         container.setConnectionFactory(connectionFactory);
         return container;
     }
-
-    /**
-     * ObjectMapper Bean
-     */
-/*    @Bean
-    @ConditionalOnMissingBean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }*/
-
-
 }

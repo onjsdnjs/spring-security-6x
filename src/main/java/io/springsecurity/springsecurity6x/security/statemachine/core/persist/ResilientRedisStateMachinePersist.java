@@ -9,22 +9,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.support.DefaultExtendedState;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
+/**
+ * Redis 기반 State Machine 영속화 - 간소화 버전
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class ResilientRedisStateMachinePersist implements StateMachinePersist<MfaState, MfaEvent, String> {
@@ -35,9 +32,6 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String KEY_PREFIX = "mfa:statemachine:";
-    private static final String BACKUP_PREFIX = "mfa:statemachine:backup:";
-
-    // Circuit Breaker 상태
     private volatile CircuitState circuitState = CircuitState.CLOSED;
     private volatile long lastFailureTime = 0;
     private volatile int failureCount = 0;
@@ -54,40 +48,16 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
         }
 
         String key = KEY_PREFIX + contextObj;
-        String backupKey = BACKUP_PREFIX + contextObj;
 
         try {
             // 컨텍스트 직렬화
             String serialized = serialize(context);
 
-            // 압축 (큰 데이터의 경우)
-            if (serialized.length() > 1024) {
-                serialized = compress(serialized);
-            }
+            // ✅ 단순하게 저장
+            redisTemplate.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
 
-            // 파이프라인을 사용하여 메인 키와 백업 키를 동시에 저장
-            String finalSerialized = serialized;
-            List<Object> results = redisTemplate.executePipelined(new SessionCallback<Object>() {
-                @Override
-                public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
-                    @SuppressWarnings("unchecked")
-                    RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
-
-                    ops.opsForValue().set(key, finalSerialized, ttlMinutes, TimeUnit.MINUTES);
-                    ops.opsForValue().set(backupKey, finalSerialized, ttlMinutes * 2, TimeUnit.MINUTES);
-
-                    return null;
-                }
-            });
-
-            // 파이프라인 결과 확인
-            if (results != null && results.stream().allMatch(Objects::nonNull)) {
-                // 성공 시 Circuit 상태 업데이트
-                onSuccess();
-                log.debug("State machine context persisted for session: {} (pipeline)", contextObj);
-            } else {
-                throw new IOException("Pipeline execution returned null results");
-            }
+            onSuccess();
+            log.debug("State machine context persisted for session: {}", contextObj);
 
         } catch (RedisConnectionFailureException e) {
             onFailure();
@@ -108,53 +78,23 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
         }
 
         String key = KEY_PREFIX + contextObj;
-        String backupKey = BACKUP_PREFIX + contextObj;
 
         try {
-            // 파이프라인을 사용하여 메인 키와 백업 키를 동시에 조회
-            List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                connection.get(key.getBytes(StandardCharsets.UTF_8));
-                connection.get(backupKey.getBytes(StandardCharsets.UTF_8));
-                return null;
-            });
-
-            String serialized = null;
-
-            // 메인 키 결과 확인
-            if (results.size() > 0 && results.get(0) != null) {
-                serialized = new String((byte[]) results.get(0), StandardCharsets.UTF_8);
-            }
-            // 메인 키가 없으면 백업 키 확인
-            else if (results.size() > 1 && results.get(1) != null) {
-                serialized = new String((byte[]) results.get(1), StandardCharsets.UTF_8);
-                log.warn("Main key not found, restored from backup for session: {}", contextObj);
-
-                // 메인 키 복원 (별도 트랜잭션)
-                redisTemplate.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
-            }
+            // ✅ 단순하게 조회
+            String serialized = redisTemplate.opsForValue().get(key);
 
             if (serialized == null) {
                 log.debug("No state machine context found for session: {}", contextObj);
                 return null;
             }
 
-            // 압축 해제 (필요한 경우)
-            if (isCompressed(serialized)) {
-                serialized = decompress(serialized);
-            }
-
             // 역직렬화
             StateMachineContext<MfaState, MfaEvent> context = deserialize(serialized);
 
-            // TTL 갱신 (파이프라인 사용)
-            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                connection.expire(key.getBytes(StandardCharsets.UTF_8), TimeUnit.MINUTES.toSeconds(ttlMinutes));
-                return null;
-            });
+            // TTL 갱신
+            redisTemplate.expire(key, ttlMinutes, TimeUnit.MINUTES);
 
-            // 성공 시 Circuit 상태 업데이트
             onSuccess();
-
             return context;
 
         } catch (RedisConnectionFailureException e) {
@@ -168,62 +108,7 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
     }
 
     /**
-     * 대량 작업을 위한 배치 쓰기
-     */
-    public void writeBatch(Map<String, StateMachineContext<MfaState, MfaEvent>> contexts) throws Exception {
-        if (isCircuitOpen()) {
-            log.warn("Circuit is open, using fallback for batch write");
-            contexts.forEach((contextObj, context) -> {
-                try {
-                    writeFallback(context, contextObj);
-                } catch (Exception e) {
-                    log.error("Failed to write to fallback for session: {}", contextObj, e);
-                }
-            });
-            return;
-        }
-
-        try {
-            redisTemplate.executePipelined(new SessionCallback<Object>() {
-                @Override
-                public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
-                    @SuppressWarnings("unchecked")
-                    RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
-
-                    contexts.forEach((contextObj, context) -> {
-                        try {
-                            String key = KEY_PREFIX + contextObj;
-                            String backupKey = BACKUP_PREFIX + contextObj;
-
-                            String serialized = serialize(context);
-                            if (serialized.length() > 1024) {
-                                serialized = compress(serialized);
-                            }
-
-                            ops.opsForValue().set(key, serialized, ttlMinutes, TimeUnit.MINUTES);
-                            ops.opsForValue().set(backupKey, serialized, ttlMinutes * 2, TimeUnit.MINUTES);
-
-                        } catch (Exception e) {
-                            log.error("Failed to serialize context for session: {}", contextObj, e);
-                        }
-                    });
-
-                    return null;
-                }
-            });
-
-            onSuccess();
-            log.debug("Batch write completed for {} contexts", contexts.size());
-
-        } catch (RedisConnectionFailureException e) {
-            onFailure();
-            log.error("Redis connection failed during batch write");
-            throw e;
-        }
-    }
-
-    /**
-     * 컨텍스트 직렬화 (간소화된 형식)
+     * 컨텍스트 직렬화 (간소화)
      */
     private String serialize(StateMachineContext<MfaState, MfaEvent> context) throws Exception {
         Map<String, Object> data = new HashMap<>();
@@ -232,18 +117,18 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
         data.put("state", context.getState() != null ? context.getState().name() : null);
         data.put("event", context.getEvent() != null ? context.getEvent().name() : null);
 
-        // ExtendedState 변수 중 중요한 것만
+        // ExtendedState 변수
         if (context.getExtendedState() != null) {
             Map<String, Object> variables = new HashMap<>();
             context.getExtendedState().getVariables().forEach((k, v) -> {
-                if (isImportantVariable(k.toString()) && v instanceof Serializable) {
+                // ✅ 모든 Serializable 변수 저장 (필터링 제거)
+                if (v instanceof java.io.Serializable) {
                     variables.put(k.toString(), v);
                 }
             });
             data.put("variables", variables);
         }
 
-        // JSON 형식으로 직렬화
         return objectMapper.writeValueAsString(data);
     }
 
@@ -275,51 +160,9 @@ public class ResilientRedisStateMachinePersist implements StateMachinePersist<Mf
         );
     }
 
-    /**
-     * 중요한 변수인지 확인
-     */
-    private boolean isImportantVariable(String key) {
-        return key.equals("mfaSessionId") ||
-                key.equals("username") ||
-                key.equals("currentStepId") ||
-                key.equals("retryCount") ||
-                key.equals("completedFactors") ||
-                key.equals("version") ||
-                key.equals("createdAt");
-    }
-
-    /**
-     * 압축
-     */
-    private String compress(String data) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
-            gzip.write(data.getBytes(StandardCharsets.UTF_8));
-        }
-        return "GZIP:" + Base64.getEncoder().encodeToString(baos.toByteArray());
-    }
-
-    /**
-     * 압축 해제
-     */
-    private String decompress(String compressed) throws IOException {
-        if (!compressed.startsWith("GZIP:")) {
-            return compressed;
-        }
-
-        byte[] bytes = Base64.getDecoder().decode(compressed.substring(5));
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-             GZIPInputStream gzip = new GZIPInputStream(bais)) {
-            return new String(gzip.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    /**
-     * 압축 여부 확인
-     */
-    private boolean isCompressed(String data) {
-        return data != null && data.startsWith("GZIP:");
-    }
+    // ❌ 삭제: isImportantVariable() - 모든 변수 저장
+    // ❌ 삭제: compress(), decompress(), isCompressed() - 복잡성 제거
+    // ❌ 삭제: writeBatch() - 사용 안함
 
     /**
      * Circuit Breaker 상태 확인

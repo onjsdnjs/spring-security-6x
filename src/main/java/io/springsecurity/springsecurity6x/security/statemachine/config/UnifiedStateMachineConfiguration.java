@@ -17,15 +17,12 @@ import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStat
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.config.StateMachineFactory;
@@ -35,7 +32,12 @@ import org.springframework.statemachine.persist.StateMachinePersister;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 통합 State Machine 설정
+ * 통합 State Machine 설정 - 간소화 버전
+ *
+ * 삭제/수정 사항:
+ * - stateMachineProperties() 메서드 삭제 (이미 @EnableConfigurationProperties로 등록됨)
+ * - @ConditionalOnMissingBean 제거 (불필요)
+ * - @Primary 중복 제거
  */
 @Slf4j
 @Configuration
@@ -51,11 +53,11 @@ public class UnifiedStateMachineConfiguration {
      * State Machine Pool 설정
      */
     @Bean
-    @Primary
     public StateMachinePool stateMachinePool(
             StateMachineFactory<MfaState, MfaEvent> stateMachineFactory,
             StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister) {
 
+        // ✅ null 체크 추가
         int corePoolSize = properties.getPool() != null ? properties.getPool().getCoreSize() : 10;
         int maxPoolSize = properties.getPool() != null ? properties.getPool().getMaxSize() : 50;
         long keepAliveTime = properties.getPool() != null ? properties.getPool().getKeepAliveTime() : 10;
@@ -77,10 +79,12 @@ public class UnifiedStateMachineConfiguration {
      * State Machine 영속화 전략
      */
     @Bean
-    @Primary
     public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
-            @Value("${security.statemachine.persistence.type:memory}") String persistenceType,
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
+
+        // ✅ properties에서 직접 읽기
+        String persistenceType = properties.getPersistence() != null ?
+                properties.getPersistence().getType() : "memory";
 
         log.info("Configuring State Machine persistence with type: {}", persistenceType);
 
@@ -115,7 +119,6 @@ public class UnifiedStateMachineConfiguration {
      * Optimistic Lock 관리자
      */
     @Bean
-    @Primary
     public OptimisticLockManager optimisticLockManager() {
         log.info("Creating Optimistic Lock Manager");
         return new OptimisticLockManager();
@@ -125,7 +128,6 @@ public class UnifiedStateMachineConfiguration {
      * MFA 이벤트 발행자
      */
     @Bean
-    @Primary
     public MfaEventPublisher mfaEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
         log.info("Creating MFA Event Publisher");
         return new MfaEventPublisher(applicationEventPublisher);
@@ -135,12 +137,11 @@ public class UnifiedStateMachineConfiguration {
      * MFA State Machine Service
      */
     @Bean
-    @Primary
     public MfaStateMachineService mfaStateMachineService(
             StateMachinePool stateMachinePool,
             FactorContextStateAdapter factorContextAdapter,
             MfaEventPublisher eventPublisher,
-            @Qualifier("RedisDistributedLockService") RedisDistributedLockService distributedLockService,
+            RedisDistributedLockService distributedLockService,
             OptimisticLockManager optimisticLockManager) {
 
         log.info("Creating MFA State Machine Service");
@@ -159,8 +160,8 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     @ConditionalOnProperty(
-            prefix = "security.statemachine.mfa",
-            name = "enableMetrics",
+            prefix = "spring.auth.mfa",  // ✅ security.statemachine.mfa에서 변경
+            name = "metrics-enabled",     // ✅ enableMetrics에서 변경
             havingValue = "true",
             matchIfMissing = true
     )
@@ -172,50 +173,11 @@ public class UnifiedStateMachineConfiguration {
     /**
      * Redis Distributed Lock Service
      */
-    @Bean(name = "RedisDistributedLockService")
-    @Primary
-    @ConditionalOnMissingBean(RedisDistributedLockService.class)
+    @Bean
     public RedisDistributedLockService redisDistributedLockService(
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
         log.info("Creating Redis Distributed Lock Service");
         return new RedisDistributedLockService(redisTemplate);
     }
 
-    /**
-     * State Machine Properties 기본값 설정
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public StateMachineProperties stateMachineProperties() {
-        StateMachineProperties props = new StateMachineProperties();
-
-        // Pool 설정
-        StateMachineProperties.PoolProperties poolProps = new StateMachineProperties.PoolProperties();
-        poolProps.setCoreSize(10);
-        poolProps.setMaxSize(50);
-        poolProps.setKeepAliveTime(10L);
-        props.setPool(poolProps);
-
-        // Persistence 설정
-        StateMachineProperties.PersistenceProperties persistenceProps = new StateMachineProperties.PersistenceProperties();
-        persistenceProps.setType("memory");
-        persistenceProps.setEnableFallback(true);
-        persistenceProps.setTtlMinutes(30);
-        props.setPersistence(persistenceProps);
-
-        // Events 설정
-        StateMachineProperties.EventsProperties eventsProps = new StateMachineProperties.EventsProperties();
-        eventsProps.setEnabled(true);
-        eventsProps.setType("local");
-        props.setEvents(eventsProps);
-
-        // MFA 설정
-        StateMachineProperties.MfaProperties mfaProps = new StateMachineProperties.MfaProperties();
-        mfaProps.setEnableMetrics(true);
-        mfaProps.setMaxRetries(3);
-        mfaProps.setSessionTimeoutMinutes(30);
-        props.setMfa(mfaProps);
-
-        return props;
-    }
 }

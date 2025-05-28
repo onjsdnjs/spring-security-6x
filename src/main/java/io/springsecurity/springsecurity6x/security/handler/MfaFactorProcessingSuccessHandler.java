@@ -147,30 +147,6 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
             log.info("All MFA factors completed for user: {} using {} repository. Proceeding to final authentication success.",
                     factorContext.getUsername(), sessionRepository.getRepositoryType());
 
-            // 토큰 발급
-            String deviceId = (String) factorContext.getAttribute("deviceId");
-            String accessToken = tokenService.createAccessToken(
-                    factorContext.getPrimaryAuthentication(),
-                    deviceId
-            );
-
-            String refreshToken = null;
-            if (tokenService.properties().isEnableRefreshToken()) {
-                refreshToken = tokenService.createRefreshToken(
-                        factorContext.getPrimaryAuthentication(),
-                        deviceId
-                );
-            }
-
-            // State Machine 정리
-            stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
-            sessionRepository.removeSession(factorContext.getMfaSessionId(), request, response);
-
-            // 토큰을 request attribute로 전달
-            request.setAttribute("MFA_FINAL_ACCESS_TOKEN", accessToken);
-            request.setAttribute("MFA_FINAL_REFRESH_TOKEN", refreshToken);
-
-            // 최종 핸들러 호출
             handleFinalAuthenticationSuccess(request, response,
                     factorContext.getPrimaryAuthentication(), factorContext);
 

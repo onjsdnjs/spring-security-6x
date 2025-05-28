@@ -15,8 +15,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // 폼의 action URL은 LoginController 에서 모델을 통해 전달받아 th:action에 설정됩니다.
-    // 이 URL은 Spring Security의 GenerateOneTimeTokenFilter가 처리할 경로입니다.
+    // State Machine 상태 확인
+    if (window.mfaStateTracker && !window.mfaStateTracker.isValid()) {
+        window.mfaStateTracker.restoreFromSession();
+    }
+
+    // 유효한 상태인지 확인 (AWAITING_FACTOR_CHALLENGE_INITIATION 또는 FACTOR_CHALLENGE_INITIATED)
+    if (window.mfaStateTracker &&
+        window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_CHALLENGE_INITIATION' &&
+        window.mfaStateTracker.currentState !== 'FACTOR_CHALLENGE_INITIATED') {
+        console.warn(`Invalid state for OTT code request. Current state: ${window.mfaStateTracker.currentState}`);
+        displayMessage("잘못된 인증 상태입니다. 팩터 선택 페이지로 돌아갑니다.", "error");
+        sendButton.disabled = true;
+        setTimeout(() => {
+            window.location.href = "/mfa/select-factor";
+        }, 2000);
+        return;
+    }
+
     const formActionUrl = requestCodeForm.getAttribute("action");
 
     if (!formActionUrl) {
@@ -24,7 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
         sendButton.disabled = true;
         return;
     }
-    logClientSideMfaOttRequest(`MFA OTT Code Request UI loaded. Form will POST to: ${formActionUrl} for user: ${emailInput.value}`);
+
+    logClientSideMfaOttRequest(`MFA OTT Code Request UI loaded. Form will POST to: ${formActionUrl} for user: ${emailInput.value}, State: ${window.mfaStateTracker?.currentState || 'N/A'}`);
 
     function displayMessage(message, type = 'info', clearAfter = 0) {
         if (messageDiv) {
@@ -41,6 +58,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     requestCodeForm.addEventListener("submit", (event) => {
+        // State Machine 전이 가능 여부 확인
+        if (window.mfaStateTracker &&
+            window.mfaStateTracker.currentState === 'AWAITING_FACTOR_CHALLENGE_INITIATION' &&
+            !window.mfaStateTracker.canTransitionTo('FACTOR_CHALLENGE_INITIATED')) {
+            event.preventDefault();
+            displayMessage("현재 상태에서 OTT 코드를 요청할 수 없습니다.", "error");
+            return;
+        }
+
         // 폼 제출 시 버튼 비활성화 및 로딩 메시지 표시
         sendButton.disabled = true;
         sendButton.classList.add("opacity-50", "cursor-not-allowed");
@@ -53,13 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         displayMessage("인증 코드를 요청 중입니다...", "info");
         logClientSideMfaOttRequest("Form is being submitted to " + formActionUrl + " for OTT code generation.");
-        // 폼은 기본 동작으로 서버에 제출됩니다 (Spring Security Filter Chain으로).
-        // event.preventDefault(); // 주석 처리하여 폼이 제출되도록 합니다.
     });
 
-    // username은 서버에서 FactorContext를 통해 가져와서 hidden input 등으로 제공하거나,
-    // GenerateOneTimeTokenFilter가 Principal에서 가져오도록 설정.
-    // 여기서는 login-mfa-ott-request-code.html 에서 <input type="hidden" name="username" th:value="${username}" /> 가 있다고 가정.
     const usernameFromModel = emailInput.value;
     if (!usernameFromModel) {
         displayMessage("사용자 정보를 가져올 수 없습니다. 다시 로그인해주세요.", "error");
@@ -67,10 +88,10 @@ document.addEventListener("DOMContentLoaded", () => {
         sendButton.disabled = true;
     }
 
-    // URL 파라미터에 에러가 있는 경우 (예: GenerateOneTimeTokenFilter의 FailureHandler가 리다이렉션한 경우)
+    // URL 파라미터에 에러가 있는 경우
     const urlParams = new URLSearchParams(window.location.search);
-    const errorParam = urlParams.get('error'); // LoginController 또는 핸들러에서 error 파라미터로 전달
-    const messageParam = urlParams.get('message'); // 또는 message 파라미터
+    const errorParam = urlParams.get('error');
+    const messageParam = urlParams.get('message');
 
     if (errorParam || messageParam) {
         let displayErrorMessage = messageParam || "코드 발송에 실패했습니다. 잠시 후 다시 시도해주세요.";
@@ -79,12 +100,19 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (errorParam === 'invalid_ott_request_ui_context') {
             displayErrorMessage = "잘못된 OTT 코드 요청입니다. 인증을 다시 시작해주세요.";
         }
-        // 다른 특정 에러 코드에 대한 처리 추가 가능
+
         displayMessage(displayErrorMessage, "error");
-        if(sendButton) { // sendButton이 null이 아닐 때만 접근
+        if(sendButton) {
             sendButton.disabled = false;
             sendButton.classList.remove("opacity-50", "cursor-not-allowed");
             sendButton.innerHTML = '인증 코드 발송';
+        }
+
+        // 터미널 상태인 경우 처리
+        if (window.mfaStateTracker && window.mfaStateTracker.isTerminalState()) {
+            setTimeout(() => {
+                window.location.href = "/loginForm";
+            }, 3000);
         }
     }
 });

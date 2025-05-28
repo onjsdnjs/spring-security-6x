@@ -133,12 +133,12 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
     //RestAuthenticationFilter 에서 이관된 메서드
     private void processPrimaryAuthenticationCompletion(FactorContext factorContext, HttpServletRequest request) {
         // 1차 인증 완료 이벤트 전송
-        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_COMPLETED, factorContext, request);
+        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
 
         if (accepted) {
             log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
         } else {
-            log.error("Failed to process PRIMARY_FACTOR_COMPLETED event for session: {}",
+            log.error("Failed to process PRIMARY_AUTH_SUCCESS event for session: {}",
                     factorContext.getMfaSessionId());
             throw new RuntimeException("Primary authentication completion failed");
         }
@@ -184,8 +184,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
                 mfaConfigUrl
         );
 
-        responseWriter.writeErrorResponse(response, HttpServletResponse.SC_OK,
-                "MFA_CONFIG_REQUIRED", "MFA 설정이 필요합니다.", mfaConfigUrl, responseBody);
+        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }
 
     /**

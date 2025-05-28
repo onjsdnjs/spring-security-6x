@@ -25,7 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 현재 상태 검증
-    if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_SELECTION') {
+    if (window.mfaStateTracker &&
+        window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_SELECTION' &&
+        window.mfaStateTracker.currentState !== 'PRIMARY_AUTHENTICATION_COMPLETED' &&
+        window.mfaStateTracker.currentState !== 'FACTOR_VERIFICATION_COMPLETED') {
         console.warn(`Invalid state for factor selection. Current state: ${window.mfaStateTracker.currentState}`);
         displayMessage("잘못된 인증 상태입니다. 다시 로그인해주세요.", "error");
         setTimeout(() => {
@@ -74,11 +77,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const selectedFactor = button.dataset.factor;
 
             // State Machine 전이 가능 여부 확인
-            const expectedTransition = selectedFactor + '_CHALLENGE';
-            if (window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo(expectedTransition)) {
+            if (window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo('AWAITING_FACTOR_CHALLENGE_INITIATION')) {
                 displayMessage(`선택한 인증 수단(${selectedFactor})을 사용할 수 없습니다.`, "error");
                 factorButtons.forEach(btn => btn.disabled = false);
-                logClientSideMfa(`Invalid transition attempt: ${window.mfaStateTracker.currentState} -> ${expectedTransition}`);
+                logClientSideMfa(`Invalid transition attempt: ${window.mfaStateTracker.currentState} -> AWAITING_FACTOR_CHALLENGE_INITIATION`);
                 return;
             }
 
@@ -122,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // State Machine 상태 확인
                     if (window.mfaStateTracker) {
-                        const expectedState = selectedFactor + '_CHALLENGE';
+                        const expectedState = 'AWAITING_FACTOR_CHALLENGE_INITIATION';
                         if (window.mfaStateTracker.currentState !== expectedState) {
                             console.warn(`State mismatch. Expected: ${expectedState}, Actual: ${window.mfaStateTracker.currentState}`);
                         }
@@ -136,10 +138,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     factorButtons.forEach(btn => btn.disabled = false);
 
                     // State Machine 오류 처리
-                    if (result.stateMachine && result.stateMachine.currentState === 'FAILED') {
+                    if (result.stateMachine && window.mfaStateTracker.isTerminalState()) {
                         const failureReason = result.stateMachine.stateMetadata?.failureReason;
                         if (failureReason) {
                             displayMessage(`오류: ${failureReason}`, "error");
+                        }
+
+                        // 터미널 상태면 로그인 페이지로
+                        if (window.mfaStateTracker.currentState === 'MFA_FAILED_TERMINAL' ||
+                            window.mfaStateTracker.currentState === 'MFA_SESSION_EXPIRED') {
+                            setTimeout(() => {
+                                window.location.href = "/loginForm";
+                            }, 2000);
                         }
                     }
                 }

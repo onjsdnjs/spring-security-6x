@@ -1,6 +1,3 @@
-// src/main/resources/static/js/mfa-verify-ott.js
-// State Machine 통합 버전
-
 document.addEventListener("DOMContentLoaded", () => {
     const isMfaFlow = document.body.dataset.isMfaFlow === 'true';
     const formId = isMfaFlow ? "mfaVerifyOttForm" : "singleOttVerifyForm";
@@ -36,8 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
             window.mfaStateTracker.restoreFromSession();
         }
 
-        // OTT_CHALLENGE 상태인지 확인
-        if (window.mfaStateTracker.currentState !== 'OTT_CHALLENGE') {
+        // 유효한 상태인지 확인
+        const validStates = ['FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION', 'FACTOR_CHALLENGE_INITIATED'];
+        if (!validStates.includes(window.mfaStateTracker.currentState)) {
             console.warn(`Invalid state for OTT verification. Current state: ${window.mfaStateTracker.currentState}`);
             displayMessage("잘못된 인증 상태입니다. 다시 시도해주세요.", "error");
             setTimeout(() => {
@@ -162,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // State Machine 전이 가능 여부 확인
-        if (isMfaFlow && window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo('OTT_VERIFIED')) {
+        if (isMfaFlow && window.mfaStateTracker && !window.mfaStateTracker.canTransitionTo('FACTOR_VERIFICATION_PENDING')) {
             displayMessage("현재 상태에서 OTT 검증을 수행할 수 없습니다.", "error");
             return;
         }
@@ -213,9 +211,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (response.ok) {
                 if (isMfaFlow) {
                     if (result.status === "MFA_COMPLETE") {
-                        // State Machine이 COMPLETED 상태인지 확인
-                        if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'COMPLETED') {
-                            console.warn(`State mismatch. Expected: COMPLETED, Actual: ${window.mfaStateTracker.currentState}`);
+                        // State Machine이 MFA_SUCCESSFUL 상태인지 확인
+                        if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'MFA_SUCCESSFUL' &&
+                            window.mfaStateTracker.currentState !== 'ALL_FACTORS_COMPLETED') {
+                            console.warn(`State mismatch. Expected: MFA_SUCCESSFUL or ALL_FACTORS_COMPLETED, Actual: ${window.mfaStateTracker.currentState}`);
                         }
 
                         const authMode = localStorage.getItem("authMode") || "header";
@@ -246,7 +245,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         ottCodeInput.value = "";
 
                         // State Machine 실패 처리
-                        if (window.mfaStateTracker && window.mfaStateTracker.currentState === 'FAILED') {
+                        if (window.mfaStateTracker &&
+                            (window.mfaStateTracker.currentState === 'MFA_FAILED_TERMINAL' ||
+                                window.mfaStateTracker.currentState === 'MFA_RETRY_LIMIT_EXCEEDED')) {
                             const maxAttemptsExceeded = window.mfaStateTracker.stateMetadata?.failureReason === 'MAX_ATTEMPTS_EXCEEDED';
                             if (maxAttemptsExceeded && result.nextStepUrl) {
                                 setTimeout(() => { window.location.href = result.nextStepUrl; }, 2000);

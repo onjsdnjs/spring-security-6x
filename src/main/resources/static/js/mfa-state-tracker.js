@@ -38,17 +38,45 @@ class MfaStateTracker {
     canTransitionTo(targetState) {
         // 클라이언트 측 전이 검증 (서버와 동기화)
         const validTransitions = {
-            'PRIMARY_AUTH_SUCCESS': ['AWAITING_FACTOR_SELECTION', 'AWAITING_FACTOR_CHALLENGE_INITIATION'],
-            'AWAITING_FACTOR_SELECTION': ['FACTOR_SELECTED'],
-            'FACTOR_SELECTED': ['FACTOR_CHALLENGE_INITIATED'],
-            'FACTOR_CHALLENGE_INITIATED': ['FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION'],
-            'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION': ['FACTOR_VERIFICATION_COMPLETED', 'FAILED'],
+            'PRIMARY_AUTHENTICATION_COMPLETED': ['MFA_NOT_REQUIRED', 'AWAITING_FACTOR_SELECTION', 'MFA_CONFIGURATION_REQUIRED'],
+            'AWAITING_FACTOR_SELECTION': ['AWAITING_FACTOR_CHALLENGE_INITIATION', 'MFA_CANCELLED'],
+            'AWAITING_FACTOR_CHALLENGE_INITIATION': ['FACTOR_CHALLENGE_INITIATED', 'MFA_CANCELLED'],
+            'FACTOR_CHALLENGE_INITIATED': ['FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION', 'AWAITING_FACTOR_SELECTION'],
+            'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION': ['FACTOR_VERIFICATION_PENDING', 'MFA_CANCELLED', 'MFA_SESSION_EXPIRED', 'AWAITING_FACTOR_SELECTION'],
+            'FACTOR_VERIFICATION_PENDING': ['FACTOR_VERIFICATION_COMPLETED', 'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION', 'MFA_RETRY_LIMIT_EXCEEDED'],
             'FACTOR_VERIFICATION_COMPLETED': ['ALL_FACTORS_COMPLETED', 'AWAITING_FACTOR_SELECTION'],
-            'ALL_FACTORS_COMPLETED': ['MFA_SUCCESSFUL']
+            'ALL_FACTORS_COMPLETED': ['MFA_SUCCESSFUL'],
+            'MFA_RETRY_LIMIT_EXCEEDED': ['MFA_FAILED_TERMINAL']
         };
 
         const allowed = validTransitions[this.currentState] || [];
         return allowed.includes(targetState);
+    }
+
+    isTerminalState() {
+        const terminalStates = [
+            'MFA_SUCCESSFUL',
+            'MFA_NOT_REQUIRED',
+            'MFA_FAILED_TERMINAL',
+            'MFA_CANCELLED',
+            'MFA_SESSION_EXPIRED',
+            'MFA_SESSION_INVALIDATED',
+            'MFA_RETRY_LIMIT_EXCEEDED',
+            'MFA_SYSTEM_ERROR'
+        ];
+        return terminalStates.includes(this.currentState);
+    }
+
+    isWaitingForUserAction() {
+        return this.currentState === 'AWAITING_FACTOR_SELECTION' ||
+            this.currentState === 'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION';
+    }
+
+    isProcessing() {
+        return this.currentState === 'AWAITING_FACTOR_CHALLENGE_INITIATION' ||
+            this.currentState === 'FACTOR_CHALLENGE_INITIATED' ||
+            this.currentState === 'FACTOR_VERIFICATION_PENDING' ||
+            this.currentState === 'FACTOR_VERIFICATION_IN_PROGRESS';
     }
 
     isValid() {

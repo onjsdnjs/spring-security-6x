@@ -62,7 +62,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 if (result.status === "MFA_CONFIG_REQUIRED") {
-                    // MFA 필요: State Machine이 PRIMARY_AUTH_SUCCESS 상태
+                    // MFA 설정 필요
+                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
+                    sessionStorage.setItem("mfaUsername", username);
+
+                    displayLoginMessage("MFA 설정이 필요합니다. 설정 페이지로 이동합니다.", "info");
+                    showToast("MFA 설정이 필요합니다.", "info", 2000);
+
+                    setTimeout(() => {
+                        window.location.href = result.nextStepUrl || "/mfa/configure";
+                    }, 1500);
+                    return;
+                }
+
+                if (result.status === "MFA_REQUIRED") {
+                    // MFA 필요: State Machine이 PRIMARY_AUTHENTICATION_COMPLETED 상태
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);
 
@@ -70,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     showToast("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info", 2000);
 
                     // State Machine 상태 확인
-                    if (window.mfaStateTracker.currentState === 'PRIMARY_AUTH_SUCCESS' ||
+                    if (window.mfaStateTracker.currentState === 'PRIMARY_AUTHENTICATION_COMPLETED' ||
                         window.mfaStateTracker.currentState === 'AWAITING_FACTOR_SELECTION') {
                         const nextUrl = result.nextStepUrl || "/mfa/select-factor";
                         logClientSide(`1차 인증 성공, MFA 필요. State: ${window.mfaStateTracker.currentState}, Next URL: ${nextUrl}`);
@@ -112,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 logClientSide("로그인 실패: " + message);
 
                 // State Machine 실패 상태 처리
-                if (result.stateMachine && result.stateMachine.currentState === 'FAILED') {
+                if (result.stateMachine && result.stateMachine.currentState === 'MFA_FAILED_TERMINAL') {
                     const failureReason = result.stateMachine.stateMetadata?.failureReason;
                     if (failureReason) {
                         displayLoginMessage(`로그인 실패: ${failureReason}`, "error");

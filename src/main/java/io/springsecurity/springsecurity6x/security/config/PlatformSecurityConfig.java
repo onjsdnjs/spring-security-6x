@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.IdentityDslRegistry;
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCustomizer;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
 import io.springsecurity.springsecurity6x.security.handler.*;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +26,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.util.Map;
 
 @Slf4j
@@ -41,8 +46,6 @@ public class PlatformSecurityConfig {
     private final ObjectMapper objectMapper;
     private final AuthResponseWriter authResponseWriter;
     private final EmailOneTimeTokenService emailOneTimeTokenService;
-    private final PrimaryAuthenticationSuccessHandler primaryAuthenticationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
-    private final UnifiedAuthenticationFailureHandler unifiedAuthenticationFailureHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
 
@@ -117,8 +120,18 @@ public class PlatformSecurityConfig {
                         .tokenService(emailOneTimeTokenService) // 플랫폼의 EmailOneTimeTokenService 사용
                         .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
                         .loginProcessingUrl("/login/ott") // OTT 코드 제출 및 검증 URL (Spring Security의 AuthenticationFilter가 처리)
-                        .successHandler(primaryAuthenticationSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
-                        .failureHandler(unifiedAuthenticationFailureHandler)
+                        .successHandler(new PlatformAuthenticationSuccessHandler() {
+                            @Override
+                            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication, TokenTransportResult result) throws IOException, ServletException {
+                                System.out.println("onAuthenticationFailure: " + result);
+                            }
+                        }) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
+                        .failureHandler(new PlatformAuthenticationFailureHandler() {
+                            @Override
+                            public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
+                                System.out.println("onAuthenticationFailure: " + exception.getMessage());
+                            }
+                        })
                         .order(110)
                 ).jwt(Customizer.withDefaults()) // 단일 OTT 로그인 후 JWT 토큰 사용
 
@@ -140,8 +153,18 @@ public class PlatformSecurityConfig {
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest
                                         .loginProcessingUrl("/api/auth/login") // 1차 인증 API 경로
-                                        .successHandler(primaryAuthenticationSuccessHandler) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
-                                        .failureHandler(unifiedAuthenticationFailureHandler) // 1차 인증 실패 또는 MFA 전역 실패 시
+                                        .successHandler(new PlatformAuthenticationSuccessHandler() {
+                                            @Override
+                                            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication, TokenTransportResult result) throws IOException, ServletException {
+                                                System.out.println("onAuthenticationFailure: " + result);
+                                            }
+                                        }) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
+                                        .failureHandler(new PlatformAuthenticationFailureHandler() {
+                                            @Override
+                                            public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
+                                                System.out.println("onAuthenticationFailure: " + exception.getMessage());
+                                            }
+                                        }) // 1차 인증 실패 또는 MFA 전역 실패 시
                                 )
                         )
                         // 2차 인증 요소: OTT
@@ -178,9 +201,9 @@ public class PlatformSecurityConfig {
                                 .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
                         )*/
                         // MFA 플로우 전반에 대한 설정
-                        .mfaSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
+//                        .mfaSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
-                        .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
+//                        .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
                         .order(20) // 다른 인증 플로우(단일 Form, OTT 등)보다 우선순위 높게 설정 (선택적)
                 ).jwt(Customizer.withDefaults()) // MFA 플로우 완료 후 JWT 토큰 사용
 

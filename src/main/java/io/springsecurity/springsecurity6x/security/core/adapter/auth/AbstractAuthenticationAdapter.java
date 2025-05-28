@@ -85,8 +85,8 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         ApplicationContext appContext = platformContext.applicationContext();
         Objects.requireNonNull(appContext, "ApplicationContext from PlatformContext cannot be null");
 
-        AbstractMfaAuthenticationSuccessHandler mfaSuccessHandler = (AbstractMfaAuthenticationSuccessHandler) resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
-        UnifiedAuthenticationFailureHandler mfaFailureHandler = (UnifiedAuthenticationFailureHandler) resolveFailureHandler(options, currentFlow, appContext);
+        AbstractMfaAuthenticationSuccessHandler mfaSuccessHandler = (AbstractMfaAuthenticationSuccessHandler)resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        UnifiedAuthenticationFailureHandler mfaFailureHandler = (UnifiedAuthenticationFailureHandler)resolveFailureHandler(options, currentFlow, appContext);
 
         if(options.getSuccessHandler() != null) mfaSuccessHandler.setDelegateHandler(options.getSuccessHandler());
         if(options.getFailureHandler() != null) mfaFailureHandler.setDelegateHandler(options.getFailureHandler());
@@ -94,7 +94,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         OneTimeTokenGenerationSuccessHandler generationSuccessHandler;
 
         if (this instanceof OttAuthenticationAdapter ottAdapter) {
-                generationSuccessHandler = determineDefaultOttGenerationSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+                generationSuccessHandler = determineDefaultOttGenerationSuccessHandler(appContext);
                 log.debug("AuthenticationFeature [{}]: Using provided successHandler as OneTimeTokenGenerationSuccessHandler: {}",
                         getId(), mfaSuccessHandler.getClass().getName());
 
@@ -119,11 +119,11 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             O options, @Nullable AuthenticationFlowConfig currentFlow,
             AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
             ApplicationContext appContext) {
-        if (options.getSuccessHandler() != null) {
+        /*if (options.getSuccessHandler() != null) {
             log.debug("AuthenticationFeature [{}]: Using successHandler from options: {}", getId(), options.getSuccessHandler().getClass().getSimpleName());
             return options.getSuccessHandler();
         }
-
+*/
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName()) && allSteps != null) {
             int currentStepIndex = allSteps.indexOf(myStepConfig);
             boolean isFirstStepInMfaFlow = (currentStepIndex == 0);
@@ -137,20 +137,15 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
-        return new PlatformAuthenticationSuccessHandler(){
-            @Override
-            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-                log.debug("AuthenticationFeature [{}]: Default successHandler called.", getId());
-            }
-        };
+        return appContext.getBean(PrimaryAuthenticationSuccessHandler.class);
     }
 
     protected PlatformAuthenticationFailureHandler  resolveFailureHandler(O options, @Nullable AuthenticationFlowConfig currentFlow, ApplicationContext appContext) {
 
-        if (options.getFailureHandler() != null) {
+        /*if (options.getFailureHandler() != null) {
             log.debug("AuthenticationFeature [{}]: Using failureHandler from options: {}", getId(), options.getFailureHandler().getClass().getSimpleName());
             return options.getFailureHandler();
-        }
+        }*/
 
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
             Object mfaSpecificFailureHandler = currentFlow.getMfaFailureHandler();
@@ -165,7 +160,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         }
 
         log.debug("AuthenticationFeature [{}]: Resolving default failureHandler.", getId());
-        return createDefaultFailureHandler(options, appContext);
+        return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
     }
 
     /**
@@ -173,10 +168,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
      * 이 메서드는 {@link OttAuthenticationAdapter}에서 반드시 재정의되어야 하며,
      * null을 반환해서는 안 됩니다.
      */
-    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttGenerationSuccessHandler(
-            O options, @Nullable AuthenticationFlowConfig currentFlow,
-            AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
-            ApplicationContext appContext) {
+    protected OneTimeTokenGenerationSuccessHandler determineDefaultOttGenerationSuccessHandler(ApplicationContext appContext) {
         log.debug("AuthenticationFeature [{}]: Determining default OTT success handler. This should be overridden in OttAuthenticationAdapter.", getId());
         try {
             return appContext.getBean("oneTimeTokenCreationSuccessHandler", OneTimeTokenGenerationSuccessHandler.class);
@@ -185,14 +177,5 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             log.error(errorMessage, e);
             throw new IllegalStateException(errorMessage, e);
         }
-    }
-
-    protected PlatformAuthenticationFailureHandler  createDefaultFailureHandler(O options, ApplicationContext appContext) {
-        return new PlatformAuthenticationFailureHandler() {
-            @Override
-            public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
-                log.debug("AuthenticationFeature [{}]: Default failureHandler called.", getId());
-            }
-        };
     }
 }

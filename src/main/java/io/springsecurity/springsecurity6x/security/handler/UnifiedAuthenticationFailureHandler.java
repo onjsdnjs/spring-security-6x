@@ -35,7 +35,7 @@ import java.util.Map;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class UnifiedAuthenticationFailureHandler implements PlatformAuthenticationFailureHandler  {
+public final class UnifiedAuthenticationFailureHandler implements PlatformAuthenticationFailureHandler  {
 
     private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaPolicyProvider mfaPolicyProvider;
@@ -43,8 +43,6 @@ public class UnifiedAuthenticationFailureHandler implements PlatformAuthenticati
     private final AuthContextProperties authContextProperties;
     private final MfaSessionRepository sessionRepository;
 
-    // 사용자 커스텀 핸들러 (optional)
-    @Nullable
     private PlatformAuthenticationFailureHandler delegateHandler;
 
     /**

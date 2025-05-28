@@ -37,7 +37,6 @@ import java.util.function.Supplier;
  * - 모니터링 개선: 상세한 메트릭 및 로깅
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 

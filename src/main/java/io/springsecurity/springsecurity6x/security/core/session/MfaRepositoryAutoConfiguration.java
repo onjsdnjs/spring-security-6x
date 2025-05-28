@@ -309,28 +309,11 @@ public class MfaRepositoryAutoConfiguration {
                         profile.contains("local"));
     }
 
-    /**
-     * Repository 통계 수집기
-     */
-    @Bean
-    public MfaRepositoryStatsCollector repositoryStatsCollector(MfaSessionRepository repository) {
-        return new MfaRepositoryStatsCollector(repository);
-    }
-
-    /**
-     * Repository 헬스체크 스케줄러
-     */
-    @Bean
-    public MfaRepositoryHealthChecker repositoryHealthChecker() {
-        return new MfaRepositoryHealthChecker(repositoryHealthStatus);
-    }
-}
-
 /**
  * 헬스체킹 기능을 추가한 Repository 래퍼 - 최종 완성판
  */
 @Slf4j
-class HealthCheckingRepositoryWrapper implements MfaSessionRepository {
+static class HealthCheckingRepositoryWrapper implements MfaSessionRepository {
 
     private final MfaSessionRepository delegate;
     private final MfaRepositoryAutoConfiguration config;
@@ -448,55 +431,6 @@ class HealthCheckingRepositoryWrapper implements MfaSessionRepository {
             }
         }
     }
-
-    public boolean isHealthy() {
-        return isHealthy;
-    }
+  }
 }
 
-/**
- * Repository 통계 수집기 - 최종 완성판
- */
-@Slf4j
-class MfaRepositoryStatsCollector {
-
-    private final MfaSessionRepository repository;
-
-    public MfaRepositoryStatsCollector(MfaSessionRepository repository) {
-        this.repository = repository;
-    }
-
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 300_000) // 5분마다
-    public void logStats() {
-        try {
-            MfaSessionRepository.SessionStats stats = repository.getSessionStats();
-            log.info("📊 Repository Stats: {}", stats);
-        } catch (Exception e) {
-            log.warn("Failed to collect repository stats: {}", e.getMessage());
-        }
-    }
-}
-
-/**
- * Repository 헬스체커 - 최종 완성판
- */
-@Slf4j
-class MfaRepositoryHealthChecker {
-
-    private final Map<String, Boolean> healthStatus;
-
-    public MfaRepositoryHealthChecker(Map<String, Boolean> healthStatus) {
-        this.healthStatus = healthStatus;
-    }
-
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 300_000) // 5분마다
-    public void checkHealth() {
-        healthStatus.forEach((type, healthy) -> {
-            if (!healthy) {
-                log.warn("🚨 Repository {} is unhealthy - consider switching to backup", type);
-            } else {
-                log.debug("✅ Repository {} is healthy", type);
-            }
-        });
-    }
-}

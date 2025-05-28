@@ -28,7 +28,7 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-          max-wait: -1
+          max-wait: 5s
       # SSL 설정
       ssl:
         enabled: false
@@ -111,7 +111,7 @@ logging:
   level:
     io.springsecurity.springsecurity6x.security.statemachine: DEBUG
     org.springframework.statemachine: INFO
-    org.springframework.data.redis: DEBUG
+#    org.springframework.data.redis: DEBUG
 
 ---
 # 개발 환경 프로파일

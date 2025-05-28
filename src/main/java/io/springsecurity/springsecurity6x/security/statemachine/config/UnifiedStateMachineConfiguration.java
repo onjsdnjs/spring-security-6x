@@ -57,7 +57,6 @@ public class UnifiedStateMachineConfiguration {
             StateMachineFactory<MfaState, MfaEvent> stateMachineFactory,
             StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister) {
 
-        // ✅ null 체크 추가
         int corePoolSize = properties.getPool() != null ? properties.getPool().getCoreSize() : 10;
         int maxPoolSize = properties.getPool() != null ? properties.getPool().getMaxSize() : 50;
         long keepAliveTime = properties.getPool() != null ? properties.getPool().getKeepAliveTime() : 10;
@@ -82,7 +81,6 @@ public class UnifiedStateMachineConfiguration {
     public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, String> redisTemplate) {
 
-        // ✅ properties에서 직접 읽기
         String persistenceType = properties.getPersistence() != null ?
                 properties.getPersistence().getType() : "memory";
 
@@ -160,8 +158,8 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     @ConditionalOnProperty(
-            prefix = "spring.auth.mfa",  // ✅ security.statemachine.mfa에서 변경
-            name = "metrics-enabled",     // ✅ enableMetrics에서 변경
+            prefix = "spring.auth.mfa",
+            name = "metrics-enabled",
             havingValue = "true",
             matchIfMissing = true
     )

@@ -48,6 +48,7 @@ dependencies {
 
     // Spring Session
     implementation 'org.springframework.session:spring-session-data-redis'
+    implementation("org.apache.commons:commons-pool2:2.12.1")
 
     // Redis
     implementation 'org.apache.commons:commons-pool2:2.11.1'

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -50,7 +51,7 @@ public class UnifiedRedisConfiguration {
         template.setHashValueSerializer(jsonSerializer);
         template.setDefaultSerializer(jsonSerializer);
 
-        // ✅ 중요: 트랜잭션 비활성화 (연결 재사용)
+        // 중요: 트랜잭션 비활성화 (연결 재사용)
         template.setEnableTransactionSupport(false);
 
         template.afterPropertiesSet();
@@ -76,9 +77,19 @@ public class UnifiedRedisConfiguration {
         template.setHashKeySerializer(serializer);
         template.setHashValueSerializer(serializer);
 
-        // ✅ 중요: 트랜잭션 비활성화
+        // 중요: 트랜잭션 비활성화
         template.setEnableTransactionSupport(false);
 
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    @Primary
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(connectionFactory);
+        template.setEnableTransactionSupport(false);  // 이거!
         template.afterPropertiesSet();
         return template;
     }

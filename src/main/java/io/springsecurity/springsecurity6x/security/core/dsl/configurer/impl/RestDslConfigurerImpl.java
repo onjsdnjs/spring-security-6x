@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.asep.dsl.RestAsepAttribu
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.RestDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 // HttpSecurityBuilder, HttpSecurity, AbstractHttpConfigurer import 제거 (옵션 빌딩 시점에는 사용 안 함)
@@ -33,14 +35,14 @@ public final class RestDslConfigurerImpl // <H extends HttpSecurityBuilder<H>> �
     }
 
     @Override
-    public RestDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        super.successHandler(handler);
+    public RestDslConfigurer successHandler(PlatformAuthenticationSuccessHandler  successHandler) {
+        super.successHandler(successHandler);
         return self();
     }
 
     @Override
-    public RestDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        super.failureHandler(handler);
+    public RestDslConfigurer failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
+        super.failureHandler(failureHandler);
         return self();
     }
 

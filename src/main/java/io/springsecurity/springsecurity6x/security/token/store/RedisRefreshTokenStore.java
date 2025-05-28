@@ -187,10 +187,10 @@ public class RedisRefreshTokenStore extends AbstractRefreshTokenStore implements
             recordUsage(refreshToken, TokenAction.CREATED, getCurrentClientInfo());
         }
 
-        // 보안 강화: 통계 업데이트
-        if (managementService != null) {
-            managementService.updateTokenStatistics(username, "ISSUED");
-        }
+//         보안 강화: 통계 업데이트
+//        if (managementService != null) {
+//            managementService.updateTokenStatistics(username, "ISSUED");
+//        }
     }
 
     @Override
@@ -388,7 +388,7 @@ public class RedisRefreshTokenStore extends AbstractRefreshTokenStore implements
 
         // 통계 업데이트
         if (managementService != null) {
-            managementService.updateTokenStatistics(username, "REFRESHED");
+//            managementService.updateTokenStatistics(username, "REFRESHED");
         }
     }
 
@@ -441,7 +441,7 @@ public class RedisRefreshTokenStore extends AbstractRefreshTokenStore implements
 
         // 통계 업데이트
         if (managementService != null) {
-            managementService.updateTokenStatistics(username, "REVOKED");
+//            managementService.updateTokenStatistics(username, "REVOKED");
         }
     }
 
@@ -458,7 +458,7 @@ public class RedisRefreshTokenStore extends AbstractRefreshTokenStore implements
 
         // 통계 업데이트
         if (managementService != null) {
-            managementService.updateTokenStatistics(username, "REVOKED");
+//            managementService.updateTokenStatistics(username, "REVOKED");
         }
     }
 

@@ -5,6 +5,8 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptio
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.FormDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -69,13 +71,13 @@ public final class FormDslConfigurerImpl
     }
 
     @Override
-    public FormDslConfigurer successHandler(AuthenticationSuccessHandler successHandler) {
+    public FormDslConfigurer successHandler(PlatformAuthenticationSuccessHandler successHandler) {
         getOptionsBuilder().successHandler(successHandler);
         return self();
     }
 
     @Override
-    public FormDslConfigurer failureHandler(AuthenticationFailureHandler failureHandler) {
+    public FormDslConfigurer failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
         getOptionsBuilder().failureHandler(failureHandler);
         return self();
     }

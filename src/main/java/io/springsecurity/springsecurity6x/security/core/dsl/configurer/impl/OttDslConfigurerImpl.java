@@ -5,6 +5,8 @@ import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttr
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.OttDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.ott.OneTimeTokenService;
@@ -37,14 +39,14 @@ public final class OttDslConfigurerImpl
     }
 
     @Override
-    public OttDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        getOptionsBuilder().successHandler(handler);
+    public OttDslConfigurer successHandler(PlatformAuthenticationSuccessHandler successHandler) {
+        getOptionsBuilder().successHandler(successHandler);
         return self();
     }
 
     @Override
-    public OttDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        getOptionsBuilder().failureHandler(handler);
+    public OttDslConfigurer failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
+        getOptionsBuilder().failureHandler(failureHandler);
         return self();
     }
 

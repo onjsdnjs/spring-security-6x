@@ -39,7 +39,7 @@ import java.util.Objects;
  */
 @Slf4j
 
-public class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthenticationSuccessHandler  {
+public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthenticationSuccessHandler  {
 
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthResponseWriter responseWriter;

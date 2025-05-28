@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.token.management;
 
 import io.springsecurity.springsecurity6x.security.config.redis.RedisEventPublisher;
+import io.springsecurity.springsecurity6x.security.token.store.RedisRefreshTokenStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

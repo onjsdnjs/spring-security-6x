@@ -1,6 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions; // 변경
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
@@ -17,8 +19,8 @@ public interface OptionsBuilderDsl<O extends AbstractOptions, S extends OptionsB
 
     // AuthenticationProcessingOptions에 특화된 메서드들
     S loginProcessingUrl(String url);
-    S successHandler(AuthenticationSuccessHandler handler);
-    S failureHandler(AuthenticationFailureHandler handler);
+    S successHandler(PlatformAuthenticationSuccessHandler successHandler);
+    S failureHandler(PlatformAuthenticationFailureHandler failureHandler);
     S securityContextRepository(SecurityContextRepository repository);
 
     // AbstractOptions (공통 HttpSecurity 설정) 관련 메서드들

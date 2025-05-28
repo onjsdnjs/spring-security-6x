@@ -1,5 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.Getter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -12,8 +14,8 @@ import java.util.Objects;
 public abstract class AuthenticationProcessingOptions extends AbstractOptions {
     private final String loginProcessingUrl;
     private final int order;
-    private final AuthenticationSuccessHandler successHandler;
-    private final AuthenticationFailureHandler failureHandler;
+    private final PlatformAuthenticationSuccessHandler successHandler;
+    private final PlatformAuthenticationFailureHandler failureHandler;
     private final SecurityContextRepository securityContextRepository;
 
     protected AuthenticationProcessingOptions(AbstractAuthenticationProcessingOptionsBuilder<?, ?> builder) {
@@ -32,8 +34,8 @@ public abstract class AuthenticationProcessingOptions extends AbstractOptions {
 
         protected String loginProcessingUrl;
         protected int order = 0;
-        protected AuthenticationSuccessHandler successHandler;
-        protected AuthenticationFailureHandler failureHandler;
+        protected PlatformAuthenticationSuccessHandler successHandler;
+        protected PlatformAuthenticationFailureHandler failureHandler;
         protected SecurityContextRepository securityContextRepository;
 
         public B loginProcessingUrl(String processingUrl) {
@@ -47,12 +49,12 @@ public abstract class AuthenticationProcessingOptions extends AbstractOptions {
             return self();
         }
 
-        public B successHandler(AuthenticationSuccessHandler successHandler) {
+        public B successHandler(PlatformAuthenticationSuccessHandler successHandler) {
             this.successHandler = successHandler;
             return self();
         }
 
-        public B failureHandler(AuthenticationFailureHandler failureHandler) {
+        public B failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
             this.failureHandler = failureHandler;
             return self();
         }

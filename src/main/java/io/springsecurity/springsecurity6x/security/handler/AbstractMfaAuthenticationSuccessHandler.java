@@ -22,8 +22,13 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * MFA 인증 성공 처리 핸들러
+ *
+ * 토큰 발급과 응답 처리를 담당하며, 사용자 커스텀 로직을 위한 확장점 제공
+ */
 @Slf4j
-public abstract class AbstractMfaAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+public abstract class AbstractMfaAuthenticationSuccessHandler implements PlatformAuthenticationSuccessHandler {
 
     protected final TokenService tokenService;
     protected final AuthResponseWriter responseWriter;
@@ -31,6 +36,7 @@ public abstract class AbstractMfaAuthenticationSuccessHandler implements Authent
     protected final MfaStateMachineIntegrator stateMachineIntegrator;
     protected final AuthContextProperties authContextProperties;
     private final RequestCache requestCache = new HttpSessionRequestCache();
+    private PlatformAuthenticationSuccessHandler delegateHandler;
 
     protected AbstractMfaAuthenticationSuccessHandler(TokenService tokenService,
                                                       AuthResponseWriter responseWriter,
@@ -44,53 +50,98 @@ public abstract class AbstractMfaAuthenticationSuccessHandler implements Authent
         this.authContextProperties = authContextProperties;
     }
 
+    public void setDelegateHandler(@Nullable PlatformAuthenticationSuccessHandler delegateHandler) {
+        this.delegateHandler = delegateHandler;
+        if (delegateHandler != null) {
+            log.info("Delegate handler set: {}", delegateHandler.getClass().getName());
+        }
+    }
+
     /**
-     * 공통 최종 인증 성공 처리
+     * 최종 인증 성공 처리 - 플랫폼 핵심 로직
      */
-    protected void handleFinalAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                                    Authentication finalAuthentication,
-                                                    @Nullable FactorContext factorContext) throws IOException {
-        log.info("All authentication steps completed for user: {}. Issuing final tokens using {} repository.",
-                finalAuthentication.getName(), sessionRepository.getRepositoryType());
+    protected final void handleFinalAuthenticationSuccess(HttpServletRequest request,
+                                                          HttpServletResponse response,
+                                                          Authentication finalAuthentication,
+                                                          @Nullable FactorContext factorContext) throws IOException {
 
-        String deviceIdFromCtx = factorContext != null ?
-                (String) factorContext.getAttribute("deviceId") : null;
-
-        String accessToken = tokenService.createAccessToken(finalAuthentication, deviceIdFromCtx);
-        String refreshTokenVal = null;
-        if (tokenService.properties().isEnableRefreshToken()) {
-            refreshTokenVal = tokenService.createRefreshToken(finalAuthentication, deviceIdFromCtx);
+        if (response.isCommitted()) {
+            log.warn("Response already committed for user: {}", finalAuthentication.getName());
+            return;
         }
 
-        // 세션 정리
+        // 1. 토큰 생성
+        String deviceId = factorContext != null ? (String) factorContext.getAttribute("deviceId") : null;
+        String accessToken = tokenService.createAccessToken(finalAuthentication, deviceId);
+        String refreshToken = null;
+        if (tokenService.properties().isEnableRefreshToken()) {
+            refreshToken = tokenService.createRefreshToken(finalAuthentication, deviceId);
+        }
+
+        // 2. 세션 정리
         if (factorContext != null && factorContext.getMfaSessionId() != null) {
             stateMachineIntegrator.releaseStateMachine(factorContext.getMfaSessionId());
             sessionRepository.removeSession(factorContext.getMfaSessionId(), request, response);
         }
 
-        TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshTokenVal);
-        transportResult.getBody().put("authentication", finalAuthentication);
+        // 3. 토큰 전송 정보 준비
+        TokenTransportResult transportResult = tokenService.prepareTokensForTransport(accessToken, refreshToken);
 
-        if (transportResult.getCookiesToSet() != null) {
-            for (ResponseCookie cookie : transportResult.getCookiesToSet()) {
+        // 4. 응답 데이터 구성
+        Map<String, Object> responseData = new HashMap<>(transportResult.getBody());
+        responseData.put("status", "SUCCESS");
+        responseData.put("message", "인증이 완료되었습니다.");
+        responseData.put("redirectUrl", determineTargetUrl(request, response, finalAuthentication));
+        responseData.put("authentication", finalAuthentication);
+
+        TokenTransportResult finalResult = TokenTransportResult.builder()
+                .body(responseData)
+                .cookiesToSet(transportResult.getCookiesToSet())
+                .cookiesToRemove(transportResult.getCookiesToRemove())
+                .headers(transportResult.getHeaders())
+                .build();
+
+        // 5. 위임 핸들러 호출
+        if (delegateHandler != null && !response.isCommitted()) {
+            try {
+                delegateHandler.onAuthenticationSuccess(request, response, finalAuthentication, finalResult);
+            } catch (Exception e) {
+                log.error("Error in delegate handler", e);
+            }
+        }
+
+        // 6. 하위 클래스 훅 호출
+        if (!response.isCommitted()) {
+            onFinalAuthenticationSuccess(request, response, finalAuthentication, finalResult);
+        }
+
+        // 7. 플랫폼 기본 응답
+        if (!response.isCommitted()) {
+            processDefaultResponse(response, finalResult);
+        }
+    }
+
+    /**
+     * 하위 클래스 확장점
+     */
+    protected void onFinalAuthenticationSuccess(HttpServletRequest request,
+                                                HttpServletResponse response,
+                                                Authentication authentication,
+                                                TokenTransportResult transportResult) throws IOException {
+        // 하위 클래스에서 필요시 오버라이드
+    }
+
+    private void processDefaultResponse(HttpServletResponse response, TokenTransportResult result)
+            throws IOException {
+        // 쿠키 설정
+        if (result.getCookiesToSet() != null) {
+            for (ResponseCookie cookie : result.getCookiesToSet()) {
                 response.addHeader("Set-Cookie", cookie.toString());
             }
         }
 
-        String redirectUrl = determineTargetUrl(request, response, finalAuthentication);
-
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("status", "SUCCESS");
-        responseBody.put("message", "인증이 완료되었습니다.");
-        responseBody.put("redirectUrl", redirectUrl);
-        responseBody.put("accessToken", accessToken);
-        if (refreshTokenVal != null) {
-            responseBody.put("refreshToken", refreshTokenVal);
-        }
-        responseBody.put("repositoryType", sessionRepository.getRepositoryType());
-        responseBody.put("distributedSync", sessionRepository.supportsDistributedSync());
-
-        responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
+        // JSON 응답
+        responseWriter.writeSuccessResponse(response, result.getBody(), HttpServletResponse.SC_OK);
     }
 
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response,

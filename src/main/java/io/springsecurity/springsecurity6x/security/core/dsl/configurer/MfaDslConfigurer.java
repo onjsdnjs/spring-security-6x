@@ -7,9 +7,10 @@ import io.springsecurity.springsecurity6x.security.core.mfa.configurer.AdaptiveD
 import io.springsecurity.springsecurity6x.security.core.mfa.configurer.RetryPolicyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.mfa.handler.MfaContinuationHandler;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 public interface MfaDslConfigurer extends SecurityConfigurerDsl { // SecurityConfigurerDsl 마커 인터페이스 (선택적)
     MfaDslConfigurer order(int order);
@@ -22,8 +23,8 @@ public interface MfaDslConfigurer extends SecurityConfigurerDsl { // SecurityCon
 
     MfaDslConfigurer recoveryFlow(Customizer<RecoveryCodeDslConfigurer> recoveryConfigurerCustomizer); // RecoveryCodeDslConfigurer 정의 필요
     MfaDslConfigurer mfaContinuationHandler(MfaContinuationHandler continuationHandler);
-    MfaDslConfigurer mfaFailureHandler(AuthenticationFailureHandler failureHandler);
-    MfaDslConfigurer finalSuccessHandler(AuthenticationSuccessHandler handler);
+    MfaDslConfigurer mfaFailureHandler(PlatformAuthenticationFailureHandler failureHandler);
+    MfaDslConfigurer mfaSuccessHandler(PlatformAuthenticationSuccessHandler successHandler);
     MfaDslConfigurer policyProvider(MfaPolicyProvider policyProvider);
     MfaDslConfigurer defaultRetryPolicy(Customizer<RetryPolicyDslConfigurer> c);
     MfaDslConfigurer defaultAdaptivePolicy(Customizer<AdaptiveDslConfigurer> c);

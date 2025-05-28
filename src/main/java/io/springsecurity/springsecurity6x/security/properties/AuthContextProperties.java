@@ -33,7 +33,7 @@ public class AuthContextProperties {
      * - REDIS: Redis를 활용한 분산 저장 (다중 서버 환경)
      * @since 2024.12 - Redis 지원 추가
      */
-    private TokenStoreType tokenStoreType = TokenStoreType.MEMORY;
+    private TokenStoreType tokenStoreType = TokenStoreType.REDIS;
 
     /**
      * MFA 관련 설정

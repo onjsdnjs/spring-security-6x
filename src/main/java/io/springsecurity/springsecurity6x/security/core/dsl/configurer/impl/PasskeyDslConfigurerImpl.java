@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttr
 import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.PasskeyOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -35,14 +37,14 @@ public final class PasskeyDslConfigurerImpl
     }
 
     @Override
-    public PasskeyDslConfigurer successHandler(AuthenticationSuccessHandler handler) {
-        super.successHandler(handler);
+    public PasskeyDslConfigurer successHandler(PlatformAuthenticationSuccessHandler successHandler) {
+        super.successHandler(successHandler);
         return self();
     }
 
     @Override
-    public PasskeyDslConfigurer failureHandler(AuthenticationFailureHandler handler) {
-        super.failureHandler(handler);
+    public PasskeyDslConfigurer failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
+        super.failureHandler(failureHandler);
         return self();
     }
 

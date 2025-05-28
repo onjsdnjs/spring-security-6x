@@ -151,9 +151,8 @@ public class TokenStoreConfiguration {
 
         if (redisTemplate != null && eventPublisher != null) {
             log.info("Creating RefreshTokenAnomalyDetector for enhanced security");
-            // GeoLocationService는 별도 구현 필요
             RefreshTokenAnomalyDetector.GeoLocationService geoService = (loc1, loc2) -> 0.0;
-            return new RefreshTokenAnomalyDetector(redisTemplate, eventPublisher, geoService);
+            return new RefreshTokenAnomalyDetector(redisTemplate, eventPublisher);
         }
         log.warn("RefreshTokenAnomalyDetector requires Redis and EventPublisher. Skipping creation.");
         return null;
@@ -171,7 +170,6 @@ public class TokenStoreConfiguration {
             @Autowired(required = false) StringRedisTemplate redisTemplate,
             @Autowired(required = false) RedisEventPublisher eventPublisher) {
 
-        // EnhancedRefreshTokenStore 인터페이스를 구현한 경우만
         if (tokenStore instanceof EnhancedRefreshTokenStore enhancedStore
                 && redisTemplate != null && eventPublisher != null) {
             log.info("Creating RefreshTokenManagementService for token management");

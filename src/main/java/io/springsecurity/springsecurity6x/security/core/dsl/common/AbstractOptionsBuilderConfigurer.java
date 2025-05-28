@@ -2,6 +2,8 @@ package io.springsecurity.springsecurity6x.security.core.dsl.common;
 
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AbstractOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -63,7 +65,7 @@ public abstract class AbstractOptionsBuilderConfigurer<
     }
 
     @Override
-    public C successHandler(AuthenticationSuccessHandler handler) {
+    public C successHandler(PlatformAuthenticationSuccessHandler handler) {
         if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
             ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).successHandler(handler);
         } else {
@@ -73,7 +75,7 @@ public abstract class AbstractOptionsBuilderConfigurer<
     }
 
     @Override
-    public C failureHandler(AuthenticationFailureHandler handler) {
+    public C failureHandler(PlatformAuthenticationFailureHandler handler) {
         if (optionsBuilder instanceof AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder) {
             ((AuthenticationProcessingOptions.AbstractAuthenticationProcessingOptionsBuilder<?,?>) optionsBuilder).failureHandler(handler);
         } else {

@@ -10,12 +10,13 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import java.io.IOException;
 
 public interface PlatformAuthenticationSuccessHandler extends AuthenticationSuccessHandler {
-    void onAuthenticationSuccess(HttpServletRequest request,
+    default void onAuthenticationSuccess(HttpServletRequest request,
                                  HttpServletResponse response,
                                  Authentication authentication,
-                                 TokenTransportResult result) throws IOException, ServletException;
+                                 TokenTransportResult result) throws IOException, ServletException{
 
-    // 기존 onAuthenticationSuccess 메서드는 default로 구현하거나, 호출되지 않도록 처리
+    }
+
     @Override
     default void onAuthenticationSuccess(HttpServletRequest request,
                                          HttpServletResponse response,

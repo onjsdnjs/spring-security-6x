@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlo
 import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpFormLoginCustomizer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.FormOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -22,8 +24,9 @@ public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapt
 
     @Override
     protected void configureHttpSecurity(HttpSecurity http, FormOptions opts,
-                                         AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler,
-                                         AuthenticationFailureHandler failureHandler) throws Exception {
+                                         AuthenticationFlowConfig currentFlow,
+                                         PlatformAuthenticationSuccessHandler successHandler,
+                                         PlatformAuthenticationFailureHandler failureHandler) throws Exception {
         http.formLogin(form -> {
             form.loginPage(opts.getLoginPage())
                     .loginProcessingUrl(opts.getLoginProcessingUrl())
@@ -31,8 +34,8 @@ public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapt
                     .passwordParameter(opts.getPasswordParameter())
                     .failureUrl(opts.getFailureUrl())
                     .permitAll(opts.isPermitAll())
-                    .successHandler(opts.getSuccessHandler() == null ? successHandler:opts.getSuccessHandler())
-                    .failureHandler(opts.getFailureHandler() == null ? failureHandler:opts.getFailureHandler());
+                    .successHandler(successHandler)
+                    .failureHandler(failureHandler);
 
             if (opts.getSecurityContextRepository() != null) {
                 form.securityContextRepository(opts.getSecurityContextRepository());
@@ -47,10 +50,5 @@ public final class FormAuthenticationAdapter extends AbstractAuthenticationAdapt
                 }
             }
         });
-    }
-
-    @Override
-    protected String determineDefaultFailureUrl(FormOptions options) {
-        return options.getFailureUrl() != null ? options.getFailureUrl() : "/loginForm?error_form_default";
     }
 }

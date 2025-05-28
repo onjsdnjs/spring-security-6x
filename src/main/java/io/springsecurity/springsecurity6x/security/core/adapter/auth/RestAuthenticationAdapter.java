@@ -3,6 +3,10 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 import io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl.RestAuthenticationConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.AbstractMfaAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -27,11 +31,12 @@ public final class RestAuthenticationAdapter extends BaseRestAuthenticationAdapt
     @Override
     protected void configureRestAuthentication(RestAuthenticationConfigurer configurer,
                                                RestOptions opts,
-                                               AuthenticationSuccessHandler successHandler,
-                                               AuthenticationFailureHandler failureHandler) {
+                                               PlatformAuthenticationSuccessHandler successHandler,
+                                               PlatformAuthenticationFailureHandler failureHandler) {
+
         configurer.loginProcessingUrl(opts.getLoginProcessingUrl())
-                .successHandler(opts.getSuccessHandler() != null ? opts.getSuccessHandler() : successHandler)
-                .failureHandler(opts.getFailureHandler() != null ? opts.getFailureHandler() : failureHandler);
+                .successHandler(successHandler)
+                .failureHandler(failureHandler);
     }
 
     @Override

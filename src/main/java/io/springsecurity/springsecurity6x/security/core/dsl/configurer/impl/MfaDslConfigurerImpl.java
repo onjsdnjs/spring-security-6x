@@ -21,6 +21,8 @@ import io.springsecurity.springsecurity6x.security.core.mfa.options.PrimaryAuthe
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.exception.DslConfigurationException;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.Customizer;
@@ -41,7 +43,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
 
     private MfaPolicyProvider policyProvider;
     private MfaContinuationHandler continuationHandler;
-    private AuthenticationFailureHandler mfaFailureHandler;
+    private PlatformAuthenticationFailureHandler mfaFailureHandler;
     private AuthenticationSuccessHandler finalSuccessHandler;
     private RetryPolicy defaultRetryPolicy;
     private AdaptiveConfig defaultAdaptiveConfig;
@@ -148,7 +150,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public MfaDslConfigurerImpl<H> mfaFailureHandler(AuthenticationFailureHandler failureHandler) {
+    public MfaDslConfigurerImpl<H> mfaFailureHandler(PlatformAuthenticationFailureHandler  failureHandler) {
         this.mfaFailureHandler = failureHandler;
         return this;
     }
@@ -160,7 +162,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
     }
 
     @Override
-    public MfaDslConfigurerImpl<H> finalSuccessHandler(AuthenticationSuccessHandler handler) {
+    public MfaDslConfigurerImpl<H> mfaSuccessHandler(PlatformAuthenticationSuccessHandler handler) {
         this.finalSuccessHandler = handler;
         return this;
     }

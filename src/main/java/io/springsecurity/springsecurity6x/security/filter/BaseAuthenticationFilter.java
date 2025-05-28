@@ -2,6 +2,8 @@ package io.springsecurity.springsecurity6x.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.domain.LoginRequest;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,8 +16,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
@@ -34,8 +34,8 @@ public abstract class BaseAuthenticationFilter extends OncePerRequestFilter {
     // Spring Security 필드들
     protected SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder.getContextHolderStrategy();
     protected RequestMatcher requestMatcher;
-    protected AuthenticationSuccessHandler successHandler;
-    protected AuthenticationFailureHandler failureHandler;
+    protected PlatformAuthenticationSuccessHandler successHandler;
+    protected PlatformAuthenticationFailureHandler failureHandler;
     protected SecurityContextRepository securityContextRepository;
 
     protected BaseAuthenticationFilter(RequestMatcher requestMatcher, AuthenticationManager authenticationManager,
@@ -149,12 +149,12 @@ public abstract class BaseAuthenticationFilter extends OncePerRequestFilter {
         this.requestMatcher = requestMatcher;
     }
 
-    public void setSuccessHandler(AuthenticationSuccessHandler successHandler) {
+    public void setSuccessHandler(PlatformAuthenticationSuccessHandler successHandler) {
         Assert.notNull(successHandler, "successHandler cannot be null");
         this.successHandler = successHandler;
     }
 
-    public void setFailureHandler(AuthenticationFailureHandler failureHandler) {
+    public void setFailureHandler(PlatformAuthenticationFailureHandler failureHandler) {
         Assert.notNull(failureHandler, "failureHandler cannot be null");
         this.failureHandler = failureHandler;
     }

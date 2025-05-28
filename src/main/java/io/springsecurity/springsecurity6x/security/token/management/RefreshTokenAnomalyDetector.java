@@ -42,7 +42,6 @@ public class RefreshTokenAnomalyDetector {
 
     private final StringRedisTemplate redisTemplate;
     private final RedisEventPublisher eventPublisher;
-    private final GeoLocationService geoLocationService;
 
     /**
      * 비정상 패턴 감지
@@ -53,16 +52,13 @@ public class RefreshTokenAnomalyDetector {
         // 1. 급격한 토큰 갱신 감지
         checks.add(checkRapidRefresh(username, deviceId));
 
-        // 2. 지리적 이상 감지
-        checks.add(checkGeographicAnomaly(username, deviceId, clientInfo));
-
-        // 3. 디바이스 불일치 감지
+        // 2. 디바이스 불일치 감지
         checks.add(checkDeviceMismatch(username, deviceId, clientInfo));
 
-        // 4. 동시 사용 감지
+        // 3. 동시 사용 감지
         checks.add(checkConcurrentUsage(username, deviceId));
 
-        // 5. 시간대 패턴 이상 감지
+        // 4. 시간대 패턴 이상 감지
         checks.add(checkTimePatternAnomaly(username, clientInfo));
 
         // 종합 평가
@@ -98,45 +94,6 @@ public class RefreshTokenAnomalyDetector {
         return new AnomalyCheckResult(AnomalyType.NONE, 0.0, "Normal refresh rate");
     }
 
-    /**
-     * 지리적 이상 감지
-     */
-    private AnomalyCheckResult checkGeographicAnomaly(String username, String deviceId, ClientInfo clientInfo) {
-        String key = LOCATION_HISTORY_PREFIX + username + ":" + deviceId;
-
-        // 마지막 위치 정보 조회
-        Map<Object, Object> lastLocation = redisTemplate.opsForHash().entries(key);
-
-        if (!lastLocation.isEmpty() && clientInfo.location() != null) {
-            String lastLoc = (String) lastLocation.get("location");
-            long lastTime = Long.parseLong((String) lastLocation.get("timestamp"));
-
-            if (lastLoc != null) {
-                double distance = geoLocationService.calculateDistance(lastLoc, clientInfo.location());
-                long timeDiff = System.currentTimeMillis() - lastTime;
-                double speed = (distance / timeDiff) * 3600000; // km/h
-
-                if (speed > MAX_TRAVEL_SPEED_KM_H) {
-                    return new AnomalyCheckResult(
-                            AnomalyType.GEOGRAPHIC_ANOMALY,
-                            0.9,
-                            String.format("Impossible travel detected: %.2f km in %.2f minutes (%.2f km/h)",
-                                    distance, timeDiff / 60000.0, speed)
-                    );
-                }
-            }
-        }
-
-        // 현재 위치 저장
-        if (clientInfo.location() != null) {
-            redisTemplate.opsForHash().put(key, "location", clientInfo.location());
-            redisTemplate.opsForHash().put(key, "timestamp", String.valueOf(System.currentTimeMillis()));
-            redisTemplate.opsForHash().put(key, "ip", clientInfo.ipAddress());
-            redisTemplate.expire(key, 24, TimeUnit.HOURS);
-        }
-
-        return new AnomalyCheckResult(AnomalyType.NONE, 0.0, "Normal geographic pattern");
-    }
 
     /**
      * 디바이스 불일치 감지

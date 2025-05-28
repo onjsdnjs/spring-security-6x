@@ -1,14 +1,14 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.configurer.impl;
 
 import io.springsecurity.springsecurity6x.security.filter.BaseAuthenticationFilter;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -27,8 +27,8 @@ public abstract class AbstractRestAuthenticationConfigurer<T extends AbstractRes
 
     protected String loginProcessingUrl = "/api/auth/login";
     protected RequestMatcher requestMatcher;
-    protected AuthenticationSuccessHandler successHandler;
-    protected AuthenticationFailureHandler failureHandler;
+    protected PlatformAuthenticationSuccessHandler successHandler;
+    protected PlatformAuthenticationFailureHandler failureHandler;
     protected SecurityContextRepository securityContextRepository;
 
     protected AbstractRestAuthenticationConfigurer() {
@@ -91,12 +91,12 @@ public abstract class AbstractRestAuthenticationConfigurer<T extends AbstractRes
         return (T) this;
     }
 
-    public T successHandler(AuthenticationSuccessHandler successHandler) {
+    public T successHandler(PlatformAuthenticationSuccessHandler successHandler) {
         this.successHandler = successHandler;
         return (T) this;
     }
 
-    public T failureHandler(AuthenticationFailureHandler failureHandler) {
+    public T failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
         this.failureHandler = failureHandler;
         return (T) this;
     }

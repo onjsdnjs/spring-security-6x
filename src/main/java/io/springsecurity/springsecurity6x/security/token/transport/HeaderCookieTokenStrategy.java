@@ -40,6 +40,7 @@ public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy im
         body.put("accessToken", accessToken);
         body.put("tokenType", "Bearer");
         body.put("expiresIn", propsProvider.getAccessTokenValidity());
+        body.put("tokenTransportMethod", "HEADER_COOKIE");
 
         List<ResponseCookie> cookiesToSet = new ArrayList<>();
         if (StringUtils.hasText(refreshToken)) {
@@ -51,6 +52,7 @@ public class HeaderCookieTokenStrategy extends AbstractTokenTransportStrategy im
                     .maxAge((int) propsProvider.getRefreshTokenValidity() / 1000)
                     .build();
             cookiesToSet.add(refreshCookie);
+            body.put("refreshExpiresIn", propsProvider.getRefreshTokenValidity());
         }
 
         return TokenTransportResult.builder()

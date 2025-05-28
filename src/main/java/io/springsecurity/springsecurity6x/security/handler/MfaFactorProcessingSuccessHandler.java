@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * - State Machine 에서 직접 컨텍스트 로드 및 관리
  */
 @Slf4j
-public class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenticationSuccessHandler {
+public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenticationSuccessHandler {
 
     private final MfaPolicyProvider mfaPolicyProvider;
     private final AuthResponseWriter responseWriter;

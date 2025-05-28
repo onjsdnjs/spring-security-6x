@@ -46,12 +46,6 @@ public class PlatformSecurityConfig {
     private final MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
 
-
-    // 단일 인증 실패 시 기본 핸들러 (페이지 리다이렉트)
-    private AuthenticationFailureHandler singleAuthFailureHandler(String failureUrl) {
-        return new SimpleUrlAuthenticationFailureHandler(failureUrl);
-    }
-
     @Bean
     public PlatformConfig platformDslConfig(IdentityDslRegistry<HttpSecurity> registry) throws Exception {
         log.info("Configuring Platform Security DSL...");
@@ -124,7 +118,7 @@ public class PlatformSecurityConfig {
                         .tokenGeneratingUrl("/ott/generate") // OTT 코드 생성 요청 API (LoginController 또는 MfaApiController에서 EmailOneTimeTokenService.generate() 호출)
                         .loginProcessingUrl("/login/ott") // OTT 코드 제출 및 검증 URL (Spring Security의 AuthenticationFilter가 처리)
                         .successHandler(primaryAuthenticationSuccessHandler) // 성공 시 MFA 필요 여부 판단 또는 JWT 발급
-                        .failureHandler(singleAuthFailureHandler("/loginOtt?error_ott"))
+                        .failureHandler(unifiedAuthenticationFailureHandler)
                         .order(110)
                 ).jwt(Customizer.withDefaults()) // 단일 OTT 로그인 후 JWT 토큰 사용
 
@@ -184,7 +178,7 @@ public class PlatformSecurityConfig {
                                 .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
                         )*/
                         // MFA 플로우 전반에 대한 설정
-                        .finalSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
+                        .mfaSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
                         .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
                         .order(20) // 다른 인증 플로우(단일 Form, OTT 등)보다 우선순위 높게 설정 (선택적)

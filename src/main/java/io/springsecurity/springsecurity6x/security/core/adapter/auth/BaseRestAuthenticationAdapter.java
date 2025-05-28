@@ -2,10 +2,10 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 /**
  * REST 인증 어댑터 기반 클래스
@@ -22,8 +22,8 @@ public abstract class BaseRestAuthenticationAdapter<T extends AbstractHttpConfig
     @Override
     protected void configureHttpSecurity(HttpSecurity http, RestOptions opts,
                                          AuthenticationFlowConfig currentFlow,
-                                         AuthenticationSuccessHandler successHandler,
-                                         AuthenticationFailureHandler failureHandler) throws Exception {
+                                         PlatformAuthenticationSuccessHandler  successHandler,
+                                         PlatformAuthenticationFailureHandler  failureHandler) throws Exception {
 
         T configurer = createConfigurer();
 
@@ -45,8 +45,8 @@ public abstract class BaseRestAuthenticationAdapter<T extends AbstractHttpConfig
      * REST 인증 설정
      */
     protected abstract void configureRestAuthentication(T configurer, RestOptions opts,
-                                                        AuthenticationSuccessHandler successHandler,
-                                                        AuthenticationFailureHandler failureHandler);
+                                                        PlatformAuthenticationSuccessHandler  successHandler,
+                                                        PlatformAuthenticationFailureHandler failureHandler);
 
     /**
      * Security Context 설정

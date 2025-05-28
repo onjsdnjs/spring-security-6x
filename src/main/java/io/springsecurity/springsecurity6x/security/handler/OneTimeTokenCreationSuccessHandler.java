@@ -31,7 +31,7 @@ import java.util.Objects;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
+public final class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGenerationSuccessHandler {
 
     private final MfaStateMachineIntegrator mfaStateMachineIntegrator;
     private final AuthContextProperties authContextProperties;

@@ -3,6 +3,10 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.handler.AbstractMfaAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
@@ -24,8 +28,9 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
 
     @Override
     protected void configureHttpSecurity(HttpSecurity http, OttOptions options,
-                                         AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler, // 이 메소드는 Ott에서는 사용 안 함
-                                         AuthenticationFailureHandler failureHandler) throws Exception {
+                                         AuthenticationFlowConfig currentFlow,
+                                         PlatformAuthenticationSuccessHandler  successHandler, // 이 메소드는 Ott에서는 사용 안 함
+                                         PlatformAuthenticationFailureHandler  failureHandler) throws Exception {
         throw new UnsupportedOperationException(
                 "OttAuthenticationAdapter uses OneTimeTokenGenerationSuccessHandler. Call configureHttpSecurityForOtt instead."
         );
@@ -34,8 +39,8 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
     @Override
     public void configureHttpSecurityForOtt(HttpSecurity http, OttOptions opts,
                                             OneTimeTokenGenerationSuccessHandler tokenGenerationSuccessHandler,
-                                            AuthenticationSuccessHandler successHandler,// 코드 생성 성공 핸들러
-                                            AuthenticationFailureHandler failureHandler) throws Exception { // 코드 검증 실패 핸들러
+                                            PlatformAuthenticationSuccessHandler successHandler,// 코드 생성 성공 핸들러
+                                            PlatformAuthenticationFailureHandler failureHandler) throws Exception { // 코드 검증 실패 핸들러
 
         String getRequestUrlForForwardingFilter = opts.getLoginProcessingUrl(); // 예: /login/ott 또는 /login/mfa-ott
         String postProcessingUrlForAuthFilter = opts.getLoginProcessingUrl();   // 이 URL로 자동 POST
@@ -48,16 +53,10 @@ public class OttAuthenticationAdapter extends AbstractAuthenticationAdapter<OttO
                     .tokenService(opts.getOneTimeTokenService())
                     .tokenGenerationSuccessHandler(opts.getTokenGenerationSuccessHandler() == null ?
                             tokenGenerationSuccessHandler:opts.getTokenGenerationSuccessHandler())
-                    .authenticationSuccessHandler(opts.getSuccessHandler() == null ? successHandler : opts.getSuccessHandler())
-                    .authenticationFailureHandler(opts.getFailureHandler() == null ? failureHandler: opts.getFailureHandler());
+                    .successHandler(successHandler)
+                    .failureHandler(failureHandler);
         });
         log.info("OttAuthenticationAdapter: Configured OttForwardingFilter for GET {} and OneTimeTokenLogin for POST {} (Generation at {})",
                 getRequestUrlForForwardingFilter, postProcessingUrlForAuthFilter, opts.getTokenGeneratingUrl());
-    }
-
-    @Override
-    protected String determineDefaultFailureUrl(OttOptions options) {
-        // 기본 실패 URL (예: 이메일 입력 페이지로 리다이렉트)
-        return "/loginOtt?error=ott_default_failure"; // 또는 AuthContextProperties 등에서 가져옴
     }
 }

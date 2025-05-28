@@ -1,27 +1,25 @@
 package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.OttOptions;
-import io.springsecurity.springsecurity6x.security.core.dsl.option.RestOptions;
-import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
-import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
-import io.springsecurity.springsecurity6x.security.handler.UnifiedAuthenticationFailureHandler;
-import io.springsecurity.springsecurity6x.security.handler.PrimaryAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.handler.*;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenGenerationSuccessHandler;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -35,13 +33,14 @@ import java.util.Objects;
 public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProcessingOptions> implements AuthenticationAdapter {
 
     protected abstract void configureHttpSecurity(HttpSecurity http, O options,
-                                                  AuthenticationFlowConfig currentFlow, AuthenticationSuccessHandler successHandler,
-                                                  AuthenticationFailureHandler failureHandler) throws Exception;
+                                                  AuthenticationFlowConfig currentFlow,
+                                                  PlatformAuthenticationSuccessHandler successHandler,
+                                                  PlatformAuthenticationFailureHandler failureHandler) throws Exception;
 
     protected void configureHttpSecurityForOtt(HttpSecurity http, OttOptions options,
                                                OneTimeTokenGenerationSuccessHandler ottSuccessHandler,
-                                               AuthenticationSuccessHandler successHandler,
-                                               AuthenticationFailureHandler failureHandler) throws Exception {
+                                               PlatformAuthenticationSuccessHandler  successHandler,
+                                               PlatformAuthenticationFailureHandler failureHandler) throws Exception {
         if (!(this instanceof OttAuthenticationAdapter)) {
             throw new UnsupportedOperationException(
                     String.format("Feature %s is not an OTT feature and should not call configureHttpSecurityForOtt. " +
@@ -86,9 +85,20 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         ApplicationContext appContext = platformContext.applicationContext();
         Objects.requireNonNull(appContext, "ApplicationContext from PlatformContext cannot be null");
 
-        AuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
-        AuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, appContext);
-        OneTimeTokenGenerationSuccessHandler generationSuccessHandler; // 변수 선언만
+        PlatformAuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        PlatformAuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, appContext);
+        OneTimeTokenGenerationSuccessHandler generationSuccessHandler;
+
+        AbstractMfaAuthenticationSuccessHandler mfaSuccessHandler = (AbstractMfaAuthenticationSuccessHandler) successHandler;
+        UnifiedAuthenticationFailureHandler mfaFailureHandler = (UnifiedAuthenticationFailureHandler) failureHandler;
+
+        if(options.getSuccessHandler() != null){
+            mfaSuccessHandler.setDelegateHandler(options.getSuccessHandler());
+        }
+
+        if(options.getFailureHandler() != null){
+            mfaFailureHandler.setDelegateHandler(options.getFailureHandler());
+        }
 
         if (this instanceof OttAuthenticationAdapter ottAdapter) {
                 generationSuccessHandler = determineDefaultOttGenerationSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
@@ -105,9 +115,9 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                             " and determineDefaultOttSuccessHandler also returned null.");
                 }
             // 이 시점에서 resolvedOttSuccessHandler는 null이 아님을 보장.
-            ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, generationSuccessHandler, successHandler, failureHandler);
+            ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, generationSuccessHandler, mfaSuccessHandler, mfaFailureHandler);
         } else {
-            configureHttpSecurity(http, options, currentFlow, successHandler, failureHandler);
+            configureHttpSecurity(http, options, currentFlow, mfaSuccessHandler, mfaFailureHandler);
         }
 
         // 공통 보안 설정을 옵션 객체를 통해 HttpSecurity에 적용
@@ -120,7 +130,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                 getId(), myRelevantStepConfig.getType(), (currentFlow != null ? currentFlow.getTypeName() : "Single/Unknown"));
     }
 
-    protected AuthenticationSuccessHandler resolveSuccessHandler(
+    protected PlatformAuthenticationSuccessHandler resolveSuccessHandler(
             O options, @Nullable AuthenticationFlowConfig currentFlow,
             AuthenticationStepConfig myStepConfig, @Nullable List<AuthenticationStepConfig> allSteps,
             ApplicationContext appContext) {
@@ -142,10 +152,15 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             }
         }
         log.debug("AuthenticationFeature [{}]: Resolving default successHandler.", getId());
-        return new SavedRequestAwareAuthenticationSuccessHandler();
+        return new PlatformAuthenticationSuccessHandler(){
+            @Override
+            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+                log.debug("AuthenticationFeature [{}]: Default successHandler called.", getId());
+            }
+        };
     }
 
-    protected AuthenticationFailureHandler resolveFailureHandler(O options, @Nullable AuthenticationFlowConfig currentFlow, ApplicationContext appContext) {
+    protected PlatformAuthenticationFailureHandler  resolveFailureHandler(O options, @Nullable AuthenticationFlowConfig currentFlow, ApplicationContext appContext) {
 
         if (options.getFailureHandler() != null) {
             log.debug("AuthenticationFeature [{}]: Using failureHandler from options: {}", getId(), options.getFailureHandler().getClass().getSimpleName());
@@ -154,7 +169,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
 
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
             Object mfaSpecificFailureHandler = currentFlow.getMfaFailureHandler();
-            if (mfaSpecificFailureHandler instanceof AuthenticationFailureHandler springSecurityFailureHandler) {
+            if (mfaSpecificFailureHandler instanceof PlatformAuthenticationFailureHandler  springSecurityFailureHandler) {
                 log.debug("AuthenticationFeature [{}]: Using MfaFailureHandler from current MFA flow config.", getId());
                 return springSecurityFailureHandler;
 
@@ -179,9 +194,6 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             ApplicationContext appContext) {
         log.debug("AuthenticationFeature [{}]: Determining default OTT success handler. This should be overridden in OttAuthenticationAdapter.", getId());
         try {
-            // CustomTokenIssuingSuccessHandler가 OneTimeTokenGenerationSuccessHandler를 구현하고 있다면,
-            // 또는 플랫폼에 정의된 다른 기본 OTT 성공 핸들러 빈 이름을 사용합니다.
-            // 예시: return appContext.getBean(MagicLinkHandler.class); // 만약 MagicLinkHandler가 있다면
             return appContext.getBean("oneTimeTokenCreationSuccessHandler", OneTimeTokenGenerationSuccessHandler.class);
         } catch (Exception e) {
             String errorMessage = String.format("Default OneTimeTokenGenerationSuccessHandler bean ('oneTimeTokenCreationSuccessHandler' or specific OTT handler) not found for OTT feature: %s. This is a critical configuration error.", getId());
@@ -190,42 +202,12 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         }
     }
 
-    protected AuthenticationFailureHandler createDefaultFailureHandler(O options, ApplicationContext appContext) {
-        if (options instanceof RestOptions) {
-            final ObjectMapper objectMapper;
-            try {
-                objectMapper = appContext.getBean(ObjectMapper.class);
-            } catch (Exception e) {
-                log.error("AuthenticationFeature [{}]: ObjectMapper bean not found for creating default REST failure handler. Cannot provide JSON error response.", getId(), e);
-                return (request, response, exception) -> {
-                    if (!response.isCommitted()) response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication Failed: ObjectMapper not available");
-                };
+    protected PlatformAuthenticationFailureHandler  createDefaultFailureHandler(O options, ApplicationContext appContext) {
+        return new PlatformAuthenticationFailureHandler() {
+            @Override
+            public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
+                log.debug("AuthenticationFeature [{}]: Default failureHandler called.", getId());
             }
-            return (request, response, exception) -> {
-                if (!response.isCommitted()) {
-                    log.warn("AuthenticationFeature [{}]: Default REST authentication failure: {}", getId(), exception.getMessage());
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    try {
-                        objectMapper.writeValue(response.getWriter(),
-                                Map.of("timestamp", System.currentTimeMillis(),
-                                        "status", HttpServletResponse.SC_UNAUTHORIZED,
-                                        "error", "Unauthorized",
-                                        "message", exception.getMessage() != null ? exception.getMessage() : "Invalid credentials.",
-                                        "path", request.getRequestURI()));
-                    } catch (IOException ioException) {
-                        log.error("AuthenticationFeature [{}]: Error writing JSON error response.", getId(), ioException);
-                    }
-                }
-            };
-        } else {
-            String failureUrl = determineDefaultFailureUrl(options);
-            log.debug("AuthenticationFeature [{}]: Using default failure URL: {} for non-REST flow.", getId(), failureUrl);
-            return new SimpleUrlAuthenticationFailureHandler(failureUrl);
-        }
-    }
-
-    protected String determineDefaultFailureUrl(O options) {
-        return "/login?error&feature_type=" + getId();
+        };
     }
 }

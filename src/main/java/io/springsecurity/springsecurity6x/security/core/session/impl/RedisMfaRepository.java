@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * - 보안 강화된 세션 ID 생성
  */
 @Slf4j
-@Repository
 @ConditionalOnProperty(name = "security.mfa.session.storage-type", havingValue = "redis")
 public class RedisMfaRepository implements MfaSessionRepository {
 

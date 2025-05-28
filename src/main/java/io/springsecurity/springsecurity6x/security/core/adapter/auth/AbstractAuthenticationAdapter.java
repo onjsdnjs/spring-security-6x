@@ -85,25 +85,18 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         ApplicationContext appContext = platformContext.applicationContext();
         Objects.requireNonNull(appContext, "ApplicationContext from PlatformContext cannot be null");
 
-        PlatformAuthenticationSuccessHandler successHandler = resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
-        PlatformAuthenticationFailureHandler failureHandler = resolveFailureHandler(options, currentFlow, appContext);
+        AbstractMfaAuthenticationSuccessHandler mfaSuccessHandler = (AbstractMfaAuthenticationSuccessHandler) resolveSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
+        UnifiedAuthenticationFailureHandler mfaFailureHandler = (UnifiedAuthenticationFailureHandler) resolveFailureHandler(options, currentFlow, appContext);
+
+        if(options.getSuccessHandler() != null) mfaSuccessHandler.setDelegateHandler(options.getSuccessHandler());
+        if(options.getFailureHandler() != null) mfaFailureHandler.setDelegateHandler(options.getFailureHandler());
+
         OneTimeTokenGenerationSuccessHandler generationSuccessHandler;
-
-        AbstractMfaAuthenticationSuccessHandler mfaSuccessHandler = (AbstractMfaAuthenticationSuccessHandler) successHandler;
-        UnifiedAuthenticationFailureHandler mfaFailureHandler = (UnifiedAuthenticationFailureHandler) failureHandler;
-
-        if(options.getSuccessHandler() != null){
-            mfaSuccessHandler.setDelegateHandler(options.getSuccessHandler());
-        }
-
-        if(options.getFailureHandler() != null){
-            mfaFailureHandler.setDelegateHandler(options.getFailureHandler());
-        }
 
         if (this instanceof OttAuthenticationAdapter ottAdapter) {
                 generationSuccessHandler = determineDefaultOttGenerationSuccessHandler(options, currentFlow, myRelevantStepConfig, allStepsInCurrentFlow, appContext);
                 log.debug("AuthenticationFeature [{}]: Using provided successHandler as OneTimeTokenGenerationSuccessHandler: {}",
-                        getId(), successHandler.getClass().getName());
+                        getId(), mfaSuccessHandler.getClass().getName());
 
                 if (generationSuccessHandler == null) {
                     // determineDefaultOttSuccessHandler가 null을 반환하지 않도록 보장하는 것이 중요.
@@ -111,20 +104,15 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
                     // (이전 답변에서 determineDefaultOttSuccessHandler가 null이 아닌 값을 반환하도록 수정했음)
                     log.error("AuthenticationFeature [{}]: CRITICAL - determineDefaultOttSuccessHandler returned null. This should not happen. Review OttAuthenticationAdapter.determineDefaultOttSuccessHandler.", getId());
                     throw new IllegalStateException("Unable to determine a valid OneTimeTokenGenerationSuccessHandler for OTT feature " + getId() +
-                            ". Resolved successHandler was: " + successHandler.getClass().getName() +
+                            ". Resolved successHandler was: " + mfaSuccessHandler.getClass().getName() +
                             " and determineDefaultOttSuccessHandler also returned null.");
                 }
-            // 이 시점에서 resolvedOttSuccessHandler는 null이 아님을 보장.
             ottAdapter.configureHttpSecurityForOtt(http, (OttOptions)options, generationSuccessHandler, mfaSuccessHandler, mfaFailureHandler);
         } else {
             configureHttpSecurity(http, options, currentFlow, mfaSuccessHandler, mfaFailureHandler);
         }
 
-        // 공통 보안 설정을 옵션 객체를 통해 HttpSecurity에 적용
-        // (AbstractOptions.applyCommonSecurityConfigs(HttpSecurity) 메서드가 호출됨)
-        if (options != null && http != null) {
-            options.applyCommonSecurityConfigs(http);
-        }
+        options.applyCommonSecurityConfigs(http);
 
         log.info("AuthenticationFeature [{}]: Applied its specific configuration for step type '{}' in flow '{}'.",
                 getId(), myRelevantStepConfig.getType(), (currentFlow != null ? currentFlow.getTypeName() : "Single/Unknown"));

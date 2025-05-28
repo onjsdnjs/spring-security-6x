@@ -2,7 +2,9 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core.lock;
 
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +16,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
-@Component
 public class OptimisticLockManager {
 
     private final Map<String, VersionInfo> versionMap = new ConcurrentHashMap<>();
@@ -193,7 +194,7 @@ public class OptimisticLockManager {
         }
 
         boolean isExpired() {
-            return isExpired(DEFAULT_CACHE_TTL_MILLIS);
+            return isExpired(30000);
         }
 
         boolean isExpired(long maxAgeMillis) { // 만료 기준 파라미터 추가
@@ -255,7 +256,7 @@ public class OptimisticLockManager {
         }
 
         boolean isExpired() {
-            return isExpired(DEFAULT_CACHE_TTL_MILLIS);
+            return isExpired(30000);
         }
 
         // FactorContext 복사본 생성 (깊은 복사 고려)

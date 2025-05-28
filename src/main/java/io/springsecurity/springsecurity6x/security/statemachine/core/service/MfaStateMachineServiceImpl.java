@@ -42,7 +42,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final MfaEventPublisher eventPublisher;
     private final RedisDistributedLockService distributedLockService;
     private final OptimisticLockManager optimisticLockManager;
-    private final ApplicationContext applicationContext;
+    private final AuthContextProperties properties;
 
     private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();
     private final AtomicReference<CircuitState> circuitState = new AtomicReference<>(CircuitState.CLOSED);
@@ -51,7 +51,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     private final AtomicInteger successCount = new AtomicInteger(0);
     private final AtomicInteger activeOperations = new AtomicInteger(0);
     private final ConcurrentHashMap<String, Long> operationTimings = new ConcurrentHashMap<>();
-    private final AuthContextProperties properties = applicationContext.getBean(AuthContextProperties.class);
 
     @Value("${security.statemachine.circuit-breaker.failure-threshold:5}")
     private int failureThreshold;

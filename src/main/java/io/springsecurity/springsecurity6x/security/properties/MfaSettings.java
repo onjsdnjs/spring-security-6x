@@ -62,6 +62,7 @@ public class MfaSettings {
      */
     private long challengeTimeoutMs = TimeUnit.MINUTES.toMillis(5);
     private long inactivityTimeout = TimeUnit.MINUTES.toMillis(15);
+    private long cacheTtl = TimeUnit.MINUTES.toMillis(5);
 
     /**
      * 세션 갱신 간격 (밀리초)

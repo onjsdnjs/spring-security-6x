@@ -125,28 +125,6 @@ public class HttpSessionMfaRepository implements MfaSessionRepository {
     }
 
     @Override
-    public int getSessionIdSecurityScore(String sessionId) {
-        if (!StringUtils.hasText(sessionId)) {
-            return 0;
-        }
-
-        int score = 0;
-
-        if (sessionId.length() >= 32) score += 25;
-        else if (sessionId.length() >= 24) score += 20;
-        else if (sessionId.length() >= 16) score += 15;
-
-        if (sessionId.chars().allMatch(c -> Character.isLetterOrDigit(c) || c == '_' || c == '-')) {
-            score += 25;
-        }
-
-        score += Math.min(25, estimateEntropy(sessionId));
-        score += 25; // 단일 서버 환경 보너스
-
-        return Math.min(100, score);
-    }
-
-    @Override
     public SessionStats getSessionStats() {
         return new SessionStats(
                 0,

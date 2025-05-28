@@ -154,27 +154,6 @@ public class InMemoryMfaRepository implements MfaSessionRepository {
     }
 
     @Override
-    public int getSessionIdSecurityScore(String sessionId) {
-        if (!StringUtils.hasText(sessionId)) {
-            return 0;
-        }
-
-        int score = 0;
-
-        if (sessionId.length() >= 32) score += 30;
-        else if (sessionId.length() >= 24) score += 25;
-        else if (sessionId.length() >= 16) score += 20;
-
-        score += 35; // 메모리 기반 보너스
-
-        if (isSessionIdUnique(sessionId)) {
-            score += 35;
-        }
-
-        return Math.min(100, score);
-    }
-
-    @Override
     public SessionStats getSessionStats() {
         cleanupExpiredSessions();
 

@@ -323,8 +323,7 @@ public class FactorContext implements FactorContextExtensions,Serializable{
 
     @Override
     public Set<AuthType> getAvailableFactors() {
-        return getRegisteredMfaFactors().stream()
-                .collect(Collectors.toSet());
+        return new HashSet<>(getRegisteredMfaFactors());
     }
 
     /**
@@ -426,37 +425,60 @@ public class FactorContext implements FactorContextExtensions,Serializable{
                 .orElse(null);
     }
 
-    @SuppressWarnings("unchecked")
     public List<AuthType> getRegisteredMfaFactors() {
-        Object registeredFactorsObj = attributes.get("registeredMfaFactors");
-        if (registeredFactorsObj instanceof List) {
+        Object registeredFactorsObj = attributes.get("registeredMfaFactors"); // 일반적으로 이 키를 사용해야 함
+        if (registeredFactorsObj instanceof List<?> rawList) {
             try {
-                List<AuthType> factors = (List<AuthType>) registeredFactorsObj;
-                return Collections.unmodifiableList(factors);
+                // 모든 요소가 AuthType 인지 확인 후 캐스팅
+                if (rawList.stream().allMatch(AuthType.class::isInstance)) {
+                    return Collections.unmodifiableList((List<AuthType>) rawList);
+                } else {
+                    log.warn("Attribute 'registeredMfaFactors' for user {} contains non-AuthType elements. Raw list: {}", username, rawList);
+                    // 안전하게 AuthType만 필터링하거나, 빈 리스트 반환
+                    return rawList.stream()
+                            .filter(AuthType.class::isInstance)
+                            .map(AuthType.class::cast)
+                            .toList();
+                }
             } catch (ClassCastException e) {
                 log.warn("Attribute 'registeredMfaFactors' is not a List of AuthType in FactorContext for user: {}. Returning empty list.",
                         username, e);
             }
-        }
-        if (registeredFactorsObj != null) {
+        } else if (registeredFactorsObj != null) {
             log.warn("Attribute 'registeredMfaFactors' in FactorContext for user {} is not a List (actual type: {}). Returning empty list.",
                     username, registeredFactorsObj.getClass().getName());
+        }
+        // 이전 버전과의 호환성을 위해 Map도 확인 (하지만 List<AuthType>이 표준이어야 함)
+        else if (!this.registeredMfaFactors.isEmpty()){
+            log.warn("FactorContext for user '{}' has 'registeredMfaFactors' as a Map. This is deprecated. Please store as List<AuthType> in attributes map with key 'registeredMfaFactors'.", username);
+            // Map<String, Object>에서 AuthType 리스트를 추출하려는 시도 (매우 제한적)
+            return this.registeredMfaFactors.keySet().stream()
+                    .map(key -> {
+                        try { return AuthType.valueOf(key.toUpperCase()); }
+                        catch (IllegalArgumentException e) { return null; }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
         }
         return Collections.emptyList();
     }
 
     public List<AuthType> getRegisteredMfaFactors(AuthenticationFlowConfig mfaFlowConfig) {
-        Object factorsFromAttribute = getAttribute("userRegisteredFactorsInThisFlow");
+        Object factorsFromAttribute = getAttribute("userRegisteredFactorsInThisFlow"); // 특정 플로우에 대한 필터링된 팩터 목록
         if (factorsFromAttribute instanceof List) {
             try {
-                @SuppressWarnings("unchecked")
                 List<AuthType> factors = (List<AuthType>) factorsFromAttribute;
-                return Collections.unmodifiableList(factors);
+                if (factors.stream().allMatch(Objects::nonNull)) {
+                    return Collections.unmodifiableList(factors);
+                } else {
+                    log.warn("Attribute 'userRegisteredFactorsInThisFlow' for user {} contains null elements.", username);
+                    // null을 필터링하고 반환
+                    return factors.stream().filter(Objects::nonNull).toList();
+                }
             } catch (ClassCastException e) {
                 log.warn("Attribute 'userRegisteredFactorsInThisFlow' is not a List of AuthType in FactorContext for user: {}", username);
             }
         }
-
         log.warn("FactorContext for user '{}': 'userRegisteredFactorsInThisFlow' attribute not found. " +
                         "Falling back to all AuthTypes defined in the current MFA flow '{}'. " +
                         "This might not accurately reflect user's registered factors for this specific flow.",

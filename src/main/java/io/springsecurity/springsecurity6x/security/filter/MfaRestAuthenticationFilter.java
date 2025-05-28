@@ -129,11 +129,10 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
             // State Machine 초기화 및 세션 저장
             stateMachineIntegrator.initializeStateMachine(factorContext, request, response);
 
-            log.info("Unified State Machine initialized for user: {} with session: {} using repository: {} (security score: {})",
+            log.info("Unified State Machine initialized for user: {} with session: {} using repository: {})",
                     factorContext.getUsername(),
                     factorContext.getMfaSessionId(),
-                    sessionRepository.getRepositoryType(),
-                    sessionRepository.getSessionIdSecurityScore(mfaSessionId));
+                    sessionRepository.getRepositoryType());
 
             // 1차 인증 완료 처리
 /*            processPrimaryAuthenticationCompletion(factorContext, request);*/
@@ -171,16 +170,7 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
         for (int attempt = 0; attempt < MAX_SESSION_ID_GENERATION_ATTEMPTS; attempt++) {
             try {
                 String baseId = generateSecureSessionId();
-                String uniqueSessionId = sessionRepository.generateUniqueSessionId(baseId, request);
-
-                int securityScore = sessionRepository.getSessionIdSecurityScore(uniqueSessionId);
-                if (securityScore >= 80) {
-                    log.debug("Generated secure distributed session ID with security score: {} (attempt: {})",
-                            securityScore, attempt + 1);
-                    return uniqueSessionId;
-                }
-
-                log.debug("Generated session ID has low security score: {} (attempt: {})", securityScore, attempt + 1);
+                return sessionRepository.generateUniqueSessionId(baseId, request);
 
             } catch (MfaSessionRepository.SessionIdGenerationException e) {
                 log.warn("Session ID generation failed (attempt: {}): {}", attempt + 1, e.getMessage());
@@ -233,12 +223,8 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
         factorContext.setAttribute("repositoryType", sessionRepository.getRepositoryType());
         factorContext.setAttribute("distributedSync", sessionRepository.supportsDistributedSync());
 
-        // 세션 보안 점수 저장
-        int securityScore = sessionRepository.getSessionIdSecurityScore(factorContext.getMfaSessionId());
-        factorContext.setAttribute("sessionSecurityScore", securityScore);
-
-        log.debug("Enhanced FactorContext with security info: deviceId={}, securityScore={}, repository={}",
-                deviceId, securityScore, sessionRepository.getRepositoryType());
+        log.debug("Enhanced FactorContext with security info: deviceId={}, repository={}",
+                deviceId, sessionRepository.getRepositoryType());
     }
 
     /**

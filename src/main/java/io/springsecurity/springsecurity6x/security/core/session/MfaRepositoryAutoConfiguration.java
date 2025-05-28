@@ -236,10 +236,7 @@ public class MfaRepositoryAutoConfiguration {
     private boolean performHealthCheck(MfaSessionRepository repository) {
         try {
             MfaSessionRepository.SessionStats stats = repository.getSessionStats();
-            boolean formatValid = repository.isValidSessionIdFormat("test_session_id_123");
-            int securityScore = repository.getSessionIdSecurityScore("test_session_id_123");
-
-            return stats != null && securityScore >= 0;
+            return stats != null;
 
         } catch (Exception e) {
             log.debug("Basic health check failed for {}: {}", repository.getRepositoryType(), e.getMessage());
@@ -392,11 +389,6 @@ static class HealthCheckingRepositoryWrapper implements MfaSessionRepository {
     @Override
     public boolean supportsDistributedSync() {
         return delegate.supportsDistributedSync();
-    }
-
-    @Override
-    public int getSessionIdSecurityScore(String sessionId) {
-        return delegate.getSessionIdSecurityScore(sessionId);
     }
 
     @Override

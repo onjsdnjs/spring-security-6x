@@ -36,7 +36,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
     // Guards
     private final AllFactorsCompletedGuard allFactorsCompletedGuard;
     private final RetryLimitGuard retryLimitGuard;
-    private final DetermineNextFactorAction determineNextFactorAction;
+//    private final DetermineNextFactorAction determineNextFactorAction;
 
 
     @Override
@@ -116,15 +116,15 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 })
                 .and()
 
-                /*// 챌린지 성공적 시작 -> 사용자 입력 대기
+              /*  // 챌린지 성공적 시작 -> 사용자 입력 대기
                 .withExternal()
                 .source(MfaState.FACTOR_CHALLENGE_INITIATED)
                 .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
                 .event(MfaEvent.CHALLENGE_INITIATED_SUCCESSFULLY)
                 .and()
-*/
+
                 // 챌린지 시작 실패 -> 팩터 선택으로 돌아감
-                /*.withExternal()
+                .withExternal()
                 .source(MfaState.FACTOR_CHALLENGE_INITIATED)
                 .target(MfaState.AWAITING_FACTOR_SELECTION)
                 .event(MfaEvent.CHALLENGE_INITIATION_FAILED)
@@ -143,6 +143,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.FACTOR_VERIFICATION_COMPLETED)
                 .event(MfaEvent.FACTOR_VERIFIED_SUCCESS)
                 .action(verifyFactorAction)
+//                .action(determineNextFactorAction)
                 .and()
 
                 // 검증 실패 (재시도 가능)
@@ -167,7 +168,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.ALL_FACTORS_COMPLETED)
                 .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .guard(allFactorsCompletedGuard)
-                .action(determineNextFactorAction)
+//                .action(determineNextFactorAction)
                 .and()
 
                 // 추가 팩터 필요
@@ -176,7 +177,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.AWAITING_FACTOR_SELECTION)
                 .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .guard(allFactorsCompletedGuard.negate())
-                .action(determineNextFactorAction)
+//                .action(determineNextFactorAction)
                 .and()
 
                 // 최종 성공

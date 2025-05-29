@@ -39,7 +39,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
-    private final MfaStateMachineIntegrator stateMachineIntegrator;
+    private MfaStateMachineIntegrator stateMachineIntegrator;
+
+    private MfaStateMachineIntegrator getStateMachineIntegrator() {
+        if (stateMachineIntegrator == null) {
+            stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
+        }
+        return stateMachineIntegrator;
+    }
 
     /**
      * ✅ 개선: MFA 요구사항 평가 및 초기 단계 결정 - 동기화 강화
@@ -120,7 +127,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (success && request != null) {
             try {
                 // 이벤트 전송 후 동기화
-                stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+                getStateMachineIntegrator().syncStateWithStateMachine(ctx, request);
                 log.debug("Context synchronized after event {} for session: {}", event, ctx.getMfaSessionId());
             } catch (Exception e) {
                 log.warn("Failed to sync after event {} for session: {}", event, ctx.getMfaSessionId(), e);
@@ -139,8 +146,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Assert.notNull(ctx, "FactorContext cannot be null.");
 
         String sessionId = ctx.getMfaSessionId();
-
-        // 개선: 조건부 동기화 - 필요한 경우에만
         syncWithStateMachineIfNeeded(ctx);
 
         AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
@@ -150,7 +155,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             return;
         }
 
-        @SuppressWarnings("unchecked")
         List<AuthType> registeredFactors = (List<AuthType>) ctx.getAttribute("registeredMfaFactors");
         if (registeredFactors == null) {
             registeredFactors = new ArrayList<>();
@@ -170,7 +174,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             if (nextStepConfigOpt.isPresent()) {
                 AuthenticationStepConfig nextStep = nextStepConfigOpt.get();
 
-                // ✅ 개선: 표준 패턴으로 다음 팩터 설정 - 동기화 포함
+                // 표준 패턴으로 다음 팩터 설정 - 동기화 포함
                 boolean success = executeStandardEventPattern(
                         ctx,
                         () -> {
@@ -277,11 +281,11 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             }
 
             // 2) State Machine에 저장
-            stateMachineIntegrator.saveFactorContext(ctx);
+            getStateMachineIntegrator().saveFactorContext(ctx);
 
             // 3) 이벤트 전송 (있는 경우)
             if (event != null && request != null) {
-                boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
+                boolean accepted = getStateMachineIntegrator().sendEvent(event, ctx, request);
                 if (!accepted) {
                     log.error("Event {} was not accepted for session: {} during: {}",
                             event, ctx.getMfaSessionId(), operationDescription);
@@ -290,7 +294,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
                 // 추가: 이벤트 전송 후 State Machine과 동기화
                 try {
-                    stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
+                    getStateMachineIntegrator().syncStateWithStateMachine(ctx, request);
                     log.debug("Context synchronized after event {} for session: {}",
                             event, ctx.getMfaSessionId());
                 } catch (Exception syncException) {
@@ -325,7 +329,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 request.setAttribute("selectedFactor", ctx.getCurrentProcessingFactor().name());
             }
 
-            boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
+            boolean accepted = getStateMachineIntegrator().sendEvent(event, ctx, request);
             if (!accepted) {
                 log.error("Event {} rejected in context: {} for session: {}",
                         event, context, ctx.getMfaSessionId());
@@ -349,14 +353,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
      */
     private void syncWithStateMachineIfNeeded(FactorContext ctx) {
         // State Machine에서 현재 상태 확인
-        MfaState currentStateInSM = stateMachineIntegrator.getCurrentState(ctx.getMfaSessionId());
+        MfaState currentStateInSM = getStateMachineIntegrator().getCurrentState(ctx.getMfaSessionId());
 
         // 상태가 다른 경우에만 동기화
         if (ctx.getCurrentState() != currentStateInSM) {
             log.debug("State mismatch detected for session: {}. Context: {}, StateMachine: {}. Syncing...",
                     ctx.getMfaSessionId(), ctx.getCurrentState(), currentStateInSM);
 
-            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(ctx.getMfaSessionId());
+            FactorContext latestContext = getStateMachineIntegrator().loadFactorContext(ctx.getMfaSessionId());
             if (latestContext != null) {
                 syncContextFromStateMachine(ctx, latestContext);
             }
@@ -374,7 +378,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         ctx.setLastError("Event processing failed: " + operation);
 
         // 저장만 하고 이벤트는 전송하지 않음 (무한 루프 방지)
-        stateMachineIntegrator.saveFactorContext(ctx);
+        getStateMachineIntegrator().saveFactorContext(ctx);
     }
 
     /**
@@ -385,7 +389,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
         ctx.setLastError("Configuration error: " + errorMessage);
-        stateMachineIntegrator.saveFactorContext(ctx);
+        getStateMachineIntegrator().saveFactorContext(ctx);
     }
 
     /**
@@ -400,7 +404,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (!currentState.isTerminal()) {
             // 터미널 상태가 아니면 에러 정보만 기록
             ctx.setLastError("Event rejected: " + event + " in context: " + context);
-            stateMachineIntegrator.saveFactorContext(ctx);
+            getStateMachineIntegrator().saveFactorContext(ctx);
         }
     }
 
@@ -413,7 +417,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         ctx.setLastError("Event exception: " + e.getMessage());
         ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
-        stateMachineIntegrator.saveFactorContext(ctx);
+        getStateMachineIntegrator().saveFactorContext(ctx);
     }
 
     // === 기존 메서드들 (변경 없음) ===
@@ -425,7 +429,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         if (ctx != null) {
             String sessionId = ctx.getMfaSessionId();
-            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
+            FactorContext latestContext = getStateMachineIntegrator().loadFactorContext(sessionId);
             if (latestContext != null) {
                 @SuppressWarnings("unchecked")
                 List<AuthType> registeredFactors = (List<AuthType>) latestContext.getAttribute("registeredMfaFactors");

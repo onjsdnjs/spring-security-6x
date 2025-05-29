@@ -128,11 +128,13 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
         factorContext.addCompletedFactor(currentFactorJustCompleted);
         factorContext.resetFailedAttempts(currentStepId);
 
-        // 개선: Repository를 통한 세션 갱신
         sessionRepository.refreshSession(factorContext.getMfaSessionId());
-
         stateMachineIntegrator.saveFactorContext(factorContext);
-//        mfaPolicyProvider.determineNextFactorToProcess(factorContext);
+
+        if (Boolean.TRUE.equals(factorContext.getAttribute("needsDetermineNextFactor"))) {
+            factorContext.removeAttribute("needsDetermineNextFactor");
+            mfaPolicyProvider.determineNextFactorToProcess(factorContext);
+        }
 
         FactorContext latestContext = stateMachineIntegrator.loadFactorContext(factorContext.getMfaSessionId());
         if (latestContext != null) {

@@ -7,6 +7,7 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
@@ -20,13 +21,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class DetermineNextFactorAction extends AbstractMfaStateAction {
 
-    private final MfaPolicyProvider mfaPolicyProvider;
+    private MfaPolicyProvider mfaPolicyProvider;
+    private final ApplicationContext applicationContext;
 
     public DetermineNextFactorAction(FactorContextStateAdapter factorContextAdapter,
                                      StateContextHelper stateContextHelper,
-                                     MfaPolicyProvider mfaPolicyProvider) {
+                                     MfaPolicyProvider mfaPolicyProvider, ApplicationContext applicationContext) {
         super(factorContextAdapter, stateContextHelper);
-        this.mfaPolicyProvider = mfaPolicyProvider;
+        this.applicationContext = applicationContext;
+    }
+
+    private MfaPolicyProvider getMfaPolicyProvider() {
+        if (mfaPolicyProvider == null) {
+            mfaPolicyProvider = applicationContext.getBean(MfaPolicyProvider.class);
+        }
+        return mfaPolicyProvider;
     }
 
     @Override
@@ -41,7 +50,7 @@ public class DetermineNextFactorAction extends AbstractMfaStateAction {
         log.debug("Completed factors count: {} for session: {}", completedFactorsCount, sessionId);
 
         // 정책 제공자를 통해 다음 팩터 결정
-        mfaPolicyProvider.determineNextFactorToProcess(factorContext);
+        getMfaPolicyProvider().determineNextFactorToProcess(factorContext);
 
         // 다음 팩터가 있는지 확인
         if (factorContext.getCurrentProcessingFactor() != null) {
@@ -90,7 +99,7 @@ public class DetermineNextFactorAction extends AbstractMfaStateAction {
         String username = factorContext.getUsername();
         String flowTypeName = factorContext.getFlowTypeName();
 
-        int requiredCount = mfaPolicyProvider.getRequiredFactorCount(username, flowTypeName);
+        int requiredCount = getMfaPolicyProvider().getRequiredFactorCount(username, flowTypeName);
         int completedCount = factorContext.getCompletedFactors().size();
 
         return Math.max(0, requiredCount - completedCount);

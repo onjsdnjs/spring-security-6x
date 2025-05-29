@@ -39,14 +39,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
-    private MfaStateMachineIntegrator stateMachineIntegrator;
+    private final MfaStateMachineIntegrator stateMachineIntegrator;
 
-    private MfaStateMachineIntegrator getStateMachineIntegrator() {
+    /*private MfaStateMachineIntegrator stateMachineIntegrator {
         if (stateMachineIntegrator == null) {
             stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
         }
         return stateMachineIntegrator;
-    }
+    }*/
 
     /**
      * ✅ 개선: MFA 요구사항 평가 및 초기 단계 결정 - 동기화 강화
@@ -127,7 +127,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (success && request != null) {
             try {
                 // 이벤트 전송 후 동기화
-                getStateMachineIntegrator().syncStateWithStateMachine(ctx, request);
+                stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
                 log.debug("Context synchronized after event {} for session: {}", event, ctx.getMfaSessionId());
             } catch (Exception e) {
                 log.warn("Failed to sync after event {} for session: {}", event, ctx.getMfaSessionId(), e);
@@ -281,11 +281,11 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             }
 
             // 2) State Machine에 저장
-            getStateMachineIntegrator().saveFactorContext(ctx);
+            stateMachineIntegrator.saveFactorContext(ctx);
 
             // 3) 이벤트 전송 (있는 경우)
             if (event != null && request != null) {
-                boolean accepted = getStateMachineIntegrator().sendEvent(event, ctx, request);
+                boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
                 if (!accepted) {
                     log.error("Event {} was not accepted for session: {} during: {}",
                             event, ctx.getMfaSessionId(), operationDescription);
@@ -294,7 +294,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
                 // 추가: 이벤트 전송 후 State Machine과 동기화
                 try {
-                    getStateMachineIntegrator().syncStateWithStateMachine(ctx, request);
+                    stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
                     log.debug("Context synchronized after event {} for session: {}",
                             event, ctx.getMfaSessionId());
                 } catch (Exception syncException) {
@@ -329,7 +329,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                 request.setAttribute("selectedFactor", ctx.getCurrentProcessingFactor().name());
             }
 
-            boolean accepted = getStateMachineIntegrator().sendEvent(event, ctx, request);
+            boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
             if (!accepted) {
                 log.error("Event {} rejected in context: {} for session: {}",
                         event, context, ctx.getMfaSessionId());
@@ -353,14 +353,14 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
      */
     private void syncWithStateMachineIfNeeded(FactorContext ctx) {
         // State Machine에서 현재 상태 확인
-        MfaState currentStateInSM = getStateMachineIntegrator().getCurrentState(ctx.getMfaSessionId());
+        MfaState currentStateInSM = stateMachineIntegrator.getCurrentState(ctx.getMfaSessionId());
 
         // 상태가 다른 경우에만 동기화
         if (ctx.getCurrentState() != currentStateInSM) {
             log.debug("State mismatch detected for session: {}. Context: {}, StateMachine: {}. Syncing...",
                     ctx.getMfaSessionId(), ctx.getCurrentState(), currentStateInSM);
 
-            FactorContext latestContext = getStateMachineIntegrator().loadFactorContext(ctx.getMfaSessionId());
+            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(ctx.getMfaSessionId());
             if (latestContext != null) {
                 syncContextFromStateMachine(ctx, latestContext);
             }
@@ -378,7 +378,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         ctx.setLastError("Event processing failed: " + operation);
 
         // 저장만 하고 이벤트는 전송하지 않음 (무한 루프 방지)
-        getStateMachineIntegrator().saveFactorContext(ctx);
+        stateMachineIntegrator.saveFactorContext(ctx);
     }
 
     /**
@@ -389,7 +389,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
         ctx.setLastError("Configuration error: " + errorMessage);
-        getStateMachineIntegrator().saveFactorContext(ctx);
+        stateMachineIntegrator.saveFactorContext(ctx);
     }
 
     /**
@@ -404,7 +404,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         if (!currentState.isTerminal()) {
             // 터미널 상태가 아니면 에러 정보만 기록
             ctx.setLastError("Event rejected: " + event + " in context: " + context);
-            getStateMachineIntegrator().saveFactorContext(ctx);
+            stateMachineIntegrator.saveFactorContext(ctx);
         }
     }
 
@@ -417,7 +417,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         ctx.setLastError("Event exception: " + e.getMessage());
         ctx.changeState(MfaState.MFA_SYSTEM_ERROR);
-        getStateMachineIntegrator().saveFactorContext(ctx);
+        stateMachineIntegrator.saveFactorContext(ctx);
     }
 
     // === 기존 메서드들 (변경 없음) ===
@@ -429,7 +429,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         if (ctx != null) {
             String sessionId = ctx.getMfaSessionId();
-            FactorContext latestContext = getStateMachineIntegrator().loadFactorContext(sessionId);
+            FactorContext latestContext = stateMachineIntegrator.loadFactorContext(sessionId);
             if (latestContext != null) {
                 @SuppressWarnings("unchecked")
                 List<AuthType> registeredFactors = (List<AuthType>) latestContext.getAttribute("registeredMfaFactors");

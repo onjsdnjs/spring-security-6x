@@ -35,7 +35,7 @@ public class MfaInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public MfaPolicyProvider mfaPolicyProvider(ApplicationContext applicationContext,MfaStateMachineIntegrator mfaStateMachineIntegrator) {
-        return new DefaultMfaPolicyProvider(userRepository, applicationContext);
+        return new DefaultMfaPolicyProvider(userRepository, applicationContext, mfaStateMachineIntegrator);
     }
 
     @Bean

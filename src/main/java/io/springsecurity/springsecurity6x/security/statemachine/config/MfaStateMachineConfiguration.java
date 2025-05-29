@@ -36,8 +36,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
     // Guards
     private final AllFactorsCompletedGuard allFactorsCompletedGuard;
     private final RetryLimitGuard retryLimitGuard;
-//    private final DetermineNextFactorAction determineNextFactorAction;
-
 
     @Override
     public void configure(StateMachineConfigurationConfigurer<MfaState, MfaEvent> config) throws Exception {
@@ -143,7 +141,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.FACTOR_VERIFICATION_COMPLETED)
                 .event(MfaEvent.FACTOR_VERIFIED_SUCCESS)
                 .action(verifyFactorAction)
-//                .action(determineNextFactorAction)
                 .and()
 
                 // 검증 실패 (재시도 가능)
@@ -168,7 +165,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.ALL_FACTORS_COMPLETED)
                 .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .guard(allFactorsCompletedGuard)
-//                .action(determineNextFactorAction)
                 .and()
 
                 // 추가 팩터 필요
@@ -177,7 +173,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.AWAITING_FACTOR_SELECTION)
                 .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED)
                 .guard(allFactorsCompletedGuard.negate())
-//                .action(determineNextFactorAction)
                 .and()
 
                 // 최종 성공

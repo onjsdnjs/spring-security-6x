@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                if (result.status === "MFA_SELECTION_REQUIRED") {
+                if (result.status === "MFA_REQUIRED_SELECT_FACTOR") {
                     // MFA 설정 필요
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);

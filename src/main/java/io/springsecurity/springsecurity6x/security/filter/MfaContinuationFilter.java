@@ -85,7 +85,7 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         log.debug("MfaContinuationFilter processing request: {} {} using {} repository",
                 request.getMethod(), request.getRequestURI(), sessionRepository.getRepositoryType());
 
-        // ✅ 개선: 통합된 검증 로직 사용
+        // 통합된 검증 로직 사용
         FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
         ValidationResult validation = MfaContextValidator.validateFactorSelectionContext(ctx, sessionRepository);
 
@@ -101,8 +101,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
             log.warn("MFA context warnings for request: {} - Warnings: {}",
                     request.getRequestURI(), validation.getWarnings());
         }
-
-        ensureStateMachineInitialized(ctx, request);
 
         if (ctx.getCurrentState().isTerminal()) {
             requestHandler.handleTerminalContext(request, response, ctx);
@@ -143,18 +141,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
         responseWriter.writeErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
                 "MFA_SESSION_INVALID", String.join(", ", validation.getErrors()),
                 request.getRequestURI(), errorResponse);
-    }
-
-    /**
-     * 완전 일원화: State Machine 초기화 보장
-     */
-    private void ensureStateMachineInitialized(FactorContext ctx, HttpServletRequest request) {
-        try {
-            // State Machine과 동기화
-            stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
-        } catch (Exception e) {
-            log.warn("Failed to sync with State Machine for session: {}", ctx.getMfaSessionId(), e);
-        }
     }
 
     private boolean isValidMfaContext(FactorContext ctx) {

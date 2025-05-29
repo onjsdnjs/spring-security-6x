@@ -72,7 +72,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
 
         long startTime = System.currentTimeMillis();
 
-        // ✅ 개선: 통합된 검증 로직 사용
+        // 통합된 검증 로직 사용
         FactorContext ctx = stateMachineIntegrator.loadFactorContextFromRequest(request);
         ValidationResult validation = MfaContextValidator.validateFactorProcessingContext(ctx, sessionRepository);
 

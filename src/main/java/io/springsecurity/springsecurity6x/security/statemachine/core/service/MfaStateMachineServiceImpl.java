@@ -357,14 +357,60 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                     if (accepted) {
                         MfaState newState = stateMachine.getState().getId();
-                        updateFactorContextFromStateMachine(latestContext, stateMachine);
-                        syncFactorContextFromStateMachine(context, latestContext);
 
-                        // 개선: 비동기 이벤트 발행
+                        // 중요: Action 실행 후 State Machine에서 FactorContext 재구성
+                        // Action에서 변경한 모든 내용을 포함
+                        FactorContext actionUpdatedContext = reconstructFactorContextFromStateMachine(stateMachine);
+
+                        // 디버깅 로그 추가
+                        log.debug("After action execution for event {}, attributes from State Machine: {}",
+                                event, actionUpdatedContext.getAttributes().keySet());
+
+                        // 완전한 속성 동기화 - 모든 attributes를 외부 context로 복사
+                        Map<String, Object> updatedAttributes = new HashMap<>(actionUpdatedContext.getAttributes());
+                        updatedAttributes.forEach((key, value) -> {
+                            if (!isSystemAttribute(key)) {
+                                context.setAttribute(key, value);
+                                log.trace("Syncing attribute {} = {} to external context", key, value);
+                            }
+                        });
+
+                        // 상태 및 주요 정보 동기화
+                        context.changeState(newState);
+                        context.setCurrentProcessingFactor(actionUpdatedContext.getCurrentProcessingFactor());
+                        context.setCurrentStepId(actionUpdatedContext.getCurrentStepId());
+                        context.setCurrentFactorOptions(actionUpdatedContext.getCurrentFactorOptions());
+                        context.setMfaRequiredAsPerPolicy(actionUpdatedContext.isMfaRequiredAsPerPolicy());
+
+                        // 버전 동기화
+                        while (context.getVersion() < actionUpdatedContext.getVersion()) {
+                            context.incrementVersion();
+                        }
+
+                        // 재시도 횟수 및 에러 정보 동기화
+                        context.setRetryCount(actionUpdatedContext.getRetryCount());
+                        if (actionUpdatedContext.getLastError() != null) {
+                            context.setLastError(actionUpdatedContext.getLastError());
+                        }
+
+                        // completedFactors 동기화
+                        actionUpdatedContext.getCompletedFactors().forEach(completedFactor -> {
+                            if (!context.getCompletedFactors().contains(completedFactor)) {
+                                context.addCompletedFactor(completedFactor);
+                            }
+                        });
+
+                        // 중요: 동기화된 context를 다시 State Machine에 저장
+                        // 이렇게 해야 외부와 내부가 일치함
+                        storeFactorContextInStateMachine(stateMachine, context);
+
+                        // 비동기 이벤트 발행
                         publishStateChangeAsync(sessionId, currentState, newState, event);
 
-                        log.debug("Event {} processed successfully: {} -> {} for session: {}",
-                                event, currentState, newState, sessionId);
+                        log.debug("Event {} processed successfully: {} -> {} for session: {}. " +
+                                        "Attributes synced: {}",
+                                event, currentState, newState, sessionId, context.getAttributes().keySet());
+
                     } else {
                         log.warn("Event {} rejected in state {} for session: {}", event, currentState, sessionId);
                     }
@@ -890,7 +936,9 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 "currentState".equals(key) ||
                 "version".equals(key) ||
                 "lastUpdated".equals(key) ||
-                "stateHash".equals(key);
+                "stateHash".equals(key) ||
+                "storageType".equals(key) ||
+                "mfaSessionId".equals(key);
     }
 
     private Message<MfaEvent> createEventMessage(MfaEvent event, FactorContext context, HttpServletRequest request) {

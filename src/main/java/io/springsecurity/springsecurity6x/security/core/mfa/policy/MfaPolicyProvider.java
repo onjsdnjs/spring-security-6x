@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.policy;
 
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
@@ -35,6 +36,8 @@ public interface MfaPolicyProvider {
      * 재시도 정책 가져오기
      */
     RetryPolicy getRetryPolicy(FactorContext factorContext, AuthenticationStepConfig step);
+
+    void checkAllFactorsCompleted(FactorContext ctx, AuthenticationFlowConfig mfaFlowConfig);
 
     /**
      * 필요한 팩터 수 가져오기

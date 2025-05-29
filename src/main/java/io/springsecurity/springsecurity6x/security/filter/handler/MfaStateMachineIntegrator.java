@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -115,7 +116,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 조건부 동기화 - 성능 최적화
+     * 조건부 동기화 - 성능 최적화 및 완전한 동기화
      */
     public void syncStateWithStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -140,17 +141,50 @@ public class MfaStateMachineIntegrator {
                     return;
                 }
 
+                // 완전한 동기화 수행
                 syncFactorContextFromStateMachine(context, latestContext);
+
+                // 중요: attributes도 동기화
+                syncAttributesFromStateMachine(context, latestContext);
+
                 updateSyncState(sessionId, latestContext.getVersion());
 
-                log.debug("FactorContext synchronized: session={}, oldVersion={}, newVersion={}",
-                        sessionId, context.getVersion(), latestContext.getVersion());
+                log.debug("FactorContext synchronized: session={}, oldVersion={}, newVersion={}, " +
+                                "attributes synced={}",
+                        sessionId, context.getVersion() - 1, latestContext.getVersion(),
+                        latestContext.getAttributes().keySet());
             } else {
                 log.warn("No context found in unified State Machine for session: {}", sessionId);
             }
         } catch (Exception e) {
             log.error("Failed to sync with unified State Machine for session: {}", sessionId, e);
         }
+    }
+
+    /**
+     * 속성 동기화 메서드 추가
+     */
+    private void syncAttributesFromStateMachine(FactorContext target, FactorContext source) {
+        // 모든 비시스템 속성을 대상 컨텍스트로 복사
+        source.getAttributes().forEach((key, value) -> {
+            if (!isSystemAttribute(key)) {
+                Object currentValue = target.getAttribute(key);
+                if (!Objects.equals(currentValue, value)) {
+                    target.setAttribute(key, value);
+                    log.trace("Synced attribute: {} = {} for session: {}",
+                            key, value, target.getMfaSessionId());
+                }
+            }
+        });
+
+        // completedFactors 동기화
+        source.getCompletedFactors().forEach(completedFactor -> {
+            if (!target.isFactorCompleted(completedFactor.getStepId())) {
+                target.addCompletedFactor(completedFactor);
+                log.trace("Synced completed factor: {} for session: {}",
+                        completedFactor.getStepId(), target.getMfaSessionId());
+            }
+        });
     }
 
     /**
@@ -375,7 +409,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * State Machine 에서 FactorContext로 단방향 동기화
+     * State Machine 에서 FactorContext로 단방향 동기화 (개선)
      */
     private void syncFactorContextFromStateMachine(FactorContext target, FactorContext source) {
         // 상태 동기화
@@ -399,25 +433,19 @@ public class MfaStateMachineIntegrator {
         if (source.getLastError() != null) {
             target.setLastError(source.getLastError());
         }
-
-        // 중요한 비즈니스 속성들만 동기화
-        source.getAttributes().forEach((key, value) -> {
-            if (isBusinessAttribute(key)) {
-                target.setAttribute(key, value);
-            }
-        });
     }
 
     /**
-     * 비즈니스 속성인지 확인
+     * 시스템 속성인지 확인
      */
-    private boolean isBusinessAttribute(String key) {
-        return !key.startsWith("_") &&
-                !"currentState".equals(key) &&
-                !"version".equals(key) &&
-                !"lastUpdated".equals(key) &&
-                !"stateHash".equals(key) &&
-                !"storageType".equals(key);
+    private boolean isSystemAttribute(String key) {
+        return key.startsWith("_") ||
+                "currentState".equals(key) ||
+                "version".equals(key) ||
+                "lastUpdated".equals(key) ||
+                "stateHash".equals(key) ||
+                "storageType".equals(key) ||
+                "mfaSessionId".equals(key);
     }
 
     /**

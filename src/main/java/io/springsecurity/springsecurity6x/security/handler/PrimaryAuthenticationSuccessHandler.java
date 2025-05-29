@@ -117,7 +117,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
                 handleFactorSelectionRequired(request, response, factorContext);
                 break;
 
-            case PRIMARY_AUTHENTICATION_COMPLETED:
+            case FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION:
                 log.info("MFA required for user: {}. Proceeding directly to challenge", username);
                 handleDirectChallenge(request, response, factorContext);
                 break;

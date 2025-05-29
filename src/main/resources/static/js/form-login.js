@@ -62,6 +62,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 if (result.status === "MFA_CONFIG_REQUIRED") {
+                    // MFA 설정 필요
+                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
+                    sessionStorage.setItem("mfaUsername", username);
+
+                    displayLoginMessage("MFA 설정이 필요합니다. 설정 페이지로 이동합니다.", "info");
+                    showToast("MFA 설정이 필요합니다.", "info", 2000);
+
+                    // State Machine 상태 검증 추가
+                    if (window.mfaStateTracker &&
+                        window.mfaStateTracker.currentState !== 'MFA_CONFIGURATION_REQUIRED') {
+                        logClientSide(`State mismatch for MFA_CONFIG_REQUIRED. Expected: MFA_CONFIGURATION_REQUIRED, Actual: ${window.mfaStateTracker.currentState}`);
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = result.nextStepUrl || "/mfa/configure";
+                    }, 1500);
+                    return;
+                }
+
+                if (result.status === "MFA_REQUIRED") {
                     // MFA 필요: State Machine이 PRIMARY_AUTHENTICATION_COMPLETED 또는 AWAITING_FACTOR_SELECTION 상태
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);

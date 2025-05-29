@@ -1,12 +1,10 @@
 package io.springsecurity.springsecurity6x.security.properties;
 
-import io.springsecurity.springsecurity6x.security.enums.StateType;
-import io.springsecurity.springsecurity6x.security.enums.TokenIssuer;
-import io.springsecurity.springsecurity6x.security.enums.TokenStoreType;
-import io.springsecurity.springsecurity6x.security.enums.TokenTransportType;
+import io.springsecurity.springsecurity6x.security.enums.*;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import org.springframework.web.jsf.FacesContextUtils;
 
 @Data
 @ConfigurationProperties(prefix = "spring.auth")
@@ -34,6 +32,7 @@ public class AuthContextProperties {
      * @since 2024.12 - Redis 지원 추가
      */
     private TokenStoreType tokenStoreType = TokenStoreType.REDIS;
+    private FactorSelectionType factorSelectionType = FactorSelectionType.SELECT;
 
     /**
      * MFA 관련 설정

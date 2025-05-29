@@ -8,7 +8,9 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.RetryPolicy;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
+import io.springsecurity.springsecurity6x.security.enums.FactorSelectionType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,13 +42,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     private final UserRepository userRepository;
     private final ApplicationContext applicationContext;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
-
-    /*private MfaStateMachineIntegrator stateMachineIntegrator {
-        if (stateMachineIntegrator == null) {
-            stateMachineIntegrator = applicationContext.getBean(MfaStateMachineIntegrator.class);
-        }
-        return stateMachineIntegrator;
-    }*/
+    private final AuthContextProperties properties;
 
     /**
      * ✅ 개선: MFA 요구사항 평가 및 초기 단계 결정 - 동기화 강화
@@ -107,13 +103,18 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         // 등록된 팩터에 따른 이벤트 결정 및 전송 (동기화 포함)
         if (registeredFactors.isEmpty()) {
-            log.warn("MFA required but no factors registered for user: {}", username);
             sendEventWithSync(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
                     "MFA_CONFIGURATION_REQUIRED for user: " + username);
         } else {
-            log.debug("User {} has registered factors: {}", username, registeredFactors);
-            sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
-                    "MFA_REQUIRED_SELECT_FACTOR for user: " + username);
+            if(properties.getFactorSelectionType() == FactorSelectionType.SELECT){
+                sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                        "MFA_REQUIRED_SELECT_FACTOR for user: " + username);
+
+            }else{
+                sendEventWithSync(MfaEvent.INITIATE_CHALLENGE, ctx, request,
+                        "INITIATE_CHALLENGE for user: " + username);
+
+            }
         }
     }
 

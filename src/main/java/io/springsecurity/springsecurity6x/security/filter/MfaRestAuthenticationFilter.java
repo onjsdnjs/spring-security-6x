@@ -128,14 +128,21 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
         try {
             // State Machine 초기화 및 세션 저장
             stateMachineIntegrator.initializeStateMachine(factorContext, request, response);
+//            stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
-            log.info("Unified State Machine initialized for user: {} with session: {} using repository: {})",
+            log.info("State Machine initialized. FactorContext state: {} for user: {} (session: {})",
+                    factorContext.getCurrentState(),
                     factorContext.getUsername(),
-                    factorContext.getMfaSessionId(),
-                    sessionRepository.getRepositoryType());
+                    factorContext.getMfaSessionId());
 
             // 1차 인증 완료 처리
 /*            processPrimaryAuthenticationCompletion(factorContext, request);*/
+
+            MfaState actualState = stateMachineIntegrator.getCurrentState(factorContext.getMfaSessionId());
+            if (actualState != factorContext.getCurrentState()) {
+                log.warn("State mismatch! FactorContext: {}, StateMachine: {} for session: {}",
+                        factorContext.getCurrentState(), actualState, factorContext.getMfaSessionId());
+            }
 
             successHandler.onAuthenticationSuccess(request, response, authentication);
 

@@ -101,7 +101,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                             throw new StateMachineException("State Machine health check failed");
                         }
 
-                        // ===== 수정: 동기식 API 사용 =====
+                        // State Machine 시작
                         boolean needsStart = !stateMachine.isComplete() &&
                                 (stateMachine.getState() == null ||
                                         stateMachine.getExtendedState() == null ||
@@ -109,31 +109,23 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                         if (needsStart) {
                             log.debug("Starting State Machine synchronously for session: {}", sessionId);
-
-                            // 동기식 start() 사용
                             stateMachine.start();
-
-                            // 초기화 대기
                             Thread.sleep(300);
 
-                            // ExtendedState 초기화 확인
                             if (stateMachine.getExtendedState() == null ||
                                     stateMachine.getExtendedState().getVariables() == null) {
-                                // 재시도
                                 Thread.sleep(200);
-
                                 if (stateMachine.getExtendedState() == null ||
                                         stateMachine.getExtendedState().getVariables() == null) {
                                     throw new StateMachineException("ExtendedState not properly initialized after start");
                                 }
                             }
                         }
-                        // ===== 수정 끝 =====
 
-                        // State Machine이 시작된 후에 FactorContext 저장
+                        // FactorContext를 State Machine에 저장
                         storeFactorContextInStateMachine(stateMachine, context);
 
-                        // 초기 이벤트 전송
+                        // PRIMARY_AUTH_SUCCESS 이벤트 전송
                         Message<MfaEvent> message = createEventMessage(
                                 MfaEvent.PRIMARY_AUTH_SUCCESS, context, request);
 
@@ -141,9 +133,23 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
                         if (accepted) {
                             MfaState newState = stateMachine.getState().getId();
+
+                            // FactorContext 상태 업데이트
+                            context.changeState(newState);
+                            context.incrementVersion();
+
+                            // 업데이트된 FactorContext를 State Machine에 다시 저장
+                            storeFactorContextInStateMachine(stateMachine, context);
+
+                            // ExtendedState에 현재 상태 명시적 저장
+                            stateMachine.getExtendedState().getVariables().put("currentState", newState.name());
+                            stateMachine.getExtendedState().getVariables().put("_lastStateUpdate", System.currentTimeMillis());
+
                             publishStateChangeAsync(sessionId, MfaState.NONE, newState, MfaEvent.PRIMARY_AUTH_SUCCESS);
                             onSuccess();
-                            log.info("State Machine initialized successfully for session: {}", sessionId);
+
+                            log.info("State Machine initialized successfully for session: {}. State: NONE -> {}",
+                                    sessionId, newState);
                         } else {
                             throw new StateMachineException("Failed to process PRIMARY_AUTH_SUCCESS event");
                         }

@@ -115,7 +115,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 개선: 조건부 동기화 - 성능 최적화
+     * 조건부 동기화 - 성능 최적화
      */
     public void syncStateWithStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
@@ -375,7 +375,7 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * State Machine에서 FactorContext로 단방향 동기화
+     * State Machine 에서 FactorContext로 단방향 동기화
      */
     private void syncFactorContextFromStateMachine(FactorContext target, FactorContext source) {
         // 상태 동기화

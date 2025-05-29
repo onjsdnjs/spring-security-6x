@@ -101,29 +101,20 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .action(selectFactorAction)
                 .and()
 
+                // 자동 선택 경로 (PRIMARY_AUTHENTICATION_COMPLETED → 바로 챌린지)
                 .withExternal()
                 .source(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
                 .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
-                .event(MfaEvent.INITIATE_CHALLENGE)
+                .event(MfaEvent.INITIATE_CHALLENGE_AUTO)
                 .action(initiateChallengeAction)
-                .guard(context -> {
-                    // challengeInitiationSuccess 확인
-                    Boolean success = (Boolean) context.getExtendedState().getVariables().get("challengeInitiationSuccess");
-                    return success != null && success;
-                })
                 .and()
 
-                // 챌린지 시작
+                // 일반 경로 (팩터 선택 후 → 챌린지)
                 .withExternal()
                 .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
                 .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
                 .event(MfaEvent.INITIATE_CHALLENGE)
                 .action(initiateChallengeAction)
-                .guard(context -> {
-                    // challengeInitiationSuccess 확인
-                    Boolean success = (Boolean) context.getExtendedState().getVariables().get("challengeInitiationSuccess");
-                    return success != null && success;
-                })
                 .and()
 
               /*  // 챌린지 성공적 시작 -> 사용자 입력 대기

@@ -107,18 +107,25 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     "MFA_CONFIGURATION_REQUIRED for user: " + username);
         } else {
 
-            // 자동 선택 모드 - 초기 팩터 자동 선택
-            boolean autoSelected = autoSelectInitialFactor(ctx, registeredFactors);
+            if(properties.getFactorSelectionType() == FactorSelectionType.AUTO){
 
-            if (autoSelected) {
-                // 바로 챌린지 시작
-                sendEventWithSync(MfaEvent.INITIATE_CHALLENGE, ctx, request,
-                        "INITIATE_CHALLENGE with auto-selected " +
-                                ctx.getCurrentProcessingFactor() + " for user: " + username);
-            } else {
-                // 자동 선택 실패 시 수동 선택
+                boolean autoSelected = autoSelectInitialFactor(ctx, registeredFactors);
+
+                if (autoSelected) {
+                    // 바로 챌린지 시작
+                    sendEventWithSync(MfaEvent.INITIATE_CHALLENGE_AUTO, ctx, request,
+                            "INITIATE_CHALLENGE_AUTO with auto-selected " +
+                                    ctx.getCurrentProcessingFactor() + " for user: " + username);
+                }else {
+                    // 자동 선택 실패 시 수동 선택
+                    sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                            "Fallback to MFA_REQUIRED_SELECT_FACTOR for user: " + username);
+                }
+
+            }else{
                 sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
-                        "Fallback to MFA_REQUIRED_SELECT_FACTOR for user: " + username);
+                        "INITIATE_CHALLENGE for user: " + username);
+
             }
         }
     }

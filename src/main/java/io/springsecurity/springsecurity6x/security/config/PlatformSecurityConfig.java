@@ -108,7 +108,7 @@ public class PlatformSecurityConfig {
 
 
         return registry
-//                .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
+                .global(globalHttpCustomizer) // 전역 HttpSecurity 설정 적용
 
                 // --- 단일 인증 방식들 (MFA와 별개로 동작 가능) ---
  /*               .rest(rest -> rest

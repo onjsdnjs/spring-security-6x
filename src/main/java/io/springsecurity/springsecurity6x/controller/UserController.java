@@ -36,6 +36,7 @@ public class UserController {
         users.setPassword(passwordEncoder.encode(users.getPassword()));
         users.setMfaEnabled(true);
         users.setMfaFactors(new String[]{"OTT,PASSKEY"});
+        users.setPreferredMfaFactor("OTT");
         userRepository.save(users);
 
         return ResponseEntity.ok().body("success");

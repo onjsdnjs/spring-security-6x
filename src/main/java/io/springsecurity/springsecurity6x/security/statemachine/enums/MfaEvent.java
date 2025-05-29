@@ -14,6 +14,7 @@ public enum MfaEvent {
     // --- 팩터 선택 및 챌린지 ---
     FACTOR_SELECTED,                   // 사용자가 팩터 선택
     INITIATE_CHALLENGE,                // 챌린지 시작 요청
+    INITIATE_CHALLENGE_AUTO,           // 자동 선택 후 챌린지 시작
     CHALLENGE_INITIATED_SUCCESSFULLY,  // 챌린지 성공적 시작
     CHALLENGE_INITIATION_FAILED,       // 챌린지 시작 실패
 

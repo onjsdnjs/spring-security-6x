@@ -62,30 +62,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 if (result.status === "MFA_CONFIG_REQUIRED") {
-                    // MFA 설정 필요
-                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
-                    sessionStorage.setItem("mfaUsername", username);
-
-                    displayLoginMessage("MFA 설정이 필요합니다. 설정 페이지로 이동합니다.", "info");
-                    showToast("MFA 설정이 필요합니다.", "info", 2000);
-
-                    setTimeout(() => {
-                        window.location.href = result.nextStepUrl || "/mfa/configure";
-                    }, 1500);
-                    return;
-                }
-
-                if (result.status === "MFA_REQUIRED") {
-                    // MFA 필요: State Machine이 PRIMARY_AUTHENTICATION_COMPLETED 상태
+                    // MFA 필요: State Machine이 PRIMARY_AUTHENTICATION_COMPLETED 또는 AWAITING_FACTOR_SELECTION 상태
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);
 
                     displayLoginMessage("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info");
                     showToast("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info", 2000);
 
-                    // State Machine 상태 확인
-                    if (window.mfaStateTracker.currentState === 'PRIMARY_AUTHENTICATION_COMPLETED' ||
-                        window.mfaStateTracker.currentState === 'AWAITING_FACTOR_SELECTION') {
+                    // State Machine 상태 확인 - 유효한 상태 목록 확장
+                    const validStatesForMfaRequired = [
+                        'PRIMARY_AUTHENTICATION_COMPLETED',  // 1차 인증 완료 직후
+                        'AWAITING_FACTOR_SELECTION',        // 이미 팩터 선택 대기 상태
+                        'MFA_CONFIGURATION_REQUIRED'        // 설정 필요 상태에서도 가능
+                    ];
+
+                    if (window.mfaStateTracker &&
+                        validStatesForMfaRequired.includes(window.mfaStateTracker.currentState)) {
                         const nextUrl = result.nextStepUrl || "/mfa/select-factor";
                         logClientSide(`1차 인증 성공, MFA 필요. State: ${window.mfaStateTracker.currentState}, Next URL: ${nextUrl}`);
 
@@ -93,9 +85,14 @@ document.addEventListener("DOMContentLoaded", () => {
                             window.location.href = nextUrl;
                         }, 1500);
                     } else {
-                        // 예상치 못한 상태
-                        logClientSide(`Unexpected state after primary auth: ${window.mfaStateTracker.currentState}`);
-                        displayLoginMessage("인증 상태 오류가 발생했습니다. 다시 시도해주세요.", "error");
+                        // 예상치 못한 상태이지만 서버 응답을 신뢰하여 진행
+                        logClientSide(`Unexpected state after primary auth: ${window.mfaStateTracker?.currentState || 'No State Tracker'}`);
+
+                        // 에러 표시하지만 진행은 허용
+                        const nextUrl = result.nextStepUrl || "/mfa/select-factor";
+                        setTimeout(() => {
+                            window.location.href = nextUrl;
+                        }, 2000);
                     }
                     return;
                 }
@@ -106,6 +103,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (authMode === "header" && result.refreshToken) {
                         TokenMemory.refreshToken = result.refreshToken;
                     }
+                }
+
+                // State Machine 상태 확인 - MFA_NOT_REQUIRED 또는 MFA_SUCCESSFUL
+                if (window.mfaStateTracker &&
+                    window.mfaStateTracker.currentState !== 'MFA_NOT_REQUIRED' &&
+                    window.mfaStateTracker.currentState !== 'MFA_SUCCESSFUL') {
+                    logClientSide(`Unexpected final state: ${window.mfaStateTracker.currentState}. Expected: MFA_NOT_REQUIRED or MFA_SUCCESSFUL`);
                 }
 
                 // State Machine 정리
@@ -125,11 +129,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 displayLoginMessage(message, "error");
                 logClientSide("로그인 실패: " + message);
 
-                // State Machine 실패 상태 처리
-                if (result.stateMachine && result.stateMachine.currentState === 'MFA_FAILED_TERMINAL') {
-                    const failureReason = result.stateMachine.stateMetadata?.failureReason;
-                    if (failureReason) {
+                // State Machine 실패 상태 처리 - 다양한 실패 상태 확인
+                if (result.stateMachine) {
+                    const failureStates = ['MFA_FAILED_TERMINAL', 'MFA_SYSTEM_ERROR', 'MFA_SESSION_EXPIRED'];
+
+                    if (failureStates.includes(result.stateMachine.currentState)) {
+                        const failureReason = result.stateMachine.stateMetadata?.failureReason ||
+                            result.stateMachine.stateMetadata?.error ||
+                            "인증에 실패했습니다.";
                         displayLoginMessage(`로그인 실패: ${failureReason}`, "error");
+
+                        // State Machine 정리
+                        if (window.mfaStateTracker) {
+                            window.mfaStateTracker.clear();
+                        }
                     }
                 }
             }

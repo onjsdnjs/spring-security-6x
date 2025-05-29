@@ -26,6 +26,7 @@ public class MfaSettings {
     /**
      * MFA 인증 단계에서 사용자가 인증 수단을 선택하는 UI 페이지 URL
      */
+    private String configureUrl = "/mfa/configure";
     private String selectFactorUrl = "/mfa/select-factor";
 
     /**

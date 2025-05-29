@@ -130,7 +130,6 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
         }
     }
 
-    // 상태별 응답 처리 메서드들
     private void handleFactorSelectionRequired(HttpServletRequest request, HttpServletResponse response,
                                                FactorContext factorContext) throws IOException {
         Map<String, Object> responseBody = createMfaResponseBody(
@@ -162,7 +161,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
 
     private void handleMfaConfigurationRequired(HttpServletRequest request, HttpServletResponse response,
                                                 FactorContext factorContext) throws IOException {
-        String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getConfigureUrl();
         Map<String, Object> responseBody = createMfaResponseBody(
                 "MFA_CONFIG_REQUIRED",
                 "MFA 설정이 필요합니다.",

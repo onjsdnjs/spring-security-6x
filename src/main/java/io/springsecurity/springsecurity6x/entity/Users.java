@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor; // 기본 생성자 추가
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Data
@@ -52,6 +54,9 @@ public class Users {
 
     // 필요시 mfaFactors를 설정하는 setter도 추가 가능
     public void setMfaFactors(String[] factors) {
-        this.registeredMfaFactors = List.of(factors);
+        this.registeredMfaFactors = Arrays.stream(factors)
+                .flatMap(s -> Arrays.stream(s.split(",")))
+                .map(String::trim)
+                .toList();
     }
 }

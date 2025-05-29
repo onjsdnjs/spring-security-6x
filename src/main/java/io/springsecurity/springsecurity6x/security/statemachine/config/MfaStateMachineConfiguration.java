@@ -70,10 +70,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
                 .event(MfaEvent.PRIMARY_AUTH_SUCCESS)
                 .action(initializeMfaAction)
-                .guard(context -> {
-                    Boolean success = (Boolean) context.getExtendedState().getVariables().get("challengeInitiationSuccess");
-                    return success != null && success;
-                })
                 .and()
 
                 // MFA 정책 평가 결과 - MFA 불필요

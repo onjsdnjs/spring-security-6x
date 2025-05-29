@@ -88,7 +88,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         // 사용자가 등록한 MFA 요소들 확인
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
 
-        // ✅ 개선: 동기화를 포함한 표준 패턴으로 MFA 필요 상태 설정
+        // 동기화를 포함한 표준 패턴으로 MFA 필요 상태 설정
         boolean success = executeStandardEventPattern(
                 ctx,
                 () -> {

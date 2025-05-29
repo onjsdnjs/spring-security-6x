@@ -33,9 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
             window.mfaStateTracker.restoreFromSession();
         }
 
-        // 유효한 상태인지 확인
-        const validStates = ['FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION', 'FACTOR_CHALLENGE_INITIATED'];
-        if (!validStates.includes(window.mfaStateTracker.currentState)) {
+        const validStatesForOttVerification = [
+            'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION',  // 정상적인 검증 대기 상태
+            'FACTOR_VERIFICATION_PENDING'                        // 검증 진행 중
+        ];
+
+        if (!validStatesForOttVerification.includes(window.mfaStateTracker.currentState)) {
             console.warn(`Invalid state for OTT verification. Current state: ${window.mfaStateTracker.currentState}`);
             displayMessage("잘못된 인증 상태입니다. 다시 시도해주세요.", "error");
             setTimeout(() => {

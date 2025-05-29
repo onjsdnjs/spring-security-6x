@@ -138,12 +138,12 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                             context.changeState(newState);
                             context.incrementVersion();
 
-                            // 업데이트된 FactorContext를 State Machine에 다시 저장
-                            storeFactorContextInStateMachine(stateMachine, context);
-
                             // ExtendedState에 현재 상태 명시적 저장
                             stateMachine.getExtendedState().getVariables().put("currentState", newState.name());
                             stateMachine.getExtendedState().getVariables().put("_lastStateUpdate", System.currentTimeMillis());
+
+                            // 업데이트된 FactorContext를 State Machine에 다시 저장
+                            storeFactorContextInStateMachine(stateMachine, context);
 
                             publishStateChangeAsync(sessionId, MfaState.NONE, newState, MfaEvent.PRIMARY_AUTH_SUCCESS);
                             onSuccess();

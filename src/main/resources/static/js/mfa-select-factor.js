@@ -24,11 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
         window.mfaStateTracker.restoreFromSession();
     }
 
-    // 현재 상태 검증
+    const validStatesForFactorSelection = [
+        'PRIMARY_AUTHENTICATION_COMPLETED',  // MFA 정책 평가 직후
+        'AWAITING_FACTOR_SELECTION',        // 정상적인 팩터 선택 대기 상태
+        'FACTOR_VERIFICATION_COMPLETED'      // 추가 팩터 필요한 경우
+    ];
+
     if (window.mfaStateTracker &&
-        window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_SELECTION' &&
-        window.mfaStateTracker.currentState !== 'PRIMARY_AUTHENTICATION_COMPLETED' &&
-        window.mfaStateTracker.currentState !== 'FACTOR_VERIFICATION_COMPLETED') {
+        !validStatesForFactorSelection.includes(window.mfaStateTracker.currentState)) {
         console.warn(`Invalid state for factor selection. Current state: ${window.mfaStateTracker.currentState}`);
         displayMessage("잘못된 인증 상태입니다. 다시 로그인해주세요.", "error");
         setTimeout(() => {

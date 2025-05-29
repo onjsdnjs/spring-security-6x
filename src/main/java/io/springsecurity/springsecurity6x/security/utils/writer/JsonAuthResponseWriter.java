@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -38,21 +39,25 @@ public class JsonAuthResponseWriter implements AuthResponseWriter {
         writeError(response, status, errorCode, errorMessage, path, errorDetails);
     }
 
-    private void writeError(HttpServletResponse response, int status, String path, String errorCode, String errorMessage, Map<String, Object> errorDetails) throws IOException {
+    public void writeError(HttpServletResponse response, int status, String error,
+                           String message, String path, Map<String, Object> additionalData)
+            throws IOException {
 
+        // additionalData가 불변 Map인 경우를 대비
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("timestamp", LocalDateTime.now());
+        errorResponse.put("status", status);
+        errorResponse.put("error", error);
+        errorResponse.put("message", message);
+        errorResponse.put("path", path);
 
-        errorDetails.put("timestamp", Instant.now().toString());
-        errorDetails.put("status", status);
-        errorDetails.put("error", errorCode);
-        errorDetails.put("message", errorMessage);
+        // 안전하게 추가 데이터 병합
+        if (additionalData != null) {
+            errorResponse.putAll(additionalData);
+        }
 
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-
-        if (path != null) {
-            errorDetails.put("path", path);
-        }
-        objectMapper.writeValue(response.getWriter(), errorDetails);
+        objectMapper.writeValue(response.getWriter(), errorResponse);
     }
 }

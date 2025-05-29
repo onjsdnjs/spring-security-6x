@@ -261,9 +261,12 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
 
         String errorCode = "MFA_FLOW_CONFIG_ERROR";
         if (ctx != null) {
+            // Map.of() 대신 HashMap 사용
+            Map<String, Object> errorDetails = new HashMap<>();
+            errorDetails.put("mfaSessionId", ctx.getMfaSessionId());
+
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    errorCode, message, request.getRequestURI(),
-                    Map.of("mfaSessionId", ctx.getMfaSessionId()));
+                    errorCode, message, request.getRequestURI(), errorDetails);
         } else {
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     errorCode, message, request.getRequestURI());

@@ -83,145 +83,86 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
             return;
         }
 
-        // 1. 이벤트 전송 전 동기화
+        // 1. 이벤트 전송과 동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-
-        // 2. 팩터 검증 성공 이벤트 전송
         boolean accepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.FACTOR_VERIFIED_SUCCESS, factorContext, request);
 
         if (!accepted) {
-            log.error("State Machine rejected FACTOR_VERIFIED_SUCCESS event for session: {}",
-                    factorContext.getMfaSessionId());
             handleStateTransitionError(response, request, factorContext);
             return;
         }
 
-        // 3. 중요: 이벤트 처리 후 재동기화 (Action에서 설정한 속성 포함)
+        // 2. 재동기화 (Action 에서 설정한 속성 포함)
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-
-        // 4. 동기화된 context 저장
         stateMachineIntegrator.saveFactorContext(factorContext);
 
-        // 5. 현재 상태 확인 (FACTOR_VERIFICATION_COMPLETED 상태일 것)
+        // 3. 현재 상태 확인 (FACTOR_VERIFICATION_COMPLETED일 것)
         MfaState currentState = factorContext.getCurrentState();
-        log.debug("Current state after verification: {} for session: {}",
-                currentState, factorContext.getMfaSessionId());
 
-        // 6. FACTOR_VERIFICATION_COMPLETED 상태에서 추가 처리
         if (currentState == MfaState.FACTOR_VERIFICATION_COMPLETED) {
-            // needsDetermineNextFactor 체크
+            // 4. 시스템이 다음 팩터 필요 여부 결정
             if (Boolean.TRUE.equals(factorContext.getAttribute("needsDetermineNextFactor"))) {
-                log.debug("needsDetermineNextFactor is true, determining next factor");
                 factorContext.removeAttribute("needsDetermineNextFactor");
 
-                // 다음 팩터 결정
+                // 다음 팩터 결정 (정책에 따라)
                 mfaPolicyProvider.determineNextFactorToProcess(factorContext);
-
-                // 저장
                 stateMachineIntegrator.saveFactorContext(factorContext);
             }
 
-            // checkAllFactorsCompleted를 호출하여 ALL_REQUIRED_FACTORS_COMPLETED 이벤트 전송
+            // 5. 모든 팩터 완료 체크
             AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
             if (mfaFlowConfig != null) {
+                // checkAllFactorsCompleted가 ALL_REQUIRED_FACTORS_COMPLETED 이벤트를 전송
                 mfaPolicyProvider.checkAllFactorsCompleted(factorContext, mfaFlowConfig);
 
-                // 상태 재동기화
+                // 이벤트 처리 후 재동기화
                 stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
             }
         }
 
-        // 7. 최신 상태 확인
+        // 6. 최종 상태 확인 및 응답
         currentState = factorContext.getCurrentState();
-        log.debug("Final state from State Machine: {} for session: {}",
-                currentState, factorContext.getMfaSessionId());
+        log.debug("Final state: {} for session: {}", currentState, factorContext.getMfaSessionId());
 
-        // 8. 상태별 처리
-        handleStateBasedResponse(request, response, factorContext, currentState);
-    }
+        // 7. 상태에 따른 응답 처리
+        if (currentState == MfaState.ALL_FACTORS_COMPLETED || currentState == MfaState.MFA_SUCCESSFUL) {
+            // 모든 팩터 완료 - 최종 성공 처리
+            log.info("All required MFA factors completed for user: {}", factorContext.getUsername());
+            handleFinalAuthenticationSuccess(request, response,
+                    factorContext.getPrimaryAuthentication(), factorContext);
 
-    /**
-     * 상태별 응답 처리 메서드 추가
-     */
-    private void handleStateBasedResponse(HttpServletRequest request, HttpServletResponse response,
-                                          FactorContext factorContext, MfaState currentState)
-            throws IOException, ServletException {
+        } else if (currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION &&
+                factorContext.getCurrentProcessingFactor() != null) {
+            // 다음 팩터가 결정됨 - 챌린지로 이동
+            AuthType nextFactor = factorContext.getCurrentProcessingFactor();
+            log.info("Next factor determined: {} for user: {}", nextFactor, factorContext.getUsername());
 
-        AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig(factorContext.getFlowTypeName());
-        if (mfaFlowConfig == null) {
-            handleConfigError(response, request, factorContext,
-                    "MFA 플로우 설정을 찾을 수 없습니다: " + factorContext.getFlowTypeName());
-            return;
-        }
+            String nextUrl = determineNextFactorUrl(nextFactor, request);
+            Map<String, Object> responseBody = createMfaContinueResponse(
+                    "다음 인증 단계로 진행합니다: " + nextFactor.name(),
+                    factorContext, nextUrl);
+            responseBody.put("nextFactorType", nextFactor.name());
 
-        switch (currentState) {
-            case ALL_FACTORS_COMPLETED:
-            case MFA_SUCCESSFUL:
-                log.info("All MFA factors completed for user: {} using {} repository.",
-                        factorContext.getUsername(), sessionRepository.getRepositoryType());
-                handleFinalAuthenticationSuccess(request, response,
-                        factorContext.getPrimaryAuthentication(), factorContext);
-                break;
+            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
-            case FACTOR_VERIFICATION_COMPLETED:
-                // checkAllFactorsCompleted 호출하여 상태 전이 유도
-                log.debug("Factor verification completed, checking if all factors are completed");
-                mfaPolicyProvider.checkAllFactorsCompleted(factorContext, mfaFlowConfig);
+        } else if (currentState == MfaState.AWAITING_FACTOR_SELECTION) {
+            // 수동 선택 필요 (정책상 다음 팩터가 필요하지만 자동 선택 불가)
+            log.info("Manual factor selection required for user: {}", factorContext.getUsername());
 
-                // 상태 재확인
-                MfaState updatedState = stateMachineIntegrator.getCurrentState(factorContext.getMfaSessionId());
+            Map<String, Object> responseBody = createMfaContinueResponse(
+                    "인증 수단을 선택해주세요.",
+                    factorContext,
+                    request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl());
+            responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
 
-                if (updatedState == MfaState.ALL_FACTORS_COMPLETED ||
-                        updatedState == MfaState.MFA_SUCCESSFUL) {
-                    handleFinalAuthenticationSuccess(request, response,
-                            factorContext.getPrimaryAuthentication(), factorContext);
-                } else {
-                    // 재귀 호출로 업데이트된 상태 처리
-                    handleStateBasedResponse(request, response, factorContext, updatedState);
-                }
-                break;
+            responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
 
-            case AWAITING_FACTOR_CHALLENGE_INITIATION:
-                if (factorContext.getCurrentProcessingFactor() != null &&
-                        StringUtils.hasText(factorContext.getCurrentStepId())) {
-
-                    AuthType nextFactorType = factorContext.getCurrentProcessingFactor();
-                    String nextUiPageUrl = determineNextFactorUrl(nextFactorType, request);
-
-                    Map<String, Object> responseBody = createMfaContinueResponse(
-                            "다음 인증 단계로 진행합니다: " + nextFactorType.name(),
-                            factorContext,
-                            nextUiPageUrl
-                    );
-                    responseBody.put("nextFactorType", nextFactorType.name());
-                    responseBody.put("nextStepId", factorContext.getCurrentStepId());
-
-                    responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
-                } else {
-                    handleGenericError(response, request, factorContext,
-                            "다음 팩터 정보가 설정되지 않았습니다.");
-                }
-                break;
-
-            case AWAITING_FACTOR_SELECTION:
-                log.info("Additional factor selection required for user {}", factorContext.getUsername());
-
-                Map<String, Object> responseBody = createMfaContinueResponse(
-                        "다음 인증 수단을 선택해주세요.",
-                        factorContext,
-                        request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()
-                );
-                responseBody.put("availableFactors", factorContext.getRegisteredMfaFactors());
-
-                responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
-                break;
-
-            default:
-                log.error("Unexpected state {} after factor processing for user {}",
-                        currentState, factorContext.getUsername());
-                handleGenericError(response, request, factorContext,
-                        "MFA 처리 중 예상치 못한 상태입니다: " + currentState);
+        } else {
+            // 예상치 못한 상태
+            log.error("Unexpected state {} after factor verification", currentState);
+            handleGenericError(response, request, factorContext,
+                    "예상치 못한 상태: " + currentState);
         }
     }
 

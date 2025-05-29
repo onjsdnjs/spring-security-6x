@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.security.statemachine.core.service;
 
 import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributedLockService;
+import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
@@ -358,58 +359,55 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     if (accepted) {
                         MfaState newState = stateMachine.getState().getId();
 
-                        // 중요: Action 실행 후 State Machine에서 FactorContext 재구성
-                        // Action에서 변경한 모든 내용을 포함
+                        // 중요: Action 실행 후 완전한 동기화
                         FactorContext actionUpdatedContext = reconstructFactorContextFromStateMachine(stateMachine);
 
-                        // 디버깅 로그 추가
-                        log.debug("After action execution for event {}, attributes from State Machine: {}",
-                                event, actionUpdatedContext.getAttributes().keySet());
-
-                        // 완전한 속성 동기화 - 모든 attributes를 외부 context로 복사
-                        Map<String, Object> updatedAttributes = new HashMap<>(actionUpdatedContext.getAttributes());
-                        updatedAttributes.forEach((key, value) -> {
-                            if (!isSystemAttribute(key)) {
-                                context.setAttribute(key, value);
-                                log.trace("Syncing attribute {} = {} to external context", key, value);
-                            }
-                        });
-
-                        // 상태 및 주요 정보 동기화
+                        // 1. 상태 동기화
                         context.changeState(newState);
+
+                        // 2. 기본 속성 동기화
                         context.setCurrentProcessingFactor(actionUpdatedContext.getCurrentProcessingFactor());
                         context.setCurrentStepId(actionUpdatedContext.getCurrentStepId());
                         context.setCurrentFactorOptions(actionUpdatedContext.getCurrentFactorOptions());
                         context.setMfaRequiredAsPerPolicy(actionUpdatedContext.isMfaRequiredAsPerPolicy());
+                        context.setRetryCount(actionUpdatedContext.getRetryCount());
 
-                        // 버전 동기화
+                        // 3. 모든 attributes 동기화 (needsDetermineNextFactor 포함)
+                        log.debug("Syncing attributes from State Machine to external context");
+                        actionUpdatedContext.getAttributes().forEach((key, value) -> {
+                            if (!isSystemAttribute(key)) {
+                                context.setAttribute(key, value);
+                                log.trace("Synced attribute: {} = {}", key, value);
+                            }
+                        });
+
+                        // 4. completedFactors 동기화 (중요!)
+                        log.debug("Syncing completed factors from State Machine");
+                        for (AuthenticationStepConfig completedFactor : actionUpdatedContext.getCompletedFactors()) {
+                            if (!context.isFactorCompleted(completedFactor.getStepId())) {
+                                context.addCompletedFactor(completedFactor);
+                                log.debug("Added completed factor: {} to external context",
+                                        completedFactor.getStepId());
+                            }
+                        }
+
+                        // 5. 버전 동기화
                         while (context.getVersion() < actionUpdatedContext.getVersion()) {
                             context.incrementVersion();
                         }
 
-                        // 재시도 횟수 및 에러 정보 동기화
-                        context.setRetryCount(actionUpdatedContext.getRetryCount());
-                        if (actionUpdatedContext.getLastError() != null) {
-                            context.setLastError(actionUpdatedContext.getLastError());
-                        }
-
-                        // completedFactors 동기화
-                        actionUpdatedContext.getCompletedFactors().forEach(completedFactor -> {
-                            if (!context.getCompletedFactors().contains(completedFactor)) {
-                                context.addCompletedFactor(completedFactor);
-                            }
-                        });
-
-                        // 중요: 동기화된 context를 다시 State Machine에 저장
-                        // 이렇게 해야 외부와 내부가 일치함
+                        // 6. 동기화된 context를 다시 State Machine에 저장
                         storeFactorContextInStateMachine(stateMachine, context);
+
+                        // 디버깅 로그
+                        log.debug("Event {} processed. External context now has: " +
+                                        "completedFactors={}, attributes={}",
+                                event,
+                                context.getCompletedFactors().size(),
+                                context.getAttributes().keySet());
 
                         // 비동기 이벤트 발행
                         publishStateChangeAsync(sessionId, currentState, newState, event);
-
-                        log.debug("Event {} processed successfully: {} -> {} for session: {}. " +
-                                        "Attributes synced: {}",
-                                event, currentState, newState, sessionId, context.getAttributes().keySet());
 
                     } else {
                         log.warn("Event {} rejected in state {} for session: {}", event, currentState, sessionId);

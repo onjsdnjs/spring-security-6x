@@ -98,7 +98,7 @@ public class MfaContextValidator {
 
         // 10. 팩터 선택 가능한 상태인지 체크
         MfaState currentState = ctx.getCurrentState();
-        if (!isFactorSelectionState(currentState)) {
+        if (!isFactorSelectionOrProcessingState(currentState)) {
             result.addError("Invalid state for factor selection: " + currentState);
         }
 
@@ -172,8 +172,9 @@ public class MfaContextValidator {
                 state == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
     }
 
-    private static boolean isFactorSelectionState(MfaState state) {
+    private static boolean isFactorSelectionOrProcessingState(MfaState state) {
         return state == MfaState.AWAITING_FACTOR_SELECTION ||
+                state == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
                 state == MfaState.PRIMARY_AUTHENTICATION_COMPLETED;
     }
 

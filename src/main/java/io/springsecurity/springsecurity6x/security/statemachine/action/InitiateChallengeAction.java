@@ -24,6 +24,7 @@ public class InitiateChallengeAction extends AbstractMfaStateAction {
     @Override
     protected void doExecute(StateContext<MfaState, MfaEvent> context,
                              FactorContext factorContext) throws Exception {
+
         String sessionId = factorContext.getMfaSessionId();
         String factorType = factorContext.getCurrentProcessingFactor() != null ?
                 factorContext.getCurrentProcessingFactor().name() : "UNKNOWN";

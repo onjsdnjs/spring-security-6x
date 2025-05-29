@@ -11,6 +11,12 @@ public class MfaStateMachineExceptions {
         }
     }
 
+    public static class StateMachineActionException extends RuntimeException {
+        public StateMachineActionException(String message, Throwable cause) {
+            super(message);
+        }
+    }
+
     public static class ChallengeGenerationException extends RuntimeException {
         public ChallengeGenerationException(String message, Throwable cause) {
             super(message, cause);

@@ -4,6 +4,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
+import io.springsecurity.springsecurity6x.security.statemachine.exception.MfaStateMachineExceptions;
 import io.springsecurity.springsecurity6x.security.statemachine.exception.MfaStateMachineExceptions.*;
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.RequiredArgsConstructor;
@@ -47,22 +48,38 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
 
         } catch (InvalidFactorException | ChallengeGenerationException |
                  FactorVerificationException | StateTransitionException e) {
-            // 비즈니스 예외는 특정 오류 상태로 전이
             log.error("Business exception in action {} for session: {}: {}",
                     this.getClass().getSimpleName(), sessionId, e.getMessage());
+
+            // 1. 에러 정보를 컨텍스트에 저장
+            factorContext.setLastError(e.getMessage());
+            factorContext.setAttribute("lastErrorType", e.getClass().getSimpleName());
+            factorContext.setAttribute("lastErrorTime", System.currentTimeMillis());
+
+            // 2. State Machine에 에러 상태 저장
+            context.getExtendedState().getVariables().put("actionError", true);
+            context.getExtendedState().getVariables().put("actionErrorMessage", e.getMessage());
+            context.getExtendedState().getVariables().put("actionErrorType", e.getClass().getSimpleName());
+
+            // 3. 에러 이벤트 전송
             handleBusinessException(context, factorContext, e);
 
-        } catch (SessionExpiredException e) {
-            // 세션 만료는 특별 처리
-            log.error("Session expired during action {} for session: {}",
-                    this.getClass().getSimpleName(), sessionId);
-            transitionToExpiredState(context, factorContext);
+            // 4. 중요: 예외를 다시 발생시켜 상위로 전파
+            throw new MfaStateMachineExceptions.StateMachineActionException(
+                    "MFA action failed: " + e.getMessage(), e);
 
         } catch (Exception e) {
-            // 예상치 못한 예외
-            log.error("Unexpected error in action {} for session: {}",
-                    this.getClass().getSimpleName(), sessionId, e);
-            handleUnexpectedError(context, factorContext, e);
+            // 기타 예외도 동일하게 처리
+            log.error("Unexpected exception in action", e);
+
+            if (factorContext != null) {
+                factorContext.setLastError("System error: " + e.getMessage());
+                factorContext.changeState(MfaState.MFA_SYSTEM_ERROR);
+            }
+
+            // 예외 재발생
+            throw new MfaStateMachineExceptions.StateMachineActionException(
+                    "Unexpected error in MFA action", e);
         }
     }
 

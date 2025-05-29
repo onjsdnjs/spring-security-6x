@@ -684,7 +684,8 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             case PRIMARY_AUTHENTICATION_COMPLETED ->
                     event == MfaEvent.MFA_NOT_REQUIRED ||
                             event == MfaEvent.MFA_REQUIRED_SELECT_FACTOR ||
-                            event == MfaEvent.MFA_CONFIGURATION_REQUIRED;
+                            event == MfaEvent.MFA_CONFIGURATION_REQUIRED||
+                            event == MfaEvent.INITIATE_CHALLENGE_AUTO;
 
             case AWAITING_FACTOR_SELECTION ->
                     event == MfaEvent.FACTOR_SELECTED ||

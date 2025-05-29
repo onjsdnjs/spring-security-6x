@@ -106,18 +106,116 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             sendEventWithSync(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
                     "MFA_CONFIGURATION_REQUIRED for user: " + username);
         } else {
-            if(properties.getFactorSelectionType() == FactorSelectionType.SELECT){
-                sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
-                        "MFA_REQUIRED_SELECT_FACTOR for user: " + username);
 
-            }else{
+            // 자동 선택 모드 - 초기 팩터 자동 선택
+            boolean autoSelected = autoSelectInitialFactor(ctx, registeredFactors);
+
+            if (autoSelected) {
+                // 바로 챌린지 시작
                 sendEventWithSync(MfaEvent.INITIATE_CHALLENGE, ctx, request,
-                        "INITIATE_CHALLENGE for user: " + username);
-
+                        "INITIATE_CHALLENGE with auto-selected " +
+                                ctx.getCurrentProcessingFactor() + " for user: " + username);
+            } else {
+                // 자동 선택 실패 시 수동 선택
+                sendEventWithSync(MfaEvent.MFA_REQUIRED_SELECT_FACTOR, ctx, request,
+                        "Fallback to MFA_REQUIRED_SELECT_FACTOR for user: " + username);
             }
         }
     }
 
+    /**
+     * 초기 MFA 팩터 자동 선택 (첫 번째 팩터 선택용)
+     * @return 자동 선택 성공 여부
+     */
+    private boolean autoSelectInitialFactor(FactorContext ctx, Set<AuthType> registeredFactors) {
+        if (registeredFactors.isEmpty()) {
+            return false;
+        }
+
+        AuthType selectedFactor = null;
+
+        // 1. 단일 팩터인 경우
+        if (registeredFactors.size() == 1) {
+            selectedFactor = registeredFactors.iterator().next();
+            log.info("Auto-selecting single registered factor: {}", selectedFactor);
+        }
+
+        // 2. 사용자 선호도 기반
+        if (selectedFactor == null) {
+            selectedFactor = getUserPreferredFactor(ctx.getUsername(), registeredFactors);
+        }
+
+        // 3. 시스템 우선순위 기반
+        if (selectedFactor == null) {
+            selectedFactor = getSystemPriorityFactor(registeredFactors);
+        }
+
+        if (selectedFactor != null) {
+            // 팩터 설정
+            AuthenticationFlowConfig mfaFlowConfig = findMfaFlowConfig();
+            Optional<AuthenticationStepConfig> stepConfig = findNextStepConfig(mfaFlowConfig, selectedFactor, ctx);
+
+            if (stepConfig.isPresent()) {
+                ctx.setCurrentProcessingFactor(selectedFactor);
+                ctx.setCurrentStepId(stepConfig.get().getStepId());
+                ctx.setCurrentFactorOptions(
+                        mfaFlowConfig.getRegisteredFactorOptions().get(selectedFactor));
+                ctx.setAttribute("autoSelectedInitialFactor", true);
+
+                // State Machine에 저장
+                stateMachineIntegrator.saveFactorContext(ctx);
+
+                log.info("Initial factor auto-selected: {} for user: {}",
+                        selectedFactor, ctx.getUsername());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 사용자 선호 팩터 조회
+     */
+    private AuthType getUserPreferredFactor(String username, Set<AuthType> available) {
+        Users user = userRepository.findByUsername(username).orElse(null);
+        if (user != null) {
+            String preferred = user.getPreferredMfaFactor(); // 자동으로 fallback 처리
+            if (preferred != null) {
+                try {
+                    AuthType preferredType = AuthType.valueOf(preferred);
+                    if (available.contains(preferredType)) {
+                        log.debug("Using user preferred factor: {}", preferredType);
+                        return preferredType;
+                    }
+                } catch (IllegalArgumentException e) {
+                    log.debug("Invalid preferred factor: {}", preferred);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 시스템 우선순위 기반 팩터 선택
+     */
+    private AuthType getSystemPriorityFactor(Set<AuthType> available) {
+        // 시스템 정의 우선순위
+        List<AuthType> priority = Arrays.asList(
+                AuthType.PASSKEY,    // 가장 편리하고 안전
+                AuthType.OTT        // 이메일 기반
+        );
+
+        for (AuthType factor : priority) {
+            if (available.contains(factor)) {
+                log.debug("Using system priority factor: {}", factor);
+                return factor;
+            }
+        }
+
+        // 우선순위에 없으면 첫 번째 것 선택
+        return available.iterator().next();
+    }
 
     /**
      * ✅ 새로운 메서드: 이벤트 전송과 동기화를 함께 수행

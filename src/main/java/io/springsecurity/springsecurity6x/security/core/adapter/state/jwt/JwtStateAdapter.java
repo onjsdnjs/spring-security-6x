@@ -10,10 +10,12 @@ import io.springsecurity.springsecurity6x.security.token.service.TokenService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.Objects;
@@ -74,7 +76,7 @@ public final class JwtStateAdapter implements StateAdapter { // final class
                 //         .authenticationEntryPoint((req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: JWT Authentication Required"))
                 //         .accessDeniedHandler((req, res, ex) -> res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden: Insufficient JWT Permissions")))
                 .logout(logout -> logout // JWT 로그아웃 설정
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/logout")) // 플랫폼 기본 로그아웃 URL
+                        .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/auth/logout")) // 플랫폼 기본 로그아웃 URL
                         .addLogoutHandler(jwtLogoutHandler) // 커스텀 JWT 로그아웃 핸들러
                         .logoutSuccessHandler(jwtLogoutSuccessHandler) // 커스텀 JWT 로그아웃 성공 핸들러
                         .invalidateHttpSession(false) // JWT는 세션을 사용하지 않으므로 false (또는 true로 두고 세션 정리)

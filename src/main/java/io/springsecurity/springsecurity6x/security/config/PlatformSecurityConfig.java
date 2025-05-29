@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +32,7 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -58,8 +60,9 @@ public class PlatformSecurityConfig {
         // 공통 HTTP 설정 (이전과 유사)
         SafeHttpCustomizer<HttpSecurity> globalHttpCustomizer = http -> {
                 http
-//                    .csrf(AbstractHttpConfigurer::disable)
+                    .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
                     .authorizeHttpRequests(authReq -> authReq
+                            .requestMatchers(PathRequest.toH2Console()).permitAll()
                             .requestMatchers( // 기존 permitAll 경로 유지
                                     "/css/**", "/js/**", "/images/**", "/favicon.ico",
                                     "/", "/authMode","/home",

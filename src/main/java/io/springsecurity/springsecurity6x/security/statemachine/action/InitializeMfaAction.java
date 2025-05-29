@@ -24,13 +24,29 @@ public class InitializeMfaAction extends AbstractMfaStateAction {
     @Override
     protected void doExecute(StateContext<MfaState, MfaEvent> context,
                              FactorContext factorContext) throws Exception {
-        String sessionId = factorContext.getMfaSessionId();
-        log.info("Initializing MFA for session: {}", sessionId);
 
-        // MFA 초기화 로직
-        factorContext.setAttribute("mfaInitializedAt", System.currentTimeMillis());
-        factorContext.setRetryCount(0);
+        // 현재 팩터가 없으면 에러
+        if (factorContext.getCurrentProcessingFactor() == null) {
+            throw new IllegalStateException("No factor selected for challenge initiation");
+        }
 
-        log.info("MFA initialized successfully for session: {}", sessionId);
+        String factorType = factorContext.getCurrentProcessingFactor().name();
+
+        // 팩터별 챌린지 처리
+        switch (factorType) {
+            case "OTT":
+                // OTT 코드 발송
+                factorContext.setAttribute("ottCodeSent", true);
+                break;
+
+            case "PASSKEY":
+                // Passkey 옵션 생성
+                factorContext.setAttribute("passkeyOptionsGenerated", true);
+                break;
+        }
+
+        // 성공 플래그 설정 (Guard에서 사용)
+        context.getExtendedState().getVariables()
+                .put("challengeInitiationSuccess", true);
     }
 }

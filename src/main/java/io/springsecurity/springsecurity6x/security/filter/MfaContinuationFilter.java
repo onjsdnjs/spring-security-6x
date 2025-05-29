@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.core.validator.MfaContextValidator;
 import io.springsecurity.springsecurity6x.security.core.validator.ValidationResult;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
@@ -159,6 +160,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
     private boolean isValidMfaContext(FactorContext ctx) {
         return ctx != null &&
                 ctx.getMfaSessionId() != null &&
-                "MFA".equalsIgnoreCase(ctx.getFlowTypeName());
+                AuthType.MFA.name().equalsIgnoreCase(ctx.getFlowTypeName());
     }
 }

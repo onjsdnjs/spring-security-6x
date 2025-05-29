@@ -27,29 +27,26 @@ public class HandleFailureAction extends AbstractMfaStateAction {
         String sessionId = factorContext.getMfaSessionId();
         log.info("Handling MFA failure for session: {}", sessionId);
 
-        // 실패 원인 추출
         String failureReason = (String) context.getMessageHeader("failureReason");
         if (failureReason == null) {
             failureReason = (String) context.getExtendedState().getVariables().get("lastError");
         }
 
-        // 실패 정보 저장
         factorContext.setLastError(failureReason != null ? failureReason : "Unknown error");
         factorContext.setAttribute("lastFailureTime", System.currentTimeMillis());
 
-        // 재시도 횟수 증가
         int retryCount = factorContext.getRetryCount();
         factorContext.setRetryCount(retryCount + 1);
 
-        // 최대 재시도 초과 확인
         Integer maxRetries = (Integer) context.getExtendedState().getVariables().get("maxRetries");
         if (maxRetries == null) {
-            maxRetries = 3; // 기본값
+            maxRetries = 3;
         }
 
         if (factorContext.getRetryCount() >= maxRetries) {
             log.warn("Max retry attempts exceeded for session: {}", sessionId);
-            factorContext.changeState(MfaState.MFA_RETRY_LIMIT_EXCEEDED);
+            // factorContext.changeState(MfaState.MFA_RETRY_LIMIT_EXCEEDED); // 제거!
+            // State Machine이 전이를 관리하도록 함
         } else {
             log.info("Retry attempt {} of {} for session: {}",
                     factorContext.getRetryCount(), maxRetries, sessionId);

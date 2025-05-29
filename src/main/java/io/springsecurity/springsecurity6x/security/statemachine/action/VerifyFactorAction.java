@@ -162,19 +162,4 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
         throw new IllegalStateException("Cannot determine factor type from context");
     }
 
-    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
-                                 FactorContext factorContext) {
-        if (factorContext.getCurrentStepId() == null || factorContext.getCurrentStepId().isEmpty()) {
-            log.warn("VerifyFactorAction: No factor (currentStepId) is currently being verified for session: {}. Cannot execute.",
-                    factorContext.getMfaSessionId());
-            return false;
-        }
-        // 추가 검증: 현재 상태가 팩터 검증을 시도할 수 있는 상태인지 (예: FACTOR_VERIFICATION_PENDING)
-        // MfaState currentState = factorContext.getCurrentState();
-        // if (currentState != MfaState.FACTOR_VERIFICATION_PENDING && currentState != MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
-        // log.warn("VerifyFactorAction: Action cannot execute from state {} for session {}", currentState, factorContext.getMfaSessionId());
-        // return false;
-        // }
-        return true;
-    }
 }

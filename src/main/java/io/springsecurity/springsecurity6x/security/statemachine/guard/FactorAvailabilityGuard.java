@@ -16,32 +16,37 @@ public class FactorAvailabilityGuard extends AbstractMfaStateGuard {
 
     @Override
     protected boolean doEvaluate(StateContext<MfaState, MfaEvent> context, FactorContext factorContext) {
-        MfaEvent event = context.getEvent();
-        AuthType requestedFactor = null;
-
-        // 이벤트에서 요청된 Factor 추출
-        switch (event) {
-            case FACTOR_SELECTED:
-                requestedFactor = AuthType.OTT;
-                break;
-            /*case FACTOR_SELECTED_PASSKEY:
-                requestedFactor = AuthType.PASSKEY;
-                break;*/
-            default:
-                // Factor 선택 이벤트가 아닌 경우
-                return true;
+        // selectedFactor를 메시지 헤더나 변수에서 가져와야 함
+        String selectedFactor = (String) context.getMessageHeader("selectedFactor");
+        if (selectedFactor == null) {
+            selectedFactor = (String) context.getExtendedState().getVariables().get("selectedFactor");
         }
 
-        // 사용 가능한 Factor 목록에서 확인
-        boolean isAvailable = factorContext.getAvailableFactors() != null &&
-                factorContext.getAvailableFactors().contains(requestedFactor);
-
-        if (!isAvailable) {
-            log.warn("Factor {} is not available for user {} in session {}",
-                    requestedFactor, factorContext.getUsername(), factorContext.getMfaSessionId());
+        if (selectedFactor == null) {
+            log.error("No selected factor found in context for session: {}",
+                    factorContext.getMfaSessionId());
+            return false;
         }
 
-        return isAvailable;
+        try {
+            AuthType requestedFactor = AuthType.valueOf(selectedFactor.toUpperCase());
+
+            // 사용자가 등록한 팩터 목록에서 확인
+            boolean isAvailable = factorContext.getRegisteredMfaFactors() != null &&
+                    factorContext.getRegisteredMfaFactors().contains(requestedFactor);
+
+            if (!isAvailable) {
+                log.warn("Factor {} is not available for user {} in session {}",
+                        requestedFactor, factorContext.getUsername(), factorContext.getMfaSessionId());
+            }
+
+            return isAvailable;
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid factor type: {} for session: {}",
+                    selectedFactor, factorContext.getMfaSessionId());
+            return false;
+        }
     }
 
     @Override

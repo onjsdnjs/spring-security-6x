@@ -71,8 +71,9 @@ public class DetermineNextFactorAction extends AbstractMfaStateAction {
         }
 
         // 실행 시간 기록 (성능 모니터링용)
-        long executionTime = System.currentTimeMillis() -
-                (Long) context.getMessageHeaders().get("timestamp");
+        Long timestamp = (Long) context.getMessageHeaders().get("timestamp");
+        long executionTime = timestamp != null ?
+                System.currentTimeMillis() - timestamp : 0L;
         factorContext.setAttribute("determineNextFactorExecutionTime", executionTime);
 
         // State Machine에 업데이트된 컨텍스트 저장

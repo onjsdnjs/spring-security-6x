@@ -78,22 +78,4 @@ public class CompleteMfaAction extends AbstractMfaStateAction {
         context.getExtendedState().getVariables().put("mfaCompletedAt", LocalDateTime.now());
         context.getExtendedState().getVariables().put("completionStatus", "SUCCESS");
     }
-
-    protected boolean canExecute(StateContext<MfaState, MfaEvent> context,
-                                 FactorContext factorContext) {
-        // MFA가 이미 완료된 경우 실행하지 않음
-        if (MfaState.MFA_SUCCESSFUL.equals(factorContext.getCurrentState())) {
-            log.warn("MFA already completed for session: {}", factorContext.getMfaSessionId());
-            return false;
-        }
-
-        // 완료된 팩터가 없는 경우 실행하지 않음
-        if (factorContext.getCompletedFactors() == null ||
-                factorContext.getCompletedFactors().isEmpty()) {
-            log.warn("No completed factors found for session: {}", factorContext.getMfaSessionId());
-            return false;
-        }
-
-        return true;
-    }
 }

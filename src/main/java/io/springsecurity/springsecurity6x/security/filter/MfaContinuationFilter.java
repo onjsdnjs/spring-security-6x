@@ -6,18 +6,16 @@ import io.springsecurity.springsecurity6x.security.core.session.MfaSessionReposi
 import io.springsecurity.springsecurity6x.security.core.validator.MfaContextValidator;
 import io.springsecurity.springsecurity6x.security.core.validator.ValidationResult;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaRequestHandler;
-import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.filter.handler.StateMachineAwareMfaRequestHandler;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -67,7 +65,6 @@ public class MfaContinuationFilter extends OncePerRequestFilter {
                 authContextProperties,
                 responseWriter,
                 applicationContext,
-                urlMatcher,
                 stateMachineIntegrator
         );
 

@@ -39,7 +39,6 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
     private final AuthContextProperties authContextProperties;
     private final AuthResponseWriter responseWriter;
     private final ApplicationContext applicationContext;
-    private final MfaUrlMatcher urlMatcher;
     private final MfaStateMachineIntegrator stateMachineIntegrator;
     private final MfaSettings mfaSettings;
 
@@ -47,13 +46,11 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
                                               AuthContextProperties authContextProperties,
                                               AuthResponseWriter responseWriter,
                                               ApplicationContext applicationContext,
-                                              MfaUrlMatcher urlMatcher,
                                               MfaStateMachineIntegrator stateMachineIntegrator) {
         this.mfaPolicyProvider = mfaPolicyProvider;
         this.authContextProperties = authContextProperties;
         this.responseWriter = responseWriter;
         this.applicationContext = applicationContext;
-        this.urlMatcher = urlMatcher;
         this.stateMachineIntegrator = stateMachineIntegrator;
         this.mfaSettings = authContextProperties.getMfa();
 

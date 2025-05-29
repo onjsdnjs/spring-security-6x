@@ -245,6 +245,11 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .target(MfaState.MFA_SYSTEM_ERROR)
                 .event(MfaEvent.SYSTEM_ERROR)
                 .and()
+                .withExternal()
+                .source(MfaState.MFA_SUCCESSFUL)
+                .target(MfaState.MFA_SYSTEM_ERROR)
+                .event(MfaEvent.SYSTEM_ERROR)
+                .and()
 
                 // 재시도 한계 초과에서 실패로
                 .withExternal()

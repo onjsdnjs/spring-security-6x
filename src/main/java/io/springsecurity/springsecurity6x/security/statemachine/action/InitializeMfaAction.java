@@ -31,11 +31,6 @@ public class InitializeMfaAction extends AbstractMfaStateAction {
         factorContext.setAttribute("mfaInitializedAt", System.currentTimeMillis());
         factorContext.setRetryCount(0);
 
-        // 초기 상태 설정
-        if (factorContext.getCurrentState() == MfaState.NONE) {
-            factorContext.changeState(MfaState.NONE);
-        }
-
         log.info("MFA initialized successfully for session: {}", sessionId);
     }
 }

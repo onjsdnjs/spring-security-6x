@@ -25,7 +25,7 @@ public class HandleTimeoutAction extends AbstractMfaStateAction {
 
         if (event == MfaEvent.SESSION_TIMEOUT) {
             factorContext.setAttribute("sessionTimeoutAt", System.currentTimeMillis());
-            factorContext.changeState(MfaState.MFA_SESSION_EXPIRED);
+
         } else if (event == MfaEvent.CHALLENGE_TIMEOUT) {
             factorContext.setAttribute("challengeTimeoutAt", System.currentTimeMillis());
             // 챌린지 관련 속성 정리

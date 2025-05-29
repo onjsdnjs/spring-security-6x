@@ -288,7 +288,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                     return false;
                 }
 
-                // ✅ 추가: 이벤트 전송 후 State Machine과 동기화
+                // 추가: 이벤트 전송 후 State Machine과 동기화
                 try {
                     stateMachineIntegrator.syncStateWithStateMachine(ctx, request);
                     log.debug("Context synchronized after event {} for session: {}",

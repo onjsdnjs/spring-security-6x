@@ -147,6 +147,13 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .action(handleFailureAction)
                 .and()
 
+                // Line 추가: FACTOR_VERIFICATION_PENDING 에서 RETRY_LIMIT_EXCEEDED 가능
+                .withExternal()
+                .source(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
+                .target(MfaState.MFA_RETRY_LIMIT_EXCEEDED)
+                .event(MfaEvent.RETRY_LIMIT_EXCEEDED)
+                .and()
+
                 // 재시도 한계 초과
                 .withExternal()
                 .source(MfaState.FACTOR_VERIFICATION_PENDING)

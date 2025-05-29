@@ -133,7 +133,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
     private void handleFactorSelectionRequired(HttpServletRequest request, HttpServletResponse response,
                                                FactorContext factorContext) throws IOException {
         Map<String, Object> responseBody = createMfaResponseBody(
-                "MFA_REQUIRED",
+                "MFA_SELECTION_REQUIRED",
                 "추가 인증이 필요합니다. 인증 수단을 선택해주세요.",
                 factorContext,
                 request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl()

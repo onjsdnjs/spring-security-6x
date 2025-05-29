@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     sessionStorage.setItem("mfaUsername", username);
 
                     displayLoginMessage("MFA 설정이 필요합니다. 설정 페이지로 이동합니다.", "info");
-                    showToast("MFA 설정이 필요합니다.", "info", 2000);
+                    showToast("MFA 설정이 필요합니다. 설정 페이지로 이동합니다", "info", 2000);
 
                     // State Machine 상태 검증 추가
                     if (window.mfaStateTracker &&
@@ -81,23 +81,35 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
+                if (result.status === "MFA_SELECTION_REQUIRED") {
+                    // MFA 설정 필요
+                    sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
+                    sessionStorage.setItem("mfaUsername", username);
+
+                    displayLoginMessage("MFA 인증이 필요합니다. 선택 페이지로 이동합니다.", "info");
+                    showToast("MFA 인증이 필요합니다. 선택 페이지로 이동합니다.", "info", 2000);
+
+                    // State Machine 상태 검증 추가
+                    if (window.mfaStateTracker &&
+                        window.mfaStateTracker.currentState !== 'MFA_SELECTION_REQUIRED') {
+                        logClientSide(`State mismatch for MFA_SELECTION_REQUIRED. Expected: MFA_SELECTION_REQUIRED, Actual: ${window.mfaStateTracker.currentState}`);
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = result.nextStepUrl || "/mfa/select-factor";
+                    }, 1500);
+                    return;
+                }
+
                 if (result.status === "MFA_REQUIRED") {
-                    // MFA 필요: State Machine이 PRIMARY_AUTHENTICATION_COMPLETED 또는 AWAITING_FACTOR_SELECTION 상태
                     sessionStorage.setItem("mfaSessionId", result.mfaSessionId);
                     sessionStorage.setItem("mfaUsername", username);
 
                     displayLoginMessage("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info");
                     showToast("MFA 인증이 필요합니다. 2차 인증 페이지로 이동합니다.", "info", 2000);
 
-                    // State Machine 상태 확인 - 유효한 상태 목록 확장
-                    const validStatesForMfaRequired = [
-                        'PRIMARY_AUTHENTICATION_COMPLETED',  // 1차 인증 완료 직후
-                        'AWAITING_FACTOR_SELECTION',        // 이미 팩터 선택 대기 상태
-                        'MFA_CONFIGURATION_REQUIRED'        // 설정 필요 상태에서도 가능
-                    ];
-
                     if (window.mfaStateTracker &&
-                        validStatesForMfaRequired.includes(window.mfaStateTracker.currentState)) {
+                        window.mfaStateTracker.currentState === 'FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION') {
                         const nextUrl = result.nextStepUrl || "/mfa/select-factor";
                         logClientSide(`1차 인증 성공, MFA 필요. State: ${window.mfaStateTracker.currentState}, Next URL: ${nextUrl}`);
 

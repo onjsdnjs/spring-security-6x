@@ -101,10 +101,22 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .action(selectFactorAction)
                 .and()
 
+                .withExternal()
+                .source(MfaState.PRIMARY_AUTHENTICATION_COMPLETED)
+                .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
+                .event(MfaEvent.INITIATE_CHALLENGE)
+                .action(initiateChallengeAction)
+                .guard(context -> {
+                    // challengeInitiationSuccess 확인
+                    Boolean success = (Boolean) context.getExtendedState().getVariables().get("challengeInitiationSuccess");
+                    return success != null && success;
+                })
+                .and()
+
                 // 챌린지 시작
                 .withExternal()
                 .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
-                .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)  // 바로 대기 상태로
+                .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
                 .event(MfaEvent.INITIATE_CHALLENGE)
                 .action(initiateChallengeAction)
                 .guard(context -> {

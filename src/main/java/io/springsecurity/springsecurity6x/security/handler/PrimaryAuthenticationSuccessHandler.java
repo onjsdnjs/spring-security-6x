@@ -85,9 +85,6 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
             return;
         }
 
-        //1차 인증 완료 처리 (RestAuthenticationFilter 에서 이관)
-//        processPrimaryAuthenticationCompletion(factorContext, request);
-
         // State Machine과 동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
@@ -95,8 +92,11 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
         log.debug("Evaluating MFA requirement for user: {}", username);
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, factorContext);
 
+        // 변경된 FactorContext를 State Machine에 명시적으로 저장
+        stateMachineIntegrator.saveFactorContext(factorContext);
+
         //정책 평가 후 State Machine과 재동기화
-        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
+//        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
 
         //현재 상태에 따른 응답 생성 (상태 체크 로직 개선)
         MfaState currentState = factorContext.getCurrentState();

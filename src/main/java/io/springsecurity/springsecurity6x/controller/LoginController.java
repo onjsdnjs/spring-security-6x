@@ -329,7 +329,7 @@ public class LoginController {
         }
 
         // 상태 검증 - AWAITING_FACTOR_SELECTION 상태여야 함
-        if (ctx.getCurrentState() != MfaState.PRIMARY_AUTHENTICATION_COMPLETED) {
+        if (ctx.getCurrentState() != MfaState.AWAITING_FACTOR_SELECTION) {
             log.warn("MFA Select Factor UI: Invalid state for factor selection: {}. Expected: AWAITING_FACTOR_SELECTION",
                     ctx.getCurrentState());
             return createMfaErrorRedirect(request, "invalid_state_for_select_factor");

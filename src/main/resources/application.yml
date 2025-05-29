@@ -88,6 +88,7 @@ spring:
       metrics-enabled: true
       audit-logging-enabled: true
       session-storage-type: redis
+    factor-selection-type: auto
 
 # Security State Machine 설정
 security:

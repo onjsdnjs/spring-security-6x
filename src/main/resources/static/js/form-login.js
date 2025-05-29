@@ -91,8 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     // State Machine 상태 검증 추가
                     if (window.mfaStateTracker &&
-                        window.mfaStateTracker.currentState !== 'MFA_SELECTION_REQUIRED') {
-                        logClientSide(`State mismatch for MFA_SELECTION_REQUIRED. Expected: MFA_SELECTION_REQUIRED, Actual: ${window.mfaStateTracker.currentState}`);
+                        window.mfaStateTracker.currentState !== 'AWAITING_FACTOR_SELECTION') {
+                        logClientSide(`State mismatch for AWAITING_FACTOR_SELECTION. Expected: AWAITING_FACTOR_SELECTION, Actual: ${window.mfaStateTracker.currentState}`);
                     }
 
                     setTimeout(() => {

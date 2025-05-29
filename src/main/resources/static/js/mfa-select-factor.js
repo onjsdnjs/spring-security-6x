@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         'FACTOR_VERIFICATION_COMPLETED'      // 추가 팩터 필요한 경우
     ];
 
-    if (window.mfaStateTracker &&
+    /*if (window.mfaStateTracker &&
         !validStatesForFactorSelection.includes(window.mfaStateTracker.currentState)) {
         console.warn(`Invalid state for factor selection. Current state: ${window.mfaStateTracker.currentState}`);
         displayMessage("잘못된 인증 상태입니다. 다시 로그인해주세요.", "error");
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "/loginForm";
         }, 2000);
         return;
-    }
+    }*/
 
     if (!mfaSessionId || !username) {
         displayMessage("MFA 세션 정보가 유효하지 않습니다. 다시 로그인해주세요.", "error");

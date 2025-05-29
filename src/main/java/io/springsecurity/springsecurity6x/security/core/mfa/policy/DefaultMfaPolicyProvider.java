@@ -320,6 +320,11 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
 
         try {
+
+            if (event == MfaEvent.FACTOR_SELECTED && ctx.getCurrentProcessingFactor() != null) {
+                request.setAttribute("selectedFactor", ctx.getCurrentProcessingFactor().name());
+            }
+
             boolean accepted = stateMachineIntegrator.sendEvent(event, ctx, request);
             if (!accepted) {
                 log.error("Event {} rejected in context: {} for session: {}",

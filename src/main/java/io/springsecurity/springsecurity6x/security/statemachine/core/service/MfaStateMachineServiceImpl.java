@@ -661,6 +661,14 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         if (event == MfaEvent.SESSION_TIMEOUT) {
             return currentState == MfaState.AWAITING_FACTOR_SELECTION ||
                     currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
+                    currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION||
+                    currentState == MfaState.FACTOR_VERIFICATION_PENDING;
+        }
+
+        // USER_ABORTED_MFA 추가
+        if (event == MfaEvent.USER_ABORTED_MFA) {
+            return currentState == MfaState.AWAITING_FACTOR_SELECTION ||
+                    currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
                     currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION;
         }
 
@@ -682,9 +690,9 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     event == MfaEvent.INITIATE_CHALLENGE ||
                             event == MfaEvent.USER_ABORTED_MFA;
 
-            case FACTOR_CHALLENGE_INITIATED ->
+            /*case FACTOR_CHALLENGE_INITIATED ->
                     event == MfaEvent.CHALLENGE_INITIATED_SUCCESSFULLY ||
-                            event == MfaEvent.CHALLENGE_INITIATION_FAILED;
+                            event == MfaEvent.CHALLENGE_INITIATION_FAILED;*/
 
             case FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ->
                     event == MfaEvent.SUBMIT_FACTOR_CREDENTIAL ||
@@ -703,7 +711,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     event == MfaEvent.ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN;
 
             case MFA_RETRY_LIMIT_EXCEEDED ->
-                    event == MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED; // 실패로 전이
+                    event == MfaEvent.SYSTEM_ERROR;
 
             case MFA_CONFIGURATION_REQUIRED ->
                     false; // 이 상태에서는 추가 전이 없음
@@ -880,7 +888,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 "stateHash".equals(key);
     }
 
-    // 완전한 수정 버전 - 모든 문제 해결
     private Message<MfaEvent> createEventMessage(MfaEvent event, FactorContext context, HttpServletRequest request) {
         Map<String, Object> headers = new HashMap<>();
 
@@ -900,10 +907,14 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             headers.put("request", request);
         }
 
-        // MessageBuilder로 메시지 생성
+        Object selectedFactor = request.getAttribute("selectedFactor");
+        if (selectedFactor != null) {
+            headers.put("selectedFactor", selectedFactor.toString());
+        }
+
         return MessageBuilder
                 .withPayload(event)
-                .copyHeaders(headers)  // 한 번에 모든 헤더 복사
+                .copyHeaders(headers)
                 .build();
     }
 

@@ -132,7 +132,7 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
         sessionRepository.refreshSession(factorContext.getMfaSessionId());
 
         stateMachineIntegrator.saveFactorContext(factorContext);
-        mfaPolicyProvider.determineNextFactorToProcess(factorContext);
+//        mfaPolicyProvider.determineNextFactorToProcess(factorContext);
 
         FactorContext latestContext = stateMachineIntegrator.loadFactorContext(factorContext.getMfaSessionId());
         if (latestContext != null) {

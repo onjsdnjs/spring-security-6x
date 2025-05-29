@@ -801,6 +801,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
         try {
             // 선택된 팩터 정보 설정
             context.setAttribute("selectedFactor", selectedFactor);
+            request.setAttribute("selectedFactor", selectedFactor);
 
             // State Machine 이벤트 전송
             return stateMachineIntegrator.sendEvent(MfaEvent.FACTOR_SELECTED, context, request);

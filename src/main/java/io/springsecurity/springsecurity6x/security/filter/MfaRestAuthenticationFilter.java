@@ -240,6 +240,9 @@ public class MfaRestAuthenticationFilter extends BaseAuthenticationFilter {
 
             factorContext.addCompletedFactor(primaryAuthStep);
 
+            stateMachineIntegrator.saveFactorContext(factorContext);
+            stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
+
             log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
         }
     }

@@ -86,7 +86,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
         }
 
         //1차 인증 완료 처리 (RestAuthenticationFilter 에서 이관)
-        processPrimaryAuthenticationCompletion(factorContext, request);
+//        processPrimaryAuthenticationCompletion(factorContext, request);
 
         // State Machine과 동기화
         stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
@@ -130,21 +130,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
         }
     }
 
-    //RestAuthenticationFilter 에서 이관된 메서드
-    private void processPrimaryAuthenticationCompletion(FactorContext factorContext, HttpServletRequest request) {
-        // 1차 인증 완료 이벤트 전송
-        boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, factorContext, request);
-
-        if (accepted) {
-            log.debug("Primary authentication completed for session: {}", factorContext.getMfaSessionId());
-        } else {
-            log.error("Failed to process PRIMARY_AUTH_SUCCESS event for session: {}",
-                    factorContext.getMfaSessionId());
-            throw new RuntimeException("Primary authentication completion failed");
-        }
-    }
-
-    // ✅ 추가: 상태별 응답 처리 메서드들
+    // 상태별 응답 처리 메서드들
     private void handleFactorSelectionRequired(HttpServletRequest request, HttpServletResponse response,
                                                FactorContext factorContext) throws IOException {
         Map<String, Object> responseBody = createMfaResponseBody(

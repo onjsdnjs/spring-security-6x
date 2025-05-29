@@ -177,7 +177,7 @@ public class MfaStateMachineIntegrator {
     public void saveFactorContext(FactorContext context) {
         try {
             stateMachineService.saveFactorContext(context);
-            // 개선: 저장 후 동기화 상태 업데이트
+            // 저장 후 동기화 상태 업데이트
             updateSyncState(context.getMfaSessionId(), context.getVersion());
 
             log.debug("FactorContext saved to unified State Machine: session={}, state={}, version={}",

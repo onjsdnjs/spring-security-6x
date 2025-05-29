@@ -59,7 +59,6 @@ public enum MfaState {
     public boolean isProcessing() {
         return this == AWAITING_FACTOR_CHALLENGE_INITIATION ||
                 this == FACTOR_CHALLENGE_INITIATED ||
-                this == FACTOR_VERIFICATION_PENDING ||
-                this == FACTOR_VERIFICATION_IN_PROGRESS;
+                this == FACTOR_VERIFICATION_PENDING;
     }
 }

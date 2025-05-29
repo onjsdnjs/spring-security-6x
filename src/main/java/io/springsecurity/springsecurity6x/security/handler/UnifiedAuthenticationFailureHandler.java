@@ -451,8 +451,7 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
 
         MfaState currentState = factorContext.getCurrentState();
         return currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
-                currentState == MfaState.FACTOR_VERIFICATION_PENDING ||
-                currentState == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+                currentState == MfaState.FACTOR_VERIFICATION_PENDING;
     }
 
     private Map<String, String> getClientInfo(HttpServletRequest request) {

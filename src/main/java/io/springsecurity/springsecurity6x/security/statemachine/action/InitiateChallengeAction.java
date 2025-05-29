@@ -49,7 +49,7 @@ public class InitiateChallengeAction extends AbstractMfaStateAction {
                 log.warn("Unknown factor type for challenge: {}", factorType);
                 throw new UnsupportedOperationException("Unsupported factor type: " + factorType);
         }
-        context.getStateMachine().sendEvent(MfaEvent.CHALLENGE_INITIATED_SUCCESSFULLY);
+        context.getExtendedState().getVariables().put("challengeInitiationSuccess", true);
         log.info("Challenge initiated successfully for factor: {} in session: {}",
                 factorType, sessionId);
     }

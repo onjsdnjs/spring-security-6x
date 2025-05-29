@@ -104,18 +104,23 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 // 챌린지 시작
                 .withExternal()
                 .source(MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION)
-                .target(MfaState.FACTOR_CHALLENGE_INITIATED)
+                .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)  // 바로 대기 상태로
                 .event(MfaEvent.INITIATE_CHALLENGE)
                 .action(initiateChallengeAction)
+                .guard(context -> {
+                    // challengeInitiationSuccess 확인
+                    Boolean success = (Boolean) context.getExtendedState().getVariables().get("challengeInitiationSuccess");
+                    return success != null && success;
+                })
                 .and()
 
-                // 챌린지 성공적 시작 -> 사용자 입력 대기
+                /*// 챌린지 성공적 시작 -> 사용자 입력 대기
                 .withExternal()
                 .source(MfaState.FACTOR_CHALLENGE_INITIATED)
                 .target(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
                 .event(MfaEvent.CHALLENGE_INITIATED_SUCCESSFULLY)
                 .and()
-
+*/
                 // 챌린지 시작 실패 -> 팩터 선택으로 돌아감
                 .withExternal()
                 .source(MfaState.FACTOR_CHALLENGE_INITIATED)
@@ -145,13 +150,6 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .event(MfaEvent.FACTOR_VERIFICATION_FAILED)
                 .guard(retryLimitGuard)
                 .action(handleFailureAction)
-                .and()
-
-                // Line 추가: FACTOR_VERIFICATION_PENDING 에서 RETRY_LIMIT_EXCEEDED 가능
-                .withExternal()
-                .source(MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION)
-                .target(MfaState.MFA_RETRY_LIMIT_EXCEEDED)
-                .event(MfaEvent.RETRY_LIMIT_EXCEEDED)
                 .and()
 
                 // 재시도 한계 초과

@@ -757,8 +757,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         // 검증 처리 가능한 상태들
         boolean validState = state == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
-                state == MfaState.FACTOR_VERIFICATION_PENDING ||
-                state == MfaState.FACTOR_VERIFICATION_IN_PROGRESS;
+                state == MfaState.FACTOR_VERIFICATION_PENDING;
 
         if (!validState) {
             log.debug("Cannot process factor verification in state: {} for session: {}",

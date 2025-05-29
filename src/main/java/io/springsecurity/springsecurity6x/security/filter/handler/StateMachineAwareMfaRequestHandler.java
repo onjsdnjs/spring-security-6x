@@ -356,9 +356,22 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
 
         // 이전 챌린지가 아직 유효한지 확인
         if (hasActiveChallengeForFactor(context)) {
-            log.info("Active challenge exists for session: {}, proceeding with existing challenge", sessionId);
-            redirectToExistingChallenge(request, response, context);
-            return;
+            log.info("Active challenge exists for session: {}, reusing existing challenge", sessionId);
+
+            // 기존 챌린지 정보로 응답
+            Object challengeTime = context.getAttribute("challengeInitiatedAt");
+            Instant challengeStart = MfaTimeUtils.fromMillis((Long) challengeTime);
+            Duration remaining = MfaTimeUtils.getRemainingChallengeTime(challengeStart, mfaSettings);
+
+            Map<String, Object> reuseResponse = createSuccessResponse(context, "CHALLENGE_REUSED",
+                    "기존 챌린지를 재사용합니다.");
+            reuseResponse.put("challengeUrl", determineNextStepUrl(context, request));
+            reuseResponse.put("factorType", context.getCurrentProcessingFactor());
+            reuseResponse.put("remainingTimeMs", remaining.toMillis());
+            reuseResponse.put("challengeReused", true);
+
+            responseWriter.writeSuccessResponse(response, reuseResponse, HttpServletResponse.SC_OK);
+            return; // 상태는 그대로 유지
         }
 
         boolean accepted = stateMachineIntegrator.sendEvent(MfaEvent.INITIATE_CHALLENGE, context, request);

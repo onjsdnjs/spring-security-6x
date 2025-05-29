@@ -255,7 +255,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .withExternal()
                 .source(MfaState.MFA_RETRY_LIMIT_EXCEEDED)
                 .target(MfaState.MFA_FAILED_TERMINAL)
-                .event(MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED);
+                .event(MfaEvent.SYSTEM_ERROR);
     }
 
     @Bean

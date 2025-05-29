@@ -192,8 +192,7 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
     private void handleRetryableMfaFailure(HttpServletRequest request, HttpServletResponse response,
                                            AuthenticationException exception, FactorContext factorContext,
                                            AuthType currentProcessingFactor, int attempts,
-                                           int maxAttempts, Map<String, Object> errorDetails)
-            throws IOException {
+                                           int maxAttempts, Map<String, Object> errorDetails) throws IOException {
 
         boolean eventAccepted = stateMachineIntegrator.sendEvent(
                 MfaEvent.FACTOR_VERIFICATION_FAILED, factorContext, request);
@@ -201,8 +200,6 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
         if (!eventAccepted) {
             log.error("State Machine rejected FACTOR_VERIFICATION_FAILED event for session: {}",
                     factorContext.getMfaSessionId());
-            stateMachineIntegrator.updateStateOnly(factorContext.getMfaSessionId(),
-                    MfaState.AWAITING_FACTOR_SELECTION);
         }
 
         sessionRepository.refreshSession(factorContext.getMfaSessionId());
@@ -214,7 +211,15 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
                 "%s 인증에 실패했습니다. (남은 시도: %d회). 다른 인증 수단을 선택하거나 현재 인증을 다시 시도해주세요.",
                 currentProcessingFactor.name(), remainingAttempts);
 
-        String nextStepUrl = request.getContextPath() + authContextProperties.getMfa().getInitiateUrl();
+        // 현재 상태에 따른 다음 URL 결정
+        String nextStepUrl;
+        if (factorContext.getCurrentState() == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION) {
+            // 같은 챌린지 화면으로 (재시도)
+            nextStepUrl = determineFactorVerificationUrl(currentProcessingFactor, request);
+        } else {
+            // 팩터 선택 화면으로
+            nextStepUrl = request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        }
 
         errorDetails.put("message", errorMessage);
         errorDetails.put("nextStepUrl", nextStepUrl);
@@ -243,6 +248,16 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
             responseWriter.writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
                     errorCode, errorMessage, request.getRequestURI(), errorDetails);
         }
+    }
+
+    private String determineFactorVerificationUrl(AuthType factorType, HttpServletRequest request) {
+        return switch (factorType) {
+            case OTT -> request.getContextPath() +
+                    authContextProperties.getMfa().getOttFactor().getRequestCodeUiUrl();
+            case PASSKEY -> request.getContextPath() +
+                    authContextProperties.getMfa().getPasskeyFactor().getRegistrationRequestUrl();
+            default -> request.getContextPath() + authContextProperties.getMfa().getSelectFactorUrl();
+        };
     }
 
     /**

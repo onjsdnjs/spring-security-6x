@@ -91,12 +91,10 @@ public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
                 String flowType = factorContext.getFlowTypeName();
 
                 Integer requiredFactors = policyProvider.getRequiredFactorCount(userId, flowType);
-                if (requiredFactors != null && requiredFactors > 0) {
+                if (requiredFactors != null && requiredFactors >= 0) { // 0도 유효한 값
                     log.debug("Policy requires {} factors for user: {} in flow: {}",
                             requiredFactors, userId, flowType);
                     return requiredFactors;
-                } else {
-                    log.debug("Policy returned null/invalid factor count, using fallback");
                 }
             }
         } catch (Exception e) {

@@ -647,34 +647,72 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
      * 개선: 이벤트 전이 유효성 검증
      */
     private boolean isValidEventTransition(MfaState currentState, MfaEvent event) {
-        // 터미널 상태에서는 일부 관리 이벤트만 허용
+        // 터미널 상태에서는 관리 이벤트만 허용
         if (currentState.isTerminal()) {
-            return event == MfaEvent.SYSTEM_ERROR ||
-                    event == MfaEvent.SESSION_TIMEOUT ||
-                    event == MfaEvent.ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN;
+            return event == MfaEvent.SYSTEM_ERROR;  // 터미널에서는 시스템 에러만
         }
 
-        // 기본적인 상태-이벤트 매트릭스 검증
+        // SYSTEM_ERROR는 터미널이 아닌 모든 상태에서 가능
+        if (event == MfaEvent.SYSTEM_ERROR) {
+            return !currentState.isTerminal();
+        }
+
+        // SESSION_TIMEOUT은 특정 상태에서만 가능
+        if (event == MfaEvent.SESSION_TIMEOUT) {
+            return currentState == MfaState.AWAITING_FACTOR_SELECTION ||
+                    currentState == MfaState.FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ||
+                    currentState == MfaState.AWAITING_FACTOR_CHALLENGE_INITIATION;
+        }
+
+        // 상태별 허용 이벤트
         return switch (currentState) {
+            case NONE ->
+                    event == MfaEvent.PRIMARY_AUTH_SUCCESS;
+
             case PRIMARY_AUTHENTICATION_COMPLETED ->
                     event == MfaEvent.MFA_NOT_REQUIRED ||
-                    event == MfaEvent.PRIMARY_AUTH_SUCCESS ||
                             event == MfaEvent.MFA_REQUIRED_SELECT_FACTOR ||
                             event == MfaEvent.MFA_CONFIGURATION_REQUIRED;
 
             case AWAITING_FACTOR_SELECTION ->
                     event == MfaEvent.FACTOR_SELECTED ||
                             event == MfaEvent.USER_ABORTED_MFA;
+
             case AWAITING_FACTOR_CHALLENGE_INITIATION ->
                     event == MfaEvent.INITIATE_CHALLENGE ||
                             event == MfaEvent.USER_ABORTED_MFA;
+
+            case FACTOR_CHALLENGE_INITIATED ->
+                    event == MfaEvent.CHALLENGE_INITIATED_SUCCESSFULLY ||
+                            event == MfaEvent.CHALLENGE_INITIATION_FAILED;
+
             case FACTOR_CHALLENGE_PRESENTED_AWAITING_VERIFICATION ->
                     event == MfaEvent.SUBMIT_FACTOR_CREDENTIAL ||
-                            event == MfaEvent.FACTOR_VERIFIED_SUCCESS ||
-                            event == MfaEvent.FACTOR_VERIFICATION_FAILED ||
                             event == MfaEvent.USER_ABORTED_MFA ||
                             event == MfaEvent.CHALLENGE_TIMEOUT;
-            default -> true; // 기타 상태는 기본 허용
+
+            case FACTOR_VERIFICATION_PENDING ->
+                    event == MfaEvent.FACTOR_VERIFIED_SUCCESS ||
+                            event == MfaEvent.FACTOR_VERIFICATION_FAILED ||
+                            event == MfaEvent.RETRY_LIMIT_EXCEEDED;
+
+            case FACTOR_VERIFICATION_COMPLETED ->
+                    event == MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED;
+
+            case ALL_FACTORS_COMPLETED ->
+                    event == MfaEvent.ALL_FACTORS_VERIFIED_PROCEED_TO_TOKEN;
+
+            case MFA_RETRY_LIMIT_EXCEEDED ->
+                    event == MfaEvent.ALL_REQUIRED_FACTORS_COMPLETED; // 실패로 전이
+
+            case MFA_CONFIGURATION_REQUIRED ->
+                    false; // 이 상태에서는 추가 전이 없음
+
+            default -> {
+                log.warn("Unhandled state in event transition validation: {} for event: {}",
+                        currentState, event);
+                yield false; // 안전을 위해 기본값은 false
+            }
         };
     }
 

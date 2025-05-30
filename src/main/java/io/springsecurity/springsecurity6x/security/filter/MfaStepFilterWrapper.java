@@ -150,6 +150,7 @@ public class MfaStepFilterWrapper extends OncePerRequestFilter {
             return;
         }
 
+
         FactorIdentifier factorIdentifier = FactorIdentifier.of(
                 ctx.getFlowTypeName(), ctx.getCurrentStepId());
 

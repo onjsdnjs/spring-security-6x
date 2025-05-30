@@ -14,6 +14,7 @@ import java.util.Objects;
 @ToString
 public class AuthenticationStepConfig {
     private String stepId; // 고유 식별자 필드
+    private boolean isPrimary; // 고유 식별자 필드
     private String type;   // 예: "form", "ott", "passkey"
     private AuthType authType;   // 예: "form", "ott", "passkey"
     private final Map<String, Object> options = new HashMap<>();
@@ -30,9 +31,10 @@ public class AuthenticationStepConfig {
     }
 
     // flowName을 받아 stepId를 자동 생성하는 생성자
-    public AuthenticationStepConfig(String flowName, String type, int order) {
+    public AuthenticationStepConfig(String flowName, String type, int order, boolean isPrimary) {
         this.type = type;
         this.order = order;
+        this.isPrimary = isPrimary;
         this.stepId = generateId(flowName, type, order);
         this.authType = AuthType.valueOf(type);
     }

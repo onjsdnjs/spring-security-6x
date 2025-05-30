@@ -89,7 +89,7 @@ public abstract class AbstractMfaAuthenticationSuccessHandler implements Platfor
 
         // 4. 응답 데이터 구성
         Map<String, Object> responseData = new HashMap<>(transportResult.getBody());
-        responseData.put("status", "SUCCESS");
+        responseData.put("status", "MFA_COMPLETED");
         responseData.put("message", "인증이 완료되었습니다.");
         responseData.put("redirectUrl", determineTargetUrl(request, response, finalAuthentication));
         responseData.put("authentication", finalAuthentication);

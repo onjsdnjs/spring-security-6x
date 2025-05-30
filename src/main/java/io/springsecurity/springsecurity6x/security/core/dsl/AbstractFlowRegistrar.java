@@ -77,7 +77,7 @@ public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> im
 
 
         // AuthenticationStepConfig 생성 시 flowTypeName, authType.name(), actualOrder 전달
-        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig(flowTypeName, authType.name(), actualOrder);
+        AuthenticationStepConfig stepConfig = new AuthenticationStepConfig(flowTypeName, authType.name(), actualOrder, false);
         stepConfig.getOptions().put("_options", options);
         // stepConfig.setOrder(actualOrder); // 생성자에서 설정됨
 

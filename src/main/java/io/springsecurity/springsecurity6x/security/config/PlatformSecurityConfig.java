@@ -156,7 +156,7 @@ public class PlatformSecurityConfig {
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest
                                         .loginProcessingUrl("/api/auth/login") // 1차 인증 API 경로
-                                        .successHandler(new PlatformAuthenticationSuccessHandler() {
+                                        /*.successHandler(new PlatformAuthenticationSuccessHandler() {
                                             @Override
                                             public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication, TokenTransportResult result) throws IOException, ServletException {
                                                 System.out.println("onAuthenticationFailure: " + result);
@@ -167,7 +167,7 @@ public class PlatformSecurityConfig {
                                             public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
                                                 System.out.println("onAuthenticationFailure: " + exception.getMessage());
                                             }
-                                        }) // 1차 인증 실패 또는 MFA 전역 실패 시
+                                        })*/ // 1차 인증 실패 또는 MFA 전역 실패 시
                                 )
                         )
                         // 2차 인증 요소: OTT
@@ -206,6 +206,18 @@ public class PlatformSecurityConfig {
                         // MFA 플로우 전반에 대한 설정
 //                        .mfaSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))
+                                /*.mfaSuccessHandler(new PlatformAuthenticationSuccessHandler() {
+                                    @Override
+                                    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication, TokenTransportResult result) throws IOException, ServletException {
+                                        System.out.println("onAuthenticationFailure: " + result);
+                                    }
+                                }) // 1차 인증 성공 후 MFA 정책 평가 및 FactorContext 생성
+                                .mfaFailureHandler(new PlatformAuthenticationFailureHandler() {
+                                    @Override
+                                    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception, FactorContext factorContext, FailureType failureType, Map<String, Object> errorDetails) throws IOException, ServletException {
+                                        System.out.println("onAuthenticationFailure: " + exception.getMessage());
+                                    }
+                                })*/
 //                        .mfaFailureHandler(unifiedAuthenticationFailureHandler) // MFA 플로우의 전역적 실패 처리
                         .order(20) // 다른 인증 플로우(단일 Form, OTT 등)보다 우선순위 높게 설정 (선택적)
                 ).jwt(Customizer.withDefaults()) // MFA 플로우 완료 후 JWT 토큰 사용

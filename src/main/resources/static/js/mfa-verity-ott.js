@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (response.ok) {
                 if (isMfaFlow) {
-                    if (result.status === "MFA_COMPLETE") {
+                    if (result.status === "MFA_COMPLETED") {
                         // State Machine이 MFA_SUCCESSFUL 상태인지 확인
                         if (window.mfaStateTracker && window.mfaStateTracker.currentState !== 'MFA_SUCCESSFUL' &&
                             window.mfaStateTracker.currentState !== 'ALL_FACTORS_COMPLETED') {

@@ -21,7 +21,7 @@ spring:
       host: localhost
       port: 6379
       password: # Redis 비밀번호 (필요한 경우)
-      timeout: 2000
+      timeout: 200000
       # 연결 풀 설정
       lettuce:
         pool:

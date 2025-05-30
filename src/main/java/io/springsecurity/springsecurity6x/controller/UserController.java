@@ -35,7 +35,8 @@ public class UserController {
         Users users = modelMapper.map(userDto, Users.class);
         users.setPassword(passwordEncoder.encode(users.getPassword()));
         users.setMfaEnabled(true);
-        users.setMfaFactors(new String[]{"OTT,PASSKEY"});
+//        users.setMfaFactors(new String[]{"OTT,PASSKEY"});
+        users.setMfaFactors(new String[]{"OTT"});
         users.setPreferredMfaFactor("OTT");
         userRepository.save(users);
 

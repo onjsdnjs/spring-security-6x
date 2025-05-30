@@ -148,7 +148,8 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
         }*/
 
         if (currentFlow != null && "mfa".equalsIgnoreCase(currentFlow.getTypeName())) {
-            Object mfaSpecificFailureHandler = currentFlow.getMfaFailureHandler();
+            return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
+            /*Object mfaSpecificFailureHandler = currentFlow.getMfaFailureHandler();
             if (mfaSpecificFailureHandler instanceof PlatformAuthenticationFailureHandler  springSecurityFailureHandler) {
                 log.debug("AuthenticationFeature [{}]: Using MfaFailureHandler from current MFA flow config.", getId());
                 return springSecurityFailureHandler;
@@ -156,7 +157,7 @@ public abstract class AbstractAuthenticationAdapter<O extends AuthenticationProc
             } else {
                 log.debug("AuthenticationFeature [{}]: No MfaFailureHandler set in MFA flow config. Using platform default MfaAuthenticationFailureHandler.", getId());
                 return appContext.getBean(UnifiedAuthenticationFailureHandler.class);
-            }
+            }*/
         }
 
         log.debug("AuthenticationFeature [{}]: Resolving default failureHandler.", getId());

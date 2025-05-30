@@ -163,7 +163,7 @@ public class RefreshTokenAnomalyDetector {
         int currentHour = Instant.now().atZone(java.time.ZoneId.systemDefault()).getHour();
 
         // 시간대별 활동 빈도 조회
-        String hourCount = redisTemplate.opsForHash().get(patternKey, String.valueOf(currentHour)).toString();
+        String hourCount = (String) redisTemplate.opsForHash().get(patternKey, String.valueOf(currentHour));
 
         if (hourCount == null || Integer.parseInt(hourCount) < 5) {
             // 평소 활동하지 않는 시간대

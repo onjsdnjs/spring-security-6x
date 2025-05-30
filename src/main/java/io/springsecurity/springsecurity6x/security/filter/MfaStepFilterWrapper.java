@@ -10,7 +10,6 @@ import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachin
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.properties.MfaSettings;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
-import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;

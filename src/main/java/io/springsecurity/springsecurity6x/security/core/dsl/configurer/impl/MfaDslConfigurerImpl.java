@@ -117,7 +117,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
         O_FACTOR factorOptions = configurer.buildConcreteOptions();
 
         int stepOrder = currentStepOrderCounter++;
-        AuthenticationStepConfig factorStep = new AuthenticationStepConfig(this.mfaFlowTypeName, authType.name(), stepOrder);
+        AuthenticationStepConfig factorStep = new AuthenticationStepConfig(this.mfaFlowTypeName, authType.name(), stepOrder, false);
         factorStep.getOptions().put("_options", factorOptions);
         this.configuredSteps.add(factorStep);
         log.debug("MFA Flow: Added factor step: {} with order {}", factorStep.getType(), factorStep.getOrder());
@@ -214,7 +214,7 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
             configuredSteps.removeIf(s -> s.getOrder() == 0);
 
             // 1차 인증 스텝 생성 및 configuredSteps 리스트의 맨 앞에 추가
-            AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig(this.mfaFlowTypeName, primaryAuthType.name(), 0);
+            AuthenticationStepConfig primaryAuthStep = new AuthenticationStepConfig(this.mfaFlowTypeName, primaryAuthType.name(), 0, true);
             primaryAuthStep.getOptions().put("_options", primaryConcreteOptions);
             configuredSteps.addFirst(primaryAuthStep);
             log.debug("MFA Flow [{}]: Added primary authentication step (id='{}', type: {}) from primaryAuthentication() DSL.",

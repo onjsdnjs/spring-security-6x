@@ -47,12 +47,12 @@ public class RedisEventListener implements MessageListener {
             String channel = new String(message.getChannel());
             String eventJson = new String(message.getBody());
 
-            Map<String, Object> event = objectMapper.readValue(eventJson, Map.class);
+            /*Map<String, Object> event = objectMapper.readValue(eventJson, Map.class);
 
             log.debug("Received event from channel '{}': {}", channel, event.get("eventType"));
 
             // 이벤트 처리
-            processEvent(channel, event);
+            processEvent(channel, event);*/
 
         } catch (Exception e) {
             log.error("Failed to process Redis message: {}", e.getMessage());

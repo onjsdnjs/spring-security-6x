@@ -14,6 +14,7 @@ import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateContext;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,12 +66,94 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
                 log.warn("PrimaryAuthentication is null for session: {}", factorContext.getMfaSessionId());
             }
 
+            // ========== 중요: 누락된 데이터 직렬화 추가 ==========
+
+            // 1. completedFactors 직렬화
+            if (!factorContext.getCompletedFactors().isEmpty()) {
+                String completedFactorsStr = serializeCompletedFactors(factorContext.getCompletedFactors());
+                variables.put("completedFactors", completedFactorsStr);
+                log.debug("Serialized {} completed factors", factorContext.getCompletedFactors().size());
+            }
+
+            // 2. registeredMfaFactors 직렬화
+            List<AuthType> registeredFactors = factorContext.getRegisteredMfaFactors();
+            if (!registeredFactors.isEmpty()) {
+                String registeredFactorsStr = registeredFactors.stream()
+                        .map(AuthType::name)
+                        .collect(Collectors.joining(","));
+                variables.put("registeredMfaFactors", registeredFactorsStr);
+            }
+
+            // 3. factorAttemptCounts 직렬화
+            Map<AuthType, Integer> attemptCounts = extractAttemptCounts(factorContext);
+            if (!attemptCounts.isEmpty()) {
+                String attemptCountsStr = serializeAttemptCounts(attemptCounts);
+                variables.put("factorAttemptCounts", attemptCountsStr);
+            }
+
+            // 4. failedAttempts 직렬화
+            Map<String, Integer> failedAttempts = extractFailedAttempts(factorContext);
+            if (!failedAttempts.isEmpty()) {
+                String failedAttemptsStr = serializeFailedAttempts(failedAttempts);
+                variables.put("failedAttempts", failedAttemptsStr);
+            }
+
+            // 5. mfaAttemptHistory 직렬화
+            if (!factorContext.getMfaAttemptHistory().isEmpty()) {
+                String historyStr = serializeMfaAttemptHistory(factorContext.getMfaAttemptHistory());
+                variables.put("mfaAttemptHistory", historyStr);
+            }
+
+            // 6. 사용자 정의 attributes 직렬화 (가장 중요!)
+            Map<String, Object> attributes = factorContext.getAttributes();
+            if (attributes != null && !attributes.isEmpty()) {
+                attributes.forEach((key, value) -> {
+                    String attrKey = "attr_" + key;
+
+                    // 기본 타입은 그대로 저장
+                    if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+                        variables.put(attrKey, value);
+                    }
+                    // Date/Instant는 문자열로 변환
+                    else if (value instanceof java.util.Date) {
+                        variables.put(attrKey, ((java.util.Date) value).getTime());
+                    } else if (value instanceof Instant) {
+                        variables.put(attrKey, ((Instant) value).toEpochMilli());
+                    }
+                    // List<AuthType> 처리
+                    else if (value instanceof List<?> list) {
+                        if (!list.isEmpty() && list.get(0) instanceof AuthType) {
+                            String serialized = ((List<AuthType>) list).stream()
+                                    .map(AuthType::name)
+                                    .collect(Collectors.joining(","));
+                            variables.put(attrKey, serialized);
+                        }
+                    }
+
+                    log.trace("Serialized attribute: {} = {}", key, value);
+                });
+                log.debug("Serialized {} attributes", attributes.size());
+            }
+
+            // 7. 타임스탬프 정보
+            if (factorContext.getLastActivityTimestamp() != null) {
+                variables.put("lastActivityTimestamp", factorContext.getLastActivityTimestamp().toEpochMilli());
+            }
+
+            // 8. currentFactorOptions 직렬화
+            if (factorContext.getCurrentFactorOptions() != null) {
+                variables.put("currentFactorOptions", serializeFactorOptions(factorContext.getCurrentFactorOptions()));
+            }
+
             // 메타데이터
             variables.put("_serializedAt", System.currentTimeMillis());
-            variables.put("_adapterVersion", "2.2");
+            variables.put("_adapterVersion", "2.3"); // 버전 업데이트
+            variables.put("_stateHash", factorContext.calculateStateHash());
 
-            log.debug("Serialized {} variables for session: {}",
-                    variables.size(), factorContext.getMfaSessionId());
+            log.debug("Serialized {} variables for session: {} (including {} attributes, {} completed factors)",
+                    variables.size(), factorContext.getMfaSessionId(),
+                    attributes != null ? attributes.size() : 0,
+                    factorContext.getCompletedFactors().size());
 
         } catch (Exception e) {
             log.error("Unexpected error in toStateMachineVariables", e);
@@ -198,9 +281,9 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
 
         // 팩터 옵션 복원
         String factorOptionsStr = (String) variables.get("currentFactorOptions");
-        if (factorOptionsStr != null) {
-            factorContext.setCurrentFactorOptions((AuthenticationProcessingOptions) deserializeFactorOptions(factorOptionsStr));
-        }
+//        if (factorOptionsStr != null) {
+//            factorContext.setCurrentFactorOptions((AuthenticationProcessingOptions) deserializeFactorOptions(factorOptionsStr));
+//        }
 
         // 재시도 및 에러 정보
         Object retryCount = variables.get("retryCount");
@@ -267,7 +350,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
 
     private String serializeCompletedFactors(List<AuthenticationStepConfig> completedFactors) {
         return completedFactors.stream()
-                .map(config -> String.format("%s:%s:%d:%b",
+                .map(config -> String.format("%s-%s-%d-%b",
                         config.getStepId(),
                         config.getType(),
                         config.getOrder(),
@@ -306,9 +389,9 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
                     .filter(s -> !s.trim().isEmpty())
                     .map(this::parseAuthenticationStepConfig)
                     .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+                    .toList();
 
-            factorContext.getCompletedFactors().clear();
+//            factorContext.getCompletedFactors().clear();
             configs.forEach(factorContext::addCompletedFactor);
         }
     }
@@ -406,7 +489,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
 
     private AuthenticationStepConfig parseAuthenticationStepConfig(String configStr) {
         try {
-            String[] parts = configStr.split(":");
+            String[] parts = configStr.split("-");
             if (parts.length >= 3) {
                 AuthenticationStepConfig config = new AuthenticationStepConfig();
                 config.setStepId(parts[0]);
@@ -441,20 +524,12 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
         return counts;
     }
 
+    /**
+     * FactorContext 에서 failedAttempts 추출
+     */
     private Map<String, Integer> extractFailedAttempts(FactorContext factorContext) {
-        // FactorContext에서 실패 시도 정보 추출
-        // 실제 구현에서는 factorContext의 내부 필드에 접근
-        return new HashMap<>(); // 임시 구현
+        // FactorContext에 추가한 getter 사용
+        return factorContext.getFailedAttempts();
     }
 
-    private boolean isSerializableAttribute(String key, Object value) {
-        if (value == null) return false;
-
-        // 기본 타입과 문자열만 허용
-        return value instanceof String ||
-                value instanceof Number ||
-                value instanceof Boolean ||
-                value instanceof java.util.Date ||
-                value instanceof Instant;
-    }
 }

@@ -262,10 +262,11 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             return;
         }
 
-        List<AuthType> registeredFactors = (List<AuthType>) ctx.getAttribute("registeredMfaFactors");
-        if (registeredFactors == null) {
-            registeredFactors = new ArrayList<>();
-        }
+        List<AuthType> registeredFactors = Arrays.stream(new String[]{(String)ctx.getAttribute("registeredMfaFactors")})
+                .flatMap(s -> Arrays.stream(s.split(",")))
+                .map(String::trim)
+                .map(AuthType::valueOf)
+                .toList();
 
         AuthType nextFactorType = determineNextFactorInternal(
                 registeredFactors,
@@ -632,6 +633,9 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         List<String> missingRequiredStepIds = new ArrayList<>();
 
         for (AuthenticationStepConfig requiredStep : requiredSteps) {
+
+            if(requiredStep.isPrimary()) continue; // 1차 인증은 제외
+
             String requiredStepId = requiredStep.getStepId();
 
             if (!StringUtils.hasText(requiredStepId)) {
@@ -677,7 +681,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         List<AuthenticationStepConfig> sortedSteps = flowSteps.stream()
                 .sorted(Comparator.comparingInt(AuthenticationStepConfig::getOrder))
-                .collect(Collectors.toList());
+                .toList();
 
         for (AuthenticationStepConfig stepInFlow : sortedSteps) {
             AuthType factorInOrder = parseAuthType(stepInFlow.getType());

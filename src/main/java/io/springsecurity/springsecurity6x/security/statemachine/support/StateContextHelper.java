@@ -39,7 +39,7 @@ public class StateContextHelper {
     private final Map<String, DeltaTracker> deltaTrackers = new ConcurrentHashMap<>();
 
     /**
-     * StateContext에서 FactorContext 추출 (완전 일원화)
+     * StateContext 에서 FactorContext 추출 (완전 일원화)
      */
     public FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
         ExtendedState extendedState = context.getExtendedState();
@@ -100,7 +100,7 @@ public class StateContextHelper {
     }
 
     /**
-     * StateContext에서 FactorContext 재구성 (어댑터 사용)
+     * StateContext 에서 FactorContext 재구성 (어댑터 사용)
      */
     private FactorContext reconstructFromStateContext(StateContext<MfaState, MfaEvent> context) {
         ExtendedState extendedState = context.getExtendedState();

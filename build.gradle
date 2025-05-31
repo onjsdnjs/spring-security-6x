@@ -1,32 +1,48 @@
-plugins {
-    id 'java'
-    id 'org.springframework.boot' version '3.5.0'
-    id 'io.spring.dependency-management' version '1.1.7'
+buildscript {
+    ext {
+        springBootVersion = '3.5.0'
+    }
+    repositories {
+        mavenCentral()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
 }
 
-group = 'io.spring'
-version = '0.0.1-SNAPSHOT'
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+group = 'io.springsecurity.springsecurity6x'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 21
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/snapshot" }
+    maven { url "https://repo.spring.io/milestone" }
 }
 
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
-
-    // spring-statemachine-redis 의존성 제외
-    all {
-        exclude group: 'org.springframework.statemachine', module: 'spring-statemachine-redis'
-    }
 }
 
 repositories {
     mavenCentral()
+    maven { url "https://repo.spring.io/snapshot" }
+    maven { url "https://repo.spring.io/milestone" }
 }
+
+ext {
+    springStatemachineVersion = '4.0.0'
+}
+
 
 dependencies {
     // Spring Boot Starters
@@ -36,21 +52,17 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    // Spring Boot Starter Thymeleaf (권장)
+    // Spring Boot Starter Thymeleaf
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 
-    // Spring State Machine 4.0.0 (redis 모듈 제외)
-    implementation('org.springframework.statemachine:spring-statemachine-starter:4.0.0') {
-        exclude group: 'org.springframework.statemachine', module: 'spring-statemachine-redis'
-    }
-    implementation 'org.springframework.statemachine:spring-statemachine-core:4.0.0'
+    // Spring State Machine 4.0.0
+    implementation('org.springframework.statemachine:spring-statemachine-starter')
 
     // Spring Session
     implementation 'org.springframework.session:spring-session-data-redis'
     implementation("org.apache.commons:commons-pool2:2.12.1")
 
-    // Redis
     implementation 'org.apache.commons:commons-pool2:2.11.1'
 
     // Resilience4j
@@ -82,7 +94,7 @@ dependencies {
     // OAuth2
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
-    // JWT (JSON Web Token) - 최신 버전 사용
+    // JWT (JSON Web Token)
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'  // JSON 처리를 위한 Jackson 통합
@@ -108,6 +120,7 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:2022.0.4"
         mavenBom "io.github.resilience4j:resilience4j-bom:2.1.0"
+        mavenBom "org.springframework.statemachine:spring-statemachine-bom:${springStatemachineVersion}"
     }
 }
 

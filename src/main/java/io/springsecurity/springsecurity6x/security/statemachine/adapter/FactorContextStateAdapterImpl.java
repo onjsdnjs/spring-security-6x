@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.statemachine.adapter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
@@ -27,6 +28,8 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class FactorContextStateAdapterImpl implements FactorContextStateAdapter {
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public Map<Object, Object> toStateMachineVariables(FactorContext factorContext) {
@@ -122,7 +125,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
                     }
                     // List<AuthType> 처리
                     else if (value instanceof List<?> list) {
-                        if (!list.isEmpty() && list.get(0) instanceof AuthType) {
+                        if (!list.isEmpty() && list.getFirst() instanceof AuthType) {
                             String serialized = ((List<AuthType>) list).stream()
                                     .map(AuthType::name)
                                     .collect(Collectors.joining(","));

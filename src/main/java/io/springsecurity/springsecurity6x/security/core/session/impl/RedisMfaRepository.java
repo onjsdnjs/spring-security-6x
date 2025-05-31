@@ -81,7 +81,7 @@ public class RedisMfaRepository implements MfaSessionRepository {
                 sessionValue, // 세션 값 전달
                 String.valueOf(sessionTimeout.toMillis()));
 
-        if (result != null && result == 1) {
+        if (result == 1) {
             totalSessionsCreated.incrementAndGet();
             updateSessionStatsAsync(); // 비동기 통계 업데이트
 

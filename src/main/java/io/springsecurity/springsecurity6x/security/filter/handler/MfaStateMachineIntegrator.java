@@ -69,7 +69,7 @@ public class MfaStateMachineIntegrator {
             // Repository를 통한 세션 저장
             sessionRepository.storeSession(sessionId, request, response);
 
-            // 개선: 초기화 후 동기화 상태 기록
+            // 초기화 후 동기화 상태 기록
             updateSyncState(sessionId, context.getVersion());
 
             log.info("Unified State Machine initialized successfully for session: {}", sessionId);

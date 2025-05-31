@@ -26,17 +26,13 @@ public class InitializeMfaAction extends AbstractMfaStateAction {
     protected void doExecute(StateContext<MfaState, MfaEvent> context,
                              FactorContext factorContext) throws Exception {
         String sessionId = factorContext.getMfaSessionId();
-
         log.info("Initializing MFA for session: {}, user: {}",
                 sessionId, factorContext.getUsername());
 
-        // 초기화 시간 기록
+        // 원래 로직 그대로, 단지 저장 방식만 개선
         factorContext.setAttribute("mfaInitializedAt", System.currentTimeMillis());
-
-        // 사용자 정보 설정
         factorContext.setAttribute("primaryAuthCompleted", true);
 
-        // 디바이스 정보 등 컨텍스트 정보 저장
         HttpServletRequest request = (HttpServletRequest) context.getMessageHeader("request");
         if (request != null) {
             factorContext.setAttribute("userAgent", request.getHeader("User-Agent"));
@@ -44,7 +40,5 @@ public class InitializeMfaAction extends AbstractMfaStateAction {
         }
 
         log.info("MFA initialization completed for session: {}", sessionId);
-
-        // 팩터 선택은 이후 단계에서 처리됨
     }
 }

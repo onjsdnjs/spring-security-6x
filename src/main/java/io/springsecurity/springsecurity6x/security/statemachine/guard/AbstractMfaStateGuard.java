@@ -15,8 +15,6 @@ import org.springframework.statemachine.guard.Guard;
 @Slf4j
 public abstract class AbstractMfaStateGuard implements Guard<MfaState, MfaEvent>, MfaStateGuard {
 
-    @Autowired
-    protected StateContextHelper stateContextHelper;
 
     @Override
     public final boolean evaluate(StateContext<MfaState, MfaEvent> context) {
@@ -52,17 +50,7 @@ public abstract class AbstractMfaStateGuard implements Guard<MfaState, MfaEvent>
      * StateContext에서 FactorContext 추출
      */
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
-        if (stateContextHelper != null) {
-            return stateContextHelper.extractFactorContext(context);
-        }
-
-        // Fallback: ExtendedState에서 직접 추출
-        Object factorContext = context.getExtendedState().getVariables().get("factorContext");
-        if (factorContext instanceof FactorContext) {
-            return (FactorContext) factorContext;
-        }
-
-        return null;
+        return StateContextHelper.getFactorContext(context);
     }
 
     /**

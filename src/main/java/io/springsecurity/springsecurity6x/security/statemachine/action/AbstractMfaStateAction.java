@@ -163,7 +163,7 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
      * StateContext 에서 FactorContext 추출
      */
     protected FactorContext extractFactorContext(StateContext<MfaState, MfaEvent> context) {
-        return stateContextHelper.extractFactorContext(context);
+        return StateContextHelper.getFactorContext(context);
     }
 
     /**

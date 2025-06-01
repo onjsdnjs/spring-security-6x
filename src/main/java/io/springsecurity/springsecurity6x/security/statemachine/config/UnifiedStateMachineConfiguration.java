@@ -114,23 +114,6 @@ public class UnifiedStateMachineConfiguration {
         return new MfaEventPublisher(applicationEventPublisher);
     }
 
-    /**
-     * MFA State Machine Service
-     */
-    @Bean
-    public MfaStateMachineService mfaStateMachineService(
-            FactorContextStateAdapter factorContextAdapter,
-            MfaEventPublisher eventPublisher,
-            RedisDistributedLockService distributedLockService) {
-
-        log.info("Creating MFA State Machine Service");
-
-        return new MfaStateMachineServiceImpl(
-                factorContextAdapter,
-                eventPublisher,
-                distributedLockService
-        );
-    }
 
     /**
      * State Change Listener (메트릭 수집용)

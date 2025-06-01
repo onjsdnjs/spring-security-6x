@@ -38,11 +38,9 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
-    private final StateMachinePool stateMachinePool;
     private final FactorContextStateAdapter factorContextAdapter;
     private final MfaEventPublisher eventPublisher;
     private final RedisDistributedLockService distributedLockService;
-    private final OptimisticLockManager optimisticLockManager;
 
     // 개선: 세션별 실행자 관리
     private final ConcurrentHashMap<String, ExecutorService> sessionExecutors = new ConcurrentHashMap<>();

@@ -6,24 +6,40 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.guard.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RedissonClient;
+import org.springframework.aop.framework.ProxyFactoryBean;
+import org.springframework.aop.target.CommonsPool2TargetSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.statemachine.StateMachine;
+import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.EnumStateMachineConfigurerAdapter;
+import org.springframework.statemachine.config.StateMachineBuilder;
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
+import org.springframework.statemachine.config.configurers.StateConfigurer;
+import org.springframework.statemachine.config.configurers.TransitionConfigurer;
+import org.springframework.statemachine.data.redis.RedisStateMachineContextRepository;
 import org.springframework.statemachine.listener.StateMachineListener;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
+import org.springframework.statemachine.persist.DefaultStateMachinePersister;
+import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
+import org.springframework.statemachine.persist.StateMachinePersister;
 import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
 
 @Slf4j
 @Configuration
-@EnableStateMachineFactory
+//@EnableStateMachineFactory
 @RequiredArgsConstructor
-public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdapter<MfaState, MfaEvent> {
+public class MfaStateMachineConfiguration {
 
     // Actions
     private final InitializeMfaAction initializeMfaAction;
@@ -37,18 +53,70 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
     private final AllFactorsCompletedGuard allFactorsCompletedGuard;
     private final RetryLimitGuard retryLimitGuard;
 
-    @Override
-    public void configure(StateMachineConfigurationConfigurer<MfaState, MfaEvent> config) throws Exception {
-        config
-                .withConfiguration()
-                .autoStartup(false)
-                .machineId("mfaStateMachine")
-                .listener(listener());
+    @Bean
+    public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(RedisConnectionFactory connectionFactory) {
+        RedisStateMachineContextRepository<MfaState, MfaEvent> repository =
+                new RedisStateMachineContextRepository<>(connectionFactory);
+        StateMachinePersist<MfaState, MfaEvent, String> persist = new RepositoryStateMachinePersist<>(repository);
+        return new DefaultStateMachinePersister<>(persist);
     }
 
-    @Override
-    public void configure(StateMachineStateConfigurer<MfaState, MfaEvent> states) throws Exception {
-        states
+    // 1. 상태 머신 템플릿 빈 (프로토타입)
+    @Bean(name = "mfaStateMachineTarget")
+    @Scope("prototype")
+    public StateMachine<MfaState, MfaEvent> mfaStateMachineTarget() throws Exception {
+        StateMachineBuilder.Builder<MfaState, MfaEvent> builder = StateMachineBuilder.builder();
+
+        configureMfaStateMachine(builder.configureConfiguration(),
+                builder.configureStates(),
+                builder.configureTransitions());
+
+        StateMachine<MfaState, MfaEvent> sm = builder.build();
+        // 프로토타입이므로 autoStartup(true)를 빌더에서 설정하거나,
+        // 풀에서 가져온 후 수동으로 시작해야 할 수 있음.
+        // 일반적으로 풀링될 객체는 autoStartup(true)로 설정.
+        return sm;
+    }
+
+    // 2. Commons Pool2 타겟 소스
+    @Bean
+    public CommonsPool2TargetSource mfaStateMachinePoolTargetSource() {
+        CommonsPool2TargetSource pool = new CommonsPool2TargetSource();
+        pool.setTargetBeanName("mfaStateMachineTarget"); // 프로토타입 빈 이름
+        pool.setMaxSize(10); // 풀 최대 크기 (설정값으로 관리 권장)
+
+        return pool;
+    }
+
+    // 3. 풀링된 상태 머신 프록시 빈 (요청 스코프 또는 다른 좁은 스코프)
+    // 이 빈을 MfaStateMachineServiceImpl에 주입하여 사용합니다.
+    // proxyMode = ScopedProxyMode.INTERFACES를 사용하거나 StateMachine 인터페이스로 캐스팅해야 할 수 있음.
+    // 또는 StateMachine<MfaState, MfaEvent> 타입으로 직접 반환 시도.
+    @Bean(name = "pooledMfaStateMachine")
+    @Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS) // 예시: 요청 스코프
+    // @Scope(value = "prototype", proxyMode = org.springframework.aop.scope.ScopedProxyMode.TARGET_CLASS) // 또는 매번 새 프록시(풀에서 가져옴)
+    public StateMachine<MfaState, MfaEvent> pooledMfaStateMachine(
+            @Qualifier("mfaStateMachinePoolTargetSource") CommonsPool2TargetSource targetSource) {
+        ProxyFactoryBean pfb = new ProxyFactoryBean();
+        pfb.setTargetSource(targetSource);
+        // StateMachine 인터페이스로 프록시 만들기 위해 인터페이스 지정
+        pfb.setInterfaces(StateMachine.class);
+        return (StateMachine<MfaState, MfaEvent>) pfb.getObject();
+    }
+
+    private void configureMfaStateMachine(
+            StateMachineConfigurationConfigurer<MfaState, MfaEvent> configurationConfigurer,
+            StateMachineStateConfigurer<MfaState, MfaEvent> statesConfigurer,
+            StateMachineTransitionConfigurer<MfaState, MfaEvent> transitionConfigurer) throws Exception {
+
+            configurationConfigurer
+                .withConfiguration()
+                .autoStartup(true)
+                .machineId("mfaPoolMachine")
+                .listener(listener());
+
+
+        statesConfigurer
                 .withStates()
                 .initial(MfaState.NONE)
                 .states(EnumSet.allOf(MfaState.class))
@@ -59,11 +127,8 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
                 .end(MfaState.MFA_NOT_REQUIRED)
                 .end(MfaState.MFA_SYSTEM_ERROR)
                 .end(MfaState.MFA_SESSION_INVALIDATED);
-    }
 
-    @Override
-    public void configure(StateMachineTransitionConfigurer<MfaState, MfaEvent> transitions) throws Exception {
-        transitions
+        transitionConfigurer
                 // 초기 전이 - PRIMARY_AUTHENTICATION_COMPLETED로 직접 이동
                 .withExternal()
                 .source(MfaState.NONE)

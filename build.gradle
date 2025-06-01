@@ -102,6 +102,8 @@ dependencies {
     // Kryo (State Machine 직렬화)
     implementation 'com.esotericsoftware:kryo:5.5.0'
     implementation 'org.springframework.statemachine:spring-statemachine-kryo:4.0.0'
+    implementation("org.redisson:redisson-spring-boot-starter:3.48.0")
+    implementation("org.springframework.statemachine:spring-statemachine-data-redis:4.0.0")
 
     //ModelMapper
     implementation("org.modelmapper:modelmapper:3.2.3")

@@ -16,17 +16,24 @@ import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStateChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.redisson.api.RedissonClient;
+import org.springframework.aop.framework.ProxyFactoryBean;
+import org.springframework.aop.target.CommonsPool2TargetSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.*;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachinePersist;
+import org.springframework.statemachine.config.StateMachineBuilder;
 import org.springframework.statemachine.config.StateMachineFactory;
+import org.springframework.statemachine.data.redis.RedisStateMachineContextRepository;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
+import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
 import org.springframework.statemachine.persist.StateMachinePersister;
 
 import java.util.concurrent.TimeUnit;
@@ -49,35 +56,11 @@ public class UnifiedStateMachineConfiguration {
     private final StateMachineProperties properties;
     private final AuthContextProperties authContextProperties;
 
-    /**
-     * State Machine Pool 설정
-     */
-    @Bean
-    public StateMachinePool stateMachinePool(
-            StateMachineFactory<MfaState, MfaEvent> stateMachineFactory,
-            StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister) {
-
-        int corePoolSize = properties.getPool() != null ? properties.getPool().getCoreSize() : 10;
-        int maxPoolSize = properties.getPool() != null ? properties.getPool().getMaxSize() : 50;
-        long keepAliveTime = properties.getPool() != null ? properties.getPool().getKeepAliveTime() : 10;
-
-        log.info("Creating State Machine Pool - Core: {}, Max: {}, KeepAlive: {}min",
-                corePoolSize, maxPoolSize, keepAliveTime);
-
-        return new StateMachinePool(
-                stateMachineFactory,
-                stateMachinePersister,
-                corePoolSize,
-                maxPoolSize,
-                keepAliveTime,
-                TimeUnit.MINUTES
-        );
-    }
 
     /**
      * State Machine 영속화 전략
      */
-    @Bean
+//    @Bean
     public StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist(
             @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
 
@@ -107,20 +90,20 @@ public class UnifiedStateMachineConfiguration {
     /**
      * State Machine Persister
      */
-    @Bean
+    /*@Bean
     public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(
             StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist) {
         return new DefaultStateMachinePersister<>(stateMachinePersist);
     }
 
-    /**
+    *//**
      * Optimistic Lock 관리자
-     */
+     *//*
     @Bean
     public OptimisticLockManager optimisticLockManager() {
         log.info("Creating Optimistic Lock Manager");
         return new OptimisticLockManager();
-    }
+    }*/
 
     /**
      * MFA 이벤트 발행자
@@ -136,20 +119,16 @@ public class UnifiedStateMachineConfiguration {
      */
     @Bean
     public MfaStateMachineService mfaStateMachineService(
-            StateMachinePool stateMachinePool,
             FactorContextStateAdapter factorContextAdapter,
             MfaEventPublisher eventPublisher,
-            RedisDistributedLockService distributedLockService,
-            OptimisticLockManager optimisticLockManager) {
+            RedisDistributedLockService distributedLockService) {
 
         log.info("Creating MFA State Machine Service");
 
         return new MfaStateMachineServiceImpl(
-                stateMachinePool,
                 factorContextAdapter,
                 eventPublisher,
-                distributedLockService,
-                optimisticLockManager
+                distributedLockService
         );
     }
 
@@ -157,25 +136,9 @@ public class UnifiedStateMachineConfiguration {
      * State Change Listener (메트릭 수집용)
      */
     @Bean
-    @ConditionalOnProperty(
-            prefix = "spring.auth.mfa",
-            name = "metrics-enabled",
-            havingValue = "true",
-            matchIfMissing = true
-    )
+    @ConditionalOnProperty(prefix = "spring.auth.mfa", name = "metrics-enabled", havingValue = "true", matchIfMissing = true)
     public MfaStateChangeListener mfaStateChangeListener() {
         log.info("Enabling MFA State Change Listener for metrics");
         return new MfaStateChangeListener();
     }
-
-    /**
-     * Redis Distributed Lock Service
-     */
-    @Bean
-    public RedisDistributedLockService redisDistributedLockService(
-            @Qualifier("stateMachineRedisTemplate") RedisTemplate<String, Object> redisTemplate) {
-        log.info("Creating Redis Distributed Lock Service");
-        return new RedisDistributedLockService(redisTemplate);
-    }
-
 }

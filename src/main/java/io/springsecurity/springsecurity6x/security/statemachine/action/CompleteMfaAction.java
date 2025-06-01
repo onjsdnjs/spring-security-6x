@@ -18,9 +18,8 @@ import java.util.stream.Collectors;
 @Component
 public class CompleteMfaAction extends AbstractMfaStateAction {
 
-    public CompleteMfaAction(FactorContextStateAdapter factorContextAdapter,
-                             StateContextHelper stateContextHelper) {
-        super(factorContextAdapter, stateContextHelper);
+    public CompleteMfaAction(FactorContextStateAdapter factorContextAdapter) {
+        super(factorContextAdapter);
     }
 
     @Override

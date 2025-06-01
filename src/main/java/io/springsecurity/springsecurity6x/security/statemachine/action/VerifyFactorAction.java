@@ -23,9 +23,8 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
     private final ApplicationContext applicationContext; // ApplicationContext 주입
 
     public VerifyFactorAction(FactorContextStateAdapter factorContextAdapter,
-                              StateContextHelper stateContextHelper,
                               ApplicationContext applicationContext) { // 생성자 수정
-        super(factorContextAdapter, stateContextHelper);
+        super(factorContextAdapter);
         this.applicationContext = applicationContext; // 주입 받은 ApplicationContext 할당
     }
 

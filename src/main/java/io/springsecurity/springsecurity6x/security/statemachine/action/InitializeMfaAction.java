@@ -17,9 +17,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class InitializeMfaAction extends AbstractMfaStateAction {
 
-    public InitializeMfaAction(FactorContextStateAdapter factorContextAdapter,
-                               StateContextHelper stateContextHelper) {
-        super(factorContextAdapter, stateContextHelper);
+    public InitializeMfaAction(FactorContextStateAdapter factorContextAdapter) {
+        super(factorContextAdapter);
     }
 
     @Override

@@ -16,9 +16,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class HandleFailureAction extends AbstractMfaStateAction {
 
-    public HandleFailureAction(FactorContextStateAdapter factorContextAdapter,
-                               StateContextHelper stateContextHelper) {
-        super(factorContextAdapter, stateContextHelper);
+    public HandleFailureAction(FactorContextStateAdapter factorContextAdapter) {
+        super(factorContextAdapter);
     }
 
     @Override

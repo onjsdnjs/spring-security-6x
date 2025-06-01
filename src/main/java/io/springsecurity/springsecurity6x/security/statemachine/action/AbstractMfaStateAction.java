@@ -19,7 +19,6 @@ import java.util.Map;
 public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEvent> {
 
     protected final FactorContextStateAdapter factorContextAdapter;
-    protected final StateContextHelper stateContextHelper;
 
     @Override
     public final void execute(StateContext<MfaState, MfaEvent> context) {

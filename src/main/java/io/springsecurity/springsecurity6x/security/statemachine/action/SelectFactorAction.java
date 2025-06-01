@@ -18,9 +18,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class SelectFactorAction extends AbstractMfaStateAction {
 
-    public SelectFactorAction(FactorContextStateAdapter factorContextAdapter,
-                              StateContextHelper stateContextHelper) {
-        super(factorContextAdapter, stateContextHelper);
+    public SelectFactorAction(FactorContextStateAdapter factorContextAdapter) {
+        super(factorContextAdapter);
     }
 
     @Override

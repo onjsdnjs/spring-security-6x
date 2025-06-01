@@ -16,9 +16,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class InitiateChallengeAction extends AbstractMfaStateAction {
 
-    public InitiateChallengeAction(FactorContextStateAdapter factorContextAdapter,
-                                   StateContextHelper stateContextHelper) {
-        super(factorContextAdapter, stateContextHelper);
+    public InitiateChallengeAction(FactorContextStateAdapter factorContextAdapter) {
+        super(factorContextAdapter);
     }
 
     @Override

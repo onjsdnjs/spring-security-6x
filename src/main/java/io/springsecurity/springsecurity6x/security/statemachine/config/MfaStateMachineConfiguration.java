@@ -41,9 +41,9 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
 
     @Override
     public void configure(StateMachineConfigurationConfigurer<MfaState, MfaEvent> config) throws Exception {
-        config
-                .withPersistence()
-                .runtimePersister(stateMachinePersister);
+//        config
+//                .withPersistence()
+//                .runtimePersister(stateMachinePersister);
         config
                 .withConfiguration()
                 .autoStartup(false)

@@ -7,11 +7,15 @@ import io.springsecurity.springsecurity6x.security.core.dsl.common.SafeHttpCusto
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.exceptionhandling.TokenAuthenticationEntryPoint;
-import io.springsecurity.springsecurity6x.security.handler.*;
-import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
-import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.security.filter.RestAuthenticationProvider;
+import io.springsecurity.springsecurity6x.security.handler.MfaFactorProcessingSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.OneTimeTokenCreationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
+import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
+import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
+import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,11 +32,8 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -50,6 +51,7 @@ public class PlatformSecurityConfig {
     private final EmailOneTimeTokenService emailOneTimeTokenService;
     private final MfaFactorProcessingSuccessHandler mfaFactorProcessingSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
     private final OneTimeTokenCreationSuccessHandler oneTimeTokenCreationSuccessHandler; // 최종 성공 및 단일 인증 성공 시 사용
+    private final RestAuthenticationProvider restAuthenticationProvider;
 
     @Bean
     public PlatformConfig platformDslConfig(IdentityDslRegistry<HttpSecurity> registry) throws Exception {
@@ -156,6 +158,7 @@ public class PlatformSecurityConfig {
                         .primaryAuthentication(primaryAuth -> primaryAuth
                                 .restLogin(rest -> rest
                                         .loginProcessingUrl("/api/auth/login") // 1차 인증 API 경로
+                                        .rawHttp(http -> http.authenticationProvider(restAuthenticationProvider))
                                         /*.successHandler(new PlatformAuthenticationSuccessHandler() {
                                             @Override
                                             public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication, TokenTransportResult result) throws IOException, ServletException {

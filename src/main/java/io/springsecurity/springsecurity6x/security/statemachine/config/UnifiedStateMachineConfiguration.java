@@ -22,10 +22,13 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.config.StateMachineFactory;
-import org.springframework.statemachine.data.redis.RedisStateMachineContextRepository;
+import org.springframework.statemachine.data.redis.*;
+import org.springframework.statemachine.kryo.KryoStateMachineSerialisationService;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
 import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
 import org.springframework.statemachine.persist.StateMachinePersister;
+import org.springframework.statemachine.persist.StateMachineRuntimePersister;
+import org.springframework.statemachine.support.DefaultStateMachineContext;
 
 /**
  * 통합 State Machine 설정 - 간소화 버전
@@ -77,12 +80,36 @@ public class UnifiedStateMachineConfiguration {
     }
 
     @Bean
+    public RedisRepositoryStateMachinePersist<MfaState, MfaEvent> stateMachinePersist(RedisStateMachineRepository redisStateMachineRepository) {
+       MfaKryoStateMachineSerialisationService kryoStateMachineSerialisationService =
+               new MfaKryoStateMachineSerialisationService();
+        return new RedisRepositoryStateMachinePersist(redisStateMachineRepository, kryoStateMachineSerialisationService);
+    }
+
+
+    @Bean
+    public StateMachinePersister<MfaState, MfaEvent,String> stateMachineRuntimePersister(
+            RedisRepositoryStateMachinePersist<MfaState, MfaEvent> stateMachinePersist) {
+        RedisPersistingStateMachineInterceptor<MfaState, MfaEvent, Object> stateMachineInterceptor
+                = new RedisPersistingStateMachineInterceptor<>(stateMachinePersist);
+        return new DefaultStateMachinePersister(stateMachineInterceptor);
+
+    }
+
+ /*   @Bean
+    public RedisStateMachinePersister<MfaState, MfaEvent> redisStateMachinePersister(
+            StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist) {
+        return new RedisStateMachinePersister<>(stateMachinePersist);
+    }*/
+
+
+   /* @Bean
     public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(RedisConnectionFactory connectionFactory) {
         RedisStateMachineContextRepository<MfaState, MfaEvent> repository =
                 new RedisStateMachineContextRepository<>(connectionFactory);
         StateMachinePersist<MfaState, MfaEvent, String> persist = new RepositoryStateMachinePersist<>(repository);
         return new DefaultStateMachinePersister<>(persist);
-    }
+    }*/
 
     // 1. 상태 머신 템플릿 빈 (프로토타입)
     @Bean(name = "mfaStateMachineTarget")

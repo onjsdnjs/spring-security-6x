@@ -80,9 +80,10 @@ public abstract class BaseAuthenticationFilter extends OncePerRequestFilter {
             LoginRequest login = mapper.readValue(request.getInputStream(), LoginRequest.class);
             validateLoginRequest(login);
 
-            UsernamePasswordAuthenticationToken authRequest =
-                    new UsernamePasswordAuthenticationToken(login.username(), login.password());
+            RestAuthenticationToken authRequest =
+                    new RestAuthenticationToken(login.username(), login.password());
             return authenticationManager.authenticate(authRequest);
+
         } catch (IOException e) {
             throw new RuntimeException("Authentication request body read failed", e);
         }

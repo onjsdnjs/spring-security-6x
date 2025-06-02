@@ -33,6 +33,10 @@ public class CustomUserDetails implements UserDetails {
                 .collect(Collectors.toList());
     }
 
+    public Users getUser() {
+        return user;
+    }
+
     @Override
     public String getPassword() {
         return user.getPassword();

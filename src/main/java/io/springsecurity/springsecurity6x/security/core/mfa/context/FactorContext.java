@@ -14,7 +14,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.Serializable;
+import java.io.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,16 +30,16 @@ import java.util.stream.Collectors;
 @Setter
 public class FactorContext implements FactorContextExtensions,Serializable{
 
-    private final String mfaSessionId;
-    private final AtomicReference<MfaState> currentMfaState;
+    private String mfaSessionId;
+    private AtomicReference<MfaState> currentMfaState;
     private final AtomicInteger version = new AtomicInteger(0);
 
     // 동시성 제어를 위한 ReadWriteLock 추가
-    private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
-    private final ReadWriteLock factorsLock = new ReentrantReadWriteLock();
+    private transient ReadWriteLock stateLock;
+    private transient ReadWriteLock factorsLock;
 
-    private final Authentication primaryAuthentication;
-    private final String username;
+    private Authentication primaryAuthentication;
+    private String username;
     private volatile int retryCount = 0;
     private volatile String lastError;
     private final long createdAt = System.currentTimeMillis();
@@ -58,6 +58,11 @@ public class FactorContext implements FactorContextExtensions,Serializable{
     private final List<MfaAttemptDetail> mfaAttemptHistory = new CopyOnWriteArrayList<>();
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
 
+    public FactorContext() {
+        this.stateLock = new ReentrantReadWriteLock();
+        this.factorsLock = new ReentrantReadWriteLock();
+    }
+
     public FactorContext(String mfaSessionId, Authentication primaryAuthentication, MfaState initialState, @Nullable String flowTypeName) {
         Assert.hasText(mfaSessionId, "mfaSessionId cannot be empty");
         Assert.notNull(primaryAuthentication, "primaryAuthentication cannot be null");
@@ -69,6 +74,8 @@ public class FactorContext implements FactorContextExtensions,Serializable{
         this.currentMfaState = new AtomicReference<>(initialState);
         this.flowTypeName = flowTypeName;
         this.lastActivityTimestamp = Instant.now();
+        this.stateLock = new ReentrantReadWriteLock();
+        this.factorsLock = new ReentrantReadWriteLock();
 
         log.debug("FactorContext (ID: {}) created for user '{}' with initial state: {}. Flow type: {}",
                 mfaSessionId, this.username, initialState, flowTypeName);

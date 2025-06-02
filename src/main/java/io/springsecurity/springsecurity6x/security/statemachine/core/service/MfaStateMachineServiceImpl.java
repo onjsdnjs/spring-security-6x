@@ -18,6 +18,7 @@ import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachineContext;
 import org.springframework.statemachine.StateMachineEventResult;
 import org.springframework.statemachine.persist.StateMachinePersister;
+import org.springframework.statemachine.persist.StateMachineRuntimePersister;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -140,9 +141,6 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             if (stateMachine.getState() == null || stateMachine.getState().getId() == null) {
                 log.warn("[MFA SM Service] [{}] SM 복원 후 상태가 null. 외부 FactorContext 상태({})로 SM 강제 리셋 및 시작.", sessionId, context.getCurrentState());
                 resetStateMachine(stateMachine, sessionId, context.getCurrentState(), context);
-            } else {
-                StateContextHelper.setFactorContext(stateMachine, context);
-                log.debug("[MFA SM Service] [{}] SM 정상 복원됨. 외부 FactorContext(버전:{}) SM에 설정.", sessionId, context.getVersion());
             }
 
             context.incrementVersion();
@@ -162,7 +160,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             if (result.contextFromSmAfterEvent() != null) {
                 context.changeState(result.smCurrentStateAfterEvent());
                 context.setVersion(result.contextFromSmAfterEvent().getVersion());
-                context.getAttributes().clear();
+//                context.getAttributes().clear();
                 context.getAttributes().putAll(result.contextFromSmAfterEvent().getAttributes());
             } else {
                 log.error("[MFA SM Service] [{}] 이벤트 처리 후 SM에서 FactorContext를 찾을 수 없음! 외부 context 상태만 SM 상태로 업데이트.", sessionId);
@@ -185,7 +183,9 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                     log.error("[MFA SM Service] [{}] 프록시에서 원본 StateMachine 객체를 가져오는 데 실패했습니다. 프록시 객체를 그대로 사용합니다.", sessionId, e);
                 }
             }
-
+//            StateMachineContext<MfaState, MfaEvent> newContext = new DefaultStateMachineContext<>(
+//                    stateMachine.getState().getId(), null, null, stateMachine.getExtendedState(), null, context.getMfaSessionId()
+//            );
             stateMachinePersister.persist(machineToPersist, sessionId);
             log.debug("[MFA SM Service] [{}] 상태 머신 영속화 완료. 최종 FactorContext 버전: {}", sessionId, context.getVersion());
 
@@ -293,7 +293,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
             resetStateMachine(stateMachine, sessionId, context.getCurrentState(), context); // SM 상태와 ExtendedState를 context와 동기화하고 시작
             log.debug("[MFA SM Service] [{}] 외부 FactorContext (버전:{}) SM에 동기화 후 영속화 시도.", sessionId, context.getVersion());
 
-            stateMachinePersister.persist(stateMachine, sessionId);
+//            stateMachinePersister.persist(stateMachine, sessionId);
             log.info("[MFA SM Service] [{}] FactorContext 명시적 저장 및 SM 영속화 완료. 버전: {}", sessionId, context.getVersion());
 
         } catch (InterruptedException e) {
@@ -353,7 +353,7 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
             resetStateMachine(stateMachine, sessionId, newState, factorContext); // SM 상태와 ExtendedState를 factorContext와 동기화하고 시작
 
-            stateMachinePersister.persist(stateMachine, sessionId);
+//            stateMachinePersister.persist(stateMachine, sessionId);
             log.info("[MFA SM Service] [{}] 상태만 업데이트 완료: {}. FactorContext 버전: {}", sessionId, newState, factorContext.getVersion());
             return true;
 

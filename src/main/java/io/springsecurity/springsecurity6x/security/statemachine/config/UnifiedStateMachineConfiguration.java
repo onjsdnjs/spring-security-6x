@@ -1,23 +1,15 @@
 package io.springsecurity.springsecurity6x.security.statemachine.config;
 
-import io.springsecurity.springsecurity6x.security.config.redis.RedisDistributedLockService;
 import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConfiguration;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
-import io.springsecurity.springsecurity6x.security.statemachine.adapter.FactorContextStateAdapter;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
-import io.springsecurity.springsecurity6x.security.statemachine.core.lock.OptimisticLockManager;
 import io.springsecurity.springsecurity6x.security.statemachine.core.persist.InMemoryStateMachinePersist;
 import io.springsecurity.springsecurity6x.security.statemachine.core.persist.ResilientRedisStateMachinePersist;
-import io.springsecurity.springsecurity6x.security.statemachine.core.pool.StateMachinePool;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineServiceImpl;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.statemachine.listener.MfaStateChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.aop.target.CommonsPool2TargetSource;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,14 +21,11 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachinePersist;
-import org.springframework.statemachine.config.StateMachineBuilder;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.data.redis.RedisStateMachineContextRepository;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
 import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
 import org.springframework.statemachine.persist.StateMachinePersister;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * 통합 State Machine 설정 - 간소화 버전
@@ -87,23 +76,47 @@ public class UnifiedStateMachineConfiguration {
         }
     }
 
-    /**
-     * State Machine Persister
-     */
-    /*@Bean
-    public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(
-            StateMachinePersist<MfaState, MfaEvent, String> stateMachinePersist) {
-        return new DefaultStateMachinePersister<>(stateMachinePersist);
+    @Bean
+    public StateMachinePersister<MfaState, MfaEvent, String> stateMachinePersister(RedisConnectionFactory connectionFactory) {
+        RedisStateMachineContextRepository<MfaState, MfaEvent> repository =
+                new RedisStateMachineContextRepository<>(connectionFactory);
+        StateMachinePersist<MfaState, MfaEvent, String> persist = new RepositoryStateMachinePersist<>(repository);
+        return new DefaultStateMachinePersister<>(persist);
     }
 
-    *//**
-     * Optimistic Lock 관리자
-     *//*
+    // 1. 상태 머신 템플릿 빈 (프로토타입)
+    @Bean(name = "mfaStateMachineTarget")
+    @Scope("prototype")
+    public StateMachine<MfaState, MfaEvent> mfaStateMachineTarget(StateMachineFactory<MfaState, MfaEvent> stateMachineFactory) throws Exception {
+        return stateMachineFactory.getStateMachine();
+    }
+
+    // 2. Commons Pool2 타겟 소스
     @Bean
-    public OptimisticLockManager optimisticLockManager() {
-        log.info("Creating Optimistic Lock Manager");
-        return new OptimisticLockManager();
-    }*/
+    public CommonsPool2TargetSource poolTargetSource() {
+        CommonsPool2TargetSource pool = new CommonsPool2TargetSource();
+        pool.setTargetBeanName("mfaStateMachineTarget"); // 프로토타입 빈 이름
+        pool.setMaxSize(10); // 풀 최대 크기 (설정값으로 관리 권장)
+
+        return pool;
+    }
+
+    // 3. 풀링된 상태 머신 프록시 빈 (요청 스코프 또는 다른 좁은 스코프)
+    // 이 빈을 MfaStateMachineServiceImpl에 주입하여 사용합니다.
+    // proxyMode = ScopedProxyMode.INTERFACES를 사용하거나 StateMachine 인터페이스로 캐스팅해야 할 수 있음.
+    // 또는 StateMachine<MfaState, MfaEvent> 타입으로 직접 반환 시도.
+    @Bean(name = "pooledMfaStateMachine")
+    @Primary
+    @Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS) // 예시: 요청 스코프
+    // @Scope(value = "prototype", proxyMode = ScopedProxyMode.TARGET_CLASS) // 또는 매번 새 프록시(풀에서 가져옴)
+    public StateMachine<MfaState, MfaEvent> pooledMfaStateMachine(@Qualifier("poolTargetSource") CommonsPool2TargetSource targetSource) {
+        ProxyFactoryBean pfb = new ProxyFactoryBean();
+        pfb.setTargetSource(targetSource);
+        pfb.setInterfaces(StateMachine.class);
+        return (StateMachine<MfaState, MfaEvent>) pfb.getObject();
+    }
+
+
 
     /**
      * MFA 이벤트 발행자

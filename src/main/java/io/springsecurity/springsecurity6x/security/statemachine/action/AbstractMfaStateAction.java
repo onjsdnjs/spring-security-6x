@@ -9,6 +9,7 @@ import io.springsecurity.springsecurity6x.security.statemachine.exception.MfaSta
 import io.springsecurity.springsecurity6x.security.statemachine.support.StateContextHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.action.Action;
 
@@ -151,9 +152,12 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
      * StateContext 에서 세션 ID 추출
      */
     protected String extractSessionId(StateContext<MfaState, MfaEvent> context) {
-        String sessionId = (String) context.getMessageHeader("mfaSessionId");
+        String sessionId = StateContextHelper.getFactorContext(context).getMfaSessionId();
         if (sessionId == null) {
-            sessionId = (String) context.getExtendedState().getVariables().get("mfaSessionId");
+            sessionId = (String) context.getMessageHeader("mfaSessionId");
+        }
+        if (sessionId == null) {
+            sessionId = (String) context.getExtendedState().getVariables().get("sessionId");
         }
         return sessionId;
     }
@@ -170,7 +174,6 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
      */
     protected void updateStateMachineVariables(StateContext<MfaState, MfaEvent> context,
                                                FactorContext factorContext) {
-        Map<Object, Object> variables = factorContextAdapter.toStateMachineVariables(factorContext);
-        context.getExtendedState().getVariables().putAll(variables);
+        StateContextHelper.setFactorContext(context, factorContext);
     }
 }

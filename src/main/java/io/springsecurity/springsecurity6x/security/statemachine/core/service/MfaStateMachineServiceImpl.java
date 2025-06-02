@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.ExtendedState;
@@ -63,27 +64,36 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     }
 
     private void resetStateMachine(StateMachine<MfaState, MfaEvent> stateMachine, String machineId, MfaState targetState, FactorContext factorContext) {
-        // 상태 머신이 어떤 상태에 있거나 시작된 것으로 간주되면 중지
         if (stateMachine.getState() != null) {
             stateMachine.stopReactively().block();
             log.debug("[MFA SM Service] [{}] SM 리셋 전 중지 완료.", machineId);
         }
 
-        ExtendedState extendedState = stateMachine.getExtendedState();
-        extendedState.getVariables().clear();
-        if (factorContext != null) {
-            StateContextHelper.setFactorContext(extendedState, factorContext);
-            log.debug("[MFA SM Service] [{}] 리셋 중 FactorContext (버전:{})를 ExtendedState에 설정.", machineId, factorContext.getVersion());
-        }
+        // 1. 리셋을 위한 기본 ExtendedState 준비 (내용은 비워져 있을 수 있음)
+        //    resetStateMachineReactively는 이 extendedState 객체 자체를 내부적으로 사용할 수도 있고,
+        //    아니면 단순히 내부 변수 초기화에만 사용할 수도 있음.
+        ExtendedState preparedExtendedStateForReset = stateMachine.getExtendedState(); // 현재 SM의 ExtendedState 참조 가져오기
+        preparedExtendedStateForReset.getVariables().clear(); // 내용 비우기 (선택적, reset에서 어차피 새로 설정될 수 있음)
 
         StateMachineContext<MfaState, MfaEvent> newContext = new DefaultStateMachineContext<>(
-                targetState, null, null, extendedState, null, machineId
+                targetState, null, null, preparedExtendedStateForReset, null, machineId
         );
+
+        // 2. 상태 머신 리셋
         stateMachine.getStateMachineAccessor()
                 .doWithAllRegions(access -> access.resetStateMachineReactively(newContext).block());
         log.debug("[MFA SM Service] [{}] SM 초기 상태({})로 리셋 완료.", machineId, targetState);
 
-        // 리셋 후에는 항상 SM을 시작
+        // 3. ✨ 리셋 후 FactorContext를 ExtendedState에 다시 설정 (중요) ✨
+        //    resetStateMachineReactively가 ExtendedState를 내부적으로 새로 만들거나 비울 수 있으므로,
+        //    리셋 작업이 완료된 후의 ExtendedState에 FactorContext를 확실하게 넣어줍니다.
+        if (factorContext != null) {
+            ExtendedState currentExtendedStateAfterReset = stateMachine.getExtendedState(); // 리셋된 SM의 ExtendedState 참조
+            StateContextHelper.setFactorContext(currentExtendedStateAfterReset, factorContext);
+            log.debug("[MFA SM Service] [{}] 리셋 후 FactorContext (버전:{})를 ExtendedState에 설정.", machineId, factorContext.getVersion());
+        }
+
+        // 4. 리셋 후에는 항상 SM을 시작
         stateMachine.startReactively().block();
         log.debug("[MFA SM Service] [{}] 리셋된 SM 시작 완료.", machineId);
     }

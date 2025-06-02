@@ -29,8 +29,7 @@ public class VerifyFactorAction extends AbstractMfaStateAction {
     }
 
     @Override
-    protected void doExecute(StateContext<MfaState, MfaEvent> context,
-                             FactorContext factorContext) throws Exception {
+    protected void doExecute(StateContext<MfaState, MfaEvent> context, FactorContext factorContext){
         String sessionId = factorContext.getMfaSessionId();
         String currentStepId = factorContext.getCurrentStepId();
 

@@ -9,8 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.ExtendedState;
@@ -22,7 +22,7 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration; // Duration import
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -102,73 +102,19 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
     @Override
     public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
         String sessionId = context.getMfaSessionId();
-        String lockKey = getLockKey(sessionId);
-        RLock lock = redissonClient.getLock(lockKey);
-        boolean lockAcquired = false;
-        StateMachine<MfaState, MfaEvent> stateMachine = null;
-
         try {
-            log.debug("[MFA SM Service] [{}] SM 초기화 위한 락 획득 시도.", sessionId);
-            lockAcquired = lock.tryLock(LOCK_WAIT_TIME_SECONDS, LOCK_LEASE_TIME_SECONDS, TimeUnit.SECONDS);
-
-            if (!lockAcquired) {
-                log.warn("[MFA SM Service] [{}] SM 초기화 위한 락 획득 실패.", sessionId);
-                throw new MfaStateMachineException("Failed to acquire lock for State Machine initialization: " + sessionId);
-            }
-            log.debug("[MFA SM Service] [{}] SM 초기화 위한 락 획득.", sessionId);
-
-            stateMachine = stateMachineProvider.getObject();
-
+            StateMachine<MfaState, MfaEvent> stateMachine = stateMachineProvider.getObject();
             resetStateMachine(stateMachine, sessionId, context.getCurrentState(), context); // 여기서 SM 시작 포함
             log.info("[MFA SM Service] [{}] SM 초기화 및 FactorContext와 동기화 완료. SM 상태: {}, FactorContext 버전: {}",
                     sessionId, stateMachine.getState().getId(), context.getVersion());
 
-            Message<MfaEvent> message = createEventMessage(MfaEvent.PRIMARY_AUTH_SUCCESS, context, request);
+            sendEvent(MfaEvent.PRIMARY_AUTH_SUCCESS, context, request);
 
-            log.debug("[MFA SM Service] [{}] 이벤트 전송 (initialize): {}", sessionId, message.getPayload());
-            Boolean accepted = stateMachine.sendEvent(Mono.just(message))
-                    .map(result -> result.getResultType() == StateMachineEventResult.ResultType.ACCEPTED)
-                    .blockFirst(Duration.ofSeconds(EVENT_PROCESSING_TIMEOUT_SECONDS)); // Duration 타입 인자 사용
-
-            boolean eventAccepted = Boolean.TRUE.equals(accepted); // Null-safe check
-
-            MfaState smCurrentStateAfterEvent = stateMachine.getState().getId();
-            FactorContext contextFromSmAfterEvent = StateContextHelper.getFactorContext(stateMachine);
-
-            if (!eventAccepted) {
-                log.warn("[MFA SM Service] [{}] SM 초기화 중 PRIMARY_AUTH_SUCCESS 이벤트가 수락되지 않음. 현재 SM 상태: {}", sessionId, smCurrentStateAfterEvent);
-            } else {
-                log.info("[MFA SM Service] [{}] 이벤트 {} 처리 후 상태: {}", sessionId, message.getPayload(), smCurrentStateAfterEvent);
-            }
-
-            if (contextFromSmAfterEvent != null) {
-                context.changeState(smCurrentStateAfterEvent);
-                context.setVersion(contextFromSmAfterEvent.getVersion());
-                context.getAttributes().clear();
-                context.getAttributes().putAll(contextFromSmAfterEvent.getAttributes());
-            } else {
-                log.warn("[MFA SM Service] [{}] 이벤트 처리 후 SM에서 FactorContext를 찾을 수 없음. 외부 context 상태만 SM 상태로 업데이트.", sessionId);
-                context.changeState(smCurrentStateAfterEvent);
-            }
-
-            context.incrementVersion();
-            StateContextHelper.setFactorContext(stateMachine, context);
-
-            stateMachinePersister.persist(stateMachine, sessionId);
             log.debug("[MFA SM Service] [{}] SM 영속화 완료 (initialize). 최종 FactorContext 버전: {}", sessionId, context.getVersion());
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("[MFA SM Service] [{}] SM 초기화 중 인터럽트 발생.", sessionId, e);
-            throw new MfaStateMachineException("State Machine initialization interrupted: " + sessionId, e);
         } catch (Exception e) {
             log.error("[MFA SM Service] [{}] SM 초기화 중 오류 발생.", sessionId, e);
             throw new MfaStateMachineException("Error during State Machine initialization for " + sessionId + ": " + e.getMessage(), e);
-        } finally {
-            if (lockAcquired && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-                log.debug("[MFA SM Service] [{}] SM 초기화 락 해제.", sessionId);
-            }
         }
     }
 
@@ -204,38 +150,46 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
             Message<MfaEvent> message = createEventMessage(event, context, request);
             log.debug("[MFA SM Service] [{}] 이벤트 전송: {}", sessionId, message.getPayload());
-            Boolean accepted = stateMachine.sendEvent(Mono.just(message))
-                    .map(result -> result.getResultType() == StateMachineEventResult.ResultType.ACCEPTED)
-                    .blockFirst(Duration.ofSeconds(EVENT_PROCESSING_TIMEOUT_SECONDS));
 
-            boolean eventAccepted = Boolean.TRUE.equals(accepted);
+            Result result = sendEvent(stateMachine, message);
 
-            MfaState smCurrentStateAfterEvent = stateMachine.getState().getId();
-            FactorContext contextFromSmAfterEvent = StateContextHelper.getFactorContext(stateMachine);
-
-            if (eventAccepted) {
-                log.info("[MFA SM Service] [{}] 이벤트 {} 처리 후 SM 상태: {}", sessionId, message.getPayload(), smCurrentStateAfterEvent);
+            if (result.eventAccepted()) {
+                log.info("[MFA SM Service] [{}] 이벤트 {} 처리 후 SM 상태: {}", sessionId, message.getPayload(), result.smCurrentStateAfterEvent());
             } else {
-                log.warn("[MFA SM Service] [{}] 이벤트 ({})가 현재 SM 상태 ({})에서 수락되지 않음.", sessionId, event, smCurrentStateAfterEvent);
+                log.warn("[MFA SM Service] [{}] 이벤트 ({})가 현재 SM 상태 ({})에서 수락되지 않음.", sessionId, event, result.smCurrentStateAfterEvent());
             }
 
-            if (contextFromSmAfterEvent != null) {
-                context.changeState(smCurrentStateAfterEvent);
-                context.setVersion(contextFromSmAfterEvent.getVersion());
+            if (result.contextFromSmAfterEvent() != null) {
+                context.changeState(result.smCurrentStateAfterEvent());
+                context.setVersion(result.contextFromSmAfterEvent().getVersion());
                 context.getAttributes().clear();
-                context.getAttributes().putAll(contextFromSmAfterEvent.getAttributes());
-                // ... 기타 필드 동기화 ...
+                context.getAttributes().putAll(result.contextFromSmAfterEvent().getAttributes());
             } else {
                 log.error("[MFA SM Service] [{}] 이벤트 처리 후 SM에서 FactorContext를 찾을 수 없음! 외부 context 상태만 SM 상태로 업데이트.", sessionId);
-                context.changeState(smCurrentStateAfterEvent);
+                context.changeState(result.smCurrentStateAfterEvent());
             }
 
             StateContextHelper.setFactorContext(stateMachine, context);
 
-            stateMachinePersister.persist(stateMachine, sessionId);
+            StateMachine<MfaState, MfaEvent> machineToPersist = stateMachine;
+            if (stateMachine instanceof Advised) { // 프록시 객체인지 확인
+                try {
+                    Object target = ((Advised) stateMachine).getTargetSource().getTarget();
+                    if (target instanceof StateMachine) {
+                        machineToPersist = (StateMachine<MfaState, MfaEvent>) ((Advised) target).getTargetSource().getTarget();
+                        log.debug("[MFA SM Service] [{}] 원본 StateMachine 객체를 가져와서 영속화합니다.", sessionId);
+                    } else {
+                        log.warn("[MFA SM Service] [{}] 프록시의 원본 객체가 StateMachine 타입이 아닙니다. 프록시 객체를 그대로 사용합니다.", sessionId);
+                    }
+                } catch (Exception e) {
+                    log.error("[MFA SM Service] [{}] 프록시에서 원본 StateMachine 객체를 가져오는 데 실패했습니다. 프록시 객체를 그대로 사용합니다.", sessionId, e);
+                }
+            }
+
+            stateMachinePersister.persist(machineToPersist, sessionId);
             log.debug("[MFA SM Service] [{}] 상태 머신 영속화 완료. 최종 FactorContext 버전: {}", sessionId, context.getVersion());
 
-            return eventAccepted;
+            return result.eventAccepted();
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -250,6 +204,22 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
                 log.debug("[MFA SM Service] [{}] 이벤트 ({}) 처리 락 해제.", sessionId, event);
             }
         }
+    }
+
+    private static Result sendEvent(StateMachine<MfaState, MfaEvent> stateMachine, Message<MfaEvent> message) {
+
+        Boolean accepted = stateMachine.sendEvent(Mono.just(message))
+                .map(result -> result.getResultType() == StateMachineEventResult.ResultType.ACCEPTED)
+                .blockFirst(Duration.ofSeconds(EVENT_PROCESSING_TIMEOUT_SECONDS));
+
+        boolean eventAccepted = Boolean.TRUE.equals(accepted);
+
+        MfaState smCurrentStateAfterEvent = stateMachine.getState().getId();
+        FactorContext contextFromSmAfterEvent = StateContextHelper.getFactorContext(stateMachine);
+        return new Result(eventAccepted, smCurrentStateAfterEvent, contextFromSmAfterEvent);
+    }
+
+    private record Result(boolean eventAccepted, MfaState smCurrentStateAfterEvent, FactorContext contextFromSmAfterEvent) {
     }
 
     @Override

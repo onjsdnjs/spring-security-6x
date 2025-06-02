@@ -15,6 +15,7 @@ import org.springframework.statemachine.config.builders.StateMachineStateConfigu
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
 import org.springframework.statemachine.listener.StateMachineListener;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
+import org.springframework.statemachine.persist.StateMachineRuntimePersister;
 import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
@@ -32,6 +33,7 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
     private final VerifyFactorAction verifyFactorAction;
     private final CompleteMfaAction completeMfaAction;
     private final HandleFailureAction handleFailureAction;
+    private StateMachineRuntimePersister<MfaState, MfaEvent, String> stateMachinePersister;
 
     // Guards
     private final AllFactorsCompletedGuard allFactorsCompletedGuard;
@@ -39,6 +41,9 @@ public class MfaStateMachineConfiguration extends EnumStateMachineConfigurerAdap
 
     @Override
     public void configure(StateMachineConfigurationConfigurer<MfaState, MfaEvent> config) throws Exception {
+        config
+                .withPersistence()
+                .runtimePersister(stateMachinePersister);
         config
                 .withConfiguration()
                 .autoStartup(false)

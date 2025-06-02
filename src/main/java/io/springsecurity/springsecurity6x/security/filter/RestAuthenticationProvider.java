@@ -1,7 +1,9 @@
 package io.springsecurity.springsecurity6x.security.filter;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.service.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -16,6 +18,7 @@ public class RestAuthenticationProvider implements AuthenticationProvider {
 
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final ModelMapper modelMapper;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -27,8 +30,8 @@ public class RestAuthenticationProvider implements AuthenticationProvider {
         if(!passwordEncoder.matches(password, userDetails.getPassword())){
             throw new BadCredentialsException("Invalid password");
         }
-
-        return new RestAuthenticationToken(userDetails.getUser(), userDetails.getPassword(), userDetails.getAuthorities());
+        UserDto userDto = modelMapper.map(userDetails.getUser(), UserDto.class);
+        return new RestAuthenticationToken(userDto, userDetails.getPassword(), userDetails.getAuthorities());
     }
 
     @Override

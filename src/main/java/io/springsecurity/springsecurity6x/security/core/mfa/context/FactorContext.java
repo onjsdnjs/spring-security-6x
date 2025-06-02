@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
@@ -70,7 +71,7 @@ public class FactorContext implements FactorContextExtensions,Serializable{
 
         this.mfaSessionId = mfaSessionId;
         this.primaryAuthentication = primaryAuthentication;
-        this.username = primaryAuthentication.getName();
+        this.username = ((UserDto)primaryAuthentication.getPrincipal()).getUsername();
         this.currentMfaState = new AtomicReference<>(initialState);
         this.flowTypeName = flowTypeName;
         this.lastActivityTimestamp = Instant.now();

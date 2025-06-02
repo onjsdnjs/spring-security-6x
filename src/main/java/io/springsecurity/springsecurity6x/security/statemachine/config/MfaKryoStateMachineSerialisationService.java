@@ -60,7 +60,7 @@ public class MfaKryoStateMachineSerialisationService extends KryoStateMachineSer
         kryo.register(UsernamePasswordAuthenticationToken.class); 
         try {
             Class<?> unmodifiableListClass = Collections.unmodifiableList(new java.util.ArrayList<>()).getClass();
-            kryo.register(unmodifiableListClass);
+            kryo.register(unmodifiableListClass, new UnmodifiableListSerializer());
             Class<?> emptyListClass = Collections.emptyList().getClass();
             if (kryo.getRegistration(emptyListClass) == null) {
                 kryo.register(emptyListClass);

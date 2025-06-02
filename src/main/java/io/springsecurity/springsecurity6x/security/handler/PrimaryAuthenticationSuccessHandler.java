@@ -1,11 +1,13 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.service.CustomUserDetails;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
@@ -61,45 +63,32 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        log.info("UnifiedAuthenticationSuccessHandler: Processing authentication success for user: {} using {} repository",
-                authentication.getName(), sessionRepository.getRepositoryType());
+        log.info("Processing authentication success for user: {}", authentication.getName());
 
-        // State Machine 에서 FactorContext 로드 (Repository 패턴)
-        FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
-        String username = authentication.getName();
-
-        // FactorContext 유효성 검증
-        if (factorContext == null || !Objects.equals(factorContext.getUsername(), username)) {
-            log.error("Invalid FactorContext state after primary authentication using {} repository",
-                    sessionRepository.getRepositoryType());
-            handleInvalidContext(response, request, "INVALID_CONTEXT", "인증 컨텍스트가 유효하지 않습니다.", authentication);
+        String username = ((UserDto) authentication.getPrincipal()).getUsername();
+        String mfaSessionId = sessionRepository.getSessionId(request); // 필터에서 저장한 세션 ID 가져오기
+        if (mfaSessionId == null) {
+            handleInvalidContext(response, request, "SESSION_ID_NOT_FOUND", "MFA 세션 ID를 찾을 수 없습니다.", authentication);
             return;
         }
 
-        //Repository를 통한 세션 검증
-        if (!sessionRepository.existsSession(factorContext.getMfaSessionId())) {
-            log.warn("MFA session {} not found in {} repository during authentication success",
-                    factorContext.getMfaSessionId(), sessionRepository.getRepositoryType());
-            handleInvalidContext(response, request, "SESSION_NOT_FOUND",
-                    "MFA 세션을 찾을 수 없습니다.", authentication);
+        FactorContext factorContext = stateMachineIntegrator.loadFactorContext(mfaSessionId); // SM 에서 최신 FactorContext 로드
+        if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
+            log.error("Invalid FactorContext or username mismatch after primary authentication.");
+            handleInvalidContext(response, request, "INVALID_CONTEXT", "인증 컨텍스트가 유효하지 않거나 사용자 정보가 일치하지 않습니다.", authentication);
             return;
         }
 
-        // State Machine과 동기화
-        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-
-        //MFA 정책 평가 (이벤트 전송은 PolicyProvider 에서)
-        log.debug("Evaluating MFA requirement for user: {}", username);
         mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, factorContext);
 
-        // 변경된 FactorContext를 State Machine에 명시적으로 저장
-        stateMachineIntegrator.saveFactorContext(factorContext);
+        FactorContext finalFactorContext = stateMachineIntegrator.loadFactorContext(mfaSessionId);
+        if (finalFactorContext == null) { // 매우 예외적인 상황
+            handleInvalidContext(response, request, "CONTEXT_LOST", "MFA 처리 중 컨텍스트 유실.", authentication);
+            return;
+        }
 
-        //정책 평가 후 State Machine과 재동기화
-//        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
-
-        //현재 상태에 따른 응답 생성 (상태 체크 로직 개선)
-        MfaState currentState = factorContext.getCurrentState();
+        // 4. 최종 상태에 따른 응답 생성
+        MfaState currentState = finalFactorContext.getCurrentState();
 
         switch (currentState) {
             case MFA_NOT_REQUIRED, MFA_SUCCESSFUL:

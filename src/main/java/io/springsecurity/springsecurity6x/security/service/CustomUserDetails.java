@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.service;
 
 import io.springsecurity.springsecurity6x.entity.Users;
+import io.springsecurity.springsecurity6x.security.filter.MfaGrantedAuthority;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.StringUtils;
 
@@ -29,7 +29,7 @@ public class CustomUserDetails implements UserDetails {
         return Arrays.stream(roles.split(","))
                 .map(String::trim)
                 .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
-                .map(SimpleGrantedAuthority::new)
+                .map(MfaGrantedAuthority::new)
                 .collect(Collectors.toList());
     }
 

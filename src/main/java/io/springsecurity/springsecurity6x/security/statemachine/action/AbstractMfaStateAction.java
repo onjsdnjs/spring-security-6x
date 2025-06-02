@@ -52,6 +52,7 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
                     this.getClass().getSimpleName(), sessionId, e.getMessage());
 
             // 1. 에러 정보를 컨텍스트에 저장
+            assert factorContext != null;
             factorContext.setLastError(e.getMessage());
             factorContext.setAttribute("lastErrorType", e.getClass().getSimpleName());
             factorContext.setAttribute("lastErrorTime", System.currentTimeMillis());
@@ -114,8 +115,10 @@ public abstract class AbstractMfaStateAction implements Action<MfaState, MfaEven
         // 예외 타입에 따른 처리
         if (e instanceof InvalidFactorException) {
             context.getStateMachine().sendEvent(MfaEvent.SYSTEM_ERROR);
+
         } else if (e instanceof ChallengeGenerationException) {
             context.getStateMachine().sendEvent(MfaEvent.CHALLENGE_INITIATION_FAILED);
+
         } else if (e instanceof FactorVerificationException) {
             context.getStateMachine().sendEvent(MfaEvent.FACTOR_VERIFICATION_FAILED);
         }

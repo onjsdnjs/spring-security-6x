@@ -4,10 +4,8 @@ import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContex
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.matcher.MfaRequestType;
-import io.springsecurity.springsecurity6x.security.filter.matcher.MfaUrlMatcher;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.properties.MfaSettings;
-import io.springsecurity.springsecurity6x.security.statemachine.core.service.MfaStateMachineService;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.utils.MfaTimeUtils;
@@ -24,7 +22,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 완전 일원화된 State Machine 기반 MFA 요청 처리기
@@ -177,7 +174,7 @@ public class StateMachineAwareMfaRequestHandler implements MfaRequestHandler {
      */
     private void ensureStateMachineSynchronization(FactorContext context, HttpServletRequest request) {
         try {
-            stateMachineIntegrator.syncStateWithStateMachine(context, request);
+            stateMachineIntegrator.refreshFactorContextFromStateMachine(context, request);
             log.debug("State Machine synchronization completed for session: {}", context.getMfaSessionId());
         } catch (Exception e) {
             log.error("State Machine synchronization failed for session: {}", context.getMfaSessionId(), e);

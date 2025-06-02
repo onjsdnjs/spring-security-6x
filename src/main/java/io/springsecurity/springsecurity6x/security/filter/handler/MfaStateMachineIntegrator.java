@@ -46,14 +46,6 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 완전 일원화: State Machine 초기화 (기존 메서드 시그니처 완전 유지)
-     */
-    public void initializeStateMachine(FactorContext context, HttpServletRequest request) {
-        // Response가 없는 경우 - 기존 호환성 유지
-        initializeStateMachine(context, request, null);
-    }
-
-    /**
      * State Machine 초기화 - Response 포함 버전 (Redis 쿠키 설정 지원)
      */
     public void initializeStateMachine(FactorContext context, HttpServletRequest request, HttpServletResponse response) {
@@ -116,75 +108,89 @@ public class MfaStateMachineIntegrator {
     }
 
     /**
-     * 조건부 동기화 - 성능 최적화 및 완전한 동기화
+     * 외부 FactorContext 객체를 State Machine의 최신 상태로 갱신합니다.
+     * 이 메서드는 주로 외부에서 가져온 FactorContext가 최신 상태인지 확인하고 싶거나,
+     * SM 내부의 Action 등으로 변경된 최신 내용을 외부 FactorContext 객체에 반영하고자 할 때 사용합니다.
+     *
+     * @param contextToUpdate 최신 상태로 갱신할 외부 FactorContext 객체
+     * @param request 현재 HttpServletRequest (세션 ID 추출 등에 사용될 수 있음)
      */
-    public void syncStateWithStateMachine(FactorContext context, HttpServletRequest request) {
-        String sessionId = context.getMfaSessionId();
+    public void refreshFactorContextFromStateMachine(FactorContext contextToUpdate, HttpServletRequest request) {
+        // 메서드 이름을 refreshFactorContextFromStateMachine 등으로 변경하여 역할을 명확히 함
+        String sessionId = contextToUpdate.getMfaSessionId();
 
-        // 개선: 최근 동기화 시간 및 버전 확인
-        if (!needsSync(sessionId, context.getVersion())) {
-            log.debug("Skipping sync - context already up-to-date for session: {}", sessionId);
-            return;
-        }
-
-        log.debug("Syncing FactorContext with unified State Machine for session: {}", sessionId);
+        log.debug("Refreshing FactorContext from State Machine for session: {}", sessionId);
 
         try {
-            FactorContext latestContext = stateMachineService.getFactorContext(sessionId);
+            // 항상 StateMachineService를 통해 최신 FactorContext를 가져옵니다.
+            FactorContext latestContextFromSm = stateMachineService.getFactorContext(sessionId);
 
-            if (latestContext != null) {
-                // 개선: 버전 비교로 동기화 필요성 재확인
-                if (context.getVersion() >= latestContext.getVersion()) {
-                    log.debug("Context version already up-to-date for session: {} (current: {}, latest: {})",
-                            sessionId, context.getVersion(), latestContext.getVersion());
-                    updateSyncState(sessionId, context.getVersion());
-                    return;
+            if (latestContextFromSm != null) {
+                // 버전 비교: SM 내부의 것이 더 최신이거나 같을 때만 외부 context를 업데이트합니다.
+                // (외부 context가 어떤 이유로 더 최신 버전을 가지고 있다면 업데이트하지 않을 수 있으나,
+                //  일반적으로 SM에 있는 것이 최신이라고 가정합니다.)
+                if (contextToUpdate.getVersion() <= latestContextFromSm.getVersion() ||
+                        !Objects.equals(contextToUpdate.calculateStateHash(), latestContextFromSm.calculateStateHash()) ) { // 상태 해시 비교 추가
+
+                    log.info("Updating local FactorContext for session: {} from SM. Local version: {}, SM version: {}. Local state: {}, SM state: {}",
+                            sessionId, contextToUpdate.getVersion(), latestContextFromSm.getVersion(),
+                            contextToUpdate.getCurrentState(), latestContextFromSm.getCurrentState());
+
+                    // 외부 contextToUpdate 객체의 내용을 latestContextFromSm의 내용으로 갱신합니다.
+                    // FactorContext에 deep copy 또는 updateFrom(FactorContext source) 메서드가 있다면 활용합니다.
+                    // 여기서는 주요 필드를 직접 복사하는 예시를 보여줍니다.
+
+                    // 상태 동기화 (FactorContext 내부 changeState는 버전업 등을 유발할 수 있으므로 주의)
+                    if (contextToUpdate.getCurrentState() != latestContextFromSm.getCurrentState()) {
+                        contextToUpdate.changeState(latestContextFromSm.getCurrentState()); // 이 메서드가 버전을 올릴 수 있음
+                    }
+
+                    // 버전은 SM 에서 가져온 것을 기준으로 설정
+                    contextToUpdate.setVersion(latestContextFromSm.getVersion());
+
+                    // 나머지 주요 정보 동기화 (FactorContext 구현에 따라 필요한 필드 복사)
+                    contextToUpdate.setCurrentProcessingFactor(latestContextFromSm.getCurrentProcessingFactor());
+                    contextToUpdate.setCurrentStepId(latestContextFromSm.getCurrentStepId());
+                    contextToUpdate.setCurrentFactorOptions(latestContextFromSm.getCurrentFactorOptions());
+                    contextToUpdate.setMfaRequiredAsPerPolicy(latestContextFromSm.isMfaRequiredAsPerPolicy());
+                    contextToUpdate.setRetryCount(latestContextFromSm.getRetryCount());
+                    contextToUpdate.setLastError(latestContextFromSm.getLastError());
+                    // ... 기타 비즈니스적으로 중요한 필드들 ...
+
+                    // Attributes 동기화 (필요시)
+                    // 기존 attributes를 유지하면서 SM의 것을 병합하거나, 완전히 덮어쓸 수 있습니다.
+                    // 여기서는 SM의 attributes로 덮어쓰는 예시 (isSystemAttribute와 같은 필터링 로직은 유지)
+                    contextToUpdate.getAttributes().clear(); // 기존 로컬 attributes 초기화
+                    latestContextFromSm.getAttributes().forEach((key, value) -> {
+                        if (!isSystemAttribute(key)) { // 시스템 속성이 아닌 경우에만 복사
+                            contextToUpdate.setAttribute(key, value);
+                        }
+                    });
+
+                    // completedFactors 동기화 (FactorContext의 addCompletedFactor가 중복을 알아서 처리한다면 간단히 추가)
+                    // 또는 clear 후 addAll
+                    contextToUpdate.getCompletedFactors().clear(); // 기존 로컬 completedFactors 초기화
+                    latestContextFromSm.getCompletedFactors().forEach(contextToUpdate::addCompletedFactor);
+
+
+                    log.debug("FactorContext refreshed from State Machine: session={}, newVersion={}, newState={}",
+                            sessionId, contextToUpdate.getVersion(), contextToUpdate.getCurrentState());
+                } else {
+                    log.debug("Local FactorContext for session: {} is already up-to-date or newer. Version: {}, State: {}. SM Version: {}, SM State: {}",
+                            sessionId, contextToUpdate.getVersion(), contextToUpdate.getCurrentState(),
+                            latestContextFromSm.getVersion(), latestContextFromSm.getCurrentState());
                 }
-
-                // 완전한 동기화 수행
-                syncFactorContextFromStateMachine(context, latestContext);
-
-                // 중요: attributes도 동기화
-                syncAttributesFromStateMachine(context, latestContext);
-
-                updateSyncState(sessionId, latestContext.getVersion());
-
-                log.debug("FactorContext synchronized: session={}, oldVersion={}, newVersion={}, " +
-                                "attributes synced={}",
-                        sessionId, context.getVersion() - 1, latestContext.getVersion(),
-                        latestContext.getAttributes().keySet());
             } else {
-                log.warn("No context found in unified State Machine for session: {}", sessionId);
+                log.warn("No FactorContext found in State Machine for session: {}. Local context may be stale or session is new/terminated.", sessionId);
+                // 이 경우, 외부 contextToUpdate를 어떻게 처리할지 정책이 필요합니다.
+                // 예를 들어, SM에 컨텍스트가 없다면 외부 context도 초기화하거나 특정 상태로 변경할 수 있습니다.
+                // contextToUpdate.changeState(MfaState.NONE); // 예시: SM에 없으면 NONE 상태로
+                // contextToUpdate.setVersion(0); // 버전 초기화
             }
         } catch (Exception e) {
-            log.error("Failed to sync with unified State Machine for session: {}", sessionId, e);
+            log.error("Failed to refresh FactorContext from State Machine for session: {}", sessionId, e);
+            // 예외 발생 시 외부 contextToUpdate는 변경되지 않도록 하거나, 오류 상태를 반영할 수 있습니다.
         }
-    }
-
-    /**
-     * 속성 동기화 메서드 추가
-     */
-    private void syncAttributesFromStateMachine(FactorContext target, FactorContext source) {
-        // 모든 비시스템 속성을 대상 컨텍스트로 복사
-        source.getAttributes().forEach((key, value) -> {
-            if (!isSystemAttribute(key)) {
-                Object currentValue = target.getAttribute(key);
-                if (!Objects.equals(currentValue, value)) {
-                    target.setAttribute(key, value);
-                    log.trace("Synced attribute: {} = {} for session: {}",
-                            key, value, target.getMfaSessionId());
-                }
-            }
-        });
-
-        // completedFactors 동기화
-        source.getCompletedFactors().forEach(completedFactor -> {
-            if (!target.isFactorCompleted(completedFactor.getStepId())) {
-                target.addCompletedFactor(completedFactor);
-                log.trace("Synced completed factor: {} for session: {}",
-                        completedFactor.getStepId(), target.getMfaSessionId());
-            }
-        });
     }
 
     /**
@@ -316,30 +322,6 @@ public class MfaStateMachineIntegrator {
         return String.format("Repository: %s, Timeout: %s",
                 sessionRepository.getRepositoryType(),
                 properties.getMfa().getSessionTimeout());
-    }
-
-    // === 개선된 내부 메서드들 ===
-
-    /**
-     * 개선: 동기화 필요성 판단
-     */
-    private boolean needsSync(String sessionId, int currentVersion) {
-        Long lastSync = lastSyncTimestamp.get(sessionId);
-        Integer lastVersion = lastSyncVersion.get(sessionId);
-
-        long now = System.currentTimeMillis();
-
-        // 시간 기반 체크
-        if (lastSync != null && (now - lastSync) < SYNC_INTERVAL_MS) {
-            return false;
-        }
-
-        // 버전 기반 체크
-        if (lastVersion != null && currentVersion <= lastVersion) {
-            return false;
-        }
-
-        return true;
     }
 
     /**

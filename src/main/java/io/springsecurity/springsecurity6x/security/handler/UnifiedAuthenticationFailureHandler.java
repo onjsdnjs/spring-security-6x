@@ -6,7 +6,6 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
-import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler.FailureType;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
@@ -18,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -203,7 +201,7 @@ public final class UnifiedAuthenticationFailureHandler implements PlatformAuthen
         }
 
         sessionRepository.refreshSession(factorContext.getMfaSessionId());
-        stateMachineIntegrator.syncStateWithStateMachine(factorContext, request);
+        stateMachineIntegrator.refreshFactorContextFromStateMachine(factorContext, request);
 
         int remainingAttempts = Math.max(0, maxAttempts - attempts);
         String errorCode = "MFA_FACTOR_VERIFICATION_FAILED";

@@ -90,7 +90,7 @@ public class MfaApiController {
 
             if (accepted) {
                 // State Machine과 동기화 (최신 상태 반영)
-                stateMachineIntegrator.syncStateWithStateMachine(ctx, httpRequest);
+                stateMachineIntegrator.refreshFactorContextFromStateMachine(ctx, httpRequest);
 
                 String nextStepUrl = determineNextStepUrl(ctx, httpRequest);
 
@@ -153,7 +153,7 @@ public class MfaApiController {
 
             if (accepted) {
                 // State Machine과 동기화
-                stateMachineIntegrator.syncStateWithStateMachine(ctx, httpRequest);
+                stateMachineIntegrator.refreshFactorContextFromStateMachine(ctx, httpRequest);
 
                 Map<String, Object> successResponse = createSuccessResponse(
                         "MFA_CANCELLED", "MFA cancelled successfully", ctx);
@@ -194,7 +194,7 @@ public class MfaApiController {
 
         try {
             // State Machine과 동기화
-            stateMachineIntegrator.syncStateWithStateMachine(ctx, httpRequest);
+            stateMachineIntegrator.refreshFactorContextFromStateMachine(ctx, httpRequest);
 
             Map<String, Object> statusResponse = new HashMap<>();
             statusResponse.put("status", "ACTIVE");

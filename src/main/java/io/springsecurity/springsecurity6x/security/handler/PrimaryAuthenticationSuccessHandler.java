@@ -37,7 +37,7 @@ import java.util.Objects;
  * 완전 일원화된 UnifiedAuthenticationSuccessHandler
  * - ContextPersistence 완전 제거
  * - MfaStateMachineService만 사용
- * - State Machine에서 직접 컨텍스트 로드 및 관리
+ * - State Machine 에서 직접 컨텍스트 로드 및 관리
  */
 @Slf4j
 

@@ -78,10 +78,10 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
 
         ExtendedState extendedState = stateMachine.getExtendedState();
         extendedState.getVariables().clear(); // 이전 ExtendedState 내용 삭제
-        if (factorContext != null) {
+        /*if (factorContext != null) {
             StateContextHelper.setFactorContext(extendedState, factorContext);
             log.debug("[MFA SM Service] [{}] 리셋 중 FactorContext (버전:{})를 ExtendedState에 설정.", machineId, factorContext.getVersion());
-        }
+        }*/
 
         StateMachineContext<MfaState, MfaEvent> newContext = new DefaultStateMachineContext<>(
                 targetState, null, null, extendedState, null, machineId
@@ -89,7 +89,10 @@ public class MfaStateMachineServiceImpl implements MfaStateMachineService {
         stateMachine.getStateMachineAccessor()
                 .doWithAllRegions(access -> access.resetStateMachineReactively(newContext).block());
         log.debug("[MFA SM Service] [{}] SM 상태({})로 리셋 완료.", machineId, targetState);
-
+        if (factorContext != null) {
+            StateContextHelper.setFactorContext(extendedState, factorContext);
+            log.debug("[MFA SM Service] [{}] 리셋 중 FactorContext (버전:{})를 ExtendedState에 설정.", machineId, factorContext.getVersion());
+        }
         stateMachine.startReactively().block(); // 리셋 후 항상 시작
         log.debug("[MFA SM Service] [{}] 리셋된 SM 시작 완료.", machineId);
     }

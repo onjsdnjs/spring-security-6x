@@ -143,10 +143,7 @@ public class FactorContextStateAdapterImpl implements FactorContextStateAdapter 
                 variables.put("lastActivityTimestamp", factorContext.getLastActivityTimestamp().toEpochMilli());
             }
 
-            // 8. currentFactorOptions 직렬화
-            if (factorContext.getCurrentFactorOptions() != null) {
-                variables.put("currentFactorOptions", serializeFactorOptions(factorContext.getCurrentFactorOptions()));
-            }
+
 
             // 메타데이터
             variables.put("_serializedAt", System.currentTimeMillis());

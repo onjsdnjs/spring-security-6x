@@ -151,7 +151,6 @@ public class MfaStateMachineIntegrator {
                     // 나머지 주요 정보 동기화 (FactorContext 구현에 따라 필요한 필드 복사)
                     contextToUpdate.setCurrentProcessingFactor(latestContextFromSm.getCurrentProcessingFactor());
                     contextToUpdate.setCurrentStepId(latestContextFromSm.getCurrentStepId());
-                    contextToUpdate.setCurrentFactorOptions(latestContextFromSm.getCurrentFactorOptions());
                     contextToUpdate.setMfaRequiredAsPerPolicy(latestContextFromSm.isMfaRequiredAsPerPolicy());
                     contextToUpdate.setRetryCount(latestContextFromSm.getRetryCount());
                     contextToUpdate.setLastError(latestContextFromSm.getLastError());
@@ -407,7 +406,6 @@ public class MfaStateMachineIntegrator {
         // 현재 처리 정보 동기화
         target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
         target.setCurrentStepId(source.getCurrentStepId());
-        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
         target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
 
         // 재시도 및 에러 정보 동기화

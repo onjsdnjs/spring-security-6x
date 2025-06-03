@@ -48,7 +48,6 @@ public class FactorContext implements FactorContextExtensions,Serializable{
     private volatile String flowTypeName;
     private volatile AuthType currentProcessingFactor;
     private volatile String currentStepId;
-    private volatile AuthenticationProcessingOptions currentFactorOptions;
     private volatile boolean mfaRequiredAsPerPolicy = false;
 
     private final List<AuthenticationStepConfig> completedFactors = new CopyOnWriteArrayList<>();
@@ -524,7 +523,6 @@ public class FactorContext implements FactorContextExtensions,Serializable{
         log.debug("FactorContext for user '{}', flow '{}': Clearing current factor processing state.", username, flowTypeName);
         this.currentProcessingFactor = null;
         this.currentStepId = null;
-        this.currentFactorOptions = null;
         this.version.incrementAndGet();
     }
 

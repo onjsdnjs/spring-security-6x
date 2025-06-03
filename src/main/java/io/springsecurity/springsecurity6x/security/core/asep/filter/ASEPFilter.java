@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.asep.filter;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.SecurityExceptionHandlerInvoker;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.SecurityExceptionHandlerMethodRegistry;
 import io.springsecurity.springsecurity6x.security.core.asep.handler.model.HandlerMethod;
@@ -89,7 +90,7 @@ public final class ASEPFilter extends OncePerRequestFilter implements Ordered {
         try {
             log.debug("ASEP: Caught exception [{}] for authentication [{}] on path [{}]",
                     exception.getClass().getName(),
-                    (authentication != null ? authentication.getName() : "NONE"),
+                    (authentication != null ? ((UserDto)authentication.getPrincipal()).getName() : "NONE"),
                     request.getRequestURI());
 
             HandlerMethod handlerMethod = handlerRegistry.findBestExceptionHandlerMethod(exception, authentication, request);

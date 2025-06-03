@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.policy;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -51,10 +52,10 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
         Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null.");
         Assert.notNull(ctx, "FactorContext cannot be null.");
-        Assert.isTrue(Objects.equals(primaryAuthentication.getName(), ctx.getUsername()),
+        Assert.isTrue(Objects.equals(((UserDto)primaryAuthentication.getPrincipal()).getUsername(), ctx.getUsername()),
                 "Username mismatch in FactorContext and Authentication");
 
-        String username = primaryAuthentication.getName();
+        String username = ((UserDto)primaryAuthentication.getPrincipal()).getUsername();
         Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
@@ -165,8 +166,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             if (stepConfig.isPresent()) {
                 ctx.setCurrentProcessingFactor(selectedFactor);
                 ctx.setCurrentStepId(stepConfig.get().getStepId());
-                ctx.setCurrentFactorOptions(
-                        mfaFlowConfig.getRegisteredFactorOptions().get(selectedFactor));
                 ctx.setAttribute("autoSelectedInitialFactor", true);
 
                 // State Machine에 저장
@@ -288,7 +287,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
                         () -> {
                             ctx.setCurrentProcessingFactor(nextFactorType);
                             ctx.setCurrentStepId(nextStep.getStepId());
-                            ctx.setCurrentFactorOptions(mfaFlowConfig.getRegisteredFactorOptions().get(nextFactorType));
                         },
                         MfaEvent.FACTOR_SELECTED,
                         getCurrentRequest(),
@@ -787,7 +785,6 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
 
         target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
         target.setCurrentStepId(source.getCurrentStepId());
-        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
         target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
 
         source.getAttributes().forEach((key, value) -> {

@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
@@ -63,11 +64,11 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
         log.debug("MFA Factor successfully processed for user: {} using {} repository",
-                authentication.getName(), sessionRepository.getRepositoryType());
+                ((UserDto)authentication.getPrincipal()).getUsername(), sessionRepository.getRepositoryType());
 
         // 1. FactorContext 로드 (SM 서비스는 내부적으로 락 사용 및 최신 상태 복원)
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
-        if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
+        if (factorContext == null || !Objects.equals(factorContext.getUsername(), ((UserDto)authentication.getPrincipal()).getUsername())) {
             handleInvalidContext(response, request, "MFA_FACTOR_SUCCESS_NO_CONTEXT",
                     "MFA 팩터 처리 성공 후 컨텍스트를 찾을 수 없거나 사용자가 일치하지 않습니다.", authentication);
             return;
@@ -237,7 +238,7 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
                                       String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
         log.warn("MFA Factor Processing Success using {} repository: Invalid FactorContext. Message: {}. User from auth: {}",
                 sessionRepository.getRepositoryType(), logMessage,
-                (authentication != null ? authentication.getName() : "UnknownUser"));
+                (authentication != null ? ((UserDto)authentication.getPrincipal()).getUsername() : "UnknownUser"));
 
         // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
         String oldSessionId = sessionRepository.getSessionId(request);
@@ -272,7 +273,6 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
 
         target.setCurrentProcessingFactor(source.getCurrentProcessingFactor());
         target.setCurrentStepId(source.getCurrentStepId());
-        target.setCurrentFactorOptions(source.getCurrentFactorOptions());
         target.setMfaRequiredAsPerPolicy(source.isMfaRequiredAsPerPolicy());
 
         log.debug("Context synchronized from unified State Machine: sessionId={}, version={}, state={}",

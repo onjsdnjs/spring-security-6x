@@ -73,7 +73,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
         }
 
         FactorContext factorContext = stateMachineIntegrator.loadFactorContext(mfaSessionId); // SM 에서 최신 FactorContext 로드
-        if (factorContext == null || !Objects.equals(factorContext.getUsername(), authentication.getName())) {
+        if (factorContext == null || !Objects.equals(factorContext.getUsername(), ((UserDto)authentication.getPrincipal()).getUsername())) {
             log.error("Invalid FactorContext or username mismatch after primary authentication.");
             handleInvalidContext(response, request, "INVALID_CONTEXT", "인증 컨텍스트가 유효하지 않거나 사용자 정보가 일치하지 않습니다.", authentication);
             return;
@@ -191,7 +191,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
                                       @Nullable Authentication authentication) throws IOException {
         log.warn("Invalid FactorContext using {} repository: {}. User: {}",
                 sessionRepository.getRepositoryType(), logMessage,
-                (authentication != null ? authentication.getName() : "Unknown"));
+                (authentication != null ? ((UserDto)authentication.getPrincipal()).getUsername() : "Unknown"));
 
         // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
         String oldSessionId = sessionRepository.getSessionId(request);

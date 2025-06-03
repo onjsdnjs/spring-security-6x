@@ -15,7 +15,7 @@ public interface MfaPolicyProvider {
     /**
      * 1차 인증 후 MFA 필요 여부 평가 및 초기 단계 결정
      */
-    void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx);
+    void evaluateMfaRequirementAndDetermineInitialStep(FactorContext ctx);
 
     /**
      * 다음 처리할 팩터 결정

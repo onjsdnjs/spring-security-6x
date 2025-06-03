@@ -49,13 +49,10 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
      * ✅ 개선: MFA 요구사항 평가 및 초기 단계 결정 - 동기화 강화
      */
     @Override
-    public void evaluateMfaRequirementAndDetermineInitialStep(Authentication primaryAuthentication, FactorContext ctx) {
-        Assert.notNull(primaryAuthentication, "PrimaryAuthentication cannot be null.");
+    public void evaluateMfaRequirementAndDetermineInitialStep(FactorContext ctx) {
         Assert.notNull(ctx, "FactorContext cannot be null.");
-        Assert.isTrue(Objects.equals(((UserDto)primaryAuthentication.getPrincipal()).getUsername(), ctx.getUsername()),
-                "Username mismatch in FactorContext and Authentication");
 
-        String username = ((UserDto)primaryAuthentication.getPrincipal()).getUsername();
+        String username = ctx.getUsername();
         Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 

@@ -62,8 +62,8 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
-        log.info("Processing authentication success for user: {}", authentication.getName());
+                                        Authentication authentication) throws IOException {
+        log.info("Processing authentication success for user: {}", ((UserDto) authentication.getPrincipal()).getName());
 
         String username = ((UserDto) authentication.getPrincipal()).getUsername();
         String mfaSessionId = sessionRepository.getSessionId(request); // 필터에서 저장한 세션 ID 가져오기
@@ -79,7 +79,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
             return;
         }
 
-        mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(authentication, factorContext);
+        mfaPolicyProvider.evaluateMfaRequirementAndDetermineInitialStep(factorContext);
 
         FactorContext finalFactorContext = stateMachineIntegrator.loadFactorContext(mfaSessionId);
         if (finalFactorContext == null) { // 매우 예외적인 상황

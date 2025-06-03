@@ -90,7 +90,7 @@ public final class ASEPFilter extends OncePerRequestFilter implements Ordered {
         try {
             log.debug("ASEP: Caught exception [{}] for authentication [{}] on path [{}]",
                     exception.getClass().getName(),
-                    (authentication != null ? ((UserDto)authentication.getPrincipal()).getName() : "NONE"),
+                    (authentication != null ? authentication.getName() : "NONE"),
                     request.getRequestURI());
 
             HandlerMethod handlerMethod = handlerRegistry.findBestExceptionHandlerMethod(exception, authentication, request);

@@ -239,7 +239,7 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
                                       String errorCode, String logMessage, @Nullable Authentication authentication) throws IOException {
         log.warn("MFA Factor Processing Success using {} repository: Invalid FactorContext. Message: {}. User from auth: {}",
                 sessionRepository.getRepositoryType(), logMessage,
-                (authentication != null ? ((UserDto)authentication.getPrincipal()).getUsername() : "UnknownUser"));
+                (authentication != null ? (((CustomUserDetails)authentication.getPrincipal())).getUser().getUsername() : "UnknownUser"));
 
         // 개선: Repository를 통한 세션 정리 (HttpSession 직접 접근 제거)
         String oldSessionId = sessionRepository.getSessionId(request);

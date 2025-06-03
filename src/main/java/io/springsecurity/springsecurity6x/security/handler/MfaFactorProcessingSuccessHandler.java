@@ -8,6 +8,7 @@ import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProv
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
+import io.springsecurity.springsecurity6x.security.service.CustomUserDetails;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaEvent;
 import io.springsecurity.springsecurity6x.security.statemachine.enums.MfaState;
 import io.springsecurity.springsecurity6x.security.token.service.TokenService;
@@ -64,11 +65,11 @@ public final class MfaFactorProcessingSuccessHandler extends AbstractMfaAuthenti
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
         log.debug("MFA Factor successfully processed for user: {} using {} repository",
-                ((UserDto)authentication.getPrincipal()).getUsername(), sessionRepository.getRepositoryType());
+                (((CustomUserDetails)authentication.getPrincipal())).getUser().getUsername(), sessionRepository.getRepositoryType());
 
         // 1. FactorContext 로드 (SM 서비스는 내부적으로 락 사용 및 최신 상태 복원)
         FactorContext factorContext = stateMachineIntegrator.loadFactorContextFromRequest(request);
-        if (factorContext == null || !Objects.equals(factorContext.getUsername(), ((UserDto)authentication.getPrincipal()).getUsername())) {
+        if (factorContext == null || !Objects.equals(factorContext.getUsername(), (((CustomUserDetails)authentication.getPrincipal())).getUser().getUsername())) {
             handleInvalidContext(response, request, "MFA_FACTOR_SUCCESS_NO_CONTEXT",
                     "MFA 팩터 처리 성공 후 컨텍스트를 찾을 수 없거나 사용자가 일치하지 않습니다.", authentication);
             return;

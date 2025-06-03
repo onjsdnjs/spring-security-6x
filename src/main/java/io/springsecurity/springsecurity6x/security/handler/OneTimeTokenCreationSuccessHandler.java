@@ -39,7 +39,7 @@ public final class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGen
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, OneTimeToken token)
-            throws IOException, ServletException {
+            throws IOException {
         log.info("OneTimeTokenCreationSuccessHandler: Token generated for user '{}' using {} repository",
                 token.getUsername(), sessionRepository.getRepositoryType());
 
@@ -110,8 +110,8 @@ public final class OneTimeTokenCreationSuccessHandler implements OneTimeTokenGen
         log.warn("OneTimeTokenCreationSuccessHandler: Unhandled scenario or context mismatch using {} repository. " +
                         "FactorContext flow: {}, FactorContext user: {}, Token user: {}. Redirecting to loginForm.",
                 sessionRepository.getRepositoryType(),
-                factorContext != null ? factorContext.getFlowTypeName() : "null",
-                factorContext != null ? factorContext.getUsername() : "null",
+                factorContext.getFlowTypeName(),
+                factorContext.getUsername(),
                 usernameFromToken);
         response.sendRedirect(request.getContextPath() + "/loginForm?message=ott_setup_issue&repository=" +
                 sessionRepository.getRepositoryType());

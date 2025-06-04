@@ -29,7 +29,6 @@ public final class AuthenticationFlowConfig {
     // MFA 전용 필드들
     private final PrimaryAuthenticationOptions primaryAuthenticationOptions;
     private final MfaPolicyProvider mfaPolicyProvider;
-    private final MfaContinuationHandler mfaContinuationHandler;
     private final AuthenticationFailureHandler mfaFailureHandler;
     private final AuthenticationSuccessHandler finalSuccessHandler;
     private final Map<AuthType, AuthenticationProcessingOptions> registeredFactorOptions;
@@ -47,7 +46,6 @@ public final class AuthenticationFlowConfig {
         this.rawHttpCustomizer = builder.rawHttpCustomizer;
         this.primaryAuthenticationOptions = builder.primaryAuthenticationOptions;
         this.mfaPolicyProvider = builder.mfaPolicyProvider;
-        this.mfaContinuationHandler = builder.mfaContinuationHandler;
         this.mfaFailureHandler = builder.mfaFailureHandler;
         this.finalSuccessHandler = builder.finalSuccessHandler;
         this.registeredFactorOptions = builder.registeredFactorOptions != null ? Map.copyOf(builder.registeredFactorOptions) :
@@ -67,7 +65,6 @@ public final class AuthenticationFlowConfig {
                 .rawHttpCustomizer(this.rawHttpCustomizer)
                 .primaryAuthenticationOptions(this.primaryAuthenticationOptions)
                 .mfaPolicyProvider(this.mfaPolicyProvider)
-                .mfaContinuationHandler(this.mfaContinuationHandler)
                 .mfaFailureHandler(this.mfaFailureHandler)
                 .finalSuccessHandler(this.finalSuccessHandler)
                 .registeredFactorOptions(this.registeredFactorOptions != null ? new HashMap<>(this.registeredFactorOptions) : null)
@@ -92,7 +89,6 @@ public final class AuthenticationFlowConfig {
 
         private PrimaryAuthenticationOptions primaryAuthenticationOptions;
         private MfaPolicyProvider mfaPolicyProvider;
-        private MfaContinuationHandler mfaContinuationHandler;
         private AuthenticationFailureHandler mfaFailureHandler;
         private AuthenticationSuccessHandler finalSuccessHandler;
         private Map<AuthType, AuthenticationProcessingOptions> registeredFactorOptions = new HashMap<>();
@@ -133,7 +129,6 @@ public final class AuthenticationFlowConfig {
             return this;
         }
         public Builder mfaPolicyProvider(MfaPolicyProvider provider) { this.mfaPolicyProvider = provider; return this; }
-        public Builder mfaContinuationHandler(MfaContinuationHandler handler) { this.mfaContinuationHandler = handler; return this; }
         public Builder mfaFailureHandler(AuthenticationFailureHandler handler) { this.mfaFailureHandler = handler; return this; }
         public Builder finalSuccessHandler(AuthenticationSuccessHandler handler) { this.finalSuccessHandler = handler; return this; }
         public Builder defaultRetryPolicy(RetryPolicy policy) { this.defaultRetryPolicy = policy; return this; }

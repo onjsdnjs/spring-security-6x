@@ -5,6 +5,7 @@ import io.springsecurity.springsecurity6x.security.core.config.AuthenticationSte
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityFilterChain;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
+import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import jakarta.servlet.Filter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,11 +20,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * SecurityFilterChainRegistrar 리팩토링 버전
@@ -36,8 +35,14 @@ public class SecurityFilterChainRegistrar {
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
     private final Map<String, Class<? extends Filter>> stepFilterClasses;
 
+    // 기본 팩터 타입들 정의
+    private static final Set<String> DEFAULT_FACTOR_TYPES = Set.of(
+            AuthType.OTT.name().toLowerCase(),
+            AuthType.PASSKEY.name().toLowerCase()
+    );
+
     public SecurityFilterChainRegistrar(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
-                                        Map<String, Class<? extends Filter>> stepFilterClasses) {
+                                        Map<String, Class<? extends Filter>> stepFilterClasses, DefaultFactorChainProvider defaultFactorChainProvider) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider, "ConfiguredFactorFilterProvider cannot be null.");
         this.stepFilterClasses  = Objects.requireNonNull(stepFilterClasses, "stepFilterClasses cannot be null.");
     }
@@ -53,10 +58,21 @@ public class SecurityFilterChainRegistrar {
         BeanDefinitionRegistry registry = (BeanDefinitionRegistry) cac.getBeanFactory();
         AtomicInteger idx = new AtomicInteger(0);
 
+        // 1. 명시적으로 설정된 팩터들 먼저 등록
+        Set<String> configuredFactorTypes = new HashSet<>();
+
         for (FlowContext fc : flows) {
             Objects.requireNonNull(fc, "FlowContext in list cannot be null.");
             AuthenticationFlowConfig flowConfig = Objects.requireNonNull(fc.flow(), "AuthenticationFlowConfig in FlowContext cannot be null.");
             String flowTypeName = Objects.requireNonNull(flowConfig.getTypeName(), "Flow typeName cannot be null.");
+
+            // 설정된 팩터 타입 수집
+            if (AuthType.MFA.name().equalsIgnoreCase(flowTypeName)) {
+                flowConfig.getStepConfigs().stream()
+                        .map(step -> step.getType().toLowerCase())
+                        .filter(type -> !type.equals("primary"))
+                        .forEach(configuredFactorTypes::add);
+            }
 
             String beanName = flowTypeName + "SecurityFilterChain" + idx.incrementAndGet();
             BeanDefinition bd = BeanDefinitionBuilder
@@ -67,10 +83,14 @@ public class SecurityFilterChainRegistrar {
             registry.registerBeanDefinition(beanName, bd);
             log.info("Registered SecurityFilterChain bean: {} for flow type: {}", beanName, flowTypeName);
         }
+        // 2. 설정되지 않은 기본 팩터들에 대한 SecurityFilterChain 생성
+        DefaultFactorChainProvider defaultProvider = new DefaultFactorChainProvider(context, this); // this 전달
+        defaultProvider.registerDefaultFactorChains(configuredFactorTypes, registry, idx);
+
     }
 
     // 메소드명 변경 및 fc를 인자로 받음
-    private OrderedSecurityFilterChain buildAndRegisterFilters(FlowContext fc) {
+    public OrderedSecurityFilterChain buildAndRegisterFilters(FlowContext fc) {
         try {
             AuthenticationFlowConfig flowConfig = fc.flow();
             log.debug("Building SecurityFilterChain and registering factor filters for flow: type='{}', order={}",

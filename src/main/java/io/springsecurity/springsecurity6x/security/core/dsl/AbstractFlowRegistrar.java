@@ -117,7 +117,6 @@ public abstract class AbstractFlowRegistrar<H extends HttpSecurityBuilder<H>> im
 
     // StateSetter 내부 클래스 (기존과 동일)
     private final class StateSetter implements IdentityStateDsl {
-        // ... (이전 답변의 StateSetter 코드와 동일)
         private void replaceLastState(StateType stateType) {
             List<AuthenticationFlowConfig> currentFlows = platformBuilder.getModifiableFlows();
             if (currentFlows.isEmpty()) {

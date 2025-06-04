@@ -36,24 +36,6 @@ public final class PasskeyDslConfigurerImpl
         return self();
     }
 
-    @Override
-    public PasskeyDslConfigurer successHandler(PlatformAuthenticationSuccessHandler successHandler) {
-        super.successHandler(successHandler);
-        return self();
-    }
-
-    @Override
-    public PasskeyDslConfigurer failureHandler(PlatformAuthenticationFailureHandler failureHandler) {
-        super.failureHandler(failureHandler);
-        return self();
-    }
-
-    @Override
-    public PasskeyDslConfigurer securityContextRepository(SecurityContextRepository repository) {
-        super.securityContextRepository(repository);
-        return self();
-    }
-
     // --- PasskeyDslConfigurer specific methods ---
     @Override
     public PasskeyDslConfigurer assertionOptionsEndpoint(String url) {

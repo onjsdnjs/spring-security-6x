@@ -87,7 +87,7 @@ public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
         try {
             MfaPolicyProvider policyProvider = getMfaPolicyProvider();
             if (policyProvider != null) {
-                String userId = factorContext.getPrimaryAuthentication().getName();
+                String userId = factorContext.getUsername();
                 String flowType = factorContext.getFlowTypeName();
 
                 Integer requiredFactors = policyProvider.getRequiredFactorCount(userId, flowType);
@@ -140,7 +140,7 @@ public class AllFactorsCompletedGuard extends AbstractMfaStateGuard {
      */
     private int getRequiredFactorCountByUserRole(FactorContext factorContext) {
         try {
-            // Spring Security Authentication에서 권한 정보 추출
+            // Spring Security Authentication 에서 권한 정보 추출
             var authorities = factorContext.getPrimaryAuthentication().getAuthorities();
 
             if (authorities != null) {

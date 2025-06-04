@@ -82,12 +82,17 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         // 사용자가 등록한 MFA 요소들 확인
         Set<AuthType> registeredFactors = parseRegisteredMfaFactorsFromUser(user);
 
+        // 필요한 팩터 수 확인
+        int requiredCount = getRequiredFactorCount(username, ctx.getFlowTypeName());
+
         // 동기화를 포함한 표준 패턴으로 MFA 필요 상태 설정
         boolean success = executeStandardEventPattern(
                 ctx,
                 () -> {
                     ctx.setAttribute("registeredMfaFactors", new ArrayList<>(registeredFactors));
                     ctx.setMfaRequiredAsPerPolicy(true);
+                    ctx.setAttribute("requiredFactorCount", requiredCount);
+                    ctx.setAttribute("registeredFactorCount", registeredFactors.size());
                 },
                 null, // 이벤트는 조건에 따라 결정
                 request,
@@ -100,9 +105,17 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         }
 
         // 등록된 팩터에 따른 이벤트 결정 및 전송 (동기화 포함)
-        if (registeredFactors.isEmpty()) {
+        if (registeredFactors.isEmpty()|| registeredFactors.size() < requiredCount) {
+
+            // 팩터가 없거나 부족한 경우
+            if (!registeredFactors.isEmpty()) {
+                ctx.setAttribute("additionalFactorsNeeded", requiredCount - registeredFactors.size());
+                log.info("User {} has {} factors but needs {}", username, registeredFactors.size(), requiredCount);
+            }
+
             sendEventWithSync(MfaEvent.MFA_CONFIGURATION_REQUIRED, ctx, request,
-                    "MFA_CONFIGURATION_REQUIRED for user: " + username);
+                    String.format("MFA_CONFIGURATION_REQUIRED for user: %s (has %d, needs %d)",
+                            username, registeredFactors.size(), requiredCount));
         } else {
 
             if(properties.getFactorSelectionType() == FactorSelectionType.AUTO){
@@ -592,6 +605,9 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             if (user.getRegisteredMfaFactors() != null) {
                 return user.getRegisteredMfaFactors().size();
             }
+
+            int baseCount = 1; // 기본값
+            return adjustRequiredFactorCount(baseCount, userId, flowType);
         }
 
         return switch (flowType.toLowerCase()) {
@@ -602,6 +618,12 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         };
     }
 
+    // AI 통합을 위한 확장 포인트 (Protected로 오버라이드 가능)
+    protected int adjustRequiredFactorCount(int baseCount, String userId, String flowType) {
+        // 기본 구현은 그대로 반환
+        return baseCount;
+    }
+
     // === 기존 내부 유틸리티 메서드들 (변경 없음) ===
 
     private boolean evaluateMfaRequirement(Users user) {
@@ -609,11 +631,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
             return true;
         }
 
-        if (user.getMfaFactors() != null && !user.getMfaFactors().isEmpty()) {
-            return true;
-        }
-
-        return false;
+        return user.getMfaFactors() != null && !user.getMfaFactors().isEmpty();
     }
 
     private List<AuthenticationStepConfig> getRequiredSteps(AuthenticationFlowConfig flowConfig) {

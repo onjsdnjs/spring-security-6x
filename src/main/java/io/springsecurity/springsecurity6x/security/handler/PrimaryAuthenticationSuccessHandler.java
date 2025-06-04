@@ -151,12 +151,31 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
     private void handleMfaConfigurationRequired(HttpServletRequest request, HttpServletResponse response,
                                                 FactorContext factorContext) throws IOException {
         String mfaConfigUrl = request.getContextPath() + authContextProperties.getMfa().getConfigureUrl();
-        Map<String, Object> responseBody = createMfaResponseBody(
-                "MFA_CONFIG_REQUIRED",
-                "MFA 설정이 필요합니다.",
-                factorContext,
-                mfaConfigUrl
-        );
+
+        // 등록 상태 확인
+        Integer registered = (Integer) factorContext.getAttribute("registeredFactorCount");
+        Integer required = (Integer) factorContext.getAttribute("requiredFactorCount");
+        Integer additional = (Integer) factorContext.getAttribute("additionalFactorsNeeded");
+
+        Map<String, Object> responseBody = new HashMap<>();
+
+        if (registered != null && registered > 0) {
+            // 부분 등록 상태
+            responseBody.put("status", "MFA_ADDITIONAL_CONFIG_REQUIRED");
+            responseBody.put("message", String.format(
+                    "추가 인증 수단 등록이 필요합니다. (현재 %d개, 필요 %d개)",
+                    registered, required != null ? required : 1));
+            responseBody.put("additionalFactorsNeeded", additional != null ? additional : 1);
+            responseBody.put("registeredFactors", factorContext.getRegisteredMfaFactors());
+        } else {
+            // 완전 미등록 상태
+            responseBody.put("status", "MFA_CONFIG_REQUIRED");
+            responseBody.put("message", "MFA 설정이 필요합니다.");
+            responseBody.put("requiredFactorCount", required != null ? required : 1);
+        }
+
+        responseBody.put("mfaSessionId", factorContext.getMfaSessionId());
+        responseBody.put("nextStepUrl", mfaConfigUrl);
 
         responseWriter.writeSuccessResponse(response, responseBody, HttpServletResponse.SC_OK);
     }

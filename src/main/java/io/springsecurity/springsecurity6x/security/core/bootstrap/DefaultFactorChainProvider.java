@@ -117,6 +117,7 @@ public class DefaultFactorChainProvider {
             AuthenticationAdapter authenticationAdapter = adapterRegistry.getAuthenticationAdapter(factorType);
             if (authenticationAdapter instanceof PasskeyAuthenticationAdapter passkeyAdapter) {
                 passkeyAdapter.apply(flowContext.http(), flowContext.flow().getStepConfigs(), flowContext.flow().getStateConfig());
+
             }else if(authenticationAdapter instanceof OttAuthenticationAdapter ottAdapter){
                 ottAdapter.apply(flowContext.http(), flowContext.flow().getStepConfigs(), flowContext.flow().getStateConfig());
             }

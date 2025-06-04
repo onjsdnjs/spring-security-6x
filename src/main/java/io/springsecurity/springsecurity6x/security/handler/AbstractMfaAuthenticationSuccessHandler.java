@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.handler;
 
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorContext;
 import io.springsecurity.springsecurity6x.security.core.session.MfaSessionRepository;
 import io.springsecurity.springsecurity6x.security.filter.handler.MfaStateMachineIntegrator;
@@ -66,7 +67,7 @@ public abstract class AbstractMfaAuthenticationSuccessHandler implements Platfor
                                                           @Nullable FactorContext factorContext) throws IOException {
 
         if (response.isCommitted()) {
-            log.warn("Response already committed for user: {}", finalAuthentication.getName());
+            log.warn("Response already committed for user: {}", ((UserDto)finalAuthentication.getPrincipal()).getUsername());
             return;
         }
 

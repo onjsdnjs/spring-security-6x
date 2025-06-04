@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.token.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
+import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.security.enums.TokenType;
 import io.springsecurity.springsecurity6x.security.exception.TokenCreationException;
 import io.springsecurity.springsecurity6x.security.exception.TokenInvalidException;
@@ -78,9 +79,9 @@ public class JwtTokenService implements TokenService {
         // Objects.requireNonNull(deviceId, "deviceId cannot be null for refresh token creation");
         String token = getToken(authentication, TokenType.REFRESH.name().toLowerCase(), props.getRefreshTokenValidity(), deviceId);
         try {
-            tokenStore.save(token, authentication.getName());
+            tokenStore.save(token, ((UserDto)authentication.getPrincipal()).getUsername());
         } catch (Exception e) {
-            log.error("Failed to save RefreshToken for user: {}, token: {}", authentication.getName(), token, e);
+            log.error("Failed to save RefreshToken for user: {}, token: {}", ((UserDto)authentication.getPrincipal()).getUsername(), token, e);
             throw new TokenInvalidException("Failed to save refresh token", e);
         }
         return token;
@@ -89,7 +90,7 @@ public class JwtTokenService implements TokenService {
     private String getToken(Authentication authentication, String tokenType, long validity, String deviceId) {
         TokenRequest.TokenRequestBuilder tokenRequestBuilder = TokenRequest.builder()
                 .tokenType(tokenType)
-                .username(authentication.getName())
+                .username(((UserDto)authentication.getPrincipal()).getUsername())
                 .roles(authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()))
@@ -102,7 +103,7 @@ public class JwtTokenService implements TokenService {
         try {
             return tokenCreator.createToken(tokenRequestBuilder.build());
         } catch (Exception e) {
-            log.error("Failed to create token: type={}, user={}, deviceId={}", tokenType, authentication.getName(), deviceId, e);
+            log.error("Failed to create token: type={}, user={}, deviceId={}", tokenType, ((UserDto)authentication.getPrincipal()).getUsername(), deviceId, e);
             throw new TokenCreationException("Token creation failed for type " + tokenType, e);
         }
     }
@@ -138,7 +139,7 @@ public class JwtTokenService implements TokenService {
             if (rotateEnabled && tokenValidator.shouldRotateRefreshToken(refreshToken)) {
                 tokenStore.remove(refreshToken); // 이전 리프레시 토큰 삭제
                 newRefreshToken = createRefreshToken(auth, deviceId); // 새 리프레시 토큰 생성 및 저장 (내부에서 save 호출)
-                log.info("Refresh token rotated for user: {}", auth.getName());
+                log.info("Refresh token rotated for user: {}", ((UserDto)auth.getPrincipal()).getUsername());
             }
             return new RefreshResult(newAccessToken, newRefreshToken);
         } catch (JwtException e) {

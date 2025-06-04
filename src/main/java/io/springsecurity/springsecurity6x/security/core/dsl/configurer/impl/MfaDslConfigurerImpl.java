@@ -279,7 +279,6 @@ public final class MfaDslConfigurerImpl<H extends HttpSecurityBuilder<H>>
                 .primaryAuthenticationOptions(primaryAuthOptionsForFlow)
                 .stepConfigs(Collections.unmodifiableList(new ArrayList<>(this.configuredSteps)))
                 .mfaPolicyProvider(this.policyProvider)
-                .mfaContinuationHandler(this.continuationHandler)
                 .mfaFailureHandler(this.mfaFailureHandler)
                 .finalSuccessHandler(this.finalSuccessHandler)
                 .registeredFactorOptions(Collections.unmodifiableMap(factorOptionsMap))

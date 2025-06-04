@@ -22,7 +22,7 @@ public class PlatformBootstrap implements InitializingBean {
 
     private final SecurityPlatform platform;
     private final PlatformConfig config;
-    private final FeatureRegistry registry;
+    private final AdapterRegistry registry;
     private final DslValidatorService dslValidatorService;
 
     @Override

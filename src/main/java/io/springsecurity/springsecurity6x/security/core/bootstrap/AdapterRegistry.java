@@ -14,52 +14,52 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class FeatureRegistry {
+public class AdapterRegistry {
 
     private final Map<String, AuthenticationAdapter> authAdapter = new HashMap<>();
-    private final Map<String, StateAdapter> stateFeatures = new HashMap<>();
+    private final Map<String, StateAdapter> stateAdapter = new HashMap<>();
 
     private final ApplicationContext applicationContext;
 
-    public FeatureRegistry(ApplicationContext applicationContext) {
+    public AdapterRegistry(ApplicationContext applicationContext) {
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null.");
         ServiceLoader.load(AuthenticationAdapter.class, getClass().getClassLoader())
                 .forEach(f -> {
-                    AuthenticationAdapter featureInstance = f;
+                    AuthenticationAdapter adapterInstance = f;
                     // MfaAuthenticationAdapter는 ApplicationContext를 받는 생성자가 있을 수 있음
                     if (f instanceof MfaAuthenticationAdapter) {
                         try {
-                            featureInstance = f.getClass()
+                            adapterInstance = f.getClass()
                                     .asSubclass(AuthenticationAdapter.class)
                                     .getConstructor(ApplicationContext.class)
                                     .newInstance(this.applicationContext);
-                            log.debug("Instantiated MfaAuthenticationAdapter with ApplicationContext: {}", featureInstance.getClass().getName());
+                            log.debug("Instantiated MfaAuthenticationAdapter with ApplicationContext: {}", adapterInstance.getClass().getName());
                         } catch (NoSuchMethodException nsme) {
                             log.warn("MfaAuthenticationAdapter (id: 'mfa') does not have a constructor accepting ApplicationContext. Using default instance from ServiceLoader.");
                         } catch (Exception e) {
                             log.error("Error instantiating MfaAuthenticationAdapter (id: 'mfa') with ApplicationContext. Using default instance from ServiceLoader.", e);
                         }
                     }
-                    String featureId = featureInstance.getId().toLowerCase();
-                    if (authAdapter.containsKey(featureId)) {
+                    String adapterId = adapterInstance.getId().toLowerCase();
+                    if (authAdapter.containsKey(adapterId)) {
                         log.warn("Duplicate AuthenticationAdapter ID '{}' found. Overwriting with instance of {}. Previous was {}.",
-                                featureId, featureInstance.getClass().getName(), authAdapter.get(featureId).getClass().getName());
+                                adapterId, adapterInstance.getClass().getName(), authAdapter.get(adapterId).getClass().getName());
                     }
-                    authAdapter.put(featureId, featureInstance);
-                    log.debug("Loaded AuthenticationAdapter: ID='{}', Class='{}'", featureId, featureInstance.getClass().getName());
+                    authAdapter.put(adapterId, adapterInstance);
+                    log.debug("Loaded AuthenticationAdapter: ID='{}', Class='{}'", adapterId, adapterInstance.getClass().getName());
                 });
 
         ServiceLoader.load(StateAdapter.class, getClass().getClassLoader())
                 .forEach(f -> {
                     String stateId = f.getId().toLowerCase();
-                    if (stateFeatures.containsKey(stateId)) {
+                    if (stateAdapter.containsKey(stateId)) {
                         log.warn("Duplicate StateAdapter ID '{}' found. Overwriting with instance of {}. Previous was {}.",
-                                stateId, f.getClass().getName(), stateFeatures.get(stateId).getClass().getName());
+                                stateId, f.getClass().getName(), stateAdapter.get(stateId).getClass().getName());
                     }
-                    stateFeatures.put(stateId, f);
+                    stateAdapter.put(stateId, f);
                     log.debug("Loaded StateAdapter: ID='{}', Class='{}'", stateId, f.getClass().getName());
                 });
-        log.info("FeatureRegistry initialized with {} AuthenticationAdapter(s) and {} StateAdapter(s).", authAdapter.size(), stateFeatures.size());
+        log.info("FeatureRegistry initialized with {} AuthenticationAdapter(s) and {} StateAdapter(s).", authAdapter.size(), stateAdapter.size());
     }
 
     public List<AuthenticationAdapter> getAuthFeaturesFor(List<AuthenticationFlowConfig> flows) {
@@ -175,7 +175,7 @@ public class FeatureRegistry {
 
         List<StateAdapter> list = new ArrayList<>();
         for (String id : stateIds) {
-            StateAdapter sf = stateFeatures.get(id);
+            StateAdapter sf = stateAdapter.get(id);
             if (sf != null) {
                 list.add(sf);
             } else {
@@ -194,8 +194,8 @@ public class FeatureRegistry {
 
     // 이 메소드는 유지 (다른 곳에서 사용될 수 있음)
     @Nullable
-    public AuthenticationAdapter getAuthenticationFeature(String featureId) {
-        if (featureId == null) return null;
-        return authAdapter.get(featureId.toLowerCase());
+    public AuthenticationAdapter getAuthenticationAdapter(String adapterId) {
+        if (adapterId == null) return null;
+        return authAdapter.get(adapterId.toLowerCase());
     }
 }

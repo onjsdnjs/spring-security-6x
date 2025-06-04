@@ -1,7 +1,7 @@
 package io.springsecurity.springsecurity6x.security.core.context;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.AdapterRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.mfa.policy.MfaPolicyProvider;
@@ -20,11 +20,11 @@ import java.util.function.Supplier;
 public class FlowContextFactory {
 
     private static final Logger log = LoggerFactory.getLogger(FlowContextFactory.class);
-    private final FeatureRegistry featureRegistry;
+    private final AdapterRegistry adapterRegistry;
     private final ApplicationContext applicationContext; // 추가
 
-    public FlowContextFactory(FeatureRegistry featureRegistry, ApplicationContext applicationContext) {
-        this.featureRegistry = Objects.requireNonNull(featureRegistry, "featureRegistry cannot be null");
+    public FlowContextFactory(AdapterRegistry adapterRegistry, ApplicationContext applicationContext) {
+        this.adapterRegistry = Objects.requireNonNull(adapterRegistry, "featureRegistry cannot be null");
         this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext cannot be null");
     }
 

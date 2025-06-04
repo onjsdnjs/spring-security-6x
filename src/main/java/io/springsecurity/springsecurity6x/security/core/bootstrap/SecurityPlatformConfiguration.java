@@ -24,9 +24,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationConverter;
 import org.springframework.security.web.authentication.ott.OneTimeTokenAuthenticationFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
 
@@ -47,8 +45,8 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public FeatureRegistry featureRegistry(ApplicationContext applicationContext) {
-        return new FeatureRegistry(applicationContext);
+    public AdapterRegistry adapterRegistry(ApplicationContext applicationContext) {
+        return new AdapterRegistry(applicationContext);
     }
 
     @Bean
@@ -67,7 +65,7 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public SecurityFilterChainRegistrar securityFilterChainRegistrar(ConfiguredFactorFilterProvider factorFilterProvider) {
+    public SecurityFilterChainRegistrar securityFilterChainRegistrar(ConfiguredFactorFilterProvider factorFilterProvider, AdapterRegistry adapterRegistry) {
         Map<String, Class<? extends Filter>> stepFilterClasses = Map.of(
                 "form", UsernamePasswordAuthenticationFilter.class,
                 "rest", RestAuthenticationFilter.class,
@@ -75,13 +73,13 @@ public class SecurityPlatformConfiguration {
                 "ott", OneTimeTokenAuthenticationFilter.class,
                 "passkey", WebAuthnAuthenticationFilter.class
         );
-        return new SecurityFilterChainRegistrar(factorFilterProvider, stepFilterClasses);
+        return new SecurityFilterChainRegistrar(factorFilterProvider, stepFilterClasses, adapterRegistry);
     }
 
     @Bean public LoginProcessingUrlUniquenessValidator loginProcessingUrlUniquenessValidator() { return new LoginProcessingUrlUniquenessValidator(); }
     @Bean public MfaFlowStructureValidator mfaFlowStructureValidator() { return new MfaFlowStructureValidator(); }
     @Bean public RequiredPlatformOptionsValidator requiredPlatformOptionsValidator() { return new RequiredPlatformOptionsValidator(); }
-    @Bean public FeatureAvailabilityValidator featureAvailabilityValidator(FeatureRegistry featureRegistry) { return new FeatureAvailabilityValidator(featureRegistry); }
+    @Bean public FeatureAvailabilityValidator featureAvailabilityValidator(AdapterRegistry adapterRegistry) { return new FeatureAvailabilityValidator(adapterRegistry); }
     @Bean public CustomBeanDependencyValidator customBeanDependencyValidator(ApplicationContext applicationContext) { return new CustomBeanDependencyValidator(applicationContext); }
     @Bean public DuplicateFlowTypeNameValidator duplicateMfaFlowValidator() { return new DuplicateFlowTypeNameValidator(); }
 
@@ -122,15 +120,15 @@ public class SecurityPlatformConfiguration {
     }
 
     @Bean
-    public FlowContextFactory flowContextFactory(FeatureRegistry featureRegistry, ApplicationContext applicationContext){
-        return new FlowContextFactory(featureRegistry, applicationContext);
+    public FlowContextFactory flowContextFactory(AdapterRegistry adapterRegistry, ApplicationContext applicationContext){
+        return new FlowContextFactory(adapterRegistry, applicationContext);
     }
 
 
     @Bean
     public SecurityPlatform securityPlatform(PlatformContext context,
                                              List<SecurityConfigurer> allRegisteredConfigurers,
-                                             FeatureRegistry featureRegistry,
+                                             AdapterRegistry adapterRegistry,
                                              PlatformContextInitializer platformContextInitializer,
                                              SecurityFilterChainRegistrar securityFilterChainRegistrar,
                                              FlowContextFactory flowContextFactory,
@@ -139,7 +137,7 @@ public class SecurityPlatformConfiguration {
         platformContextInitializer.initializeSharedObjects();
 
         DefaultSecurityConfigurerProvider configurerProvider =
-                new DefaultSecurityConfigurerProvider(allRegisteredConfigurers, featureRegistry, applicationContext);
+                new DefaultSecurityConfigurerProvider(allRegisteredConfigurers, adapterRegistry, applicationContext);
 
         return new SecurityPlatformInitializer(
                 context,
@@ -153,7 +151,7 @@ public class SecurityPlatformConfiguration {
     @Bean
     public PlatformBootstrap platformBootstrap(SecurityPlatform securityPlatform,
                                                PlatformConfig platformConfig,
-                                               FeatureRegistry registry,
+                                               AdapterRegistry registry,
                                                DslValidatorService dslValidatorService) {
         return new PlatformBootstrap(securityPlatform, platformConfig, registry, dslValidatorService);
     }

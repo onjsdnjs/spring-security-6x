@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.core.bootstrap;
 
+import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.OttAuthenticationAdapter;
+import io.springsecurity.springsecurity6x.security.core.adapter.auth.PasskeyAuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
@@ -37,7 +40,8 @@ import java.util.stream.Collectors;
 public class DefaultFactorChainProvider {
 
     private final ApplicationContext applicationContext;
-    private final SecurityFilterChainRegistrar registrar; // 변경: SecurityFilterChainRegistrar 주입
+    private final SecurityFilterChainRegistrar registrar;
+    private final AdapterRegistry adapterRegistry;
 
     // 기본 팩터 타입들 정의
     private static final Set<String> DEFAULT_FACTOR_TYPES = Set.of(
@@ -104,18 +108,26 @@ public class DefaultFactorChainProvider {
                                             AtomicInteger idx) {
         try {
             // 기본 FlowContext 생성
-            FlowContext defaultFlowContext = createDefaultFlowContext(factorType);
-            if (defaultFlowContext == null) {
+            FlowContext flowContext = createDefaultFlowContext(factorType);
+            if (flowContext == null) {
                 log.error("Failed to create default FlowContext for factor type: {}", factorType);
                 return;
             }
+
+            AuthenticationAdapter authenticationAdapter = adapterRegistry.getAuthenticationAdapter(factorType);
+            if (authenticationAdapter instanceof PasskeyAuthenticationAdapter passkeyAdapter) {
+                passkeyAdapter.apply(flowContext.http(), flowContext.flow().getStepConfigs(), flowContext.flow().getStateConfig());
+            }else if(authenticationAdapter instanceof OttAuthenticationAdapter ottAdapter){
+                ottAdapter.apply(flowContext.http(), flowContext.flow().getStepConfigs(), flowContext.flow().getStateConfig());
+            }
+
 
             // SecurityFilterChainRegistrar의 buildAndRegisterFilters 메서드 사용
             String beanName = "default" + capitalizeFirst(factorType) + "SecurityFilterChain" + idx.incrementAndGet();
 
             BeanDefinition bd = BeanDefinitionBuilder
                     .genericBeanDefinition(SecurityFilterChain.class,
-                            () -> registrar.buildAndRegisterFilters(defaultFlowContext)) // registrar 사용
+                            () -> registrar.buildAndRegisterFilters(flowContext)) // registrar 사용
                     .setLazyInit(false)
                     .setRole(BeanDefinition.ROLE_INFRASTRUCTURE)
                     .getBeanDefinition();

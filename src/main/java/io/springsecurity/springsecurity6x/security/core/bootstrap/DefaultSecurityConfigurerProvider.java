@@ -27,16 +27,16 @@ import java.util.Objects;
 public final class DefaultSecurityConfigurerProvider implements SecurityConfigurerProvider {
 
     private final List<SecurityConfigurer> collectedBaseConfigurers;
-    private final FeatureRegistry featureRegistry;
+    private final AdapterRegistry adapterRegistry;
     private final ApplicationContext applicationContext; // AsepConfigurer 등 특정 빈 직접 참조 위해 (현재는 사용되지 않음)
 
     @Autowired
     public DefaultSecurityConfigurerProvider(
             List<SecurityConfigurer> baseConfigurers, // Spring 컨텍스트에서 모든 SecurityConfigurer 빈 주입
-            FeatureRegistry featureRegistry,
+            AdapterRegistry adapterRegistry,
             ApplicationContext applicationContext) {
         this.collectedBaseConfigurers = (baseConfigurers != null) ? new ArrayList<>(baseConfigurers) : new ArrayList<>();
-        this.featureRegistry = Objects.requireNonNull(featureRegistry, "FeatureRegistry cannot be null");
+        this.adapterRegistry = Objects.requireNonNull(adapterRegistry, "FeatureRegistry cannot be null");
         this.applicationContext = Objects.requireNonNull(applicationContext, "ApplicationContext cannot be null");
         log.info("DefaultSecurityConfigurerProvider initialized with {} base configurers.", this.collectedBaseConfigurers.size());
         if (log.isDebugEnabled()) {
@@ -74,18 +74,18 @@ public final class DefaultSecurityConfigurerProvider implements SecurityConfigur
                 currentFlow.getTypeName(), httpForScope.hashCode());
 
         // 현재 Flow에 정의된 인증 단계(AuthFeature) 및 상태 관리(StateFeature)에 대한 어댑터만 추가
-        if (featureRegistry != null) {
+        if (adapterRegistry != null) {
             // 현재 플로우 하나만 포함하는 리스트를 전달하여 해당 플로우에 필요한 Feature만 가져오도록 함
             List<AuthenticationFlowConfig> singleFlowList = Collections.singletonList(currentFlow);
 
-            featureRegistry.getAuthFeaturesFor(singleFlowList)
+            adapterRegistry.getAuthFeaturesFor(singleFlowList)
                     .forEach(adapter -> {
                         flowSpecificAdapters.add(new AuthFeatureConfigurerAdapter(adapter));
                         log.debug("  Added AuthFeatureConfigurerAdapter for adapter '{}' relevant to flow '{}'.",
                                 adapter.getId(), currentFlow.getTypeName());
                     });
 
-            featureRegistry.getStateFeaturesFor(singleFlowList)
+            adapterRegistry.getStateFeaturesFor(singleFlowList)
                     .forEach(stateFeature -> {
                         flowSpecificAdapters.add(new StateFeatureConfigurerAdapter(stateFeature, platformContext));
                         log.debug("  Added StateFeatureConfigurerAdapter for state feature '{}' relevant to flow '{}'.",

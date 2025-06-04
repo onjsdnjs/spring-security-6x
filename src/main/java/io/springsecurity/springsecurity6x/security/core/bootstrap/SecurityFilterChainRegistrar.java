@@ -7,7 +7,6 @@ import io.springsecurity.springsecurity6x.security.core.context.OrderedSecurityF
 import io.springsecurity.springsecurity6x.security.core.mfa.context.FactorIdentifier;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import jakarta.servlet.Filter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
@@ -22,7 +21,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * SecurityFilterChainRegistrar 리팩토링 버전
@@ -34,6 +32,7 @@ import java.util.stream.Collectors;
 public class SecurityFilterChainRegistrar {
     private final ConfiguredFactorFilterProvider configuredFactorFilterProvider;
     private final Map<String, Class<? extends Filter>> stepFilterClasses;
+    private final AdapterRegistry adapterRegistry;
 
     // 기본 팩터 타입들 정의
     private static final Set<String> DEFAULT_FACTOR_TYPES = Set.of(
@@ -42,9 +41,10 @@ public class SecurityFilterChainRegistrar {
     );
 
     public SecurityFilterChainRegistrar(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
-                                        Map<String, Class<? extends Filter>> stepFilterClasses) {
+                                        Map<String, Class<? extends Filter>> stepFilterClasses, AdapterRegistry adapterRegistry) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider, "ConfiguredFactorFilterProvider cannot be null.");
         this.stepFilterClasses  = Objects.requireNonNull(stepFilterClasses, "stepFilterClasses cannot be null.");
+        this.adapterRegistry = adapterRegistry;
     }
 
     public void registerSecurityFilterChains(List<FlowContext> flows, ApplicationContext context) {
@@ -84,8 +84,8 @@ public class SecurityFilterChainRegistrar {
             log.info("Registered SecurityFilterChain bean: {} for flow type: {}", beanName, flowTypeName);
         }
         // 2. 설정되지 않은 기본 팩터들에 대한 SecurityFilterChain 생성
-//        DefaultFactorChainProvider defaultProvider = new DefaultFactorChainProvider(context, this); // this 전달
-//        defaultProvider.registerDefaultFactorChains(configuredFactorTypes, registry, idx);
+        DefaultFactorChainProvider defaultProvider = new DefaultFactorChainProvider(context, this, adapterRegistry); // this 전달
+        defaultProvider.registerDefaultFactorChains(configuredFactorTypes, registry, idx);
 
     }
 

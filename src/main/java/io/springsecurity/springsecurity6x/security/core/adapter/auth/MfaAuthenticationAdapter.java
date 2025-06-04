@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.core.adapter.auth;
 
 import io.springsecurity.springsecurity6x.security.core.adapter.AuthenticationAdapter;
 import io.springsecurity.springsecurity6x.security.core.bootstrap.ConfiguredFactorFilterProvider;
-import io.springsecurity.springsecurity6x.security.core.bootstrap.FeatureRegistry;
+import io.springsecurity.springsecurity6x.security.core.bootstrap.AdapterRegistry;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
@@ -68,7 +68,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
             Assert.notNull(this.applicationContext, "ApplicationContext not found in HttpSecurity sharedObjects and was not provided via constructor.");
         }
 
-        FeatureRegistry featureRegistry = applicationContext.getBean(FeatureRegistry.class);
+        AdapterRegistry adapterRegistry = applicationContext.getBean(AdapterRegistry.class);
         ConfiguredFactorFilterProvider factorFilterProvider = applicationContext.getBean(ConfiguredFactorFilterProvider.class);
         MfaPolicyProvider mfaPolicyProvider = http.getSharedObject(MfaPolicyProvider.class);
         AuthContextProperties authContextProperties = applicationContext.getBean(AuthContextProperties.class);
@@ -83,7 +83,7 @@ public class MfaAuthenticationAdapter implements AuthenticationAdapter {
         Assert.notNull(mfaPolicyProvider, "MfaPolicyProvider not found for MFA flow.");
         Assert.notNull(authContextProperties, "AuthContextProperties not found for MFA flow.");
         Assert.notNull(responseWriter, "AuthResponseWriter not found for MFA flow.");
-        Assert.notNull(featureRegistry, "FeatureRegistry bean not found.");
+        Assert.notNull(adapterRegistry, "FeatureRegistry bean not found.");
 
         MfaContinuationFilter mfaContinuationFilter = new MfaContinuationFilter(
                 mfaPolicyProvider,

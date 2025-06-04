@@ -1,9 +1,9 @@
 package io.springsecurity.springsecurity6x.security.core.dsl.option;
 
-import io.springsecurity.springsecurity6x.security.core.asep.dsl.FormAsepAttributes;
 import io.springsecurity.springsecurity6x.security.core.asep.dsl.PasskeyAsepAttributes;
 import lombok.Getter;
 import org.springframework.util.Assert;
+
 import java.util.*;
 
 @Getter

@@ -196,16 +196,14 @@ public class PlatformSecurityConfig {
                                         })))// OTT Factor 실패 시
                         )
                         // 2차 인증 요소: Passkey
-                       /* .passkey(passkeyFactor -> passkeyFactor
+                        .passkey(passkeyFactor -> passkeyFactor
                                 .rpId(rpId)
                                 .rpName("Spring Security 6x IDP MFA")
                                 // Passkey Assertion Options 요청은 클라이언트 JS가 /api/mfa/assertion/options API를 호출하도록 함.
                                 .assertionOptionsEndpoint("/api/mfa/assertion/options")
                                 // 이 URL은 MfaStepFilterWrapper가 감지하여, Spring Security의 WebAuthnAuthenticationFilter로 위임됨.
                                 .loginProcessingUrl("/mfa/challenge/passkey")
-                                .successHandler(mfaStepBasedSuccessHandler) // Passkey Factor 성공 시 다음 단계 또는 최종 완료 처리
-                                .failureHandler(mfaAuthenticationFailureHandler) // Passkey Factor 실패 시
-                        )*/
+                        )
                         // MFA 플로우 전반에 대한 설정
 //                        .mfaSuccessHandler(primaryAuthenticationSuccessHandler) // 모든 MFA Factor 완료 후 최종 JWT 발급
                         .policyProvider(applicationContext.getBean(MfaPolicyProvider.class))

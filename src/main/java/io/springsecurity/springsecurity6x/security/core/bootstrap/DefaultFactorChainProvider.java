@@ -6,19 +6,21 @@ import io.springsecurity.springsecurity6x.security.core.config.PlatformConfig;
 import io.springsecurity.springsecurity6x.security.core.config.StateConfig;
 import io.springsecurity.springsecurity6x.security.core.context.FlowContext;
 import io.springsecurity.springsecurity6x.security.core.context.PlatformContext;
+import io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer;
+import io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer;
 import io.springsecurity.springsecurity6x.security.core.dsl.factory.AuthMethodConfigurerFactory;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import io.springsecurity.springsecurity6x.security.enums.StateType;
 import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler;
 import io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler;
+import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.ApplicationContext;
-import org.springframework.security.authentication.ott.OneTimeTokenService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -171,7 +173,7 @@ public class DefaultFactorChainProvider {
      */
     private AuthenticationFlowConfig createDefaultFlowConfig(String factorType) {
         AuthType authType = AuthType.valueOf(factorType.toUpperCase());
-        String flowTypeName = "default_" + factorType + "_flow";
+        String flowTypeName = factorType + "_flow";
 
         // MFA 플로우의 일부로 동작할 수 있도록 stepId 생성
         String mfaFlowName = "mfa"; // MFA 플로우 이름
@@ -198,39 +200,6 @@ public class DefaultFactorChainProvider {
                 .stepConfigs(List.of(stepConfig))
                 .stateConfig(stateConfig)
                 .build();
-    }
-
-    /**
-     * 팩터별 기본 HTTP 설정 적용
-     */
-    private void applyDefaultFactorConfiguration(HttpSecurity http, String factorType) {
-        try {
-            switch (factorType.toLowerCase()) {
-                case "ott":
-                    http.authorizeHttpRequests(auth -> auth
-                            .requestMatchers("/api/ott/**", "/login/ott", "/ott/sent").permitAll()
-                    );
-                    break;
-
-                case "passkey":
-                    http.authorizeHttpRequests(auth -> auth
-                            .requestMatchers("/webauthn/**", "/login/passkey").permitAll()
-                    );
-                    break;
-            }
-        } catch (Exception e) {
-            log.error("Failed to apply default configuration for factor: {}", factorType, e);
-        }
-    }
-
-    /**
-     * 첫 글자를 대문자로 변환
-     */
-    private String capitalizeFirst(String str) {
-        if (str == null || str.isEmpty()) {
-            return str;
-        }
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
     /**
@@ -266,9 +235,11 @@ public class DefaultFactorChainProvider {
             ottConfigurer
                     .tokenGeneratingUrl("/api/ott/generate")
                     .loginProcessingUrl("/login/ott")
-                    .tokenService(applicationContext.getBean(OneTimeTokenService.class))
-                    .successHandler(applicationContext.getBean("mfaFactorProcessingSuccessHandler", PlatformAuthenticationSuccessHandler.class))
-                    .failureHandler(applicationContext.getBean("platformAuthenticationFailureHandler", PlatformAuthenticationFailureHandler.class));
+                    .tokenService(applicationContext.getBean(EmailOneTimeTokenService.class))
+                    .successHandler(applicationContext.getBean("mfaFactorProcessingSuccessHandler",
+                            io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler.class))
+                    .failureHandler(applicationContext.getBean("unifiedAuthenticationFailureHandler",
+                            io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler.class));
 
             return ottConfigurer.buildConcreteOptions();
 
@@ -284,12 +255,10 @@ public class DefaultFactorChainProvider {
      */
     private AuthenticationProcessingOptions createDefaultPasskeyOptions(AuthMethodConfigurerFactory factory) {
         try {
-            var passkeyConfigurer = factory.createFactorConfigurer(AuthType.PASSKEY,
-                    io.springsecurity.springsecurity6x.security.core.dsl.configurer.PasskeyDslConfigurer.class);
+            var passkeyConfigurer = factory.createFactorConfigurer(AuthType.PASSKEY, PasskeyDslConfigurer.class);
 
-            if (passkeyConfigurer instanceof io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer) {
-                ((io.springsecurity.springsecurity6x.security.core.dsl.common.AbstractOptionsBuilderConfigurer<?, ?, ?, ?>) passkeyConfigurer)
-                        .setApplicationContext(applicationContext);
+            if (passkeyConfigurer instanceof AbstractOptionsBuilderConfigurer) {
+                ((AbstractOptionsBuilderConfigurer<?, ?, ?, ?>) passkeyConfigurer).setApplicationContext(applicationContext);
             }
 
             String rpId = applicationContext.getEnvironment()
@@ -303,10 +272,8 @@ public class DefaultFactorChainProvider {
                     .rpName(rpName)
                     .loginProcessingUrl("/login/passkey")
                     .assertionOptionsEndpoint("/webauthn/assertion/options")
-                    .successHandler(applicationContext.getBean("mfaFactorProcessingSuccessHandler",
-                            io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationSuccessHandler.class))
-                    .failureHandler(applicationContext.getBean("platformAuthenticationFailureHandler",
-                            io.springsecurity.springsecurity6x.security.handler.PlatformAuthenticationFailureHandler.class));
+                    .successHandler(applicationContext.getBean("mfaFactorProcessingSuccessHandler", PlatformAuthenticationSuccessHandler.class))
+                    .failureHandler(applicationContext.getBean("unifiedAuthenticationFailureHandler", PlatformAuthenticationFailureHandler.class));
 
             return passkeyConfigurer.buildConcreteOptions();
 
@@ -314,5 +281,38 @@ public class DefaultFactorChainProvider {
             log.error("Failed to create default Passkey options with factory", e);
             throw new RuntimeException("Cannot create default Passkey options", e);
         }
+    }
+
+    /**
+     * 팩터별 기본 HTTP 설정 적용
+     */
+    private void applyDefaultFactorConfiguration(HttpSecurity http, String factorType) {
+        try {
+            switch (factorType.toLowerCase()) {
+                case "ott":
+                    http.authorizeHttpRequests(auth -> auth
+                            .requestMatchers("/api/ott/**", "/login/ott", "/ott/sent").permitAll()
+                    );
+                    break;
+
+                case "passkey":
+                    http.authorizeHttpRequests(auth -> auth
+                            .requestMatchers("/webauthn/**", "/login/passkey").permitAll()
+                    );
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Failed to apply default configuration for factor: {}", factorType, e);
+        }
+    }
+
+    /**
+     * 첫 글자를 대문자로 변환
+     */
+    private String capitalizeFirst(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 }

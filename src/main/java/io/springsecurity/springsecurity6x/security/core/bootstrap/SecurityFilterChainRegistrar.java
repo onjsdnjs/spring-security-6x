@@ -42,7 +42,7 @@ public class SecurityFilterChainRegistrar {
     );
 
     public SecurityFilterChainRegistrar(ConfiguredFactorFilterProvider configuredFactorFilterProvider,
-                                        Map<String, Class<? extends Filter>> stepFilterClasses, DefaultFactorChainProvider defaultFactorChainProvider) {
+                                        Map<String, Class<? extends Filter>> stepFilterClasses) {
         this.configuredFactorFilterProvider = Objects.requireNonNull(configuredFactorFilterProvider, "ConfiguredFactorFilterProvider cannot be null.");
         this.stepFilterClasses  = Objects.requireNonNull(stepFilterClasses, "stepFilterClasses cannot be null.");
     }
@@ -84,8 +84,8 @@ public class SecurityFilterChainRegistrar {
             log.info("Registered SecurityFilterChain bean: {} for flow type: {}", beanName, flowTypeName);
         }
         // 2. 설정되지 않은 기본 팩터들에 대한 SecurityFilterChain 생성
-        DefaultFactorChainProvider defaultProvider = new DefaultFactorChainProvider(context, this); // this 전달
-        defaultProvider.registerDefaultFactorChains(configuredFactorTypes, registry, idx);
+//        DefaultFactorChainProvider defaultProvider = new DefaultFactorChainProvider(context, this); // this 전달
+//        defaultProvider.registerDefaultFactorChains(configuredFactorTypes, registry, idx);
 
     }
 

@@ -55,6 +55,7 @@ dependencies {
     // Spring Boot Starter Thymeleaf
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+    implementation("com.webauthn4j:webauthn4j-core:0.29.2.RELEASE")
 
     // Spring State Machine 4.0.0
     implementation('org.springframework.statemachine:spring-statemachine-starter')

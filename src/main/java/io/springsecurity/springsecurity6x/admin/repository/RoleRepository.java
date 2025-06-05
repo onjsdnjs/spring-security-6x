@@ -3,12 +3,10 @@ package io.springsecurity.springsecurity6x.admin.repository;
 import io.springsecurity.springsecurity6x.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository; // @Repository 어노테이션 추가
 
 import java.util.List;
 import java.util.Optional;
 
-@Repository // Spring Bean 으로 등록되도록 어노테이션 추가
 public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByRoleName(String name);
 

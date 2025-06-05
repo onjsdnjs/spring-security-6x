@@ -1,9 +1,8 @@
 package io.springsecurity.springsecurity6x.admin.service.impl;
 
+import io.springsecurity.springsecurity6x.admin.repository.GroupRepository;
 import io.springsecurity.springsecurity6x.admin.repository.RoleRepository;
-import io.springsecurity.springsecurity6x.admin.repository.UserManagementRepository;
 import io.springsecurity.springsecurity6x.admin.service.UserManagementService;
-import io.springsecurity.springsecurity6x.domain.dto.AccountDto;
 import io.springsecurity.springsecurity6x.domain.dto.UserDto;
 import io.springsecurity.springsecurity6x.entity.*;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
@@ -14,10 +13,10 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.ModelAttribute;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 public class UserManagementServiceImpl implements UserManagementService {
 
     private final UserRepository userRepository; // UserManagementRepository 대신 UserRepository 사용
-    private final RoleRepository roleRepository;
+    private final GroupRepository groupRepository;
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
 
@@ -37,7 +36,7 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Transactional
     @Override
     @CacheEvict(value = "usersWithAuthorities", key = "#userDto.username", allEntries = true) // 사용자 권한 캐시 무효화 (username 기준)
-    public void modifyUser(UserDto userDto){ // AccountDto 대신 UserDto 사용
+    public void modifyUser(@ModelAttribute UserDto userDto){ // AccountDto 대신 UserDto 사용
         // 1. 기존 Users 엔티티 로드 (없으면 예외)
         Users users = userRepository.findById(userDto.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userDto.getId()));

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="ko">
+<head th:replace="~{fragments/common-head :: head-elements(pageTitle='관리자 대시보드')}"></head>
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
+
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
+
+    <main class="flex-1 p-6 md:p-10">
+        <div class="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <div class="mb-8 text-center sm:text-left">
+                <h1 class="text-3xl font-bold text-app-primary">관리자 대시보드</h1>
+                <p class="text-slate-600 mt-1">플랫폼 관리 기능을 이용할 수 있습니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <a th:href="@{/admin/users}" class="block bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-md p-6 transform hover:scale-105 transition duration-200 ease-in-out">
+                    <h2 class="text-xl font-bold mb-2">사용자 관리</h2>
+                    <p class="text-blue-100">플랫폼 사용자 계정을 관리합니다.</p>
+                </a>
+                <a th:href="@{/admin/roles}" class="block bg-green-500 hover:bg-green-600 text-white rounded-lg shadow-md p-6 transform hover:scale-105 transition duration-200 ease-in-out">
+                    <h2 class="text-xl font-bold mb-2">역할 관리</h2>
+                    <p class="text-green-100">사용자 역할(Role)을 정의하고 관리합니다.</p>
+                </a>
+                <a th:href="@{/admin/permissions}" class="block bg-purple-500 hover:bg-purple-600 text-white rounded-lg shadow-md p-6 transform hover:scale-105 transition duration-200 ease-in-out">
+                    <h2 class="text-xl font-bold mb-2">권한 관리</h2>
+                    <p class="text-purple-100">세분화된 권한(Permission)을 정의하고 관리합니다.</p>
+                </a>
+                <a th:href="@{/admin/resources}" class="block bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg shadow-md p-6 transform hover:scale-105 transition duration-200 ease-in-out">
+                    <h2 class="text-xl font-bold mb-2">자원(URL) 관리</h2>
+                    <p class="text-yellow-100">URL 패턴 기반 자원 접근 권한을 관리합니다.</p>
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initAuth === 'function') {
+            initAuth();
+        }
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

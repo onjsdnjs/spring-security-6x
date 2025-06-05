@@ -9,7 +9,7 @@ public interface RoleService {
     List<Role> getRoles();
     List<Role> getRolesWithoutExpression();
 
-    void createRole(Role role);
+    Role createRole(Role role, List<Long> permissionIds);
 
     void deleteRole(long id);
 }

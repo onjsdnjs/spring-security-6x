@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{fragments/common-head :: head-elements(pageTitle=${role.id != null ? '역할 수정' : '역할 등록'})}"></head>
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
+
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
+
+    <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
+        <div class="w-full max-w-lg bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
+            <div class="text-center mb-8">
+                <h2 class="mt-4 text-3xl font-bold text-app-primary" th:text="${role.id != null ? '역할 수정' : '새 역할 등록'}"></h2>
+            </div>
+
+            <form th:action="${role.id != null ? '/admin/roles/' + role.id + '/edit' : '/admin/roles'}" method="post" th:object="${role}" class="space-y-5">
+                <input type="hidden" th:field="*{id}" th:if="${role.id != null}" />
+                <div>
+                    <label for="roleName" class="block text-sm font-medium text-app-dark-gray">역할명 (고유값, 예: ADMIN):</label>
+                    <input type="text" id="roleName" th:field="*{roleName}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" required />
+                </div>
+                <div>
+                    <label for="roleDesc" class="block text-sm font-medium text-app-dark-gray">설명:</label>
+                    <input type="text" id="roleDesc" th:field="*{roleDesc}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" />
+                </div>
+                <div>
+                    <label for="isExpression" class="block text-sm font-medium text-app-dark-gray">표현식 여부 (Y/N):</label>
+                    <input type="text" id="isExpression" th:field="*{isExpression}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" placeholder="Y 또는 N" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-app-dark-gray mb-2">할당할 권한 (Permissions):</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg border border-app-border max-h-60 overflow-y-auto">
+                        <div th:each="permission : ${permissionList}">
+                            <input type="checkbox" th:id="'perm_' + ${permission.id}" th:name="permissionIds" th:value="${permission.id}"
+                                   th:checked="${#lists.contains(selectedPermissionIds, permission.id)}"
+                                   class="mr-2 h-4 w-4 text-app-accent border-app-border rounded focus:ring-app-accent" />
+                            <label th:for="'perm_' + ${permission.id}" th:text="${permission.name}" class="text-sm text-app-dark-gray"></label>
+                            <p class="text-xs text-slate-500 ml-6" th:text="${permission.targetType + ':' + permission.actionType}"></p>
+                        </div>
+                        <div th:if="${#lists.isEmpty(permissionList)}" class="text-sm text-slate-500 col-span-full text-center">등록된 권한이 없습니다.</div>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105" th:text="${role.id != null ? '역할 저장' : '역할 등록'}"></button>
+                </div>
+            </form>
+            <div class="mt-6 text-center">
+                <a th:href="@{/admin/roles}" class="text-sm text-app-accent hover:text-app-accent-hover font-medium hover:underline">
+                    역할 목록으로 돌아가기
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initAuth === 'function') {
+            initAuth();
+        }
+        // 토스트 메시지 표시 (필요시)
+        const message = /*[[${message}]]*/ null;
+        if (message) {
+            showToast(message, 'success');
+        }
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

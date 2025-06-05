@@ -14,10 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -38,9 +35,9 @@ public class ResourcesController {
 	@PostMapping(value="/admin/resources")
 	public String createResources(ResourcesDto resourcesDto) {
 		ModelMapper modelMapper = new ModelMapper();
-		Role role = roleRepository.findByRoleName(resourcesDto.getRoleName());
+		Optional<Role> role = roleRepository.findByRoleName(resourcesDto.getRoleName());
 		Set<Role> roles = new HashSet<>();
-		roles.add(role);
+		roles.add(role.orElse(new Role()));
 		Resources resources = modelMapper.map(resourcesDto, Resources.class);
 		resources.setRoleSet(roles);
 

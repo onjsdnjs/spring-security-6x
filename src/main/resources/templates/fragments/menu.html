@@ -15,6 +15,17 @@
                 <li><a th:href="@{/users}" sec:authorize="isAuthenticated()" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">회원 목록</a></li>
             </ul>
         </div>
+
+        <div sec:authorize="hasRole('ADMIN')"> <h3 class="text-xs font-semibold uppercase text-slate-400 tracking-wider mb-2 px-3">관리자 메뉴</h3>
+            <ul class="space-y-1">
+                <li><a th:href="@{/admin}" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">관리자 대시보드</a></li>
+                <li><a th:href="@{/admin/users}" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">사용자 관리</a></li>
+                <li><a th:href="@{/admin/roles}" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">역할 관리</a></li>
+                <li><a th:href="@{/admin/permissions}" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">권한 관리</a></li>
+                <li><a th:href="@{/admin/resources}" class="block px-3 py-2.5 rounded-md hover:bg-app-primary-dark hover:text-app-accent transition-colors duration-200 text-sm">자원(URL) 관리</a></li>
+            </ul>
+        </div>
+
         <div>
             <h3 class="text-xs font-semibold uppercase text-slate-400 tracking-wider mb-2 px-3">설정</h3>
             <ul class="space-y-1">

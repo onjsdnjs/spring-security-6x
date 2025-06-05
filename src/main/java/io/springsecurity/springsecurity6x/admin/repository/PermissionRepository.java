@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.repository;
+package io.springsecurity.springsecurity6x.admin.repository;
 
 import io.springsecurity.springsecurity6x.entity.Permission;
 import org.springframework.data.jpa.repository.JpaRepository;

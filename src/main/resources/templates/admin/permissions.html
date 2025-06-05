@@ -50,6 +50,9 @@
                     </tbody>
                 </table>
             </div>
+            <div th:if="${errorMessage}" class="mt-6 text-center text-error">
+                <p th:text="${errorMessage}"></p>
+            </div>
             <div th:if="${message}" class="mt-6 text-center text-success">
                 <p th:text="${message}"></p>
             </div>
@@ -71,6 +74,10 @@
         const message = /*[[${message}]]*/ null;
         if (message) {
             showToast(message, 'success');
+        }
+        const errorMessage = /*[[${errorMessage}]]*/ null;
+        if (errorMessage) {
+            showToast(errorMessage, 'error');
         }
     });
     /*]]>*/

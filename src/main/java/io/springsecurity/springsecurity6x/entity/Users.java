@@ -1,10 +1,7 @@
 package io.springsecurity.springsecurity6x.entity;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -14,6 +11,8 @@ import java.util.Set;
 @Entity
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Users {
 
     @Id
@@ -29,11 +28,11 @@ public class Users {
     @Column(nullable = false)
     private String name;
 
-    @ManyToMany(fetch = FetchType.LAZY, cascade={CascadeType.MERGE})
-    @JoinTable(name = "user_roles", joinColumns = { @JoinColumn(name = "user_id") }, inverseJoinColumns = {
-            @JoinColumn(name = "role_id") })
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true) // UserGroup 엔티티의 'user' 필드에 매핑
+    @Builder.Default
     @ToString.Exclude
-    private Set<Role> userRoles = new HashSet<>();
+    private Set<UserGroup> userGroups = new HashSet<>(); // 사용자가 속한 그룹들
+
 
     // --- MFA 관련 필드 ---
     @Column(nullable = false)

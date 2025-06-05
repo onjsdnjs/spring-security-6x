@@ -57,6 +57,15 @@
         if (typeof initAuth === 'function') {
             initAuth();
         }
+        // 토스트 메시지 표시 (필요시)
+        const message = /*[[${message}]]*/ null;
+        if (message) {
+            showToast(message, 'success');
+        }
+        const errorMessage = /*[[${errorMessage}]]*/ null;
+        if (errorMessage) {
+            showToast(errorMessage, 'error');
+        }
     });
     /*]]>*/
 </script>

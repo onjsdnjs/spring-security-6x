@@ -35,10 +35,9 @@ public class Resources implements Serializable {
     @Column(name = "resource_type")
     private String resourceType;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "role_resources", joinColumns = {@JoinColumn(name = "resource_id") },
-    inverseJoinColumns = { @JoinColumn(name = "role_id") })
+    @OneToMany(mappedBy = "resources", cascade = CascadeType.ALL, orphanRemoval = true) // ResourcesRole 엔티티의 'resources' 필드에 매핑
+    @Builder.Default
     @ToString.Exclude
-    private Set<Role> roleSet = new HashSet<>();
+    private Set<ResourcesRole> resourcesRoles = new HashSet<>(); // 이 자원에 할당된 역할들
 
 }

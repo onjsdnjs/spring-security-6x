@@ -261,3 +261,8 @@ INSERT INTO DOCUMENT (document_id, title, content, owner_username, created_at) V
                                                                                         (1, '관리자 문서 1', '이 문서는 관리자만 볼 수 있는 기밀 문서입니다.', 'admin@example.com', NOW()),
                                                                                         (2, '사용자 문서 1', '이 문서는 일반 사용자만 수정할 수 있는 문서입니다.', 'user@example.com', NOW()),
                                                                                         (3, '공개 문서', '이 문서는 모든 사용자가 읽을 수 있는 공개 문서입니다.', 'guest@example.com', NOW());
+
+
+INSERT INTO ROLE_HIERARCHY_RELATIONSHIP (parent_role_id, child_role_id) VALUES
+                                                                            ((SELECT role_id FROM ROLE WHERE role_name = 'ADMIN'), (SELECT role_id FROM ROLE WHERE role_name = 'MANAGER')),
+                                                                            ((SELECT role_id FROM ROLE WHERE role_name = 'MANAGER'), (SELECT role_id FROM ROLE WHERE role_name = 'USER'));

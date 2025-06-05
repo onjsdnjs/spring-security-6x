@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS RESOURCES_ROLES CASCADE;
 DROP TABLE IF EXISTS ROLE_PERMISSIONS CASCADE;
 DROP TABLE IF EXISTS GROUP_ROLES CASCADE;
 DROP TABLE IF EXISTS USER_GROUPS CASCADE;
+DROP TABLE IF EXISTS ROLE_HIERARCHY_RELATIONSHIP CASCADE;
 
 -- 엔티티 테이블 삭제
 DROP TABLE IF EXISTS ROLE_HIERARCHY_CONFIG CASCADE;
@@ -165,4 +166,12 @@ CREATE TABLE METHOD_RESOURCE_PERMISSIONS (
                                                   PRIMARY KEY (method_resource_id, permission_id),
                                                   FOREIGN KEY (method_resource_id) REFERENCES METHOD_RESOURCES(method_resource_id) ON DELETE CASCADE,
                                                   FOREIGN KEY (permission_id) REFERENCES PERMISSION(permission_id) ON DELETE CASCADE
+);
+
+CREATE TABLE ROLE_HIERARCHY_RELATIONSHIP (
+                                             parent_role_id BIGINT NOT NULL,
+                                             child_role_id BIGINT NOT NULL,
+                                             PRIMARY KEY (parent_role_id, child_role_id),
+                                             FOREIGN KEY (parent_role_id) REFERENCES ROLE(role_id) ON DELETE CASCADE,
+                                             FOREIGN KEY (child_role_id) REFERENCES ROLE(role_id) ON DELETE CASCADE
 );

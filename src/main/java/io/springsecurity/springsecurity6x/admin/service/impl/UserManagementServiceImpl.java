@@ -5,9 +5,7 @@ import io.springsecurity.springsecurity6x.admin.repository.UserManagementReposit
 import io.springsecurity.springsecurity6x.admin.service.UserManagementService;
 import io.springsecurity.springsecurity6x.domain.dto.AccountDto;
 import io.springsecurity.springsecurity6x.domain.dto.UserDto;
-import io.springsecurity.springsecurity6x.entity.Role;
-import io.springsecurity.springsecurity6x.entity.UserGroup;
-import io.springsecurity.springsecurity6x.entity.Users;
+import io.springsecurity.springsecurity6x.entity.*;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,52 +36,86 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     @Transactional
     @Override
-    @CacheEvict(value = "usersWithAuthorities", key = "#accountDto.username") // 사용자 권한 캐시 무효화 (username 기준)
-    public void modifyUser(UserDto userDto){ // AccountDto 대신 UserDto
-        // UserDto를 Users 엔티티로 매핑
-        Users users = userRepository.findById(userDto.getId()) // ID로 Users 엔티티를 로드
+    @CacheEvict(value = "usersWithAuthorities", key = "#userDto.username", allEntries = true) // 사용자 권한 캐시 무효화 (username 기준)
+    public void modifyUser(UserDto userDto){ // AccountDto 대신 UserDto 사용
+        // 1. 기존 Users 엔티티 로드 (없으면 예외)
+        Users users = userRepository.findById(userDto.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userDto.getId()));
 
-        users.setPassword(passwordEncoder.encode(userDto.getPassword())); // 비밀번호는 항상 업데이트
-        users.setName(userDto.getUsername()); // 이름 업데이트
+        // 2. 기본 사용자 정보 업데이트 (username은 변경 불가 필드로 가정)
+        users.setName(userDto.getUsername());
+        // 비밀번호는 DTO에 포함되어 있다면 업데이트 (평문 -> 인코딩)
+        if (userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
+            users.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        }
+        // age 필드가 Users 엔티티에 추가되었다면 DTO에서 받아 업데이트
+        // users.setAge(userDto.getAge()); // UserDto에 age 필드 추가 필요
 
-        // **새로운 그룹 관계 업데이트 로직 (userDto에 selectedGroupIds 필드가 있다고 가정)**
-        // 현재는 DTO에 `roles` (List<String>)만 있다고 가정하고, 이를 Group으로 변환하는 로직을 임시로 넣습니다.
-        // 하지만 궁극적으로 UserDto에는 `List<Long> selectedGroupIds`가 있어야 합니다.
-        // 임시 방안: UserDto의 `roles` 필드를 `UserGroup`으로 매핑하는 로직이 없으므로,
-        // 이 메서드는 User의 비밀번호와 이름만 업데이트하고, 그룹/역할 할당은 `GroupController`나 `RoleController`에서 처리한다고 가정합니다.
-        // 아니면, `UserDto`에 `List<Long> selectedGroupIds` 필드를 추가하고,
-        // `GroupRepository`를 통해 Group 엔티티를 조회하여 `UserGroup` 관계를 업데이트해야 합니다.
+        // 3. User-Group 관계 업데이트 (OneToMany - UserGroup 조인 엔티티 활용)
+        // 기존 userGroups 관계를 모두 삭제하고 새로운 관계를 설정합니다. (orphanRemoval = true 시 동작)
+        users.getUserGroups().clear(); // 기존 연결 끊기
 
-        // **현재 DTO 구조에 맞춰서, 기존 String roles 필드를 업데이트하거나,
-        //   새로운 Group-Role 관계가 DTO를 통해 들어온다고 가정하고 업데이트 로직을 추가해야 합니다.**
-        // **여기서는 Users 엔티티의 `roles` (String) 필드를 업데이트하는 것으로 임시 처리합니다.**
-        users.setRoles(String.join(",", userDto.getRoles())); // UserDto의 getRoles()는 List<String> 반환 가정
+        if (userDto.getSelectedGroupIds() != null && !userDto.getSelectedGroupIds().isEmpty()) { // UserDto에 selectedGroupIds 필드가 있다고 가정
+            Set<UserGroup> newUserGroups = new HashSet<>();
+            for (Long groupId : userDto.getSelectedGroupIds()) {
+                Group group = groupRepository.findById(groupId)
+                        .orElseThrow(() -> new IllegalArgumentException("Group not found with ID: " + groupId));
+                // UserGroup 엔티티 생성 및 Users, Group 연결
+                newUserGroups.add(UserGroup.builder().user(users).group(group).build());
+            }
+            users.setUserGroups(newUserGroups); // Users 엔티티에 업데이트된 그룹 관계 설정
+        }
 
-        // users.setUserGroups(...) // 이 부분은 Group 관리 기능 구현 후 DTO에 맞춰 구현 예정
-
+        // 5. Users 엔티티 저장 (변경 감지 후 자동 업데이트)
         userRepository.save(users);
-        log.info("User {} modified.", users.getUsername());
+        log.info("User {} (ID: {}) modified successfully.", users.getUsername(), users.getId());
     }
 
     @Transactional(readOnly = true)
-    public UserDto getUser(Long id) { // AccountDto 대신 UserDto
-        Users users = userRepository.findById(id).orElse(new Users()); // Account 대신 Users
-        ModelMapper modelMapper = new ModelMapper();
-        UserDto userDto = modelMapper.map(users, UserDto.class); // AccountDto 대신 UserDto
+    public UserDto getUser(Long id) {
+        Users users = userRepository.findByIdWithGroupsRolesAndPermissions(id) // Group, Role, Permission을 Fetch Join
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
-        // 그룹 관계에서 역할 목록 추출 (새로운 관계에 맞춰 변경)
-        // users.getUserGroups() -> Group -> GroupRole -> Role 로 변경
-        List<String> roles = users.getUserGroups().stream() // users.getUserGroups() 사용
-                .flatMap(ug -> Optional.ofNullable(ug.getGroup()).stream()) // UserGroup에서 Group 가져오기
-                .flatMap(group -> Optional.ofNullable(group.getGroupRoles()).stream()) // Group에서 GroupRole 가져오기
-                .flatMap(gr -> Optional.ofNullable(gr.getRole()).stream()) // GroupRole에서 Role 가져오기
-                .map(Role::getRoleName) // Role에서 roleName 가져오기
-                .distinct() // 중복 역할 이름 제거
+        // ModelMapper 사용 (필드명 매핑에 따라 DTO 필드명 조정 필요)
+        UserDto userDto = modelMapper.map(users, UserDto.class);
+
+        // User-Group-Role-Permission 관계에서 역할 및 권한 목록 추출
+        List<String> roles = users.getUserGroups().stream() // UserGroup에서 시작
+                .map(UserGroup::getGroup) // Group 가져오기
+                .filter(java.util.Objects::nonNull)
+                .flatMap(group -> group.getGroupRoles().stream()) // GroupRole 가져오기
+                .map(GroupRole::getRole) // Role 가져오기
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getRoleName) // Role 이름 추출
+                .distinct() // 중복 제거 (한 사용자가 여러 그룹에 속하고, 그 그룹들이 같은 역할을 가질 수 있으므로)
                 .collect(Collectors.toList());
 
-        userDto.setRoles(roles);
-        log.debug("Fetched user {} with roles: {}", users.getUsername(), roles);
+        List<String> permissions = users.getUserGroups().stream()
+                .map(UserGroup::getGroup)
+                .filter(java.util.Objects::nonNull)
+                .flatMap(group -> group.getGroupRoles().stream())
+                .map(GroupRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .flatMap(role -> role.getRolePermissions().stream()) // RolePermission 가져오기
+                .map(RolePermission::getPermission) // Permission 가져오기
+                .filter(java.util.Objects::nonNull)
+                .map(Permission::getName) // Permission 이름 추출
+                .distinct() // 중복 제거
+                .collect(Collectors.toList());
+
+        userDto.setRoles(roles); // UserDto에 `List<String> roles` 필드가 있다고 가정
+        userDto.setPermissions(permissions); // UserDto에 `List<String> permissions` 필드 추가 필요
+
+        // UserDto에 `selectedGroupIds`를 채워서 UI에 그룹 선택 상태 표시
+        if (users.getUserGroups() != null) {
+            userDto.setSelectedGroupIds(users.getUserGroups().stream()
+                    .map(ug -> ug.getGroup().getId())
+                    .collect(Collectors.toList()));
+        } else {
+            userDto.setSelectedGroupIds(List.of());
+        }
+
+        log.debug("Fetched user {} with roles: {} and permissions: {}", users.getUsername(), roles, permissions);
         return userDto;
     }
 

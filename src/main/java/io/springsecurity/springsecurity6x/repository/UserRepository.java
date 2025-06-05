@@ -25,6 +25,17 @@ public interface UserRepository extends JpaRepository<Users, Long> {
             "WHERE u.username = :username")
     Optional<Users> findByUsernameWithGroupsRolesAndPermissions(String username); // 새로운 쿼리
 
+    @Cacheable(value = "usersWithAuthorities", key = "#id") // 캐시 이름 변경
+    @Query("SELECT u FROM Users u " +
+            "JOIN FETCH u.userGroups ug " + // UserGroup 조인
+            "JOIN FETCH ug.group g " +      // Group 조인
+            "JOIN FETCH g.groupRoles gr " + // GroupRole 조인
+            "JOIN FETCH gr.role r " +       // Role 조인
+            "LEFT JOIN FETCH r.rolePermissions rp " + // RolePermission 조인 (Optional 관계일 수 있으므로 LEFT)
+            "LEFT JOIN FETCH rp.permission p " + // Permission 조인 (Optional 관계일 수 있으므로 LEFT)
+            "WHERE u.id = :id")
+    Optional<Users> findByIdWithGroupsRolesAndPermissions(Long id); // 새로운 쿼리
+
     // 기존 findByUsername은 남겨두되, 권한 로드 시에는 위 쿼리 사용
     Optional<Users> findByUsername(String username);
 

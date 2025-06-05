@@ -31,7 +31,6 @@ public class ResourcesServiceImpl implements ResourcesService {
     @Transactional(readOnly = true)
     @Cacheable(value = "resources", key = "#id") // ID로 Resources 조회 시 캐싱
     public Resources getResources(long id) {
-        // findByIdWithRoles는 ResourcesRepository에 정의되어야 합니다.
         return resourcesRepository.findByIdWithRoles(id)
                 .orElseThrow(() -> new IllegalArgumentException("Resources not found with ID: " + id));
     }
@@ -39,13 +38,15 @@ public class ResourcesServiceImpl implements ResourcesService {
     @Transactional(readOnly = true)
     @Cacheable(value = "resources", key = "'allResources'") // 모든 Resources 목록 캐싱
     public List<Resources> getResources() {
-        // findAllResources()는 ResourcesRepository에 정의되어야 합니다.
         return resourcesRepository.findAllResources();
     }
 
     /**
      * 새로운 Resources를 생성하고 저장합니다. Role 할당 로직 포함.
      * `ResourcesRole` 조인 엔티티를 통해 `Role`과의 관계를 설정합니다.
+     * @param resources 생성할 Resources 엔티티
+     * @param roles 할당할 Role 엔티티 집합
+     * @return 생성된 Resources 엔티티
      */
     @Transactional // 쓰기 작업
     @Caching(
@@ -61,7 +62,7 @@ public class ResourcesServiceImpl implements ResourcesService {
             throw new IllegalArgumentException("Resources with this name and HTTP method already exists.");
         }
 
-        Resources savedResources = resourcesRepository.save(resources);
+        Resources savedResources = resourcesRepository.save(resources); // 먼저 저장하여 ID를 얻습니다.
 
         // ResourcesRole 조인 엔티티 생성 및 연결
         if (roles != null && !roles.isEmpty()) {
@@ -81,6 +82,9 @@ public class ResourcesServiceImpl implements ResourcesService {
     /**
      * 기존 Resources를 업데이트하고 저장합니다. Role 할당 로직 포함.
      * `ResourcesRole` 조인 엔티티를 통해 `Role`과의 관계를 업데이트합니다.
+     * @param resources 업데이트할 Resources 엔티티 (ID 포함)
+     * @param roles 할당할 Role 엔티티 집합
+     * @return 업데이트된 Resources 엔티티
      */
     @Transactional // 쓰기 작업
     @Caching(
@@ -91,6 +95,7 @@ public class ResourcesServiceImpl implements ResourcesService {
             put = { @CachePut(value = "resources", key = "#result.id") }
     )
     public Resources updateResources(Resources resources, Set<Role> roles) {
+        // findByIdWithRoles를 사용하여 기존 Resources와 ResourcesRole 관계를 함께 가져옵니다.
         Resources existingResources = resourcesRepository.findByIdWithRoles(resources.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Resources not found with ID: " + resources.getId()));
 
@@ -99,7 +104,7 @@ public class ResourcesServiceImpl implements ResourcesService {
         existingResources.setOrderNum(resources.getOrderNum());
         existingResources.setResourceType(resources.getResourceType());
 
-        // 기존 ResourcesRole 관계 제거
+        // 기존 ResourcesRole 관계 제거 (orphanRemoval = true 덕분에 가능)
         existingResources.getResourcesRoles().clear();
 
         // 새로운 ResourcesRole 조인 엔티티 생성 및 연결
@@ -124,6 +129,7 @@ public class ResourcesServiceImpl implements ResourcesService {
     @Caching(
             evict = {
                     @CacheEvict(value = "resources", allEntries = true),
+                    @CacheEvict(value = "resources", key = "#id"), // 특정 ID 캐시 무효화
                     @CacheEvict(value = "resourcesUrlRoleMappings", allEntries = true)
             }
     )

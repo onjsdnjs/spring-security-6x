@@ -19,7 +19,7 @@ import java.util.Set;
 @AllArgsConstructor
 public class Resources implements Serializable {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // IDENTITY 전략으로 통일
     @Column(name = "resource_id")
     private Long id;
 
@@ -35,9 +35,9 @@ public class Resources implements Serializable {
     @Column(name = "resource_type")
     private String resourceType;
 
-    @OneToMany(mappedBy = "resources", cascade = CascadeType.ALL, orphanRemoval = true) // ResourcesRole 엔티티의 'resources' 필드에 매핑
+    @OneToMany(mappedBy = "resources", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     @ToString.Exclude
-    private Set<ResourcesRole> resourcesRoles = new HashSet<>(); // 이 자원에 할당된 역할들
+    private Set<ResourcesRole> resourcesRoles = new HashSet<>();
 
 }

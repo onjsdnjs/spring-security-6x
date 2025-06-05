@@ -17,19 +17,15 @@ import java.util.Objects;
 public class ResourcesRole implements Serializable {
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "resource_id")
+    @JoinColumn(name = "resource_id") // DB 컬럼 이름
     @ToString.Exclude
-    private Resources resources; // 자원 엔티티
+    private Resources resources; // 자원 엔티티 (ManyToOne 관계의 소유자)
 
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id")
+    @JoinColumn(name = "role_id") // DB 컬럼 이름
     @ToString.Exclude
-    private Role role; // 역할 엔티티
-
-    // 추가 속성 (예: 할당일, 유효기간 등)
-    // @Column(name = "assigned_at")
-    // private Instant assignedAt;
+    private Role role; // 역할 엔티티 (ManyToOne 관계의 소유자)
 
     @Override
     public boolean equals(Object o) {
@@ -46,8 +42,8 @@ public class ResourcesRole implements Serializable {
     }
 }
 
-// 복합 PK를 위한 ID 클래스
-@Data
+// 복합 PK를 위한 ID 클래스 (ResourcesRoleId.java)
+@Data // @EqualsAndHashCode, @NoArgsConstructor, @AllArgsConstructor 자동 생성
 @NoArgsConstructor
 @AllArgsConstructor
 class ResourcesRoleId implements Serializable {

@@ -13,10 +13,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.*;
 
 @Controller
+@RequestMapping("/admin/resources")
 @RequiredArgsConstructor
 public class ResourcesController {
 
@@ -24,7 +26,7 @@ public class ResourcesController {
 	private final RoleRepository roleRepository;
 	private final RoleService roleService;
 
-	@GetMapping(value="/admin/resources")
+	@GetMapping
 	public String getResources(Model model) {
 		List<Resources> resources = resourcesService.getResources();
 		model.addAttribute("resources", resources);
@@ -32,7 +34,7 @@ public class ResourcesController {
 		return "admin/resources";
 	}
 
-	@PostMapping(value="/admin/resources")
+	@PostMapping
 	public String createResources(ResourcesDto resourcesDto) {
 		ModelMapper modelMapper = new ModelMapper();
 		Optional<Role> role = roleRepository.findByRoleName(resourcesDto.getRoleName());
@@ -46,7 +48,7 @@ public class ResourcesController {
 		return "redirect:/admin/resources";
 	}
 
-	@GetMapping(value="/admin/resources/register")
+	@GetMapping(value="/register")
 	public String resourcesRegister(Model model) {
 
 		List<Role> roleList = roleService.getRoles();
@@ -62,7 +64,7 @@ public class ResourcesController {
 		return "admin/resourcesdetails";
 	}
 
-	@GetMapping(value="/admin/resources/{id}")
+	@GetMapping(value="/{id}")
 	public String resourceDetails(@PathVariable String id, Model model) {
 
 		List<Role> roleList = roleService.getRoles();
@@ -77,7 +79,7 @@ public class ResourcesController {
 		return "admin/resourcesdetails";
 	}
 
-	@GetMapping(value="/admin/resources/delete/{id}")
+	@GetMapping(value="/delete/{id}")
 	public String removeResources(@PathVariable String id) throws Exception {
 
 		resourcesService.deleteResources(Long.parseLong(id));

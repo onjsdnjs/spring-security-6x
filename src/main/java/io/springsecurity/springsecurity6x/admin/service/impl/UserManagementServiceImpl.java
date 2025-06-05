@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,8 +37,8 @@ public class UserManagementServiceImpl implements UserManagementService {
         if(accountDto.getRoles() != null){
             Set<Role> roles = new HashSet<>();
             accountDto.getRoles().forEach(role -> {
-                Role r = roleRepository.findByRoleName(role);
-                roles.add(r);
+                Optional<Role> r = roleRepository.findByRoleName(role);
+                roles.add(r.orElseGet(Role::new));
             });
             users.setUserRoles(roles);
         }

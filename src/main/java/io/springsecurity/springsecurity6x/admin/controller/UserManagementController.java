@@ -11,15 +11,17 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
+@RequestMapping("/admin/users")
 public class UserManagementController {
 	private final UserManagementService userManagementService;
 	private final RoleService roleService;
-	@GetMapping(value="/admin/users")
+	@GetMapping
 	public String getUsers(Model model) {
 
 		List<Users> users = userManagementService.getUsers();
@@ -28,7 +30,7 @@ public class UserManagementController {
 		return "admin/users";
 	}
 
-	@PostMapping(value="/admin/users")
+	@PostMapping
 	public String modifyUser(AccountDto accountDto) {
 
 		userManagementService.modifyUser(accountDto);
@@ -36,7 +38,7 @@ public class UserManagementController {
 		return "redirect:/admin/users";
 	}
 
-	@GetMapping(value = "/admin/users/{id}")
+	@GetMapping(value = "/{id}")
 	public String getUser(@PathVariable(value = "id") Long id, Model model) {
 
 		AccountDto accountDto = userManagementService.getUser(id);
@@ -48,7 +50,7 @@ public class UserManagementController {
 		return "admin/userdetails";
 	}
 
-	@GetMapping(value = "/admin/users/delete/{id}")
+	@GetMapping(value = "/delete/{id}")
 	public String removeUser(@PathVariable(value = "id") Long id) {
 
 		userManagementService.deleteUser(id);

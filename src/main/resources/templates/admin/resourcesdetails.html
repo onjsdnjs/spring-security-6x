@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{fragments/common-head :: head-elements(pageTitle=${resources.id != null ? '자원 수정' : '자원 등록'})}"></head>
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
+
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
+
+    <main class="flex-1 p-6 md:p-10 flex items-center justify-center">
+        <div class="w-full max-w-lg bg-white p-8 sm:p-10 rounded-xl shadow-2xl">
+            <div class="text-center mb-8">
+                <h2 class="mt-4 text-3xl font-bold text-app-primary" th:text="${resources.id != null ? '자원 수정' : '새 자원 등록'}"></h2>
+            </div>
+
+            <form th:action="${resources.id != null ? '/admin/resources/' + resources.id + '/edit' : '/admin/resources'}" method="post" th:object="${resources}" class="space-y-5">
+                <input type="hidden" th:field="*{id}" th:if="${resources.id != null}" />
+                <div>
+                    <label for="resourceName" class="block text-sm font-medium text-app-dark-gray">자원명 (URL 패턴, 예: /admin/**):</label>
+                    <input type="text" id="resourceName" th:field="*{resourceName}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" required />
+                </div>
+                <div>
+                    <label for="httpMethod" class="block text-sm font-medium text-app-dark-gray">HTTP 메서드 (예: GET, POST, ALL):</label>
+                    <input type="text" id="httpMethod" th:field="*{httpMethod}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" value="ALL" />
+                </div>
+                <div>
+                    <label for="orderNum" class="block text-sm font-medium text-app-dark-gray">순서 (숫자, 낮을수록 우선순위 높음):</label>
+                    <input type="number" id="orderNum" th:field="*{orderNum}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" value="100" />
+                </div>
+                <div>
+                    <label for="resourceType" class="block text-sm font-medium text-app-dark-gray">자원 타입 (예: url):</label>
+                    <input type="text" id="resourceType" th:field="*{resourceType}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" value="url" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-app-dark-gray mb-2">할당할 역할 (Roles):</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg border border-app-border max-h-60 overflow-y-auto">
+                        <div th:each="role : ${roleList}"> <input type="checkbox" th:id="'role_' + ${role.id}" name="selectedRoleIds" th:value="${role.id}"
+                                                                  th:checked="${#sets.contains(selectedRoleIds, role.id)}"
+                                                                  class="mr-2 h-4 w-4 text-app-accent border-app-border rounded focus:ring-app-accent" />
+                            <label th:for="'role_' + ${role.id}" th:text="${role.roleName}" class="text-sm font-medium text-app-dark-gray"></label>
+                            <p class="text-xs text-slate-500 ml-6" th:text="${role.roleDesc}"></p>
+                        </div>
+                        <div th:if="${#lists.isEmpty(roleList)}" class="text-sm text-slate-500 col-span-full text-center">등록된 역할이 없습니다.</div>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105" th:text="${resources.id != null ? '자원 저장' : '자원 등록'}"></button>
+                </div>
+            </form>
+            <div class="mt-6 text-center">
+                <a th:href="@{/admin/resources}" class="text-sm text-app-accent hover:text-app-accent-hover font-medium hover:underline">
+                    자원 목록으로 돌아가기
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initAuth === 'function') {
+            initAuth();
+        }
+        // 토스트 메시지 표시 (필요시)
+        const message = /*[[${message}]]*/ null;
+        if (message) {
+            showToast(message, 'success');
+        }
+        const errorMessage = /*[[${errorMessage}]]*/ null;
+        if (errorMessage) {
+            showToast(errorMessage, 'error');
+        }
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

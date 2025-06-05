@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.permission;
 
+import io.springsecurity.springsecurity6x.entity.Permission;
+import io.springsecurity.springsecurity6x.repository.PermissionRepository;
+import io.springsecurity.springsecurity6x.security.filter.MfaGrantedAuthority;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.PermissionEvaluator;

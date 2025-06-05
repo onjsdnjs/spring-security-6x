@@ -57,7 +57,7 @@ public final class PrimaryAuthenticationSuccessHandler extends AbstractMfaAuthen
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        log.info("Processing authentication success for user: {}", ((UserDto) authentication.getPrincipal()).getName());
+        log.info("Processing authentication success for user: {}", ((UserDto) authentication.getPrincipal()).getUsername());
 
         String username = ((UserDto) authentication.getPrincipal()).getUsername();
         String mfaSessionId = sessionRepository.getSessionId(request); // 필터에서 저장한 세션 ID 가져오기

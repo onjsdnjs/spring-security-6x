@@ -596,7 +596,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
         Users user = userRepository.findByUsername(userId).orElse(null);
 
         if (user != null) {
-            if ("ROLE_ADMIN".equals(user.getRoles())) {
+            if ("ROLE_ADMIN".equals(user.getUserRoles())) {
                 return 2;
             }
 
@@ -625,7 +625,7 @@ public class DefaultMfaPolicyProvider implements MfaPolicyProvider {
     // === 기존 내부 유틸리티 메서드들 (변경 없음) ===
 
     private boolean evaluateMfaRequirement(Users user) {
-        if ("ROLE_ADMIN".equals(user.getRoles())) {
+        if ("ROLE_ADMIN".equals(user.getUserRoles())) {
             return true;
         }
 

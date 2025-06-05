@@ -35,7 +35,7 @@ public class SimpleRedirectSuccessHandler implements AuthenticationSuccessHandle
             log.debug("Response already committed. Cannot send JSON redirect for target: {}", targetUrl);
             return;
         }
-        log.debug("SimpleRedirectSuccessHandler: Sending JSON redirect to {} for user {}", targetUrl, ((UserDto)authentication.getPrincipal()).getName());
+        log.debug("SimpleRedirectSuccessHandler: Sending JSON redirect to {} for user {}", targetUrl, ((UserDto)authentication.getPrincipal()).getUsername());
         // 클라이언트가 JSON 응답을 받고 redirectUrl로 이동하도록 함
         responseWriter.writeSuccessResponse(response,
                 Map.of("status", "SUCCESS_REDIRECT_REQUIRED", "message", "성공적으로 처리되었습니다. 지정된 페이지로 이동합니다.", "redirectUrl", targetUrl),

@@ -59,8 +59,6 @@ public class DocumentService {
         }
     }
 
-    // --- 기타 문서 관련 비즈니스 로직 (예시) ---
-
     /**
      * 새로운 문서를 생성합니다.
      * @param document 생성할 Document 엔티티

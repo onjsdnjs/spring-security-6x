@@ -17,9 +17,7 @@ public class MethodResourceDto {
     private String className;
     private String accessExpression;
     private int orderNum;
-    private String httpMethod; // HTTP 메서드
-
-    // UI에서 선택된 역할 및 권한 ID 목록을 받기 위함
+    private String httpMethod;
     private List<Long> selectedRoleIds;
     private List<Long> selectedPermissionIds;
 }

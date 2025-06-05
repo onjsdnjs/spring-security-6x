@@ -1,5 +1,8 @@
 package io.springsecurity.springsecurity6x.security.config;
 
+import io.springsecurity.springsecurity6x.admin.repository.PermissionRepository;
+import io.springsecurity.springsecurity6x.admin.service.DocumentService;
+import io.springsecurity.springsecurity6x.admin.service.impl.RoleHierarchyService;
 import io.springsecurity.springsecurity6x.security.method.CustomMethodSecurityExpressionHandler;
 import io.springsecurity.springsecurity6x.security.permission.CustomPermissionEvaluator;
 import io.springsecurity.springsecurity6x.service.MethodResourceService;
@@ -20,6 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class MySecurityConfig {
 
     private final MethodResourceService methodResourceService; // MethodResourceService 주입
+    private final DocumentService documentService;
+    private final RoleHierarchyService roleHierarchyService;
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer(){
@@ -42,22 +47,35 @@ public class MySecurityConfig {
 
     // CustomMethodSecurityExpressionHandler 빈 등록
     @Bean
-    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(CustomPermissionEvaluator customPermissionEvaluator, RoleHierarchy roleHierarchy ) {
-        // CustomMethodSecurityExpressionHandler의 생성자에 필요한 모든 의존성을 주입
-        // 이 핸들러가 DB에서 MethodResource를 로드하는 로직을 포함합니다.
-        CustomMethodSecurityExpressionHandler expressionHandler =
-                new CustomMethodSecurityExpressionHandler(methodResourceService, customPermissionEvaluator, roleHierarchy);
-        return expressionHandler;
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(
+            CustomPermissionEvaluator customPermissionEvaluator,
+            RoleHierarchy roleHierarchy,
+            MethodResourceService methodResourceService
+    ) {
+        return new CustomMethodSecurityExpressionHandler(methodResourceService, customPermissionEvaluator, roleHierarchy);
+    }
+
+    // CustomPermissionEvaluator 빈
+    @Bean
+    public CustomPermissionEvaluator customPermissionEvaluator(PermissionRepository permissionRepository, DocumentService documentService) {
+        return new CustomPermissionEvaluator(permissionRepository, documentService);
     }
 
     // RoleHierarchy 빈 등록 (계층적 역할 지원)
+    // 애플리케이션 시작 시 RoleHierarchyService를 통해 DB에서 계층 정보를 로드하여 설정합니다.
     @Bean
     public RoleHierarchy roleHierarchy() {
         RoleHierarchyImpl roleHierarchy = new RoleHierarchyImpl();
-        // 여기에서 DB에서 로드한 역할 계층 정보를 설정할 수 있습니다.
-        // 예: "ROLE_ADMIN > ROLE_MANAGER\nROLE_MANAGER > ROLE_USER"
-        // 초기에는 하드코딩으로 설정하고, 나중에 DB에서 동적으로 로드하도록 확장 가능합니다.
-        roleHierarchy.setHierarchy("ROLE_ADMIN > ROLE_MANAGER\nROLE_MANAGER > ROLE_USER");
+        // 애플리케이션 시작 시 RoleHierarchyService를 통해 최신 계층 정보를 로드하여 설정
+        // 이 시점에는 아직 RoleHierarchyService의 @PostConstruct가 호출되지 않았을 수 있으므로,
+        // RoleHierarchyService 내부에서 ApplicationContext를 주입받아 setHierarchy를 호출하는 방식이 더 안전합니다.
+        // 또는 RoleHierarchyService의 reloadRoleHierarchyBean()을 명시적으로 호출합니다.
+        // 여기서는 RoleHierarchyService가 빈으로 주입되고, 그 서비스의 메서드가 호출될 때 계층이 설정된다고 가정합니다.
+        // Spring이 빈 의존성을 해결하는 순서 때문에 복잡해질 수 있습니다.
+        // 간단하게는, RoleHierarchyService의 init() 또는 @PostConstruct 메서드에서
+        // applicationRoleHierarchy.setHierarchy()를 호출하도록 합니다.
+        // PlatformSecurityConfig의 생성자가 실행될 때 RoleHierarchyService는 이미 생성되어 있습니다.
+        roleHierarchyService.reloadRoleHierarchyBean(); // 애플리케이션 시작 시 DB 에서 계층 로드 및 설정
         return roleHierarchy;
     }
 

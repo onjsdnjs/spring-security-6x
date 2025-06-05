@@ -2,6 +2,7 @@ package io.springsecurity.springsecurity6x.security.statemachine.config;
 
 import io.springsecurity.springsecurity6x.security.config.redis.UnifiedRedisConfiguration;
 import io.springsecurity.springsecurity6x.security.properties.AuthContextProperties;
+import io.springsecurity.springsecurity6x.security.statemachine.config.kyro.MfaKryoStateMachineSerialisationService;
 import io.springsecurity.springsecurity6x.security.statemachine.core.event.MfaEventPublisher;
 import io.springsecurity.springsecurity6x.security.statemachine.core.persist.InMemoryStateMachinePersist;
 import io.springsecurity.springsecurity6x.security.statemachine.core.persist.ResilientRedisStateMachinePersist;
@@ -17,18 +18,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.*;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.StateMachinePersist;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.data.redis.*;
-import org.springframework.statemachine.kryo.KryoStateMachineSerialisationService;
 import org.springframework.statemachine.persist.DefaultStateMachinePersister;
-import org.springframework.statemachine.persist.RepositoryStateMachinePersist;
 import org.springframework.statemachine.persist.StateMachinePersister;
-import org.springframework.statemachine.persist.StateMachineRuntimePersister;
-import org.springframework.statemachine.support.DefaultStateMachineContext;
 
 /**
  * 통합 State Machine 설정 - 간소화 버전

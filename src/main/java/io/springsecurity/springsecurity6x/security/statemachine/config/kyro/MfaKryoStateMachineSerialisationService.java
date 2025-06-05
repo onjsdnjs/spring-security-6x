@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.config;
+package io.springsecurity.springsecurity6x.security.statemachine.config.kyro;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;

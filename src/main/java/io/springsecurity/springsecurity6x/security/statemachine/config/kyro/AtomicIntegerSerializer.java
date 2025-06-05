@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.statemachine.config;
+package io.springsecurity.springsecurity6x.security.statemachine.config.kyro;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -6,7 +6,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class AtomicIntegerSerializer extends Serializer<AtomicInteger> {
     @Override

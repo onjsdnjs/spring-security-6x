@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.policy;
 
-import io.springsecurity.springsecurity6x.domain.UserDto;
 import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
@@ -19,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
-import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;

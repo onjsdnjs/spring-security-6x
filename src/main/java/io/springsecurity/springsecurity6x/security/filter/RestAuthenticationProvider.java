@@ -30,7 +30,7 @@ public class RestAuthenticationProvider implements AuthenticationProvider {
         if(!passwordEncoder.matches(password, userDetails.getPassword())){
             throw new BadCredentialsException("Invalid password");
         }
-        UserDto userDto = modelMapper.map(userDetails.getUser(), UserDto.class);
+        UserDto userDto = modelMapper.map(userDetails.getAccount(), UserDto.class);
         return new RestAuthenticationToken(userDto, userDetails.getPassword(), userDetails.getAuthorities());
     }
 

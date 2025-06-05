@@ -1,12 +1,15 @@
 package io.springsecurity.springsecurity6x.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Entity
 @Data
@@ -26,8 +29,11 @@ public class Users {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private String roles; // 예: "ROLE_USER,ROLE_ADMIN"
+    @ManyToMany(fetch = FetchType.LAZY, cascade={CascadeType.MERGE})
+    @JoinTable(name = "user_roles", joinColumns = { @JoinColumn(name = "user_id") }, inverseJoinColumns = {
+            @JoinColumn(name = "role_id") })
+    @ToString.Exclude
+    private Set<Role> userRoles = new HashSet<>();
 
     // --- MFA 관련 필드 ---
     @Column(nullable = false)
@@ -42,13 +48,6 @@ public class Users {
     @Column
     @Temporal(TemporalType.TIMESTAMP)
     private java.util.Date lastMfaUsedAt;
-
-    public Users(String username, String password, String name, String roles) {
-        this.username = username;
-        this.password = password;
-        this.name = name;
-        this.roles = roles;
-    }
 
     private List<String> registeredMfaFactors;
 

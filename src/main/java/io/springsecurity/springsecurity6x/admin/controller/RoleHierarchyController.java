@@ -1,6 +1,7 @@
 package io.springsecurity.springsecurity6x.admin.controller;
 
 import io.springsecurity.springsecurity6x.admin.service.impl.RoleHierarchyService;
+import io.springsecurity.springsecurity6x.domain.dto.RoleHierarchyDto;
 import io.springsecurity.springsecurity6x.entity.RoleHierarchyEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

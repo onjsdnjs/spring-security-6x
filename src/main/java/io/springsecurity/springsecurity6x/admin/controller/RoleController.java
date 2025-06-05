@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Controller
@@ -60,9 +61,9 @@ public class RoleController {
 		Role role = roleService.getRole(id); // Fetch Join으로 Permissions 함께 가져옴
 		RoleDto roleDto = modelMapper.map(role, RoleDto.class);
 
-		// 현재 Role에 할당된 Permission들의 ID 목록을 DTO에 설정
-		List<Long> selectedPermissionIds = role.getPermissions().stream()
-				.map(Permission::getId)
+		// 현재 Role에 할당된 Permission 들의 ID 목록을 DTO에 설정
+		List<Long> selectedPermissionIds = role.getRolePermissions().stream()
+				.map(rp -> rp.getPermission().getId())
 				.toList();
 
 		model.addAttribute("role", roleDto);

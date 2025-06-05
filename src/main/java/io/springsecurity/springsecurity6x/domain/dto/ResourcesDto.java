@@ -13,7 +13,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResourcesDto{
-    private String id;
+    private Long id;
     private String resourceName;
     private String httpMethod;
     private int orderNum;

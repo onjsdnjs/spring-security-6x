@@ -1,42 +1,57 @@
 package io.springsecurity.springsecurity6x.security.service;
 
-import io.springsecurity.springsecurity6x.entity.Users;
-import io.springsecurity.springsecurity6x.entity.Role; // Role 엔티티 import
-import io.springsecurity.springsecurity6x.entity.Permission; // Permission 엔티티 import
+import io.springsecurity.springsecurity6x.entity.*;
+import io.springsecurity.springsecurity6x.security.core.auth.PermissionAuthority;
+import io.springsecurity.springsecurity6x.security.core.auth.RoleAuthority;
 import io.springsecurity.springsecurity6x.security.filter.MfaGrantedAuthority;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet; // HashSet import
-import java.util.Set; // Set import
+import java.util.*;
 
 
 public class CustomUserDetails implements UserDetails {
 
     private final Users users;
-    private final Set<GrantedAuthority> authorities; // GrantedAuthority를 미리 생성하여 저장
+    private final Set<GrantedAuthority> authorities;
 
-    public CustomUserDetails(Users users) {
-        this.users = users;
-        this.authorities = new HashSet<>(); // HashSet으로 초기화
+    public CustomUserDetails(Users user) {
+        this.users = user;
+        this.authorities = initializeAuthorities(user); // 권한 초기화 로직 분리
+    }
 
-        if (users.getUserRoles() != null) {
-            for (Role role : users.getUserRoles()) {
-                // RoleName에 "ROLE_" 프리픽스를 붙여 GrantedAuthority로 추가
-                this.authorities.add(new MfaGrantedAuthority("ROLE_" + role.getRoleName().toUpperCase()));
+    public Users getUsers() {
+        return users;
+    }
 
-                // 2. Role에 연결된 Permissions 추가
-                if (role.getPermissions() != null) {
-                    for (Permission perm : role.getPermissions()) {
-                        // Permission의 name (예: DOCUMENT_READ)을 GrantedAuthority로 추가
-                        this.authorities.add(new MfaGrantedAuthority(perm.getName().toUpperCase()));
-                    }
-                }
-            }
-        }
+    // 권한 초기화 로직을 별도의 private 메서드로 분리
+    private Set<GrantedAuthority> initializeAuthorities(Users user) {
+        Set<GrantedAuthority> collectedAuthorities = new HashSet<>();
+
+        Optional.ofNullable(user.getUserGroups()) // Users가 가진 userGroups (Set<UserGroup>)
+                .orElse(Collections.emptySet()) // null이면 빈 Set 반환
+                .stream()
+                .map(UserGroup::getGroup) // UserGroup에서 Group 엔티티 추출
+                .filter(java.util.Objects::nonNull) // null인 Group 필터링
+                .flatMap(group -> Optional.ofNullable(group.getGroupRoles()).orElse(Collections.emptySet()).stream()) // Group이 가진 groupRoles (Set<GroupRole>)
+                .map(GroupRole::getRole) // GroupRole에서 Role 엔티티 추출
+                .filter(java.util.Objects::nonNull) // null인 Role 필터링
+                .forEach(role -> {
+                    // 1. RoleAuthority 추가
+                    collectedAuthorities.add(new RoleAuthority(role));
+
+                    // 2. Role에 연결된 Permissions 추가
+                    Optional.ofNullable(role.getRolePermissions()) // Role이 가진 rolePermissions (Set<RolePermission>)
+                            .orElse(Collections.emptySet()) // null이면 빈 Set 반환
+                            .stream()
+                            .map(RolePermission::getPermission) // RolePermission에서 Permission 엔티티 추출
+                            .filter(java.util.Objects::nonNull) // null인 Permission 필터링
+                            .forEach(permission -> {
+                                collectedAuthorities.add(new PermissionAuthority(permission));
+                            });
+                });
+
+        return Collections.unmodifiableSet(collectedAuthorities); // 불변 Set으로 반환
     }
 
     @Override

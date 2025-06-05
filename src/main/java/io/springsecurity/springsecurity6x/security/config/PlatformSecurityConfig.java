@@ -16,6 +16,7 @@ import io.springsecurity.springsecurity6x.security.properties.AuthContextPropert
 import io.springsecurity.springsecurity6x.security.service.ott.EmailOneTimeTokenService;
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportResult;
 import io.springsecurity.springsecurity6x.security.utils.writer.AuthResponseWriter;
+import io.springsecurity.springsecurity6x.service.MethodResourceService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

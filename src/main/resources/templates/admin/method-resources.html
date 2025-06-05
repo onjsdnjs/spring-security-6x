@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="ko">
+<head th:replace="~{fragments/common-head :: head-elements(pageTitle='메서드 리소스 목록')}"></head>
+<body class="flex flex-col min-h-screen bg-app-light-gray font-sans text-app-dark-gray">
+
+<div th:insert="~{fragments/header :: header}"></div>
+<div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+<div class="flex flex-1">
+    <aside th:insert="~{fragments/menu :: menu}" class="hidden md:block"></aside>
+
+    <main class="flex-1 p-6 md:p-10">
+        <div class="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <div class="mb-8 flex flex-col sm:flex-row justify-between items-center">
+                <h1 class="text-3xl font-bold text-app-primary mb-4 sm:mb-0">메서드 리소스 목록</h1>
+                <a th:href="@{/admin/method-resources/register}" class="px-6 py-2.5 bg-app-accent text-white font-medium text-xs leading-tight uppercase rounded shadow-md hover:bg-app-accent-hover hover:shadow-lg focus:bg-app-accent-hover focus:shadow-lg focus:outline-none focus:ring-0 active:bg-blue-800 active:shadow-lg transition duration-150 ease-in-out">
+                    새 메서드 리소스 등록
+                </a>
+            </div>
+
+            <div class="overflow-x-auto shadow-md rounded-lg">
+                <table class="min-w-full w-full text-sm text-left text-app-dark-gray">
+                    <thead class="text-xs text-white uppercase bg-app-secondary">
+                    <tr>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">ID</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">클래스명</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">메서드명</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">HTTP 메서드</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">접근 표현식</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">순서</th>
+                        <th scope="col" class="py-3.5 px-6 font-semibold">관리</th>
+                    </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-app-border">
+                    <tr th:each="resource : ${methodResources}">
+                        <td class="py-4 px-6" th:text="${resource.id}">1</td>
+                        <td class="py-4 px-6" th:text="${resource.className}">com.example.service.DocService</td>
+                        <td class="py-4 px-6" th:text="${resource.methodName}">readDocument</td>
+                        <td class="py-4 px-6" th:text="${resource.httpMethod}">GET</td>
+                        <td class="py-4 px-6" th:text="${resource.accessExpression}">hasPermission(#id, 'Document', 'READ')</td>
+                        <td class="py-4 px-6" th:text="${resource.orderNum}">100</td>
+                        <td class="py-4 px-6">
+                            <a th:href="@{/admin/method-resources/{id}(id=${resource.id})}" class="text-app-accent hover:underline mr-3">수정</a>
+                            <a th:href="@{/admin/method-resources/delete/{id}(id=${resource.id})}" class="text-error hover:underline" onclick="return confirm('정말로 이 메서드 리소스를 삭제하시겠습니까?');">삭제</a>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(methodResources)}">
+                        <td colspan="7" class="py-4 px-6 text-center text-slate-500">
+                            표시할 메서드 리소스가 없습니다.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:if="${errorMessage}" class="mt-6 text-center text-error">
+                <p th:text="${errorMessage}"></p>
+            </div>
+            <div th:if="${message}" class="mt-6 text-center text-success">
+                <p th:text="${message}"></p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div th:insert="~{fragments/footer :: footer}" class="mt-auto"></div>
+
+<script th:src="@{/js/token-holder.js}"></script>
+<script th:src="@{/js/init-auth.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initAuth === 'function') {
+            initAuth();
+        }
+        // 토스트 메시지 표시
+        const message = /*[[${message}]]*/ null;
+        if (message) {
+            showToast(message, 'success');
+        }
+        const errorMessage = /*[[${errorMessage}]]*/ null;
+        if (errorMessage) {
+            showToast(errorMessage, 'error');
+        }
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

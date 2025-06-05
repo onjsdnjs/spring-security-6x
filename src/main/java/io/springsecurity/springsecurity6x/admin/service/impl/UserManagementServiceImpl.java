@@ -47,9 +47,6 @@ public class UserManagementServiceImpl implements UserManagementService {
         if (userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
             users.setPassword(passwordEncoder.encode(userDto.getPassword()));
         }
-        // age 필드가 Users 엔티티에 추가되었다면 DTO에서 받아 업데이트
-        // users.setAge(userDto.getAge()); // UserDto에 age 필드 추가 필요
-
         // 3. User-Group 관계 업데이트 (OneToMany - UserGroup 조인 엔티티 활용)
         // 기존 userGroups 관계를 모두 삭제하고 새로운 관계를 설정합니다. (orphanRemoval = true 시 동작)
         users.getUserGroups().clear(); // 기존 연결 끊기

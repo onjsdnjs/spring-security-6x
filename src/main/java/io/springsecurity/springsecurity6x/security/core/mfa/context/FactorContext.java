@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.core.mfa.context;
 
-import io.springsecurity.springsecurity6x.domain.UserDto;
+import io.springsecurity.springsecurity6x.domain.dto.UserDto;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationFlowConfig;
 import io.springsecurity.springsecurity6x.security.core.config.AuthenticationStepConfig;
 import io.springsecurity.springsecurity6x.security.core.dsl.option.AuthenticationProcessingOptions;

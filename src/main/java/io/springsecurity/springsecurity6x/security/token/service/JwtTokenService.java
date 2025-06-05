@@ -2,7 +2,7 @@ package io.springsecurity.springsecurity6x.security.token.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
-import io.springsecurity.springsecurity6x.domain.UserDto;
+import io.springsecurity.springsecurity6x.domain.dto.UserDto;
 import io.springsecurity.springsecurity6x.security.enums.TokenType;
 import io.springsecurity.springsecurity6x.security.exception.TokenCreationException;
 import io.springsecurity.springsecurity6x.security.exception.TokenInvalidException;
@@ -17,7 +17,6 @@ import io.springsecurity.springsecurity6x.security.token.transport.TokenTranspor
 import io.springsecurity.springsecurity6x.security.token.transport.TokenTransportStrategy;
 import io.springsecurity.springsecurity6x.security.token.validator.TokenValidator;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.Authentication;

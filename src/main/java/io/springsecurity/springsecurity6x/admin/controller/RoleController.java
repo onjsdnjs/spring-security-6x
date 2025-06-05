@@ -4,6 +4,8 @@ import io.springsecurity.springsecurity6x.admin.service.RoleService;
 import io.springsecurity.springsecurity6x.domain.dto.RoleDto;
 import io.springsecurity.springsecurity6x.entity.Permission;
 import io.springsecurity.springsecurity6x.entity.Role;
+import io.springsecurity.springsecurity6x.repository.PermissionRepository;
+import io.springsecurity.springsecurity6x.security.permission.PermissionService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Controller;
@@ -21,7 +23,8 @@ import java.util.Set;
 public class RoleController {
 
 	private final RoleService roleService;
-	private final PermissionSer roleService;
+	private final PermissionService permissionService;
+	private final PermissionRepository permissionRepository;
 
 	@GetMapping(value="/admin/roles")
 	public String getRoles(Model model) {

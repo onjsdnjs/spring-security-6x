@@ -29,6 +29,13 @@ spring:
 #      resourceserver:
 #        jwt:
 #          jwk-set-uri: http://localhost:9000/oauth2/jwks
+
+  cache:
+    type: redis
+    redis:
+      cache-null-values: false # null 값 캐싱 여부
+      time-to-live: 3600000 # 1시간 (밀리초)
+
   # Spring Data Redis 설정
   data:
     redis:

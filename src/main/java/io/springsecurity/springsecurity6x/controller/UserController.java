@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.controller;
 
-import io.springsecurity.springsecurity6x.domain.UserDto;
+import io.springsecurity.springsecurity6x.domain.dto.UserDto;
 import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

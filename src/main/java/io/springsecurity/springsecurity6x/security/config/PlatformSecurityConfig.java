@@ -36,7 +36,6 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
@@ -68,7 +67,6 @@ public class PlatformSecurityConfig {
     private final DocumentService documentService;
     private final RoleHierarchyService roleHierarchyService;
 
-    // CustomMethodSecurityExpressionHandler 빈 등록
     @Bean
     public MethodSecurityExpressionHandler methodSecurityExpressionHandler(
             CustomPermissionEvaluator customPermissionEvaluator,
@@ -104,15 +102,10 @@ public class PlatformSecurityConfig {
     public PlatformConfig platformDslConfig(IdentityDslRegistry<HttpSecurity> registry) throws Exception {
         log.info("Configuring Platform Security DSL...");
 
-        String rpId = applicationContext.getEnvironment().getProperty("spring.security.webauthn.relyingparty.id", "localhost");
-
-        // 공통 HTTP 설정 (이전과 유사)
         SafeHttpCustomizer<HttpSecurity> globalHttpCustomizer = http -> {
                 http
-                    .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
                     .authorizeHttpRequests(authReq -> authReq
-                            .requestMatchers(PathRequest.toH2Console()).permitAll()
-                            .requestMatchers( // 기존 permitAll 경로 유지
+                            .requestMatchers(
                                     "/css/**", "/js/**", "/images/**", "/favicon.ico",
                                     "/", "/authMode","/home",
                                     "/loginForm", "/register",

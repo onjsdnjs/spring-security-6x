@@ -3,6 +3,8 @@ spring:
     url: jdbc:postgresql://localhost:5432/identity
     username: admin
     password: 1111
+    hikari:
+      auto-commit: false
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -14,7 +16,6 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: update
-#        default_schema: auth
         jdbc:
           lob:
             non_contextual_creation: true

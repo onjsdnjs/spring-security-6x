@@ -1,8 +1,8 @@
 package io.springsecurity.springsecurity6x.security.authz.resolver;
 
 import io.springsecurity.springsecurity6x.security.authz.risk.RiskEngine;
-import io.springsecurity.springsecurity6x.security.expression.ExpressionEvaluator;
-import io.springsecurity.springsecurity6x.security.expression.WebSpelExpressionEvaluator;
+import io.springsecurity.springsecurity6x.security.authz.expression.ExpressionEvaluator;
+import io.springsecurity.springsecurity6x.security.authz.expression.WebSpelExpressionEvaluator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
@@ -24,7 +24,7 @@ public class ExpressionAuthorizationManagerResolver {
             if (evaluator.supports(expression)) {
 
                 // <<< 핵심 개선: WebExpressionAuthorizationManager 생성 시 리스크 점수를 주입하도록 변경 >>>
-                if (evaluator instanceof io.springsecurity.springsecurity6x.security.expression.WebSpelExpressionEvaluator) {
+                if (evaluator instanceof WebSpelExpressionEvaluator) {
                     WebExpressionAuthorizationManager manager = new WebExpressionAuthorizationManager(expression);
 
                     // DefaultWebSecurityExpressionHandler를 커스터마이징하여 RiskEngine을 설정

@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.expression;
+package io.springsecurity.springsecurity6x.security.authz.expression;
 
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManager;

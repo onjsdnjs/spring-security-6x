@@ -3,6 +3,7 @@ package io.springsecurity.springsecurity6x.admin.service.impl;
 import io.springsecurity.springsecurity6x.admin.repository.RoleHierarchyRepository;
 import io.springsecurity.springsecurity6x.admin.repository.RoleRepository;
 import io.springsecurity.springsecurity6x.entity.RoleHierarchyEntity;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -10,6 +11,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +27,16 @@ public class RoleHierarchyService {
 
     private final RoleHierarchyRepository roleHierarchyRepository;
     private final RoleRepository roleRepository;
-    private final ObjectProvider<RoleHierarchyImpl> roleHierarchyProvider;
+    private final RoleHierarchyImpl roleHierarchy;
+
+    /**
+     * RoleHierarchyService 빈 생성이 완료된 후, RoleHierarchyImpl 빈에 계층 정보를 설정합니다.
+     */
+    @PostConstruct // <<< 이 메서드를 추가합니다.
+    public void initializeRoleHierarchy() {
+        log.info("Initializing RoleHierarchyService and setting initial RoleHierarchyImpl hierarchy...");
+        reloadRoleHierarchyBean();
+    }
 
     /**
      * 모든 역할 계층 설정을 조회합니다.
@@ -161,7 +172,7 @@ public class RoleHierarchyService {
         try {
             String hierarchyString = getActiveRoleHierarchyString(); // DB에서 활성화된 계층 문자열 로드 (캐시 사용)
             // ObjectProvider를 통해 RoleHierarchyImpl 빈을 가져와 설정
-            roleHierarchyProvider.getObject().setHierarchy(hierarchyString); // <<< ObjectProvider 사용
+            roleHierarchy.setHierarchy(hierarchyString); // <<< ObjectProvider 사용
             log.info("RoleHierarchyImpl bean reloaded with new hierarchy: \n{}", hierarchyString);
         } catch (Exception e) {
             log.error("Failed to reload RoleHierarchyImpl bean dynamically. Error: {}", e.getMessage(), e);

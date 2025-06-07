@@ -2,15 +2,16 @@ package io.springsecurity.springsecurity6x.security.authz.expression;
 
 import io.springsecurity.springsecurity6x.security.authz.risk.RiskEngine;
 import lombok.RequiredArgsConstructor;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.security.access.expression.SecurityExpressionOperations;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.FilterInvocation; // <<< Supplier, RequestAuthorizationContext 대신 FilterInvocation 사용
+import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.access.expression.DefaultWebSecurityExpressionHandler;
 import org.springframework.stereotype.Component;
 
 /**
- * 기본 SecurityExpressionHandler를 확장하여, SpEL 평가 컨텍스트에
- * 동적인 값(#riskScore 등)을 추가하는 책임을 갖는다.
+ * 커스텀 SpEL Root 객체인 CustomWebSecurityExpressionRoot를 생성하는 책임을 갖는다.
+ * 이것이 스프링 시큐리티가 의도한 공식적인 확장 포인트이다.
  */
 @Component
 @RequiredArgsConstructor
@@ -19,25 +20,19 @@ public class CustomWebSecurityExpressionHandler extends DefaultWebSecurityExpres
     private final RiskEngine riskEngine;
 
     /**
-     * <<< 핵심 수정: 올바른 메서드 시그니처로 오버라이드 >>>
-     * 이 메서드는 WebExpressionAuthorizationManager가 내부적으로 SpEL을 평가하기 직전에 호출됩니다.
-     * @param authentication 현재 인증 객체
-     * @param invocation 현재 요청에 대한 FilterInvocation (request, response 포함)
-     * @return 커스터마이징된 EvaluationContext
+     * <<< 핵심 수정: 올바른 확장 포인트인 createSecurityExpressionRoot 메서드를 오버라이드 >>>
      */
     @Override
-    protected StandardEvaluationContext createEvaluationContext(Authentication authentication, FilterInvocation invocation) {
-        // 1. 부모 클래스의 메서드를 호출하여 기본적인 SpEL 컨텍스트(#auth, #request 등)를 생성합니다.
-        StandardEvaluationContext context = super.createEvaluationContext(authentication, invocation);
+    protected SecurityExpressionOperations createSecurityExpressionRoot(Authentication authentication, FilterInvocation fi) {
+        // 1. 우리가 만든 커스텀 Root 객체를 생성한다.
+        CustomWebSecurityExpressionRoot root = new CustomWebSecurityExpressionRoot(authentication, fi, this.riskEngine);
 
-        // 2. FilterInvocation에서 HttpServletRequest를 안전하게 추출합니다.
-        // FilterInvocation getRequest() is guaranteed to return an HttpServletRequest.
-        var request = invocation.getRequest();
+        // 2. 부모 클래스가 하던 것처럼 필수 컴포넌트(PermissionEvaluator, RoleHierarchy 등)를 설정해준다.
+        root.setPermissionEvaluator(getPermissionEvaluator());
+        root.setTrustResolver(new AuthenticationTrustResolverImpl());
+        root.setRoleHierarchy(getRoleHierarchy());
+        root.setDefaultRolePrefix("ROLE_");
 
-        // 3. RiskEngine을 통해 리스크 점수를 계산하고 SpEL 컨텍스트에 '#riskScore' 변수로 주입합니다.
-        int riskScore = riskEngine.calculateRiskScore(authentication, request);
-        context.setVariable("riskScore", riskScore);
-
-        return context;
+        return root;
     }
 }

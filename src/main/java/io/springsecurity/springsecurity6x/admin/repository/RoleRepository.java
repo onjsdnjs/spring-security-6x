@@ -22,6 +22,6 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      * @param id 조회할 Role ID
      * @return 해당 Role 엔티티 (Optional)
      */
-    @Query("SELECT r FROM Role r LEFT JOIN FETCH r.permissions p WHERE r.id = :id")
+    @Query("SELECT r FROM Role r LEFT JOIN FETCH r.rolePermissions p WHERE r.id = :id")
     Optional<Role> findByIdWithPermissions(Long id); // 이 메서드를 추가합니다.
 }

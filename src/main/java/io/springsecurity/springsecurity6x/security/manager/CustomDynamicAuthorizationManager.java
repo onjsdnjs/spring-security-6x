@@ -24,13 +24,13 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-@Slf4j // Slf4j 어노테이션 추가
-@Component("authorizationManager") // 빈 이름 지정
+@Slf4j
+@Component("authorizationManager")
 @RequiredArgsConstructor
 public class CustomDynamicAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
 
     private final DynamicAuthorizationService dynamicAuthorizationService;
-    private final CacheManager cacheManager; // CacheManager 주입 (캐시 무효화를 위함)
+    private final CacheManager cacheManager;
 
     private List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings;
 

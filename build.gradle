@@ -66,6 +66,8 @@ dependencies {
 
     implementation 'org.apache.commons:commons-pool2:2.11.1'
 
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+
     // Resilience4j
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.1.0'

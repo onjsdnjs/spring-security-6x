@@ -31,7 +31,7 @@ public class UserManagementController {
 	private final GroupService groupService; // GroupService 주입
 
 	@GetMapping
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_READ')") // 권한 설정 예시
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_READ')") // 권한 설정 예시
 	public String getUsers(Model model) {
 		List<Users> users = userManagementService.getUsers(); // Users 엔티티 반환
 		model.addAttribute("users", users); // Model에 Users 엔티티 리스트 그대로 전달
@@ -39,7 +39,7 @@ public class UserManagementController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_UPDATE')") // 권한 설정 예시
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_UPDATE')") // 권한 설정 예시
 	public String modifyUser(@ModelAttribute("user") UserDto userDto, RedirectAttributes ra) { // UserDto 사용
 		try {
 			userManagementService.modifyUser(userDto);
@@ -56,7 +56,7 @@ public class UserManagementController {
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_READ')") // 권한 설정 예시
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_READ')") // 권한 설정 예시
 	public String getUser(@PathVariable Long id, Model model) { // Long 타입으로 변경
 		UserDto userDto = userManagementService.getUser(id); // UserDto 반환
 		List<Role> roleList = roleService.getRolesWithoutExpression(); // 역할 목록 (isExpression이 'N'인 역할)
@@ -85,7 +85,7 @@ public class UserManagementController {
 	}
 
 	@GetMapping("/delete/{id}")
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_DELETE')") // 권한 설정 예시
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('USER_DELETE')") // 권한 설정 예시
 	public String removeUser(@PathVariable Long id, RedirectAttributes ra) { // Long 타입으로 변경
 		try {
 			userManagementService.deleteUser(id);

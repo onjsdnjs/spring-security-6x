@@ -30,7 +30,7 @@ public class ResourcesController {
 	private final ModelMapper modelMapper; // ModelMapper 직접 주입
 
 	@GetMapping
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_READ')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_READ')")
 	public String getResources(Model model) {
 		List<Resources> resources = resourcesService.getResources();
 		model.addAttribute("resources", resources);
@@ -38,7 +38,7 @@ public class ResourcesController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_CREATE')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_CREATE')")
 	public String createResources(@ModelAttribute ResourcesDto resourcesDto,
 								  @RequestParam(value = "selectedRoleIds", required = false) List<Long> selectedRoleIds, // @RequestParam으로 ID 목록 받기
 								  RedirectAttributes ra) {
@@ -70,7 +70,7 @@ public class ResourcesController {
 	}
 
 	@GetMapping(value = "/register")
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_CREATE')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_CREATE')")
 	public String resourcesRegister(Model model) {
 		List<Role> roleList = roleService.getRoles();
 		model.addAttribute("roleList", roleList);
@@ -82,7 +82,7 @@ public class ResourcesController {
 	}
 
 	@GetMapping(value = "/{id}")
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_READ')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_READ')")
 	public String resourceDetails(@PathVariable Long id, Model model) {
 		List<Role> roleList = roleService.getRoles();
 		model.addAttribute("roleList", roleList);
@@ -102,7 +102,7 @@ public class ResourcesController {
 	}
 
 	@PostMapping(value = "/{id}/edit") // 수정 요청 POST 매핑
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_UPDATE')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_UPDATE')")
 	public String updateResources(@PathVariable Long id,
 								  @ModelAttribute ResourcesDto resourcesDto,
 								  @RequestParam(value = "selectedRoleIds", required = false) List<Long> selectedRoleIds, // @RequestParam으로 ID 목록 받기
@@ -135,7 +135,7 @@ public class ResourcesController {
 	}
 
 	@GetMapping(value = "/delete/{id}")
-	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_DELETE')")
+//	@PreAuthorize("hasRole('ADMIN') or hasAuthority('RESOURCE_DELETE')")
 	public String removeResources(@PathVariable Long id, RedirectAttributes ra) throws Exception {
 		try {
 			resourcesService.deleteResources(id);

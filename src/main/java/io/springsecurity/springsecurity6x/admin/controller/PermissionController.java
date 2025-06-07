@@ -29,7 +29,7 @@ public class PermissionController {
      * @return admin/permissions.html 템플릿 경로
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_READ')") // ADMIN 역할 또는 PERMISSION_READ 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_READ')") // ADMIN 역할 또는 PERMISSION_READ 권한 필요
     public String getPermissions(Model model) {
         List<Permission> permissions = permissionService.getAllPermissions();
         model.addAttribute("permissions", permissions);
@@ -43,7 +43,7 @@ public class PermissionController {
      * @return admin/permissiondetails.html 템플릿 경로
      */
     @GetMapping("/register")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_CREATE')") // ADMIN 역할 또는 PERMISSION_CREATE 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_CREATE')") // ADMIN 역할 또는 PERMISSION_CREATE 권한 필요
     public String registerPermissionForm(Model model) {
         model.addAttribute("permission", new PermissionDto()); // 빈 DTO 객체 전달
         log.info("Displaying new permission registration form.");
@@ -57,7 +57,7 @@ public class PermissionController {
      * @return 리다이렉트 경로
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_CREATE')") // ADMIN 역할 또는 PERMISSION_CREATE 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_CREATE')") // ADMIN 역할 또는 PERMISSION_CREATE 권한 필요
     public String createPermission(@ModelAttribute("permission") PermissionDto permissionDto, RedirectAttributes ra) {
         try {
             Permission permission = modelMapper.map(permissionDto, Permission.class);
@@ -81,7 +81,7 @@ public class PermissionController {
      * @return admin/permissiondetails.html 템플릿 경로
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_READ')") // ADMIN 역할 또는 PERMISSION_READ 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_READ')") // ADMIN 역할 또는 PERMISSION_READ 권한 필요
     public String permissionDetails(@PathVariable Long id, Model model) {
         Permission permission = permissionService.getPermission(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid permission ID: " + id));
@@ -98,7 +98,7 @@ public class PermissionController {
      * @return 리다이렉트 경로
      */
     @PostMapping("/{id}/edit")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_UPDATE')") // ADMIN 역할 또는 PERMISSION_UPDATE 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_UPDATE')") // ADMIN 역할 또는 PERMISSION_UPDATE 권한 필요
     public String updatePermission(@PathVariable Long id, @ModelAttribute("permission") PermissionDto permissionDto, RedirectAttributes ra) {
         try {
             permissionDto.setId(id); // URL 경로에서 받은 ID를 DTO에 설정
@@ -123,7 +123,7 @@ public class PermissionController {
      * @return 리다이렉트 경로
      */
     @GetMapping("/delete/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_DELETE')") // ADMIN 역할 또는 PERMISSION_DELETE 권한 필요
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PERMISSION_DELETE')") // ADMIN 역할 또는 PERMISSION_DELETE 권한 필요
     public String deletePermission(@PathVariable Long id, RedirectAttributes ra) {
         try {
             permissionService.deletePermission(id);

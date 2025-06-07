@@ -18,7 +18,8 @@
 <!--                <th:block sec:authorize="isAuthenticated()">-->
                 <th:block sec:authorize="isAnonymous()">
                     <a id="usersLink" th:href="@{/users}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-app-primary-dark hover:text-white transition-colors">사용자 정보</a>
-                    <a id="adminLink" sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-app-primary-dark hover:text-white transition-colors">관리자</a>
+<!--                    <a id="adminLink" sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-app-primary-dark hover:text-white transition-colors">관리자</a>-->
+                    <a id="adminLink" th:href="@{/admin}" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-app-primary-dark hover:text-white transition-colors">관리자</a>
                     <a id="logoutLink" href="#" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-app-primary-dark hover:text-white transition-colors">로그아웃</a>
                 </th:block>
             </nav>

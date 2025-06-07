@@ -26,7 +26,7 @@ public class MySecurityConfig {
 
 
     @Bean
-    @ConditionalOnBean(PlatformConfig.class)
+//    @ConditionalOnBean(PlatformConfig.class)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.build();
     }

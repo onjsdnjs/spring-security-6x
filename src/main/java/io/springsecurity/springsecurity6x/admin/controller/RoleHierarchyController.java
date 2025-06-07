@@ -25,7 +25,7 @@ public class RoleHierarchyController {
     private final ModelMapper modelMapper;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_READ')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_READ')") // 권한 예시
     public String getRoleHierarchies(Model model) {
         List<RoleHierarchyEntity> hierarchies = roleHierarchyService.getAllRoleHierarchies();
         model.addAttribute("hierarchies", hierarchies);
@@ -34,7 +34,7 @@ public class RoleHierarchyController {
     }
 
     @GetMapping("/register")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_CREATE')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_CREATE')") // 권한 예시
     public String registerRoleHierarchyForm(Model model) {
         model.addAttribute("hierarchy", new RoleHierarchyDto()); // 빈 DTO 객체 전달
         log.info("Displaying new role hierarchy registration form.");
@@ -42,7 +42,7 @@ public class RoleHierarchyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_CREATE')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_CREATE')") // 권한 예시
     public String createRoleHierarchy(@ModelAttribute("hierarchy") RoleHierarchyDto hierarchyDto, RedirectAttributes ra) {
         try {
             RoleHierarchyEntity entity = modelMapper.map(hierarchyDto, RoleHierarchyEntity.class);
@@ -60,7 +60,7 @@ public class RoleHierarchyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_READ')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_READ')") // 권한 예시
     public String roleHierarchyDetails(@PathVariable Long id, Model model) {
         RoleHierarchyEntity entity = roleHierarchyService.getRoleHierarchy(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid RoleHierarchy ID: " + id));
@@ -70,7 +70,7 @@ public class RoleHierarchyController {
     }
 
     @PostMapping("/{id}/edit")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_UPDATE')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_UPDATE')") // 권한 예시
     public String updateRoleHierarchy(@PathVariable Long id, @ModelAttribute("hierarchy") RoleHierarchyDto hierarchyDto, RedirectAttributes ra) {
         try {
             hierarchyDto.setId(id); // URL 경로에서 받은 ID를 DTO에 설정
@@ -89,7 +89,7 @@ public class RoleHierarchyController {
     }
 
     @GetMapping("/delete/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_DELETE')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_DELETE')") // 권한 예시
     public String deleteRoleHierarchy(@PathVariable Long id, RedirectAttributes ra) {
         try {
             roleHierarchyService.deleteRoleHierarchy(id);
@@ -103,7 +103,7 @@ public class RoleHierarchyController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_ACTIVATE')") // 권한 예시
+//    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_HIERARCHY_ACTIVATE')") // 권한 예시
     public String activateRoleHierarchy(@PathVariable Long id, RedirectAttributes ra) {
         try {
             roleHierarchyService.activateRoleHierarchy(id);

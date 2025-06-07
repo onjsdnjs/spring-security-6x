@@ -17,10 +17,10 @@ public class AdminController {
     private final PermissionService permissionService; // PermissionService 주입
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')") // ADMIN 역할만 접근 가능
+//    @PreAuthorize("hasRole('ADMIN')") // ADMIN 역할만 접근 가능
     public String adminDashboard(Model model) {
         log.info("Accessing admin dashboard.");
         // 관리자 대시보드에 필요한 데이터 추가 (예: 통계 요약)
-        return "admin"; // admin.html 템플릿
+        return "admin/dashboard"; // dashboard.html 템플릿
     }
 }

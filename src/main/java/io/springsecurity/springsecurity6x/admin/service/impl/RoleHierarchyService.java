@@ -164,7 +164,7 @@ public class RoleHierarchyService {
 
 
     /**
-     * RoleHierarchyImpl 빈에 DB에서 로드한 최신 계층 문자열을 설정합니다.
+     * RoleHierarchyImpl 빈에 DB 에서 로드한 최신 계층 문자열을 설정합니다.
      * 이 메서드는 PlatformSecurityConfig에서 @Bean 초기화 시 호출됩니다.
      * 또한, DB에서 계층 정보가 변경될 때마다 수동으로 호출되어 런타임 갱신을 수행합니다.
      */

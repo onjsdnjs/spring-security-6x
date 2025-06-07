@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.service;
 
-import io.springsecurity.springsecurity6x.security.mapper.UrlRoleMapper;
+import io.springsecurity.springsecurity6x.security.persist.UrlRoleMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;

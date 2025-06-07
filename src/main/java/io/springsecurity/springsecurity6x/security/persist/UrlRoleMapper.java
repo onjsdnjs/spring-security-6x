@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.mapper;
+package io.springsecurity.springsecurity6x.security.persist;
 
 import java.util.Map;
 

@@ -1,6 +1,6 @@
 package io.springsecurity.springsecurity6x.security.service;
 
-import io.springsecurity.springsecurity6x.security.persist.UrlRoleMapper;
+import io.springsecurity.springsecurity6x.security.authz.persist.UrlRoleMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;

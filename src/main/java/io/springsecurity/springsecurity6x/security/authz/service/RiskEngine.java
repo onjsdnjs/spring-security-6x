@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.service;
+package io.springsecurity.springsecurity6x.security.authz.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;

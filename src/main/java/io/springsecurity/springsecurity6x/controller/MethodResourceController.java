@@ -4,7 +4,7 @@ import io.springsecurity.springsecurity6x.admin.service.PermissionService;
 import io.springsecurity.springsecurity6x.admin.service.RoleService;
 import io.springsecurity.springsecurity6x.domain.dto.MethodResourceDto;
 import io.springsecurity.springsecurity6x.entity.MethodResource;
-import io.springsecurity.springsecurity6x.service.MethodResourceService;
+import io.springsecurity.springsecurity6x.security.authz.service.MethodResourceService;
 import io.springsecurity.springsecurity6x.entity.Role; // Role 엔티티 임포트 (MethodResourceRole 관계 관리용)
 import io.springsecurity.springsecurity6x.entity.Permission; // Permission 엔티티 임포트 (MethodResourcePermission 관계 관리용)
 

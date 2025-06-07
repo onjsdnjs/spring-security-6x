@@ -1,8 +1,8 @@
-package io.springsecurity.springsecurity6x.security.method;
+package io.springsecurity.springsecurity6x.security.authz.method;
 
 import io.springsecurity.springsecurity6x.entity.MethodResource;
-import io.springsecurity.springsecurity6x.security.permission.CustomPermissionEvaluator;
-import io.springsecurity.springsecurity6x.service.MethodResourceService;
+import io.springsecurity.springsecurity6x.security.authz.permission.CustomPermissionEvaluator;
+import io.springsecurity.springsecurity6x.security.authz.service.MethodResourceService;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.expression.Expression;

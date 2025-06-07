@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.permission;
+package io.springsecurity.springsecurity6x.security.authz.permission;
 
 import io.springsecurity.springsecurity6x.admin.repository.PermissionRepository;
 import io.springsecurity.springsecurity6x.admin.service.DocumentService;

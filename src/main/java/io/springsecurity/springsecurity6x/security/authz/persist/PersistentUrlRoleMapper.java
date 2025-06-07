@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.security.persist;
+package io.springsecurity.springsecurity6x.security.authz.persist;
 
 import io.springsecurity.springsecurity6x.admin.repository.ResourcesRepository;
 import io.springsecurity.springsecurity6x.entity.Resources;

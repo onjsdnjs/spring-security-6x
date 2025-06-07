@@ -1,4 +1,4 @@
-package io.springsecurity.springsecurity6x.service;
+package io.springsecurity.springsecurity6x.security.authz.service;
 
 import io.springsecurity.springsecurity6x.entity.MethodResource;
 import io.springsecurity.springsecurity6x.admin.repository.MethodResourceRepository;

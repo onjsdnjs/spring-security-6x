@@ -1,6 +1,5 @@
 package io.springsecurity.springsecurity6x.admin.service;
 
-import io.springsecurity.springsecurity6x.domain.dto.AccountDto;
 import io.springsecurity.springsecurity6x.domain.dto.UserDto;
 import io.springsecurity.springsecurity6x.entity.Users;
 

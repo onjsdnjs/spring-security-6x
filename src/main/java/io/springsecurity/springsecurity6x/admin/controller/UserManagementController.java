@@ -10,7 +10,6 @@ import io.springsecurity.springsecurity6x.entity.Users;
 import io.springsecurity.springsecurity6x.security.enums.AuthType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;

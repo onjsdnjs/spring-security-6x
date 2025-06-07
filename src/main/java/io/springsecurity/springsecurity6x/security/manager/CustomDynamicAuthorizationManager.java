@@ -1,93 +1,68 @@
 package io.springsecurity.springsecurity6x.security.manager;
 
+import io.springsecurity.springsecurity6x.security.factory.ExpressionAuthorizationManagerResolver;
 import io.springsecurity.springsecurity6x.security.service.DynamicAuthorizationService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
-import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcherEntry;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+/**
+ * PEP (Policy Enforcement Point): 정책 강제 지점.
+ * - DB로부터 동적 인가 규칙을 로드한다.
+ * - ExpressionAuthorizationManagerResolver를 통해 규칙에 맞는 스프링 시큐리티의 AuthorizationManager를 생성한다.
+ * - 요청이 오면 매칭되는 Manager에게 인가 결정을 위임하고, 그 결과를 강제한다.
+ */
 @Slf4j
-@Component("authorizationManager")
+@Component("customDynamicAuthorizationManager")
 @RequiredArgsConstructor
 public class CustomDynamicAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
 
     private final DynamicAuthorizationService dynamicAuthorizationService;
-    private final CacheManager cacheManager;
+    private final ExpressionAuthorizationManagerResolver managerResolver; // <<< Resolver 주입
 
     private List<RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>>> mappings;
 
     @PostConstruct
-    public void setMapping() {
-        log.info("Initializing dynamic URL-Role mappings...");
-        // DynamicAuthorizationService의 getUrlRoleMappings()는 @Cacheable이 적용될 것입니다.
-        Map<String, String> urlRoleMappings = dynamicAuthorizationService.getUrlRoleMappings();
-
-        this.mappings = urlRoleMappings.entrySet().stream()
+    public void initialize() {
+        this.mappings = dynamicAuthorizationService.getUrlRoleMappings().entrySet().stream()
                 .map(entry -> {
-                    String urlPattern = entry.getKey();
-                    String accessExpression = entry.getValue(); // "ROLE_ADMIN" 또는 "ROLE_USER or ROLE_MANAGER" 등
-                    RequestMatcher requestMatcher = PathPatternRequestMatcher.withDefaults().matcher(urlPattern);
-
-                    AuthorizationManager<RequestAuthorizationContext> manager = new WebExpressionAuthorizationManager(accessExpression);
-                    return new RequestMatcherEntry<>(requestMatcher, manager);
+                    RequestMatcher matcher = PathPatternRequestMatcher.withDefaults().matcher(entry.getKey());
+                    // Resolver를 통해 가장 적합한 스프링 시큐리티의 Manager를 받아옴
+                    AuthorizationManager<RequestAuthorizationContext> manager = managerResolver.resolve(entry.getValue());
+                    return new RequestMatcherEntry<>(matcher, manager);
                 })
                 .collect(Collectors.toList());
-        log.info("Loaded {} dynamic URL-Role mappings.", mappings.size());
+        log.info("Initialized {} dynamic authorization mappings using Spring Security engines.", mappings.size());
     }
 
     @Override
     public AuthorizationDecision check(Supplier<Authentication> authentication, RequestAuthorizationContext request) {
         for (RequestMatcherEntry<AuthorizationManager<RequestAuthorizationContext>> mapping : this.mappings) {
-            RequestMatcher matcher = mapping.getRequestMatcher();
-            RequestMatcher.MatchResult matchResult = matcher.matcher(request.getRequest());
-
-            if (matchResult.isMatch()) {
+            if (mapping.getRequestMatcher().matcher(request.getRequest()).isMatch()) {
                 AuthorizationManager<RequestAuthorizationContext> manager = mapping.getEntry();
-                log.debug("Matching URL: {} with access expression: '{}'",
-                        request.getRequest().getRequestURI(), manager.toString()); // WebExpressionAuthorizationManager는 표현식 문자열을 반환
-                return manager.check(authentication,
-                        new RequestAuthorizationContext(request.getRequest(), matchResult.getVariables()));
+                log.trace("Dispatching to '{}' for URI '{}'", manager.getClass().getSimpleName(), request.getRequest().getRequestURI());
+                // 실제 인가 결정은 스프링 시큐리티의 네이티브 Manager가 수행
+                return manager.check(authentication, request);
             }
         }
-        log.debug("No matching URL pattern found for {}. Defaulting to deny.", request.getRequest().getRequestURI());
-        return new AuthorizationDecision(false); // 매핑된 URL이 없으면 기본적으로 거부
+        return new AuthorizationDecision(false);
     }
 
-    @Override
-    public void verify(Supplier<Authentication> authentication, RequestAuthorizationContext object) {}
-
-    /**
-     * 동적 권한 매핑을 갱신합니다.
-     * 권한 정보가 DB 에서 변경될 때 이 메서드를 호출하여 최신 정보를 로드합니다.
-     */
+    // reload() 메서드는 캐시를 비우고 initialize()를 다시 호출하도록 구현
     public synchronized void reload() {
-        log.info("Reloading dynamic URL-Role mappings...");
-        // PersistentUrlRoleMapper의 캐시를 명시적으로 무효화하여 최신 데이터를 가져오도록 합니다.
-        // usersWithAuthorities` 캐시도 함께 무효화하여 사용자 권한 정보도 최신으로 유지합니다.
-        Optional.ofNullable(cacheManager.getCache("resourcesUrlRoleMappings")).ifPresent(Cache::clear);
-        Optional.ofNullable(cacheManager.getCache("resources")).ifPresent(Cache::clear);
-        Optional.ofNullable(cacheManager.getCache("usersWithAuthorities")).ifPresent(Cache::clear);
-
-        // 이제 setMapping()을 다시 호출하여 새로운 매핑을 로드합니다.
-        setMapping();
-        log.info("Dynamic URL-Role mappings reloaded successfully.");
+        dynamicAuthorizationService.clearCache();
+        initialize();
     }
 }

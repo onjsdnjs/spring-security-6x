@@ -34,6 +34,12 @@
                     <input type="text" id="actionType" th:field="*{actionType}" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" />
                 </div>
 
+                <div>
+                    <label for="conditionExpression" class="block text-sm font-medium text-app-dark-gray">조건 표현식 (SpEL):</label>
+                    <textarea id="conditionExpression" th:field="*{conditionExpression}" rows="3" class="mt-1 block w-full px-4 py-2.5 bg-white border border-app-border rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-app-accent sm:text-sm" placeholder="예: #request.remoteAddr == '192.168.0.1'"></textarea>
+                    <p class="text-xs text-slate-500 mt-1">SpEL을 사용하여 동적 조건을 명시합니다. 비워두면 조건 없이 평가됩니다.</p>
+                </div>
+
                 <div class="pt-2">
                     <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-app-accent hover:bg-app-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-app-accent transition-all duration-150 ease-in-out transform hover:scale-105" th:text="${permission.id != null ? '권한 저장' : '권한 등록'}"></button>
                 </div>
@@ -57,7 +63,6 @@
         if (typeof initAuth === 'function') {
             initAuth();
         }
-        // 토스트 메시지 표시 (필요시)
         const message = /*[[${message}]]*/ null;
         if (message) {
             showToast(message, 'success');

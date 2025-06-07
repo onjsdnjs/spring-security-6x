@@ -2,16 +2,21 @@ package io.springsecurity.springsecurity6x.security.permission;
 
 import io.springsecurity.springsecurity6x.admin.repository.PermissionRepository;
 import io.springsecurity.springsecurity6x.admin.service.DocumentService;
-import io.springsecurity.springsecurity6x.entity.Document;
+import io.springsecurity.springsecurity6x.entity.Permission;
 import io.springsecurity.springsecurity6x.security.core.auth.PermissionAuthority;
-import io.springsecurity.springsecurity6x.security.service.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.Expression;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
+import java.util.Optional;
 
 @Component("customPermissionEvaluator")
 @RequiredArgsConstructor
@@ -20,12 +25,8 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
     private final PermissionRepository permissionRepository;
     private final DocumentService documentService;
+    private final SpelExpressionParser expressionParser = new SpelExpressionParser();
 
-    /**
-     * hasPermission(targetDomainObject, permission)
-     * 예: @PreAuthorize("#dynamicAccessRule.getValue(#root)") 안에서 호출되는 hasPermission(#document, 'READ')
-     * Authentication이 가진 PermissionAuthority를 활용하여 권한을 평가합니다.
-     */
     @Override
     public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
         if (authentication == null || !authentication.isAuthenticated() || !(permission instanceof String)) {
@@ -33,43 +34,21 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             return false;
         }
 
-        String requiredPermissionAction = ((String) permission).toUpperCase(); // 요구되는 행동 타입 (예: "READ", "WRITE")
-        String targetType = (targetDomainObject != null) ? targetDomainObject.getClass().getSimpleName().toUpperCase() : null; // 대상 객체 타입
+        String requiredPermissionAction = ((String) permission).toUpperCase();
+        String targetType = (targetDomainObject != null) ? targetDomainObject.getClass().getSimpleName().toUpperCase() : null;
 
-        // 1. Authentication이 가진 GrantedAuthority 목록에서 해당 PermissionAuthority가 있는지 확인
-        boolean hasRequiredPermission = authentication.getAuthorities().stream()
+        return authentication.getAuthorities().stream()
                 .filter(auth -> auth instanceof PermissionAuthority)
                 .map(auth -> (PermissionAuthority) auth)
-                .anyMatch(pa -> pa.getActionType().equalsIgnoreCase(requiredPermissionAction) &&
-                        (targetType == null || pa.getTargetType().equalsIgnoreCase(targetType)));
-
-        if (hasRequiredPermission) {
-            log.debug("User {} has direct PermissionAuthority for action '{}' on target type '{}'. Proceeding to object-specific check.",
-                    authentication.getName(), requiredPermissionAction, targetType);
-
-            // 객체 소유권 확인 로직 (hasPermission(Serializable, String, Object)에서 자세히 처리)
-            if ("OWNER_CHECK".equalsIgnoreCase(requiredPermissionAction) && targetDomainObject != null) {
-                if (targetDomainObject instanceof Document) {
-                    if (authentication.getPrincipal() instanceof CustomUserDetails) {
-                        String currentUsername = ((CustomUserDetails) authentication.getPrincipal()).getUsername();
-                        Document document = (Document) targetDomainObject;
-                        return documentService.isUserOwnerOfDocument(document.getId(), currentUsername);
-                    }
-                }
-            }
-            return true;
-        }
-
-        log.debug("Permission evaluation denied for user {} for target {} and permission '{}'. No matching PermissionAuthority found.",
-                authentication.getName(), targetDomainObject != null ? targetDomainObject.getClass().getSimpleName() : "null", requiredPermissionAction);
-        return false;
+                .filter(pa -> pa.getActionType().equalsIgnoreCase(requiredPermissionAction) &&
+                        (targetType == null || pa.getTargetType().equalsIgnoreCase(targetType)))
+                .anyMatch(pa -> {
+                    // <<< 변경됨: 권한 확인 후 조건 표현식 평가 로직 추가
+                    log.debug("User {} has base permission '{}'. Evaluating condition...", authentication.getName(), pa.getPermissionName());
+                    return evaluateCondition(pa.getPermissionName(), authentication, targetDomainObject);
+                });
     }
 
-    /**
-     * hasPermission(targetId, targetType, permission)
-     * 예: @PreAuthorize("#dynamicAccessRule.getValue(#root)") 안에서 호출되는 hasPermission(#documentId, 'Document', 'WRITE')
-     * 이 메서드는 특정 ID와 타입에 대한 권한을 평가할 때 사용됩니다.
-     */
     @Override
     public boolean hasPermission(Authentication authentication, Serializable targetId, String targetType, Object permission) {
         if (authentication == null || !authentication.isAuthenticated() || !(permission instanceof String)) {
@@ -81,31 +60,51 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
         String targetDomainType = targetType.toUpperCase();
         String fullPermissionName = targetDomainType + "_" + requiredAction;
 
-        // 1. 사용자에게 직접 부여된 PermissionAuthority 확인
-        boolean hasBasePermission = authentication.getAuthorities().stream()
+        return authentication.getAuthorities().stream()
                 .filter(auth -> auth instanceof PermissionAuthority)
                 .map(auth -> (PermissionAuthority) auth)
-                .anyMatch(pa -> pa.getPermissionName().equalsIgnoreCase(fullPermissionName) &&
-                        (pa.getTargetType() == null || pa.getTargetType().equalsIgnoreCase(targetDomainType)));
+                .filter(pa -> pa.getPermissionName().equalsIgnoreCase(fullPermissionName))
+                .anyMatch(pa -> {
+                    // <<< 변경됨: 권한 확인 후 조건 표현식 평가 로직 추가
+                    // 여기서는 targetDomainObject가 없으므로, SpEL 표현식 내에서 #targetId와 #targetType을 사용할 수 있도록 해야 함.
+                    log.debug("User {} has base permission '{}' for targetId {}. Evaluating condition...",
+                            authentication.getName(), fullPermissionName, targetId);
+                    return evaluateCondition(pa.getPermissionName(), authentication, targetId);
+                });
+    }
 
-        if (hasBasePermission) {
-            log.debug("User {} has PermissionAuthority '{}' for target ID {} and type '{}'. Proceeding to object-specific check.",
-                    authentication.getName(), fullPermissionName, targetId, targetType);
-
-            // 객체 소유권 확인 등 추가적인 DB 조회 기반의 동적 인가 로직 구현
-            if (targetDomainType.equalsIgnoreCase("DOCUMENT")) {
-                if (authentication.getPrincipal() instanceof CustomUserDetails) {
-                    String currentUsername = ((CustomUserDetails) authentication.getPrincipal()).getUsername();
-                    return documentService.isUserOwnerOfDocument(targetId, currentUsername);
-                }
-            }
-            // 다른 도메인 객체 타입에 대한 추가 로직 (예: BOARD, FILE 등)
-
-            return true;
+    /**
+     * <<< 추가됨: SpEL 조건 표현식을 평가하는 메서드 >>>
+     * @param permissionName DB에서 Permission 엔티티를 찾기 위한 권한 이름
+     * @param authentication 현재 인증 객체
+     * @param targetObject 권한 평가 대상 객체 (or targetId)
+     * @return 조건이 없거나, 평가 결과가 true이면 true 반환
+     */
+    private boolean evaluateCondition(String permissionName, Authentication authentication, Object targetObject) {
+        Optional<Permission> permissionOpt = permissionRepository.findByName(permissionName);
+        if (permissionOpt.isEmpty()) {
+            log.warn("Permission '{}' not found in database for condition evaluation.", permissionName);
+            return false; // DB에 권한이 없으면 거부
         }
 
-        log.debug("Permission evaluation denied for user {} on target ID {} (type '{}') with permission '{}'. No matching PermissionAuthority found.",
-                authentication.getName(), targetId, targetType, fullPermissionName);
-        return false;
+        String condition = permissionOpt.get().getConditionExpression();
+        if (!StringUtils.hasText(condition)) {
+            return true; // 조건이 없으면 항상 통과
+        }
+
+        try {
+            EvaluationContext context = new StandardEvaluationContext();
+            context.setVariable("auth", authentication); // #auth로 Authentication 객체 접근
+            context.setVariable("user", authentication.getPrincipal()); // #user로 Principal 객체 접근
+            context.setVariable("target", targetObject); // #target으로 대상 객체 또는 ID 접근
+
+            Expression expression = expressionParser.parseExpression(condition);
+            Boolean result = expression.getValue(context, Boolean.class);
+            log.debug("Evaluated condition '{}' for permission '{}': Result is {}", condition, permissionName, result);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            log.error("Error evaluating SpEL condition '{}' for permission '{}'", condition, permissionName, e);
+            return false; // 평가 중 오류 발생 시 안전하게 거부
+        }
     }
 }

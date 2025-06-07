@@ -11,7 +11,7 @@ spring:
     database: POSTGRESQL
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate  # production: validate, development: update
+      ddl-auto: update  # production: validate, development: update
     properties:
       hibernate:
         format_sql: true

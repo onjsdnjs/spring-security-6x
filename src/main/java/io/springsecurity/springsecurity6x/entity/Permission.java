@@ -5,7 +5,7 @@ import lombok.*;
 import java.io.Serializable;
 
 @Entity
-@Table(name = "PERMISSION") // 테이블 이름은 PERMISSION
+@Table(name = "PERMISSION")
 @Getter
 @Setter
 @Builder
@@ -18,16 +18,18 @@ public class Permission implements Serializable {
     private Long id;
 
     @Column(name = "permission_name", unique = true, nullable = false)
-    private String name; // 예: DOCUMENT_READ, BOARD_CREATE, FILE_DELETE
+    private String name;
 
     @Column(name = "description")
     private String description;
 
-    @Column(name = "target_type") // 이 권한이 적용되는 대상 도메인 객체 타입 (예: "Document", "Board")
+    @Column(name = "target_type")
     private String targetType;
 
-    @Column(name = "action_type") // 이 권한이 허용하는 구체적인 행동 (예: "READ", "WRITE", "DELETE", "UPDATE")
-    private String actionType; // 'action'은 SQL 키워드일 수 있으므로 'action_type'으로 변경
+    @Column(name = "action_type")
+    private String actionType;
 
-    // 다른 속성 추가 가능: createdBy, createdAt, updatedBy, updatedAt 등
+    // ABAC 조건을 위한 SpEL 표현식 필드
+    @Column(name = "condition_expression", length = 2048)
+    private String conditionExpression;
 }

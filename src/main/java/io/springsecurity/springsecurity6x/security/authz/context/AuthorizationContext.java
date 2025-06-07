@@ -9,13 +9,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * 이 객체는 ContextHandler에 의해 생성되어 PolicyEngine으로 전달됩니다.
  */
 public record AuthorizationContext(
-        Authentication authentication,    // 주체 (누가)
+        Authentication subject,    // 주체 (누가)
         ResourceDetails resource,    // 자원 (무엇을)
         String action,             // 행동 (어떻게)
         EnvironmentDetails environment, // 환경 (어떤 상황에서)
         Map<String, Object> attributes // PIP를 통해 동적으로 로드된 추가 속성
 ) {
-    public AuthorizationContext(Authentication authentication, ResourceDetails resource, String action, EnvironmentDetails environment) {
-        this(authentication, resource, action, environment, new ConcurrentHashMap<>());
+    public AuthorizationContext(Authentication subjext, ResourceDetails resource, String action, EnvironmentDetails environment) {
+        this(subjext, resource, action, environment, new ConcurrentHashMap<>());
     }
 }

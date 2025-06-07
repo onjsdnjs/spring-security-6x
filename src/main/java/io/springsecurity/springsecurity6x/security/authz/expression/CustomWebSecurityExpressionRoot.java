@@ -1,31 +1,45 @@
 package io.springsecurity.springsecurity6x.security.authz.expression;
 
+import io.springsecurity.springsecurity6x.security.authz.context.AuthorizationContext;
+import io.springsecurity.springsecurity6x.security.authz.pip.AttributeInformationPoint;
 import io.springsecurity.springsecurity6x.security.authz.risk.RiskEngine;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.access.expression.WebSecurityExpressionRoot;
+import java.util.Map;
 
-/**
- * SpEL 표현식 평가의 루트 객체.
- * 기본 WebSecurityExpressionRoot를 확장하여 커스텀 메서드나 프로퍼티를 추가한다.
- * SpEL에서 'riskScore'와 같이 직접 접근할 수 있다.
- */
 public class CustomWebSecurityExpressionRoot extends WebSecurityExpressionRoot {
 
     private final RiskEngine riskEngine;
+    private final AttributeInformationPoint attributePIP;
+    private final AuthorizationContext authzContext;
 
-    public CustomWebSecurityExpressionRoot(Authentication authentication, FilterInvocation fi, RiskEngine riskEngine) {
+    public CustomWebSecurityExpressionRoot(Authentication authentication, FilterInvocation fi,
+                                           RiskEngine riskEngine, AttributeInformationPoint attributePIP,
+                                           AuthorizationContext authzContext) {
         super(authentication, fi);
         this.riskEngine = riskEngine;
+        this.attributePIP = attributePIP;
+        this.authzContext = authzContext;
+    }
+
+    public int getRiskScore() {
+        return riskEngine.calculateRiskScore(getAuthentication(), this.request);
     }
 
     /**
-     * SpEL 표현식에서 'riskScore'로 접근할 수 있는 프로퍼티(getter)를 제공한다.
-     * 예: @PreAuthorize("hasRole('ADMIN') and riskScore < 70")
-     * @return 현재 요청에 대한 위험도 점수
+     * SpEL 표현식에서 #root.getAttribute('key') 형태로 동적 속성을 조회하는 메서드.
      */
-    public int getRiskScore() {
-        // 실제 리스크 점수 계산은 RiskEngine에 위임
-        return riskEngine.calculateRiskScore(getAuthentication(), this.request);
+    public Object getAttribute(String key) {
+        // 1. 이미 컨텍스트에 로드된 속성이면 바로 반환
+        if (authzContext.attributes().containsKey(key)) {
+            return authzContext.attributes().get(key);
+        }
+
+        // 2. 없다면 PIP를 통해 조회하고 컨텍스트에 저장 후 반환 (Lazy Loading)
+        Map<String, Object> fetchedAttributes = attributePIP.getAttributes(authzContext);
+        authzContext.attributes().putAll(fetchedAttributes);
+
+        return authzContext.attributes().get(key);
     }
 }

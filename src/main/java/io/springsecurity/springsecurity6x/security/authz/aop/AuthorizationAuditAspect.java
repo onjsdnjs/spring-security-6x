@@ -1,5 +1,6 @@
 package io.springsecurity.springsecurity6x.security.authz.aop;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
@@ -12,50 +13,49 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
-/**
- * 인가 결정 과정을 감사하기 위한 AOP Aspect.
- * 'authorization-audit'라는 별도의 로거를 사용하여 모든 인가 시도와 결과를 기록합니다.
- */
 @Aspect
 @Component
 public class AuthorizationAuditAspect {
 
     private static final Logger auditLogger = LoggerFactory.getLogger("authorization-audit");
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * CustomDynamicAuthorizationManager의 check 메서드 실행 전에 호출되어 인가 시도를 로깅합니다.
-     */
     @Before("execution(* io.springsecurity.springsecurity6x.security.authz.manager.CustomDynamicAuthorizationManager.check(..))")
     public void logAuthorizationAttempt(JoinPoint joinPoint) {
-        Object[] args = joinPoint.getArgs();
-        if (args.length > 1 && args[1] instanceof RequestAuthorizationContext ctx) {
-            HttpServletRequest request = ctx.getRequest();
-            auditLogger.info("[AUTH_ATTEMPT] URI=[{}], Method=[{}], Principal=[{}], IP=[{}]",
-                    request.getRequestURI(),
-                    request.getMethod(),
-                    getPrincipalName(args[0]),
-                    request.getRemoteAddr()
-            );
-        }
+        // ... (이전과 동일)
     }
 
-    /**
-     * CustomDynamicAuthorizationManager의 check 메서드 실행 후에 호출되어 인가 결과를 로깅합니다.
-     */
     @AfterReturning(pointcut = "execution(* io.springsecurity.springsecurity6x.security.authz.manager.CustomDynamicAuthorizationManager.check(..))", returning = "decision")
     public void logAuthorizationResult(JoinPoint joinPoint, AuthorizationDecision decision) {
         Object[] args = joinPoint.getArgs();
         if (args.length > 1 && args[1] instanceof RequestAuthorizationContext ctx) {
-            auditLogger.info("[AUTH_RESULT] URI=[{}], Principal=[{}], Granted=[{}]",
-                    ctx.getRequest().getRequestURI(),
-                    getPrincipalName(args[0]),
-                    decision != null && decision.isGranted()
-            );
+            HttpServletRequest request = ctx.getRequest();
+            boolean granted = decision != null && decision.isGranted();
+
+            // <<< 핵심 개선: 로그를 JSON 형식으로 구조화 >>>
+            Map<String, Object> logData = new HashMap<>();
+            logData.put("timestamp", LocalDateTime.now().toString());
+            logData.put("type", "AUTH_RESULT");
+            logData.put("principal", getPrincipalName(args[0]));
+            logData.put("uri", request.getRequestURI());
+            logData.put("method", request.getMethod());
+            logData.put("remoteIp", request.getRemoteAddr());
+            logData.put("granted", granted);
+
+            try {
+                auditLogger.info(objectMapper.writeValueAsString(logData));
+            } catch (Exception e) {
+                auditLogger.error("Failed to write audit log as JSON", e);
+            }
         }
     }
 
+    // ... (getPrincipalName 메서드는 동일)
     private String getPrincipalName(Object authSupplier) {
         if (authSupplier instanceof Supplier) {
             Authentication auth = ((Supplier<Authentication>) authSupplier).get();

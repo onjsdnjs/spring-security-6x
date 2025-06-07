@@ -4,25 +4,41 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalTime;
 import java.util.Set;
 
 @Service
 public class DefaultRiskEngine implements RiskEngine {
 
-    // 실제 운영 환경에서는 DB나 외부 시스템에서 관리되어야 합니다.
     private static final Set<String> TRUSTED_IPS = Set.of("127.0.0.1", "0:0:0:0:0:0:0:1");
+    // 업무 시간: 오전 9시 ~ 오후 7시
+    private static final LocalTime BUSINESS_HOUR_START = LocalTime.of(9, 0);
+    private static final LocalTime BUSINESS_HOUR_END = LocalTime.of(19, 0);
 
     @Override
     public int calculateRiskScore(Authentication authentication, HttpServletRequest request) {
-        String remoteIp = request.getRemoteAddr();
+        int score = 0;
 
-        // 신뢰된 IP 에서 온 요청은 낮은 위험도(10)를 가집니다.
-        if (TRUSTED_IPS.contains(remoteIp)) {
-            return 10;
+        // 1. IP 기반 평가
+        String remoteIp = request.getRemoteAddr();
+        if (!TRUSTED_IPS.contains(remoteIp)) {
+            score += 30; // 신뢰되지 않은 IP
         }
 
-        // 그 외의 경우는 중간 수준의 위험도(50)를 가집니다.
-        // 향후: 로그인 시간, 사용자 에이전트, 이전 로그인 기록 등을 분석하여 점수를 동적으로 계산
-        return 50;
+        // 2. 시간 기반 평가
+        LocalTime now = LocalTime.now();
+        if (now.isBefore(BUSINESS_HOUR_START) || now.isAfter(BUSINESS_HOUR_END)) {
+            score += 20; // 업무 시간 외 접근
+        }
+
+        // 3. 관리자 권한에 대한 가중치
+        if (authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            score += 10; // ADMIN은 항상 더 높은 주의 필요
+        }
+
+        // 향후: UserActivityLogService를 주입받아 과거 이력과 비교하는 로직 추가
+
+        return Math.min(100, score); // 최대 100점
     }
 }

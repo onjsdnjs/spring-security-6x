@@ -266,3 +266,29 @@ INSERT INTO DOCUMENT (document_id, title, content, owner_username, created_at) V
 INSERT INTO ROLE_HIERARCHY_RELATIONSHIP (parent_role_id, child_role_id) VALUES
                                                                             ((SELECT role_id FROM ROLE WHERE role_name = 'ADMIN'), (SELECT role_id FROM ROLE WHERE role_name = 'MANAGER')),
                                                                             ((SELECT role_id FROM ROLE WHERE role_name = 'MANAGER'), (SELECT role_id FROM ROLE WHERE role_name = 'USER'));
+
+-- 5. 새로운 Policy 모델에 대한 데이터 추가
+-- 정책 1: 관리자는 모든 admin 경로에 접근 가능
+INSERT INTO POLICY(id, name, description, effect, priority) VALUES (1, 'Admin Full Access', '관리자는 /admin/** 경로에 모든 권한을 가짐', 'ALLOW', 10);
+INSERT INTO POLICY_TARGET(id, policy_id, target_type, target_identifier) VALUES (1, 1, 'URL', '/admin/**');
+INSERT INTO POLICY_RULE(id, policy_id, description) VALUES (1, 1, 'Admin Role Check');
+INSERT INTO POLICY_CONDITION(id, rule_id, expression) VALUES (1, 1, 'hasRole(''ADMIN'')');
+
+-- 정책 2: 사용자는 자신의 정보(/users/{username})에만 접근 가능 (ABAC)
+-- 참고: 현재 구현에서는 URL 패턴만 지원하므로, SpEL에서 #request 객체를 활용하는 방식으로 표현
+INSERT INTO POLICY(id, name, description, effect, priority) VALUES (2, 'User Access Own Data', '사용자는 자신의 사용자 정보 페이지만 접근 가능', 'ALLOW', 20);
+INSERT INTO POLICY_TARGET(id, policy_id, target_type, target_identifier) VALUES (2, 2, 'URL', '/users/{username}');
+INSERT INTO POLICY_RULE(id, policy_id, description) VALUES (2, 2, 'Ownership Check');
+INSERT INTO POLICY_CONDITION(id, rule_id, expression) VALUES (2, 2, 'authentication.name == #request.variable(''username'')');
+
+-- <<< 정책 3: 지능형/적응형 정책 예시 >>>
+-- '재무팀 문서를 원격지에서 접근 시' 매우 높은 수준의 보안 요구
+INSERT INTO POLICY(id, name, description, effect, priority) VALUES (3, 'High-Security Financial Document Access', '재무팀 문서는 위험도가 40 미만일 때만 접근 허용', 'ALLOW', 5);
+INSERT INTO POLICY_TARGET(id, policy_id, target_type, target_identifier) VALUES (3, 3, 'URL', '/docs/financial/**');
+INSERT INTO POLICY_RULE(id, policy_id, description) VALUES (3, 3, 'Finance Role And Low Risk');
+-- 조건 1: 재무팀 역할(GROUP)을 가져야 함 (GROUP 기반 인가)
+INSERT INTO POLICY_CONDITION(id, rule_id, expression) VALUES (3, 3, 'hasAuthority(''ROLE_FINANCE'')'); -- 예시 역할
+-- 조건 2: 리스크 점수가 40 미만이어야 함 (Risk-Based 인가)
+INSERT INTO POLICY_CONDITION(id, rule_id, expression) VALUES (4, 3, 'riskScore < 40');
+-- 조건 3: 사용자 나이가 30 이상이어야 함 (Attribute-Based 인가)
+INSERT INTO POLICY_CONDITION(id, rule_id, expression) VALUES (5, 3, '#root.getAttribute(''userAge'') >= 30');
